@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter, useLocation } from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import BottomNav from './BottomNav';
@@ -14,9 +14,19 @@ const { useIsMobile } = vi.hoisted(() => ({
   useIsMobile: vi.fn(),
 }));
 
+const { getConversations, getMyCruushActivity, getFeedPosts } = vi.hoisted(() => ({
+  getConversations: vi.fn(),
+  getMyCruushActivity: vi.fn(),
+  getFeedPosts: vi.fn(),
+}));
+
 vi.mock('./ui/use-mobile', () => ({
   useIsMobile,
 }));
+
+vi.mock('../lib/messagesApi', () => ({ getConversations }));
+vi.mock('../lib/cruushApi', () => ({ getMyCruushActivity }));
+vi.mock('../lib/postApi', () => ({ getFeedPosts }));
 
 function LocationProbe() {
   const location = useLocation();
@@ -27,7 +37,14 @@ describe('BottomNav', () => {
   beforeEach(() => {
     useIsMobile.mockReset();
     useIsMobile.mockReturnValue(false);
+    getConversations.mockReset();
+    getMyCruushActivity.mockReset();
+    getFeedPosts.mockReset();
+    getConversations.mockResolvedValue([]);
+    getMyCruushActivity.mockResolvedValue({ incoming: [], mutual: [] });
+    getFeedPosts.mockResolvedValue([]);
     window.localStorage.removeItem(DESKTOP_PAGE_LAYOUT_STORAGE_KEY);
+    window.localStorage.removeItem('feed.mutual.seenAt');
   });
 
   it('keeps the supplied no-notch cruush logo as the canonical full-logo asset', () => {
@@ -64,6 +81,27 @@ describe('BottomNav', () => {
     expect(screen.queryByText('cruush')).not.toBeInTheDocument();
     expect(screen.queryByText('Messages')).not.toBeInTheDocument();
     expect(screen.queryByText('Profile')).not.toBeInTheDocument();
+  });
+
+  it('flashes Feed when a mutual cruush has posted since Feed was last opened', async () => {
+    getMyCruushActivity.mockResolvedValue({
+      incoming: [],
+      mutual: [{ user: { id: 'mutual-user' } }],
+    });
+    getFeedPosts.mockResolvedValue([{
+      id: 'mutual-post',
+      createdAt: '2099-01-01T00:00:00.000Z',
+      user: { id: 'mutual-user' },
+    }]);
+
+    render(
+      <MemoryRouter initialEntries={['/map']}>
+        <BottomNav />
+      </MemoryRouter>
+    );
+
+    await waitFor(() => expect(screen.getByRole('button', { name: /feed/i }))
+      .toHaveAttribute('aria-description', 'New posts from mutual cruushes'));
   });
 
   it('renders a contained pill surface without a progressive fade overlay on the map', () => {
@@ -105,7 +143,7 @@ describe('BottomNav', () => {
     expect(backdrop).toHaveClass('h-28', 'from-background', 'from-[68%]', 'via-background/96', 'via-[82%]', 'to-background/0');
   });
 
-  it('keeps only the three approved destinations in the reduced out-of-service capsule', () => {
+  it('keeps Feed available in the reduced out-of-service capsule', () => {
     render(
       <MemoryRouter initialEntries={['/map']}>
         <BottomNav outsideServiceArea />
@@ -113,11 +151,29 @@ describe('BottomNav', () => {
     );
 
     expect(screen.queryByRole('button', { name: /map/i })).not.toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: /feed/i })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /feed/i })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /^cruush$/i })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /messages/i })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /profile/i })).toBeInTheDocument();
-    expect(screen.getByTestId('bottom-nav-pill')).toHaveAttribute('data-capsule-width', '192');
+    expect(screen.getByTestId('bottom-nav-pill')).toHaveAttribute('data-capsule-width', '368');
+  });
+
+  it('flashes Feed once and removes the page-bottom fade for the reduced out-of-service navigation', async () => {
+    render(
+      <MemoryRouter initialEntries={['/messages']}>
+        <BottomNav outsideServiceArea />
+      </MemoryRouter>
+    );
+
+    const nav = screen.getByRole('navigation');
+    const feed = screen.getByRole('button', { name: /feed/i });
+
+    await waitFor(() => expect(feed).toHaveAttribute('aria-description', 'Open Feed'));
+    expect(nav.querySelector('.bg-gradient-to-t')).toBeNull();
+
+    fireEvent.click(feed);
+
+    expect(feed).not.toHaveAttribute('aria-description');
   });
 
   it('uses icon tone alone for active tabs without a resting grey circle', () => {

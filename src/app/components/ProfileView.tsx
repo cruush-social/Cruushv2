@@ -35,11 +35,21 @@ import mileHighClubWhite from '../assets/ui-icons/mile-high-club-white.svg';
 import InAppShareDialog from './InAppShareDialog';
 import AppPageHeader from './AppPageHeader';
 import BugButtonSlot from './BugButtonSlot';
+import { Tooltip, TooltipContent, TooltipTrigger } from './ui/tooltip';
+import PurgatoryMemberBadge from './PurgatoryMemberBadge';
+import { useMapServiceArea } from './MapServiceAreaContext';
 
 type ProfileLocationState = {
   distance?: string;
   lastActive?: string;
 };
+
+function isServerCoarseLocationLabel(label: string | null | undefined): label is string {
+  // Server coarse copy is literal; town/state-country labels contain a comma.
+  return label === 'Among sinners'
+    || label === 'Far far away'
+    || (typeof label === 'string' && label.includes(','));
+}
 
 const PROFILE_VIEW_HEADER_HEIGHT = '4.3125rem';
 const PROFILE_VIEW_STYLE = {
@@ -58,10 +68,6 @@ export const PROFILE_OVERLAY_TEXT_STYLE = {
     '0 2px 3px rgba(0, 0, 0, 0.55)',
   ].join(', '),
 };
-
-const PROFILE_VIEW_GALLERY_FRAME_STYLE = {
-  width: 'min(100%, 30rem)',
-} as const;
 
 type ProfileSafetyDialogStyle = CSSProperties & {
   '--profile-safety-dialog-height': string;
@@ -137,6 +143,7 @@ export type ProfileViewModel = {
   /** Reading from a travel pin rather than a live location. */
   travelling: boolean;
   travelLabel: string;
+  outOfSight: boolean;
   bio: string;
   tags: string[];
   signal: string;
@@ -215,16 +222,20 @@ function removeViewerCruush(profile: ProfileRecord, mutualRevoked: boolean): Pro
 export function profileRecordToProfileView(
   profile: ProfileRecord,
   previewState: ProfileLocationState | null = null,
+  preferServerDistance = false,
 ): ProfileViewModel {
+  const serverDistance = profile.distance_label ?? null;
+  const serverDistanceAuthoritative = preferServerDistance
+    || profile.outOfSight === true
+    || isServerCoarseLocationLabel(serverDistance);
   return {
     id: profile.id,
     name: profile.display_name || 'cruush user',
     age: deriveAge(profile.year_of_birth),
-    pronouns: formatJoined(profile.pronouns) ?? 'Ask me',
-    // The map hands these over in route state; everywhere else the profile
-    // itself carries them, so the line reads the same from a deep link, a
-    // search result, or a Pink Book post.
-    distance: previewState?.distance ?? profile.distance_label ?? null,
+    pronouns: formatJoined(profile.pronouns) ?? 'ask me',
+    // Route state can supply ordinary distance; server coarse labels and
+    // unavailable map access must not fall back to a stale route distance.
+    distance: serverDistanceAuthoritative ? serverDistance : previewState?.distance ?? serverDistance,
     lastActive: previewState?.lastActive ?? profile.last_active ?? null,
     photos: profile.photos,
     photoMetadata: profile.photo_metadata ?? profile.photos.map((photo) => ({ url: photo, explicit: false })),
@@ -233,6 +244,7 @@ export function profileRecordToProfileView(
     attendingLaunchParty: profile.attendingLaunchParty === true,
     travelling: profile.travelling === true,
     travelLabel: typeof profile.travelLabel === 'string' ? profile.travelLabel : '',
+    outOfSight: profile.outOfSight === true,
     bio: profile.bio,
     tags: profile.tags ?? [],
     signal: profile.signal ?? '',
@@ -273,12 +285,14 @@ export function profileRecordToProfileView(
 export default function ProfileView() {
   const { userId } = useParams();
   const navigate = useNavigate();
+  const { profilePinsAllowed } = useMapServiceArea();
 
   const location = useLocation();
   const distancePreferences = useDistancePreferences();
   const isOwnProfile = !userId;
   const previewState = (location.state as ProfileLocationState | null) ?? null;
   const [profile, setProfile] = useState<ProfileRecord | null>(null);
+  const [membershipSource, setMembershipSource] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [cruushed, setCruushed] = useState(false);
@@ -331,6 +345,7 @@ export default function ProfileView() {
           ...emptyProfilePayload,
           ...data,
         });
+        setMembershipSource(userId ?? 'self');
       } catch (loadError) {
         if (!active) {
           return;
@@ -422,8 +437,8 @@ export default function ProfileView() {
       return null;
     }
 
-    return profileRecordToProfileView(profile, previewState);
-  }, [previewState?.distance, previewState?.lastActive, profile]);
+    return profileRecordToProfileView(profile, previewState, !profilePinsAllowed);
+  }, [previewState?.distance, previewState?.lastActive, profile, profilePinsAllowed]);
 
   useEffect(() => {
     if (
@@ -472,7 +487,7 @@ export default function ProfileView() {
   const hasRevocableCruush = isAlreadyMutual || hasSentCruush;
   const canCenterPin = profileView?.relationship?.can_reveal_precise_location === true;
   const targetInDarkRoom = profileView?.relationship?.location_mode === 'STEALTH';
-  const pinActionable = !isOwnProfile && isAlreadyMutual && canCenterPin && !targetInDarkRoom && pinTokenValid;
+  const pinActionable = profilePinsAllowed && !isOwnProfile && isAlreadyMutual && canCenterPin && !targetInDarkRoom && pinTokenValid;
   const displayedDistance = targetInDarkRoom && profileView?.relationship?.dark_room_distance_label
     ? 'Dark Room'
     : profileView?.distance;
@@ -593,8 +608,7 @@ export default function ProfileView() {
     <div className="min-h-screen bg-background pb-20" style={PROFILE_VIEW_STYLE}>
       <div
         data-testid="profile-gallery-frame"
-        className="relative mx-auto max-w-2xl"
-        style={PROFILE_VIEW_GALLERY_FRAME_STYLE}
+        className="relative mx-auto w-full max-w-2xl"
       >
         <div className="pointer-events-none absolute inset-x-0 top-0 z-30 flex items-start justify-between p-3 pr-3 lg:pr-[calc(4.25rem+env(safe-area-inset-right))]">
           <div className="pointer-events-auto flex min-w-0 items-center gap-2">
@@ -662,6 +676,7 @@ export default function ProfileView() {
 
         <ProfilePhotoGallery
           borderTone={resolveUserBorderTone({ current: isOwnProfile, mileHigh: profileView.travelling, mutual: heartTheme === 'mutual' })}
+          outOfSight={membershipSource === (userId ?? 'self') && profileView.outOfSight}
           fitViewport
           relationship={{ ...profileView.photoRelationship, isMutualCruush: isAlreadyMutual, sharesCrowd: profileView.photoRelationship?.sharesCrowd ?? (!isOwnProfile && profileView.crowds.length > 0) }}
           name={profileView.name}
@@ -681,15 +696,21 @@ export default function ProfileView() {
             <span className="min-w-0 truncate">{profileView.name}</span>
             {profileView.age ? <span className="shrink-0 whitespace-nowrap pr-1">, {profileView.age}</span> : null}
             {profileView.travelling ? (
-              <img
-                alt="Mile High Club"
-                className="ml-2 h-5 w-5 shrink-0 sm:h-6 sm:w-6"
-                src={mileHighClubWhite}
-                title={profileView.travelLabel
-                  ? `Mile High Club: ${profileView.travelLabel}`
-                  : 'Mile High Club'}
-              />
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button
+                    type="button"
+                    className="pointer-events-auto ml-2 shrink-0 touch-manipulation"
+                    aria-label="This is a Mile High Club member."
+                    onClick={() => navigate('/settings/travel')}
+                  >
+                    <img alt="Mile High Club" className="h-14 w-14" src={mileHighClubWhite} />
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent side="top" sideOffset={6}>This is a Mile High Club member.</TooltipContent>
+              </Tooltip>
             ) : null}
+            {membershipSource === (userId ?? 'self') && profileView.outOfSight ? <PurgatoryMemberBadge key={profileView.id} /> : null}
           </h1>
           <p className="mt-1 text-sm text-white" style={PROFILE_OVERLAY_TEXT_STYLE}>{profileView.pronouns}</p>
           {displayedDistance ? (
@@ -697,7 +718,7 @@ export default function ProfileView() {
               {displayedDistance === 'Dark Room'
                 ? <DarkRoomMark active className="h-4 w-4 shrink-0" />
                 : <CruushIcon name="map" className="h-4 w-4 shrink-0" />}
-              <span className="min-w-0 truncate">{displayedDistance === 'Dark Room' ? displayedDistance : formatDistanceWithAway(displayedDistance, distancePreferences.mode)}</span>
+              <span className="min-w-0 truncate">{displayedDistance === 'Dark Room' || isServerCoarseLocationLabel(displayedDistance) ? displayedDistance : formatDistanceWithAway(displayedDistance, distancePreferences.mode)}</span>
               {profileView.lastActive ? <span className="shrink-0">• {profileView.lastActive}</span> : null}
             </div>
           ) : null}
@@ -753,17 +774,26 @@ export default function ProfileView() {
                       : 'var(--cruush-gradient)',
                 }}
               >
-                <CruushIcon name="mutual" className={`mr-2 h-4 w-4 ${cruushDisabled ? 'opacity-45 grayscale' : ''}`} variant="white" />
+                <CruushIcon name="mutual" className={`mr-2 h-7 w-7 sm:h-4 sm:w-4 ${cruushDisabled ? 'opacity-45 grayscale' : ''}`} variant="white" />
                 {revokingCruush ? (isAlreadyMutual ? 'uncruushing...' : 'unsending...') : isAlreadyMutual ? 'uncruush' : hasSentCruush ? 'unsend' : sendingCruush ? 'sending...' : 'cruush'}
               </Button>
               {!isOwnProfile ? (
                 <Button
                   type="button"
                   size="icon"
-                  className="size-11 shrink-0 rounded-xl border-0 text-white transition hover:brightness-110"
-                  style={{ background: pinActionable ? 'var(--cruush-gradient)' : 'var(--cruush-gradient-soft-28), #0A0A12' }}
-                  aria-label={pinActionable ? `Center the map on ${profileView.name}` : `${profileView.name} does not share a precise location with you`}
-                  title={pinActionable ? `Center the map on ${profileView.name}` : targetInDarkRoom ? 'Dark Room' : 'Precise location unavailable'}
+                  className="profile-center-pin-match-action size-11 shrink-0 rounded-xl border-0 text-white transition hover:brightness-110"
+                  style={{
+                    background: pinActionable ? 'var(--cruush-gradient)' : 'var(--cruush-gradient-soft-28), #0A0A12',
+                    '--profile-center-pin-mobile-background': !profilePinsAllowed
+                      ? 'var(--cruush-gradient-soft-28), #0A0A12'
+                      : cruushDisabled
+                      ? '#151021'
+                      : hasRevocableCruush
+                        ? 'var(--cruush-gradient-soft-28), #0A0A12'
+                        : 'var(--cruush-gradient)',
+                  } as CSSProperties}
+                  aria-label={!profilePinsAllowed ? 'Map location unavailable' : pinActionable ? `Center the map on ${profileView.name}` : `${profileView.name} does not share a precise location with you`}
+                  title={!profilePinsAllowed ? 'Map location unavailable' : pinActionable ? `Center the map on ${profileView.name}` : targetInDarkRoom ? 'Dark Room' : 'Precise location unavailable'}
                   onClick={pinActionable ? () => navigate(`/map?mode=mutuals&focusUserId=${encodeURIComponent(profileView.id)}`) : undefined}
                   disabled={!pinActionable}
                 >
@@ -771,15 +801,15 @@ export default function ProfileView() {
                 </Button>
               ) : null}
               <Button
-                className={`cruush-action-sheen flex-1 rounded-xl border border-[#6F00FF] disabled:opacity-100 ${canMessage ? 'text-white' : 'text-white/55'}`}
-                style={{ background: canMessage ? 'var(--cruush-gradient)' : '#151021' }}
+                className={`cruush-action-sheen flex-1 rounded-xl disabled:opacity-100 ${canMessage ? 'border border-[#6F00FF] text-white' : 'border-0 text-white/55'}`}
+                style={{ background: canMessage ? 'var(--cruush-gradient)' : 'var(--cruush-gradient-soft-28)' }}
                 onClick={() => {
                   void handleMessage();
                 }}
                 disabled={openingMessage}
                 aria-label="Message"
               >
-                <CruushIcon name="send" className="mr-2 h-4 w-4" variant="white" />
+                <CruushIcon name="send" className="mr-2 h-7 w-7 sm:h-4 sm:w-4" variant="white" />
                 {openingMessage ? 'Opening...' : 'Message'}
               </Button>
             </div>
@@ -896,17 +926,22 @@ export function ProfileDetailsTabs({
       {/* The signal and the vibe capsules both ride the photo above these tabs,
           so repeating them here only pushed the rest of the profile down. */}
       <TabsContent value="basics" className={`${compact ? 'mt-4 space-y-4' : 'mt-5 space-y-5'}`}>
+        <Section title="Tags" compact={compact}>
+          <BadgeList items={profileView.tags.map((tag) => `#${tag}`)} compact={compact} />
+        </Section>
+
         {profileView.bio ? (
           <Section title="About" compact={compact}>
             <p className="text-muted-foreground">{profileView.bio}</p>
           </Section>
         ) : null}
 
-        {profileView.tags.length > 0 ? (
-          <Section title="Tags" compact={compact}>
-            <BadgeList items={profileView.tags.map((tag) => `#${tag}`)} compact={compact} />
-          </Section>
-        ) : null}
+        <div className={`grid grid-cols-2 gap-3 ${compact ? 'text-sm' : 'text-base'}`}>
+          <DetailItem label="Ethnicity" value={profileView.ethnicity} compact={compact} />
+          <DetailItem label="Body" value={profileView.bodyType} compact={compact} />
+          <DetailItem label="Height" value={profileView.height} compact={compact} />
+          <DetailItem label="Weight" value={profileView.weight} compact={compact} />
+        </div>
 
         <div className="grid grid-cols-2 gap-3">
           <Section title="Gender Identity" compact={compact}>
@@ -926,26 +961,17 @@ export function ProfileDetailsTabs({
           </Section>
         </div>
 
-        <Section title="Stats" compact={compact}>
-          <div className={`grid grid-cols-2 gap-3 ${compact ? 'text-sm' : 'text-base'}`}>
-            <DetailItem label="Ethnicity" value={profileView.ethnicity} compact={compact} />
-            <DetailItem label="Body" value={profileView.bodyType} compact={compact} />
-            <DetailItem label="Height" value={profileView.height} compact={compact} />
-            <DetailItem label="Weight" value={profileView.weight} compact={compact} />
-          </div>
-        </Section>
-
         <Section title="Hobbies" compact={compact}>
           <BadgeList items={profileView.hobbies} compact={compact} />
         </Section>
       </TabsContent>
 
       <TabsContent value="intimacy" className={`${compact ? 'mt-4 space-y-4' : 'mt-5 space-y-5'}`}>
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 [&>*]:order-4">
+        <div className="grid grid-cols-2 gap-4 [&>*]:order-4">
           {/* The editor has taken this under Intimacy for a while and the
               profile never showed it back. */}
           {profileView.relationshipStatus.length > 0 ? (
-            <Section title="Relationship status" compact={compact} className="!order-3">
+            <Section title="Relationship Status" compact={compact} className="!order-3">
               <BadgeList items={profileView.relationshipStatus} compact={compact} />
             </Section>
           ) : null}
@@ -960,18 +986,17 @@ export function ProfileDetailsTabs({
 
           <Section title="Looking For" compact={compact}>
             <BadgeList items={profileView.lookingFor} compact={compact} />
-            {profileView.timing ? (
-              <div className={`mt-2 text-muted-foreground ${compact ? 'text-sm' : 'text-base'}`}>
-                Availability: <span className="text-foreground">{profileView.timing}</span>
-              </div>
-            ) : null}
+          </Section>
+
+          <Section title="Availability" compact={compact}>
+            <BadgeList items={profileView.availability} compact={compact} />
           </Section>
 
           <Section title="Hosting/Travel" compact={compact}>
             <BadgeList items={profileView.hosting} compact={compact} />
           </Section>
 
-          <Section title="Preferred spots" compact={compact}>
+          <Section title="Preferred Spots" compact={compact}>
             <BadgeList items={profileView.preferredSpots} compact={compact} />
           </Section>
 
@@ -983,25 +1008,27 @@ export function ProfileDetailsTabs({
       </TabsContent>
 
       <TabsContent value="health" className={`${compact ? 'mt-4 space-y-4' : 'mt-5 space-y-5'}`}>
-        <Section title="Protections" compact={compact}>
-          <BadgeList items={profileView.protections} compact={compact} />
-        </Section>
+        <div className="grid grid-cols-2 gap-3">
+          <Section title="Protections" compact={compact}>
+            <BadgeList items={profileView.protections} compact={compact} />
+          </Section>
 
-        <Section title="Protection boundaries" compact={compact}>
-          <BadgeList items={profileView.protection} compact={compact} />
-        </Section>
+          <Section title="Protection Boundaries" compact={compact}>
+            <BadgeList items={profileView.protection} compact={compact} />
+          </Section>
 
-        <div className={`space-y-3 rounded-2xl border border-border bg-card/60 ${compact ? 'p-3' : 'p-4'}`}>
-          <h2 className={compact ? 'text-base' : 'text-lg'}>HIV Status</h2>
-          <BadgeList items={profileView.hivStatus ? [profileView.hivStatus] : []} compact={compact} />
+          <div className={`space-y-3 rounded-2xl border border-border bg-card/60 ${compact ? 'p-3' : 'p-4'}`}>
+            <h2 className={compact ? 'text-base' : 'text-lg'}>HIV Status</h2>
+            <BadgeList items={profileView.hivStatus ? [profileView.hivStatus] : []} compact={compact} />
+          </div>
+
+          {/* Protection boundaries had its own card above and a second copy in
+              here reading the same field, so editing it looked like only one of
+              them moved. One field, one place. */}
+          <Section title="Substance Boundaries" compact={compact}>
+            <BadgeList items={profileView.substanceBoundariesList} compact={compact} />
+          </Section>
         </div>
-
-        {/* Protection boundaries had its own card above and a second copy in
-            here reading the same field, so editing it looked like only one of
-            them moved. One field, one place. */}
-        <Section title="Substance boundaries" compact={compact}>
-          <BadgeList items={profileView.substanceBoundariesList} compact={compact} />
-        </Section>
       </TabsContent>
     </Tabs>
   );
@@ -1032,9 +1059,9 @@ function BadgeList({
   return (
     <div className="flex flex-wrap gap-2">
       {items.map((item) => (
-                <span
-                  key={item}
-                  className={`rounded-full border ${compact ? 'px-2.5 py-1 text-xs' : 'px-3 py-1 text-base'}`}
+        <span
+          key={item}
+          className={`whitespace-nowrap rounded-full border lowercase ${compact ? 'px-2.5 py-1 text-xs' : 'px-3 py-1 text-base'}`}
                   style={variant === 'gradient'
             ? {
                 borderColor: 'transparent',
@@ -1061,9 +1088,8 @@ function DetailItem({
   emptyFallback?: string;
 }) {
   return (
-    <div className={`rounded-xl border border-border bg-background/50 ${compact ? 'p-2.5' : 'p-3'}`}>
-      <div className={`${compact ? 'text-xs' : 'text-base'} uppercase tracking-[0.14em] text-muted-foreground`}>{label}</div>
-      <div className="mt-1 min-h-[1.25rem] text-foreground">{value || emptyFallback}</div>
-    </div>
+    <Section title={label} compact={compact}>
+      <p className={`${compact ? 'text-sm' : 'text-base'} lowercase text-muted-foreground`}>{value || emptyFallback}</p>
+    </Section>
   );
 }

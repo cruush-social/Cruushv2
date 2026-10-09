@@ -87,7 +87,7 @@ import {
   getDesktopPageLayout,
   useCanChoosePopupLayout,
 } from '../lib/desktopPageLayoutPreferences';
-import cruushIconWhite from '../assets/ui-icons/cruush-white.png';
+import profileEditIconWhite from '../assets/ui-icons/humanity-profile-selected-winged-heart-symmetric.png';
 import mileHighClubWhite from '../assets/ui-icons/mile-high-club-white.svg';
 import DlModeMark from './DlModeMark';
 import DlModePhotoPlaceholder from './DlModePhotoPlaceholder';
@@ -416,6 +416,7 @@ function normalizeVisibilityRules(rules?: ProfileVisibilityRules): ProfileVisibi
     active_crowd_modes: normalizeCrowdValues(rules?.active_crowd_modes ?? defaults.active_crowd_modes),
     mile_high_club_members: rules?.mile_high_club_members === true,
     members_without_photos: rules?.members_without_photos === true,
+    outside_service_area_members: rules?.outside_service_area_members === true,
     identities: uniqueValues(rules?.identities ?? defaults.identities),
     presentations: uniqueValues(rules?.presentations ?? defaults.presentations),
     looking_for: uniqueValues(rules?.looking_for ?? defaults.looking_for),
@@ -447,6 +448,7 @@ function visibilityRulesToState(rules?: ProfileVisibilityRules): VisibilityContr
     activeCrowdModes: normalizedRules.active_crowd_modes,
     mileHighClub: normalizedRules.mile_high_club_members,
     hasPhoto: normalizedRules.members_without_photos,
+    outsideServiceAreaMembers: normalizedRules.outside_service_area_members,
     ageRange: normalizedRules.age_range ?? DEFAULT_FILTER_STATE.ageRange,
     distance: normalizedRules.distance ?? DEFAULT_FILTER_STATE.distance,
     restrictAge: Boolean(normalizedRules.age_range),
@@ -477,6 +479,7 @@ function visibilityStateToRules(state: VisibilityControlState): ProfileVisibilit
     active_crowd_modes: normalizeCrowdValues(state.activeCrowdModes),
     mile_high_club_members: state.mileHighClub,
     members_without_photos: state.hasPhoto,
+    outside_service_area_members: state.outsideServiceAreaMembers,
     age_range: state.restrictAge ? state.ageRange : null,
     distance: state.restrictDistance ? state.distance : null,
     identities: uniqueValues(state.identities),
@@ -546,7 +549,7 @@ function profileRecordToOwnDiscoveryUser(
     display_name: profile.display_name || 'Your profile',
     signal: profile.signal,
     age: profile.year_of_birth ? new Date().getFullYear() - profile.year_of_birth : null,
-    pronouns: (profile.pronouns ?? []).join(', ') || 'Ask me',
+    pronouns: (profile.pronouns ?? []).join(', ') || 'ask me',
     lat: location?.approximateLatitude ?? 40.7128,
     lng: location?.approximateLongitude ?? -74.006,
     lastActive: 'Now',
@@ -561,6 +564,7 @@ function profileRecordToOwnDiscoveryUser(
     travelling: travelPin !== null,
     travelLabel: travelPin?.label ?? '',
     photo: profile.photos?.[0] ?? null,
+    outOfSight: profile.outOfSight === true,
     photoExplicit: profile.photo_metadata?.[0]?.explicit === true,
     badges: profile.badges ?? [],
     isCurrentUser: true,
@@ -610,6 +614,7 @@ function formatActiveCrowdNotice(activeCrowdModes: string[]) {
 function hasActiveVisibilityControls(visibility: VisibilityControlState) {
   return visibility.searchQuery.trim().length > 0 ||
     visibility.mileHighClub ||
+    visibility.outsideServiceAreaMembers ||
     visibility.restrictAge ||
     visibility.restrictDistance ||
     visibility.activeCrowdModes.length > 0 ||
@@ -653,6 +658,7 @@ function mutualMapItemToDiscoveryUser(item: MutualCruushActivityItem): Discovery
     role: [],
     hostingTravel: [],
     photo: item.user.photo,
+    outOfSight: item.user.outOfSight,
     photoExplicit: item.user.photoExplicit === true,
     badges: item.user.badges,
     displayMode: item.coordinates?.precision === 'precise' ? 'PRECISE' : 'GHOST',
@@ -668,6 +674,8 @@ function mutualMapItemToDiscoveryUser(item: MutualCruushActivityItem): Discovery
 
 type MapHomeProps = {
   developerToolsEnabled?: boolean;
+  /** Admin-only replay of the normal out-of-service map state. */
+  forceOutsideServiceArea?: boolean;
 };
 
 type MapRouteState = {
@@ -904,7 +912,7 @@ function RecentlyActivePhoto({
       data-testid={`recently-active-fallback-${user.id}`}
       style={{ background: getProfileGradientCss(user.id) }}
     >
-      {photoMasked ? <DlModePhotoPlaceholder className="w-14" splitCruushesOnly restriction={getNsfwPhotoRestriction(user.photoExplicit, user.photoRelationship)} /> : <CruushIconImage src={cruushIconWhite} className="h-10 w-10 opacity-75" />}
+      {photoMasked ? <DlModePhotoPlaceholder className="h-14 w-14" showLabel={false} restriction={getNsfwPhotoRestriction(user.photoExplicit, user.photoRelationship)} /> : <CruushIconImage src={profileEditIconWhite} className="h-14 w-14 opacity-75" />}
     </div>
   );
 }
@@ -920,14 +928,25 @@ export default function MapHome(_props: MapHomeProps = {}) {
   const usesFullPageProfile = !canChoosePopupLayout || desktopPageLayout === 'fullscreen';
   const mobileVisualViewportBounds = useMobileVisualViewportBounds(isMobile);
   const [users, setUsers] = useState<DiscoveryUser[]>([]);
-  const [outsideServiceArea, setOutsideServiceArea] = useState(false);
-  const { setOutsideServiceArea: setMapChromeOutsideServiceArea } = useMapServiceArea();
+  const {
+    outsideServiceArea: lastKnownOutsideServiceArea,
+    setOutsideServiceArea: setMapChromeOutsideServiceArea,
+  } = useMapServiceArea();
+  const [outsideServiceArea, setOutsideServiceArea] = useState(lastKnownOutsideServiceArea);
+  const [serviceAreaResolved, setServiceAreaResolved] = useState(false);
+  const displayedOutsideServiceArea = _props.forceOutsideServiceArea || outsideServiceArea;
   const outsideServiceAreaRef = useRef(false);
   outsideServiceAreaRef.current = outsideServiceArea;
   useEffect(() => {
-    setMapChromeOutsideServiceArea(outsideServiceArea);
-    return () => setMapChromeOutsideServiceArea(false);
-  }, [outsideServiceArea, setMapChromeOutsideServiceArea]);
+    if (_props.forceOutsideServiceArea) {
+      setMapChromeOutsideServiceArea(true, true);
+      return;
+    }
+    if (serviceAreaResolved) {
+      setMapChromeOutsideServiceArea(outsideServiceArea);
+    }
+    return undefined;
+  }, [_props.forceOutsideServiceArea, outsideServiceArea, serviceAreaResolved, setMapChromeOutsideServiceArea]);
   const hasRefreshedOutsideLocationRef = useRef(false);
   const [userApproximateLocation, setUserApproximateLocation] = useState<ApproximateCoordinates | null>(null);
   const [travelPin, setTravelPin] = useState<TravelPin | null>(null);
@@ -1037,7 +1056,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
   }, [openPulseFromNotification]);
 
   useEffect(() => {
-    if (!outsideServiceArea || !currentProfile?.id) return;
+    if (!displayedOutsideServiceArea || !currentProfile?.id) return;
     let active = true;
     setWelcomeDayError(null);
     void getWelcomeDayStatus()
@@ -1050,7 +1069,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
     return () => {
       active = false;
     };
-  }, [currentProfile?.id, outsideServiceArea]);
+  }, [currentProfile?.id, displayedOutsideServiceArea]);
   const [profileLoaded, setProfileLoaded] = useState(false);
   const setMapControlsHovered = useCallback((hovered: boolean) => {
     if (typeof document === 'undefined') {
@@ -1646,6 +1665,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
         const mutualMapItems = await getMutualCruushMap(request.filters);
         if (!isCurrentRequest()) return;
         setOutsideServiceArea(false);
+        setServiceAreaResolved(true);
         setUsers(mutualMapItems
           .filter((item) => item.coordinates)
           .map(mutualMapItemToDiscoveryUser));
@@ -1653,6 +1673,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
         const nearbyUsers = await getNearbyUsers(request.coordinates, request.filters, discoveryRequestOptions());
         if (!isCurrentRequest()) return;
         setOutsideServiceArea(false);
+        setServiceAreaResolved(true);
         setUsers(nearbyUsers);
       }
       setError(null);
@@ -1670,6 +1691,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
       if (!isCurrentRequest()) return;
       if (fetchError instanceof OutsideServiceAreaError) {
         setOutsideServiceArea(true);
+        setServiceAreaResolved(true);
         setUsers([]);
         setError(null);
         return;
@@ -2634,6 +2656,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
         approximateLongitude: user.lng,
         lastActiveLabel: user.lastActive,
         photo: user.photo,
+        outOfSight: user.outOfSight,
         photoExplicit: user.photoExplicit,
         photoRelationship: user.photoRelationship,
         travelling: user.travelling === true,
@@ -2708,6 +2731,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
       approximateLongitude: currentUserMapLocation.approximateLongitude,
       lastActiveLabel: 'Now',
       photo: currentProfile?.photos[0] ?? null,
+      outOfSight: currentProfile?.outOfSight === true,
       photoExplicit: currentProfile?.photo_metadata?.[0]?.explicit === true,
       isCurrentUser: true,
       travelling: travelPin !== null,
@@ -2742,6 +2766,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
           approximateLongitude: ownerGhostMapLocation.approximateLongitude,
           lastActiveLabel: 'Now',
           photo: currentProfile?.photos[0] ?? null,
+          outOfSight: currentProfile?.outOfSight === true,
           photoExplicit: currentProfile?.photo_metadata?.[0]?.explicit === true,
           isCurrentUser: true,
           travelling: travelPin !== null,
@@ -2932,8 +2957,8 @@ export default function MapHome(_props: MapHomeProps = {}) {
       >
         <div className="relative flex w-full items-start gap-2 max-[430px]:gap-0.5 sm:gap-2.5">
           <h1 className="sr-only">cruush</h1>
-          {!outsideServiceArea ? <div
-            className="relative shrink-0"
+          <div
+            className={`relative shrink-0 ${displayedOutsideServiceArea ? 'max-[430px]:mt-20' : ''}`}
             data-map-control-hit-layer="true"
             data-testid="map-plus-stack"
             onPointerEnter={() => setMapControlsHovered(true)}
@@ -2946,7 +2971,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
               });
               navigate(buildCruushPlusStorePath('map_top', 'overview', 'store'));
             }} />
-          </div> : null}
+          </div>
           <MapTopBar
             setMapControlsHovered={setMapControlsHovered}
             handleFeelingLucky={handleFeelingLucky}
@@ -2958,12 +2983,13 @@ export default function MapHome(_props: MapHomeProps = {}) {
             setSidePanelReturnView={setSidePanelReturnView}
             setSidePanelView={setSidePanelView}
             notificationUnreadCount={notificationUnreadCount}
-            outsideServiceArea={outsideServiceArea}
+            outsideServiceArea={displayedOutsideServiceArea}
+            centerInViewport={displayedOutsideServiceArea}
           />
 
           {/* The bug control is fixed to the corner like cruush+ is, so the bar
               ends before it instead of running underneath it. */}
-            {!outsideServiceArea ? <div
+            {!displayedOutsideServiceArea ? <div
               // The whole top layer is pointer-events-none so the map underneath
               // stays draggable; every control in it opts back in. The slot had
               // not, so the bug button it holds looked tappable and was not:
@@ -2991,7 +3017,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
             </div>
           )}
         >
-          <div className={`h-full w-full ${outsideServiceArea ? 'grayscale brightness-[0.68]' : ''}`} data-testid={outsideServiceArea ? 'outside-service-area-map-filter' : undefined}>
+          <div className={`h-full w-full ${displayedOutsideServiceArea ? 'grayscale brightness-[0.68]' : ''}`} data-testid={displayedOutsideServiceArea ? 'outside-service-area-map-filter' : undefined}>
           <MapView
             onPinClick={handleMarkerSelect}
             onMapClick={() => {
@@ -3035,7 +3061,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
                   radiusMeters: privacySettings.ghostRadiusMeters,
                 }
               : null}
-            ghostLeash={privacySettings.ghostModeEnabled && currentUserMapLocation && ownerGhostMapLocation
+            ghostLeash={privacySettings.ghostModeEnabled && privacySettings.ghostLeashVisible !== false && currentUserMapLocation && ownerGhostMapLocation
               ? {
                   from: currentUserMapLocation,
                   to: ownerGhostMapLocation,
@@ -3044,13 +3070,13 @@ export default function MapHome(_props: MapHomeProps = {}) {
             onMapReady={handleMapReady}
           />
           </div>
-          {outsideServiceArea ? (
+          {displayedOutsideServiceArea ? (
             <div aria-hidden="true" className="pointer-events-none absolute inset-0 z-[5] bg-black/28" data-testid="outside-service-area-map-overlay" />
           ) : null}
         </Suspense>
         <div className="pointer-events-none absolute inset-y-0 left-0 z-10 w-24 bg-gradient-to-r from-background/65 to-transparent" />
 
-        {outsideServiceArea ? (
+        {displayedOutsideServiceArea ? (
           <OutsideServiceAreaCard
             currentUserEmail={currentUserEmail}
             onActivate={openMileHighClubFromMap}
@@ -3068,7 +3094,6 @@ export default function MapHome(_props: MapHomeProps = {}) {
             claimingWelcomeDay={claimingWelcomeDay}
             welcomeDayError={welcomeDayError}
             onClaimWelcomeDay={handleWelcomeDayClaim}
-            onOpenCruushPlus={() => navigate(buildCruushPlusStorePath('mile_high_club', 'mile_high_club'))}
             hasCruushPlus={hasCruushPlus}
           />
         ) : null}
@@ -3372,6 +3397,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
           handleCenterMyLocation={handleCenterMyLocation}
           locationStatus={locationStatus}
           mapInstance={mapInstance}
+          visibilityOnly={displayedOutsideServiceArea}
         />
 
         {displayedUsers.length > 0 && !sidePanelView && (
@@ -3385,7 +3411,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
             <div
               className={`mx-auto ${
                 isRecentlyActiveOpen
-                  ? `${isMobile ? 'w-fit max-w-full' : 'w-fit max-w-[35.75rem]'} rounded-2xl border border-white/10 bg-[color:var(--cruush-black-glass)] p-3 shadow-[0_20px_60px_rgba(0,0,0,0.42)] backdrop-blur-[var(--cruush-black-glass-blur)]`
+                  ? `${isMobile ? 'w-fit max-w-full' : 'w-fit max-w-[35.75rem]'} rounded-2xl border border-white/10 bg-[color:var(--cruush-black-glass)] px-[5px] py-3 shadow-[0_20px_60px_rgba(0,0,0,0.42)] backdrop-blur-[var(--cruush-black-glass-blur)]`
                   : 'max-w-max p-0'
               } pointer-events-auto`}
               data-testid="recently-active-panel"
@@ -3409,7 +3435,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
                 <div
                   id="recently-active-tray"
                   aria-label="Recently active profiles"
-                  className={`${isMobile ? 'gap-2 scroll-smooth' : 'gap-3'} flex ${recentlyActiveScrollable ? 'scrollbar-hide cursor-grab justify-start overflow-x-auto overscroll-x-contain active:cursor-grabbing' : 'justify-center overflow-hidden'} focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/65`}
+                  className={`flex box-border gap-[5px] ${isMobile ? 'scroll-smooth' : ''} ${recentlyActiveScrollable ? 'scrollbar-hide cursor-grab snap-x snap-mandatory justify-start overflow-x-auto overscroll-x-contain scroll-px-0 active:cursor-grabbing' : 'justify-center overflow-hidden'} focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/65`}
                   data-scrollable={recentlyActiveScrollable ? 'true' : 'false'}
                   data-testid="recently-active-tray"
                   onClickCapture={handleRecentlyActiveClickCapture}
@@ -3427,7 +3453,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
                       key={user.id}
                       aria-label={`Open ${user.name} profile`}
                       onClick={() => handleUserSelect(user)}
-                      className={`${isMobile ? 'w-20' : 'w-[6.25rem]'} group block flex-shrink-0 rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/65`}
+                      className={`${isMobile ? 'w-20' : 'w-[6.25rem]'} group block shrink-0 snap-start rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/65`}
                       data-testid={`recently-active-tile-${user.id}`}
                     >
                       <div className="flex aspect-[4/5] w-full items-center justify-center overflow-hidden rounded-lg border border-white/10 bg-white/[0.06] transition-transform group-hover:scale-[1.02]">

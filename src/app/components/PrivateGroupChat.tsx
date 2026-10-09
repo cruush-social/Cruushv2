@@ -2,7 +2,6 @@ import { useTrustRestrictions } from '../lib/trustRestrictions';
 import TrustRestrictionNotice from './TrustRestrictionNotice';
 import PhotoUploadSpinner from './PhotoUploadSpinner';
 import { useEffect, useId, useRef, useState } from 'react';
-import { DROPDOWN_TRIGGER_CLASS } from '../lib/controlStyles';
 import type { CSSProperties, ChangeEvent, RefObject } from 'react';
 import { useLocation, useParams, useNavigate } from 'react-router';
 import { Clock3, Eye, Image as ImageIcon, ImagePlus, Share2, Timer, Star, Trash2, X } from 'lucide-react';
@@ -16,6 +15,8 @@ import ReportAction from './ReportAction';
 import { CruushIcon } from './CruushIconImage';
 import LoadingCardSkeletons from './LoadingCardSkeletons';
 import HeartPhoto from './HeartPhoto';
+import CruushesProfileCard from './CruushesProfileCard';
+import ProfileActionTrio from './ProfileActionTrio';
 import { Textarea } from './ui/textarea';
 import { getCurrentUserId } from '../lib/sessionUser';
 import { addCruushChangedListener } from '../lib/cruushEvents';
@@ -55,7 +56,7 @@ import {
   uploadFavoriteMessageImage,
   viewMessageAttachment,
 } from '../lib/messagesApi';
-import { getMyCruushActivity, type MutualCruushActivityItem } from '../lib/cruushApi';
+import { getMyCruushActivity, revokeMutualCruush, revokeSentCruush, sendCruush, type MutualCruushActivityItem } from '../lib/cruushApi';
 import {
   getClub,
   getClubJoinRequests,
@@ -67,15 +68,20 @@ import {
 } from '../lib/clubsApi';
 import { ApiClientError, resolveMediaUrl } from '../lib/apiClient';
 import { useDlMode, shouldMaskPhoto, getNsfwPhotoRestriction, getNsfwPhotoRestrictionLabel, type NsfwPhotoRestriction } from '../lib/dlMode';
+import { resolveUserBorderTone } from '../lib/userBorderTone';
 import { MESSAGE_PHOTO_UPLOAD_ACCEPT, prepareMessagePhotoForUpload } from '../lib/messagePhotoProcessing';
 import { getProfileGradientCss } from '../lib/profileGradient';
+import { getProfileById, type ProfileRecord } from '../lib/profileApi';
+import { openConversationOrInbox } from '../lib/openConversation';
 import DlModePhotoPlaceholder from './DlModePhotoPlaceholder';
 import PulseLedIcon from './PulseLedIcon';
+import { useMapServiceArea } from './MapServiceAreaContext';
 import TagInput from './TagInput';
 import AppPageHeader from './AppPageHeader';
 import MapVisibilitySurface, { DEFAULT_VISIBILITY_STATE, type VisibilityControlState } from './MapVisibilitySurface';
 import { visibilityRulesToState, visibilityStateToRules } from '../lib/visibilityControls';
 import InAppShareDialog from './InAppShareDialog';
+import profileEditIconWhite from '../assets/ui-icons/humanity-profile-selected-winged-heart-symmetric.png';
 
 const timerOptions: Array<{ value: ConversationTimer; label: string }> = [
   { value: 'off', label: 'Off' },
@@ -95,6 +101,7 @@ const notificationMuteOptions: Array<{ value: ConversationMuteDuration; label: s
 
 const KEYBOARD_INSET_THRESHOLD_PX = 120;
 const UNSAFE_CONTROL_CHARACTERS = /[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g;
+const sharedProfileActionClassName = '!gap-1 [&>button]:!size-9 [&>button]:!p-1.5 [&>button>img]:!size-5 [&>button>svg]:!size-5';
 
 function normalizeMessageForSend(value: string) {
   return value.replace(UNSAFE_CONTROL_CHARACTERS, '').trim();
@@ -263,6 +270,7 @@ function getMessageSender(
       name: groupMember.name,
       pronouns: groupMember.pronouns,
       photo: groupMember.photo,
+      outOfSight: groupMember.outOfSight,
       photoExplicit: groupMember.photoExplicit,
       photoRelationship: groupMember.photoRelationship,
     };
@@ -271,6 +279,27 @@ function getMessageSender(
   return message.userId
     ? { id: message.userId, name: 'cruush user', pronouns: '', photo: null, photoExplicit: true }
     : null;
+}
+
+function sharedProfileCardUser(profile: ProfileRecord) {
+  const firstPhoto = profile.photos[0] ?? null;
+  const firstPhotoMetadata = firstPhoto
+    ? profile.photo_metadata?.find((photo) => photo.url === firstPhoto)
+    : undefined;
+
+  return {
+    id: profile.id,
+    name: profile.display_name,
+    pronouns: [...profile.pronouns, profile.custom_pronouns].filter(Boolean).join(' / '),
+    photo: firstPhoto,
+    photoExplicit: firstPhotoMetadata?.explicit,
+    photoRelationship: profile.photo_relationship,
+    badges: profile.badges,
+    sideBadges: profile.side_badges,
+    travelling: profile.travelling,
+    outOfSight: profile.outOfSight === true,
+    vibes: profile.vibes,
+  };
 }
 
 export default function PrivateGroupChat({
@@ -287,6 +316,7 @@ export default function PrivateGroupChat({
   onClose?: () => void;
 } = {}) {
   const params = useParams();
+  const { profilePinsAllowed: groupPulseAllowed } = useMapServiceArea();
   // The dock renders this thread without a route of its own.
   const chatId = conversationId ?? params.chatId;
   const navigate = useNavigate();
@@ -300,6 +330,7 @@ export default function PrivateGroupChat({
   const favoriteImageInputId = useId();
   const [message, setMessage] = useState('');
   const [messages, setMessages] = useState<ChatMessageRecord[]>([]);
+  const [sharedProfiles, setSharedProfiles] = useState<Record<string, ProfileRecord>>({});
   const [expiryNowMs, setExpiryNowMs] = useState(() => Date.now());
   const [conversation, setConversation] = useState<ConversationThread | null>(null);
   const [loading, setLoading] = useState(true);
@@ -389,6 +420,38 @@ export default function PrivateGroupChat({
 
       return changed ? nextUrls : currentUrls;
     });
+  }, [messages]);
+
+  useEffect(() => {
+    const sharedProfileIds = [...new Set(messages
+      .map((item) => parseInAppShareMessage(item.content))
+      .filter((share): share is NonNullable<typeof share> => share?.kind === 'profile')
+      .map((share) => share.id))];
+
+    if (sharedProfileIds.length === 0) {
+      return;
+    }
+
+    let active = true;
+    void Promise.all(sharedProfileIds.map(async (profileId) => {
+      try {
+        return await getProfileById(profileId);
+      } catch {
+        return null;
+      }
+    })).then((profiles) => {
+      if (!active) return;
+      const loadedProfiles = profiles.filter((profile): profile is ProfileRecord => Boolean(profile));
+      if (loadedProfiles.length === 0) return;
+      setSharedProfiles((current) => ({
+        ...current,
+        ...Object.fromEntries(loadedProfiles.map((profile) => [profile.id, profile])),
+      }));
+    });
+
+    return () => {
+      active = false;
+    };
   }, [messages]);
 
   useEffect(() => {
@@ -549,7 +612,7 @@ export default function PrivateGroupChat({
       setClubTitleDraft(item.title);
       setClubSummaryDraft(item.summary);
       setClubTagsDraft(item.tags);
-      setClubVisibility(visibilityRulesToState(item.visibilityRules));
+      setClubVisibility({ ...visibilityRulesToState(item.visibilityRules), outsideServiceAreaMembers: false });
       if (item.currentUserRole === 'owner' || item.currentUserRole === 'admin' || item.currentUserRole === 'moderator') {
         setClubApplicants(await getClubJoinRequests(clubId));
       } else {
@@ -852,7 +915,7 @@ export default function PrivateGroupChat({
     if (!conversation?.clubId || !canManageConversation || settingsSaving) return;
     setSettingsSaving(true);
     try {
-      const visibilityRules = visibilityStateToRules(clubVisibility);
+      const visibilityRules = { ...visibilityStateToRules(clubVisibility), outside_service_area_members: false };
       await updateClubVisibility(conversation.clubId, visibilityRules);
       setClubSettings((current) => current ? { ...current, visibilityRules } : current);
       setClubVisibilityOpen(false);
@@ -900,7 +963,7 @@ export default function PrivateGroupChat({
   };
 
   const handleGroupPulse = async () => {
-    if (!conversation || conversation.kind !== 'group' || !canManageConversation || conversation.closed) {
+    if (!conversation || conversation.kind !== 'group' || !canManageConversation || conversation.closed || !groupPulseAllowed) {
       return;
     }
 
@@ -1130,6 +1193,30 @@ export default function PrivateGroupChat({
     });
   };
 
+  const handleSharedProfileCruush = async (profile: ProfileRecord) => {
+    const relationship = profile.viewer_relationship;
+
+    try {
+      if (relationship?.mutual_cruush) {
+        await revokeMutualCruush(profile.id);
+      } else if (relationship?.outgoing_cruush) {
+        await revokeSentCruush(profile.id);
+      } else {
+        await sendCruush(profile.id, {
+          name: profile.display_name,
+          pronouns: [...profile.pronouns, profile.custom_pronouns].filter(Boolean).join(' / '),
+          photo: profile.photos[0] ?? null,
+        });
+      }
+
+      const refreshedProfile = await getProfileById(profile.id);
+      setSharedProfiles((current) => ({ ...current, [refreshedProfile.id]: refreshedProfile }));
+      setError(null);
+    } catch (actionError) {
+      setError(actionError instanceof Error ? actionError.message : 'Unable to update cruush.');
+    }
+  };
+
   const openDmProfile = () => {
     if (!conversation || conversation.kind !== 'dm') {
       return;
@@ -1170,7 +1257,15 @@ export default function PrivateGroupChat({
         />
       ) : (
       <AppPageHeader
-        title={conversation?.user.name ?? (loading ? 'Loading chat...' : 'Conversation unavailable')}
+        title={conversation?.kind === 'dm' ? (
+          <span className="inline-flex min-w-0 max-w-full items-baseline gap-2">
+            <span className="min-w-0 truncate">{conversation.user.name}</span>
+            <span className="inline-flex shrink-0 items-center gap-1 text-sm text-white/62">
+              <Clock3 className="size-3 opacity-70" />
+              {conversation.user.lastActive ?? 'Active recently'}
+            </span>
+          </span>
+        ) : (conversation?.user.name ?? (loading ? 'Loading chat...' : 'Conversation unavailable'))}
         onBack={() => embedded ? (onBack ?? onClose)?.() : navigate(-1)}
         backLabel={routeBackLabel}
         onClose={embedded ? onClose : undefined}
@@ -1180,11 +1275,16 @@ export default function PrivateGroupChat({
         className="z-40"
         leading={conversation?.clubId ? null : conversation ? (
               <HeartPhoto
+                borderTone={resolveUserBorderTone({
+                  mileHigh: conversation.user.travelling,
+                  mutual: conversation.kind === 'group' || conversation.mutual,
+                })}
                 className="w-12 shrink-0"
                 label={`${conversation.user.name} avatar`}
                 restriction={getNsfwPhotoRestriction(conversation.user.photoExplicit, { ...conversation.user.photoRelationship, isMutualCruush: conversation.mutual === true })}
                 masked={shouldMaskPhoto(dlModeActive, conversation.user.photoExplicit, { ...conversation.user.photoRelationship, isMutualCruush: conversation.mutual === true })}
                 photo={conversation.user.photo}
+                outOfSight={conversation.kind === 'dm' && conversation.user.outOfSight === true}
                 theme={conversation.kind === 'group' || conversation.mutual ? 'mutual' : 'nearby'}
                 userId={conversation.user.id}
                 onClick={conversation.kind === 'dm' ? openDmProfile : undefined}
@@ -1197,23 +1297,16 @@ export default function PrivateGroupChat({
             ) : (
               <div className="h-12 w-12 shrink-0 rounded-full bg-card" />
             )}
-        subtitle={conversation ? (
+        subtitle={conversation && conversation.kind !== 'dm' ? (
           <div className="mt-1 flex min-w-0 flex-wrap items-center gap-2 text-xs text-muted-foreground">
             {conversation.kind === 'group' && !conversation.clubId ? (
                       <Badge variant="outline" className="border-border/80 bg-card/60 text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
                         Group
                       </Badge>
             ) : null}
-            {conversation.user.pronouns ? <span>{conversation.user.pronouns}</span> : null}
             {conversation.membersLabel ? <span>{conversation.membersLabel}</span> : null}
-            {conversation.kind === 'dm' ? (
-              <span className="inline-flex items-center gap-1">
-                <Clock3 className="size-3 opacity-70" />
-                {conversation.user.lastActive ?? 'Active recently'}
-              </span>
-            ) : null}
           </div>
-        ) : <p className="mt-1 text-xs text-muted-foreground">Messages</p>}
+        ) : !conversation ? <p className="mt-1 text-xs text-muted-foreground">Messages</p> : null}
         actions={(
           <>
             {conversation?.clubId ? (
@@ -1484,20 +1577,18 @@ export default function PrivateGroupChat({
                       </Button>
                     </div> : null}
 
-                    {!conversation.clubId ? <div className="grid gap-2 sm:grid-cols-[1fr_auto]">
-                      <select
-                        aria-label="Add mutual"
-                        value={addMemberId}
-                        onChange={(event) => setAddMemberId(event.target.value)}
-                        className={DROPDOWN_TRIGGER_CLASS}
-                      >
-                        <option value="">Add a mutual</option>
-                        {availableAddOptions.map((item) => (
-                          <option key={item.user.id} value={item.user.id}>
-                            {item.user.name}
-                          </option>
-                        ))}
-                      </select>
+                    {!conversation.clubId ? <div className="space-y-2">
+                      {availableAddOptions.map((item) => (
+                        <CruushesProfileCard
+                          key={item.user.id}
+                          user={{ ...item.user, vibes: item.user.vibes ?? item.vibes }}
+                          mutual
+                          sharesCrowd={(item.mutualCrowds?.length ?? 0) > 0}
+                          onSelect={() => setAddMemberId(item.user.id)}
+                          selected={addMemberId === item.user.id}
+                          selectLabel={`Add ${item.user.name} to group`}
+                        />
+                      ))}
                       <Button
                         type="button"
                         variant="outline"
@@ -1513,7 +1604,7 @@ export default function PrivateGroupChat({
                         type="button"
                         variant="outline"
                         className="w-full justify-center border-[#c8ff31]/60 text-white hover:border-[#c8ff31] hover:bg-[#c8ff31]/10 hover:text-white"
-                        disabled={groupPulseSending || conversation.closed}
+                        disabled={groupPulseSending || conversation.closed || !groupPulseAllowed}
                         onClick={() => void handleGroupPulse()}
                       >
                         <PulseLedIcon className="size-5 text-[#c8ff31]" />
@@ -1638,6 +1729,8 @@ export default function PrivateGroupChat({
               ? getMessageSender(msg, conversation, groupMembers)
               : null;
             const inAppShare = parseInAppShareMessage(msg.content);
+            const sharedProfile = inAppShare?.kind === 'profile' ? sharedProfiles[inAppShare.id] : null;
+            const sharedProfileMessage = inAppShare?.kind === 'profile';
 
             if (isSystem) {
               return (
@@ -1667,6 +1760,7 @@ export default function PrivateGroupChat({
                       restriction={getNsfwPhotoRestriction(messageSender.photoExplicit, messageSender.photoRelationship)}
                       masked={shouldMaskPhoto(dlModeActive, messageSender.photoExplicit, messageSender.photoRelationship)}
                       photo={messageSender.photo}
+                      outOfSight={messageSender.outOfSight === true}
                       theme={conversation?.kind === 'dm' && conversation.mutual ? 'mutual' : 'nearby'}
                       userId={messageSender.id}
                       fallback={<div className="text-[10px] text-white/75">{getConversationInitials(messageSender.name)}</div>}
@@ -1674,7 +1768,7 @@ export default function PrivateGroupChat({
                   </button>
                 ) : null}
 
-                <div className={`max-w-[78%] ${isOwn ? 'items-end' : 'items-start'} flex flex-col gap-1`}>
+                <div className={`${sharedProfileMessage ? 'min-w-0 flex-1' : 'max-w-[78%]'} ${isOwn ? 'items-end' : 'items-start'} flex flex-col gap-1`}>
                   {msg.attachments?.map((attachment) => {
                     const attachmentKey = `${msg.id}:${attachment.id}`;
                     const openedViewOnceUrl = viewedAttachmentUrls[attachmentKey];
@@ -1785,7 +1879,50 @@ export default function PrivateGroupChat({
                       </div>
                     );
                   })}
-                  {inAppShare ? (
+                  {sharedProfile ? (
+                    <CruushesProfileCard
+                      mutual={sharedProfile.viewer_relationship?.mutual_cruush === true}
+                      heartFallback={conversation?.kind === 'dm'
+                        ? <img alt="" aria-hidden="true" className="h-7 w-7 object-contain opacity-80" src={profileEditIconWhite} />
+                        : undefined}
+                      onOpenProfile={() => navigate(`/profile/${sharedProfile.id}`)}
+                      onSelect={() => navigate(`/profile/${sharedProfile.id}`)}
+                      selectLabel={`Open ${sharedProfile.display_name} profile`}
+                      testId={`shared-profile-card-${sharedProfile.id}`}
+                      user={sharedProfileCardUser(sharedProfile)}
+                      metadata={(
+                        <button
+                          type="button"
+                          className="flex min-w-0 flex-col gap-0.5 text-left text-xs leading-snug text-white/62"
+                          onClick={() => navigate(`/profile/${sharedProfile.id}`)}
+                        >
+                          <span className="truncate">{sharedProfile.last_active ?? 'Active recently'}</span>
+                          <span className="truncate">{sharedProfile.distance_label ?? 'Nearby'}</span>
+                        </button>
+                      )}
+                      actions={sharedProfile.id === currentUserId ? undefined : (
+                        <ProfileActionTrio
+                          className={sharedProfileActionClassName}
+                          size="sm"
+                          userName={sharedProfile.display_name}
+                          cruushState={sharedProfile.viewer_relationship?.mutual_cruush
+                            ? 'mutual'
+                            : sharedProfile.viewer_relationship?.outgoing_cruush
+                              ? 'sent'
+                              : 'available'}
+                          cruushTone={sharedProfile.viewer_relationship?.mutual_cruush || sharedProfile.viewer_relationship?.outgoing_cruush ? 'dark' : undefined}
+                          onCruush={() => void handleSharedProfileCruush(sharedProfile)}
+                          canMessage={sharedProfile.viewer_relationship?.can_message === true}
+                          onMessage={() => void openConversationOrInbox(navigate, sharedProfile.id)}
+                          canCenterPin={sharedProfile.viewer_relationship?.can_reveal_precise_location === true
+                            && sharedProfile.location?.display_mode === 'PRECISE'
+                            && (sharedProfile.location.display_expires_at_ms == null || sharedProfile.location.display_expires_at_ms > Date.now())}
+                          onCenterPin={() => navigate(`/map?focusUserId=${encodeURIComponent(sharedProfile.id)}`)}
+                        />
+                      )}
+                      wrapVibes
+                    />
+                  ) : inAppShare ? (
                     <button
                       aria-label={inAppShare.kind === 'club' ? `Open ${inAppShare.label} Club` : undefined}
                       className="min-w-48 rounded-[22px] border border-white/14 bg-black/38 px-4 py-3 text-left text-white transition hover:border-white/30"
@@ -1867,7 +2004,7 @@ export default function PrivateGroupChat({
         {conversation ? (
           <div
             data-testid="chat-composer-bar"
-            className={`fixed bottom-[var(--chat-composer-bottom)] left-0 right-0 z-[70] max-w-[100vw] overflow-x-hidden border-t border-border bg-background px-3 pt-3 backdrop-blur-md sm:px-4 ${keyboardOpen ? 'pb-3' : 'pb-0'}`}
+            className={`fixed bottom-[var(--chat-composer-bottom)] left-0 right-0 ${conversation.kind === 'dm' ? 'z-50' : 'z-[70]'} max-w-[100vw] overflow-x-hidden border-t border-border bg-background px-3 pt-3 backdrop-blur-md sm:px-4 ${keyboardOpen ? 'pb-3' : 'pb-0'}`}
             data-keyboard-open={keyboardInset > 0 ? 'true' : undefined}
             style={composerBarStyle}
           >
@@ -2151,6 +2288,7 @@ export default function PrivateGroupChat({
       <MapVisibilitySurface
         description="Choose who can discover this Club."
         searchPlaceholder="Hide this Club from matching names, bios, or #tags"
+        showOutsideServiceAreaControl={false}
         open={clubVisibilityOpen}
         onOpenChange={setClubVisibilityOpen}
         value={clubVisibility}

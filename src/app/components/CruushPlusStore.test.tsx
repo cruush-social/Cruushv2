@@ -175,6 +175,28 @@ function processorStatus(readyRailIds: CryptoPaymentRailId[] = []): CryptoProces
   };
 }
 
+const bitcoinRail = {
+  id: 'btc_bitcoin' as const,
+  asset: 'BTC' as const,
+  network: 'bitcoin' as const,
+  chainId: 0,
+  tokenAddress: '',
+  ready: true,
+};
+
+function bitcoinOnlyProcessorStatus(): CryptoProcessorStatus {
+  return {
+    ready: true,
+    asset: 'BTC',
+    network: 'bitcoin',
+    confirmationTarget: 6,
+    rails: [
+      ...processorRails.map((rail) => ({ ...rail, ready: false })),
+      bitcoinRail,
+    ],
+  };
+}
+
 function renderStore() {
   return render(
     <MemoryRouter>
@@ -218,7 +240,7 @@ describe('CruushPlusStore', () => {
   });
 
   it('applies CLUBS20 and sends the normalized code with the discounted checkout', async () => {
-    vi.mocked(getCryptoProcessorStatus).mockResolvedValue(processorStatus(['usdc_arbitrum']));
+    vi.mocked(getCryptoProcessorStatus).mockResolvedValue(bitcoinOnlyProcessorStatus());
     vi.mocked(validateCheckoutCoupon).mockResolvedValue({ code: 'CLUBS20', percentOff: 20 });
     vi.mocked(createCryptoPaymentIntent).mockRejectedValue(new Error('Stop after request mapping.'));
 
@@ -364,14 +386,12 @@ describe('CruushPlusStore', () => {
   });
 
   it('shows the real plan price and explains why cruush takes crypto', async () => {
-    vi.mocked(getCryptoProcessorStatus).mockResolvedValue(processorStatus([
-      'usdc_arbitrum',
-      'pyusd_arbitrum',
-      'usdc_base',
-    ]));
+    vi.mocked(getCryptoProcessorStatus).mockResolvedValue(processorStatus());
 
     renderStore();
 
+    const sectionHeading = await screen.findByRole('heading', { name: 'cruush+ & Rewards' });
+    expect(sectionHeading.querySelector('.cruush-logo-font')).toHaveTextContent('cruush+');
     expect(await screen.findByText('$18.99/month')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Show cruush+ benefits' }));
     expect(await screen.findByText('Who has a cruush on you')).toBeInTheDocument();
@@ -390,7 +410,7 @@ describe('CruushPlusStore', () => {
     expect(screen.getByText('Browse the map without appearing on it.')).toBeInTheDocument();
     const benefits = screen.getByRole('list', { name: 'cruush+ features' });
     const benefitCards = within(benefits).getAllByRole('listitem');
-    expect(benefits).toHaveClass('sm:grid-cols-2');
+    expect(benefits).not.toHaveClass('sm:grid-cols-2');
     expect(benefitCards).toHaveLength(7);
     expect(benefitCards[0]).toHaveClass('rounded-xl', 'border');
     expect(screen.queryByText('Post to the local feed')).not.toBeInTheDocument();
@@ -400,14 +420,12 @@ describe('CruushPlusStore', () => {
     expect(screen.getByRole('button', { name: 'Cash App' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'PayPal' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'A crypto wallet' })).toBeInTheDocument();
-    expect(screen.getByText('USDC · Arbitrum')).toBeInTheDocument();
-    expect(screen.getByText('PYUSD · Arbitrum')).toBeInTheDocument();
-    expect(screen.getByText('USDC · Base')).toBeInTheDocument();
+    expect(screen.getAllByText('BTC · Bitcoin')).toHaveLength(4);
     expect(screen.queryByRole('button', { name: 'Something else' })).not.toBeInTheDocument();
-    expect(screen.getByText(/Cash App stablecoin transfers are not available to New York residents/i)).toBeInTheDocument();
+    expect(screen.queryByText(/stablecoin transfers are not available/i)).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: /why cruush takes crypto/i }));
-    expect(await screen.findByText(/Cash App pays with USDC on Arbitrum/i)).toBeInTheDocument();
+    expect(await screen.findByText(/Pay with Bitcoin from Cash App, PayPal, Venmo or a compatible wallet/i)).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Crypto first. On our terms.' })).toHaveAttribute('href', '/blog/crypto-first.html');
     expect(screen.queryByText(/licensed processor/i)).not.toBeInTheDocument();
   });
@@ -420,41 +438,44 @@ describe('CruushPlusStore', () => {
       currency: 'USD',
       plans: conversionPlans,
     });
-    vi.mocked(getCryptoProcessorStatus).mockResolvedValue(processorStatus([
-      'usdc_arbitrum',
-      'pyusd_arbitrum',
-      'usdc_base',
-    ]));
+    vi.mocked(getCryptoProcessorStatus).mockResolvedValue(processorStatus());
 
     renderStore();
 
     const main = (await screen.findByText('Choose your time')).closest('main');
     expect(main).not.toBeNull();
-    expect(main?.children).toHaveLength(6);
-    expect(main?.children[0]).toContainElement(screen.getByRole('tab', { name: 'Checkout' }));
-    expect(screen.getByRole('tab', { name: 'Checkout' })).toHaveAttribute('aria-selected', 'true');
+    const mainChildren = Array.from(main?.children ?? []);
+    expect(mainChildren[0]).toContainElement(screen.getByRole('tab', { name: 'cruush+' }));
+    expect(screen.getByRole('tab', { name: 'cruush+' })).toHaveAttribute('aria-selected', 'true');
     expect(screen.getByRole('tab', { name: 'Rewards' })).toHaveAttribute('aria-selected', 'false');
     const benefitsToggle = screen.getByRole('button', { name: 'Show cruush+ benefits' });
-    expect(main?.children[1]).toContainElement(benefitsToggle);
+    const benefitsIndex = mainChildren.findIndex((child) => child.contains(benefitsToggle));
+    expect(benefitsIndex).toBeGreaterThanOrEqual(0);
     expect(benefitsToggle.closest('[data-slot="accordion-item"]')).toHaveClass('border-0');
     expect(benefitsToggle).toHaveAttribute('aria-expanded', 'false');
     expect(screen.queryByRole('list', { name: 'cruush+ features' })).not.toBeInTheDocument();
     fireEvent.click(benefitsToggle);
-    expect(main?.children[1]).toContainElement(screen.getByRole('list', { name: 'cruush+ features' }));
-    expect(main?.children[2]).toHaveTextContent('Choose your time');
-    expect(main?.children[2]).toHaveTextContent('Recommended');
+    expect(mainChildren[benefitsIndex]).toContainElement(screen.getByRole('list', { name: 'cruush+ features' }));
+    const whyCryptoButton = screen.getByRole('button', { name: /why cruush takes crypto/i });
+    const whyCryptoIndex = mainChildren.findIndex((child) => child.contains(whyCryptoButton));
+    expect(whyCryptoIndex).toBe(benefitsIndex + 1);
+    const plansIndex = mainChildren.findIndex((child) => child.textContent?.includes('Choose your time'));
+    expect(mainChildren[plansIndex]).toHaveTextContent('Recommended');
     expect(screen.getByRole('button', { name: /Compare plans/i }).closest('[data-slot="accordion"]')).toHaveClass('mt-2');
-    expect(main?.children[3]).toHaveTextContent('What are you paying from?');
-    expect(main?.children[3]).toContainElement(screen.getByRole('button', { name: 'Cash App' }));
-    expect(main?.children[3]).toContainElement(screen.getByRole('button', { name: 'PayPal' }));
-    expect(main?.children[3]).toContainElement(screen.getByRole('button', { name: 'A crypto wallet' }));
+    const paymentIndex = mainChildren.findIndex((child) => child.textContent?.includes('What are you paying from?'));
+    expect(mainChildren[paymentIndex]).toContainElement(screen.getByRole('button', { name: 'Cash App' }));
+    expect(mainChildren[paymentIndex]).toContainElement(screen.getByRole('button', { name: 'PayPal' }));
+    expect(mainChildren[paymentIndex]).toContainElement(screen.getByRole('button', { name: 'A crypto wallet' }));
     expect(screen.queryByRole('button', { name: /get 1 year for/i })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Pulse checkout' })).not.toBeInTheDocument();
-    expect(main?.children[4]).toContainElement(screen.getByRole('button', { name: /why cruush takes crypto/i }));
-    expect(main?.children[5]).toContainElement(screen.getByRole('link', { name: /read the billing policy/i }));
+    expect(mainChildren[whyCryptoIndex]).toContainElement(whyCryptoButton);
+    const billingIndex = mainChildren.findIndex((child) => child.textContent?.includes('Billing policy'));
+    const orderHistoryIndex = mainChildren.findIndex((child) => child.contains(screen.getByRole('link', { name: 'Order history' })));
+    expect(orderHistoryIndex).toBe(billingIndex - 1);
+    expect(mainChildren[billingIndex]).toContainElement(screen.getByRole('link', { name: /read the billing policy/i }));
   });
 
-  it('reuses the Rewards benefit card treatment without changing checkout controls', async () => {
+  it('reuses the Rewards benefit accordion without changing checkout controls', async () => {
     vi.mocked(getBillingPlans).mockResolvedValue({
       processor: 'fake',
       testCheckout: true,
@@ -462,11 +483,7 @@ describe('CruushPlusStore', () => {
       currency: 'USD',
       plans: conversionPlans,
     });
-    vi.mocked(getCryptoProcessorStatus).mockResolvedValue(processorStatus([
-      'usdc_arbitrum',
-      'pyusd_arbitrum',
-      'usdc_base',
-    ]));
+    vi.mocked(getCryptoProcessorStatus).mockResolvedValue(processorStatus());
 
     renderStore();
 
@@ -478,11 +495,8 @@ describe('CruushPlusStore', () => {
     expect(compareItem).toHaveClass('rounded-none', 'border-x-0', 'border-b-0');
     expect(compareItem).not.toHaveClass('rounded-full');
 
-    const availabilityNote = screen.getByText(/Cash App stablecoin transfers are not available to New York residents/i);
-    expect(availabilityNote).not.toHaveClass('rounded-lg', 'border', 'bg-muted/40');
-
     const paymentGuideItem = screen.getByRole('button', { name: /How to send this payment/i }).closest('[data-slot="accordion-item"]');
-    expect(paymentGuideItem).toHaveClass('rounded-none', 'border-x-0', 'border-b-0');
+    expect(paymentGuideItem).not.toHaveClass('rounded-none', 'border-x-0', 'border-b-0');
     expect(screen.getByRole('button', { name: 'Cash App' })).not.toHaveClass('rounded-xl');
 
     fireEvent.click(screen.getByRole('button', { name: 'Show cruush+ benefits' }));
@@ -498,97 +512,60 @@ describe('CruushPlusStore', () => {
     renderStore();
 
     await screen.findByText(/crypto payment is not available yet/i);
-    // A source whose rail is not ready is not offered, so nothing is listed.
-    for (const sourceLabel of ['Cash App', 'PayPal', 'Venmo', 'A crypto wallet', 'Bitcoin']) {
-      expect(screen.queryByRole('button', { name: sourceLabel })).not.toBeInTheDocument();
+    const picker = screen.getByLabelText('Where you are paying from');
+    for (const sourceLabel of ['Cash App', 'PayPal', 'Venmo', 'A crypto wallet']) {
+      expect(within(picker).getByRole('button', { name: sourceLabel })).toBeDisabled();
     }
     expect(screen.getByText(/crypto payment is not available yet/i)).toBeInTheDocument();
 
     expect(createCryptoPaymentIntent).not.toHaveBeenCalled();
   });
 
-  it.each([
-    ['Cash App', 'usdc_arbitrum', 'cash_app', [
-      'Confirm you are eligible. Cash App says stablecoin transfers are not available to New York residents.',
-      'Open Cash App and go to the Payment tab.',
-    ]],
-    ['PayPal', 'pyusd_arbitrum', 'paypal', [
-      'Open PayPal, go to Finances, and open your PayPal USD (PYUSD) balance.',
-    ]],
-    ['A crypto wallet', 'usdc_base', 'wallet', [
-      'Choose USDC as the asset and Base as the network.',
-    ]],
-  ] as const)('maps %s to the exact %s rail and instructions', async (sourceLabel, rail, sendingApp, instructions) => {
-    vi.mocked(getCryptoProcessorStatus).mockResolvedValue(processorStatus([
-      'usdc_arbitrum',
-      'pyusd_arbitrum',
-      'usdc_base',
-    ]));
-    vi.mocked(createCryptoPaymentIntent).mockRejectedValue(new Error('Stop after request mapping.'));
+  it('keeps Bitcoin sources visible when the processor is ready', async () => {
+    vi.mocked(getCryptoProcessorStatus).mockResolvedValue(bitcoinOnlyProcessorStatus());
 
     renderStore();
 
-    const sourceButton = await screen.findByRole('button', { name: sourceLabel });
-    fireEvent.click(sourceButton);
-    expect(sourceButton).toHaveAttribute('aria-pressed', 'true');
-    fireEvent.click(screen.getByRole('button', { name: /how to send this payment/i }));
-    for (const instruction of instructions) {
-      expect(await screen.findByText(instruction)).toBeInTheDocument();
-    }
-
-    await waitFor(() => {
-      expect(createCryptoPaymentIntent).toHaveBeenCalledWith({
-        planId: 'plus_monthly',
-        idempotencyKey: expect.any(String),
-        rail,
-        sendingApp,
-      });
-    });
+    const cashAppButton = await screen.findByRole('button', { name: 'Cash App' });
+    expect(cashAppButton).toBeEnabled();
+    expect(screen.getByRole('button', { name: 'PayPal' })).toBeEnabled();
+    expect(screen.getByRole('button', { name: 'Venmo' })).toBeEnabled();
+    expect(screen.getByRole('button', { name: 'A crypto wallet' })).toBeEnabled();
   });
 
-  it('moves selection to a ready visible rail and hides unavailable sources', async () => {
-    vi.mocked(getCryptoProcessorStatus).mockResolvedValue(processorStatus(['usdc_base']));
-
-    renderStore();
-
-    const walletButton = await screen.findByRole('button', { name: 'A crypto wallet' });
-    await waitFor(() => expect(walletButton).toHaveAttribute('aria-pressed', 'true'));
-    expect(walletButton).toBeEnabled();
-    expect(screen.queryByRole('button', { name: 'Cash App' })).not.toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'PayPal' })).not.toBeInTheDocument();
-  });
-
-  it('selects the ready Venmo PYUSD Ethereum rail and starts its checkout', async () => {
-    vi.mocked(getCryptoProcessorStatus).mockResolvedValue(processorStatus(['pyusd_ethereum']));
+  it('selects Venmo on the Bitcoin rail and starts its checkout', async () => {
+    vi.mocked(getCryptoProcessorStatus).mockResolvedValue(bitcoinOnlyProcessorStatus());
 
     renderStore();
 
     const payButton = await screen.findByRole('button', { name: 'Venmo' });
     await waitFor(() => expect(payButton).toBeEnabled());
-    expect(screen.getByRole('button', { name: 'Venmo' })).toHaveAttribute('aria-pressed', 'true');
-    expect(screen.queryByRole('button', { name: 'Cash App' })).not.toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'PayPal' })).not.toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'A crypto wallet' })).not.toBeInTheDocument();
+    expect(payButton).toHaveAttribute('aria-pressed', 'false');
+    expect(screen.getByRole('button', { name: 'Cash App' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'PayPal' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'A crypto wallet' })).toBeInTheDocument();
     fireEvent.click(payButton);
+    expect(payButton).toHaveAttribute('aria-pressed', 'true');
     await waitFor(() => expect(createCryptoPaymentIntent).toHaveBeenCalledWith({
       planId: 'plus_monthly',
       idempotencyKey: expect.any(String),
-      rail: 'pyusd_ethereum',
+      rail: 'btc_bitcoin',
       sendingApp: 'venmo',
     }));
   });
 
-  it('starts one seamless Base USDC payment once the processor is ready', async () => {
-    vi.mocked(getCryptoProcessorStatus).mockResolvedValue(processorStatus(['usdc_base']));
+  it('starts one seamless Bitcoin payment once the processor is ready', async () => {
+    vi.mocked(getCryptoProcessorStatus).mockResolvedValue(bitcoinOnlyProcessorStatus());
     vi.mocked(createCryptoPaymentIntent).mockResolvedValue({
       id: '00000000-0000-4000-8000-000000000010',
       userId: '00000000-0000-4000-8000-000000000001',
       planId: 'plus_monthly',
-      asset: 'USDC',
-      network: 'base',
+      asset: 'BTC',
+      network: 'bitcoin',
+      rail: 'btc_bitcoin',
       amountUsdCents: 1899,
       quotedAmountAtomic: '18990000',
-      paymentAddress: '0x73659c60270d326c06Ac204F1A9C63f889a3D14B',
+      paymentAddress: 'bc1qexampleaddressforthebitcoinpayment0000000',
       status: 'awaiting_payment',
       expiresAt: null,
       createdAt: null,
@@ -605,33 +582,33 @@ describe('CruushPlusStore', () => {
         expect.objectContaining({
           planId: 'plus_monthly',
           idempotencyKey: expect.any(String),
-          rail: 'usdc_base',
+          rail: 'btc_bitcoin',
         }),
       );
     });
 
-    expect(await screen.findByText(/waiting for your payment to arrive/i)).toBeInTheDocument();
-    expect(screen.getByText('18.99 USDC')).toBeInTheDocument();
-    expect(screen.getByText('0x73659c60270d326c06Ac204F1A9C63f889a3D14B')).toBeInTheDocument();
+    expect(await screen.findByRole('list', { name: 'Payment progress' })).toHaveTextContent('0/6 confirmations');
+    expect(screen.getByText('0.1899 BTC')).toBeInTheDocument();
+    expect(screen.getByText('bc1qexampleaddressforthebitcoinpayment0000000')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Payment started' })).toBeDisabled();
     expect(createCryptoPaymentIntent).toHaveBeenCalledTimes(1);
     expect(screen.queryByText(/voucher/i)).not.toBeInTheDocument();
   });
 
-  it('restores the current open payment after a reload instead of creating another address', async () => {
-    vi.mocked(getCryptoProcessorStatus).mockResolvedValue(processorStatus(['usdc_base']));
+  it('restores the current open Bitcoin payment after a reload instead of creating another address', async () => {
+    vi.mocked(getCryptoProcessorStatus).mockResolvedValue(bitcoinOnlyProcessorStatus());
     vi.mocked(getCurrentCryptoPaymentIntent).mockResolvedValue({
       id: '00000000-0000-4000-8000-000000000010',
       userId: '00000000-0000-4000-8000-000000000001',
       planId: 'plus_monthly',
-      asset: 'USDC',
-      network: 'base',
-      rail: 'usdc_base',
-      chainId: 8453,
-      tokenAddress: '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913',
+      asset: 'BTC',
+      network: 'bitcoin',
+      rail: 'btc_bitcoin',
+      chainId: 0,
+      tokenAddress: '',
       amountUsdCents: 1899,
       quotedAmountAtomic: '18990000',
-      paymentAddress: '0x73659c60270d326c06Ac204F1A9C63f889a3D14B',
+      paymentAddress: 'bc1qexampleaddressfortherestoredpayment000000',
       paymentUri: null,
       qrCodeDataUrl: null,
       status: 'awaiting_payment',
@@ -643,32 +620,23 @@ describe('CruushPlusStore', () => {
 
     renderStore();
 
-    expect(await screen.findByText(/waiting for your payment to arrive/i)).toBeInTheDocument();
-    expect(screen.getByText('Protected order')).toBeInTheDocument();
-    expect(screen.getByText(/order timer:/i)).toBeInTheDocument();
-    expect(screen.getByText(/this address is unique to your order/i)).toHaveTextContent(
-      /Send the exact amount in USDC on Base and allow time for it to arrive on-chain before the timer reaches 0/i,
-    );
-    expect(screen.getByText('0x73659c60270d326c06Ac204F1A9C63f889a3D14B')).toBeInTheDocument();
+    expect(await screen.findByRole('list', { name: 'Payment progress' })).toHaveTextContent('0/6 confirmations');
+    expect(screen.getByText('bc1qexampleaddressfortherestoredpayment000000')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Payment started' })).toBeDisabled();
     expect(createCryptoPaymentIntent).not.toHaveBeenCalled();
   });
 
   it('cancels a recorded order before unlocking another payment method', async () => {
-    vi.mocked(getCryptoProcessorStatus).mockResolvedValue(processorStatus([
-      'usdc_arbitrum',
-      'pyusd_arbitrum',
-      'usdc_base',
-    ]));
+    vi.mocked(getCryptoProcessorStatus).mockResolvedValue(bitcoinOnlyProcessorStatus());
     const openIntent = {
       id: '00000000-0000-4000-8000-000000000010',
       userId: '00000000-0000-4000-8000-000000000001',
       planId: 'plus_monthly' as const,
-      asset: 'USDC' as const,
-      network: 'arbitrum' as const,
-      rail: 'usdc_arbitrum' as const,
-      chainId: 42161,
-      tokenAddress: '0xaf88d065e77c8cC2239327C5EDb3A432268e5831',
+      asset: 'BTC' as const,
+      network: 'bitcoin' as const,
+      rail: 'btc_bitcoin' as const,
+      chainId: 0,
+      tokenAddress: '',
       amountUsdCents: 1899,
       quotedAmountAtomic: '18990000',
       paymentAddress: '0x1111111111111111111111111111111111111111',
@@ -709,9 +677,9 @@ describe('CruushPlusStore', () => {
     const replacement = {
       ...openIntent,
       id: '00000000-0000-4000-8000-000000000012',
-      asset: 'PYUSD' as const,
-      rail: 'pyusd_arbitrum' as const,
-      tokenAddress: '0x46850aD61C2B7d64d08c9C754F45254596696984',
+      asset: 'BTC' as const,
+      rail: 'btc_bitcoin' as const,
+      tokenAddress: '',
       paymentAddress: '0x2222222222222222222222222222222222222222',
       createdAt: '2099-09-01T12:01:00.000Z',
       expiresAt: '2099-09-02T12:01:00.000Z',
@@ -720,25 +688,25 @@ describe('CruushPlusStore', () => {
     fireEvent.click(screen.getByRole('button', { name: 'PayPal' }));
     expect(await screen.findByText(replacement.paymentAddress)).toBeInTheDocument();
     expect(createCryptoPaymentIntent).toHaveBeenCalledWith({
-      planId: 'plus_monthly', rail: 'pyusd_arbitrum', sendingApp: 'paypal', idempotencyKey: expect.any(String),
+      planId: 'plus_monthly', rail: 'btc_bitcoin', sendingApp: 'paypal', idempotencyKey: expect.any(String),
     });
     expect(screen.queryByText(openIntent.paymentAddress)).not.toBeInTheDocument();
   });
 
-  it('keeps a restored open payment on its original rail when that rail is unavailable', async () => {
-    vi.mocked(getCryptoProcessorStatus).mockResolvedValue(processorStatus(['usdc_base']));
+  it('keeps a restored open Bitcoin payment on its original rail', async () => {
+    vi.mocked(getCryptoProcessorStatus).mockResolvedValue(bitcoinOnlyProcessorStatus());
     vi.mocked(getCurrentCryptoPaymentIntent).mockResolvedValue({
       id: '00000000-0000-4000-8000-000000000011',
       userId: '00000000-0000-4000-8000-000000000001',
       planId: 'plus_monthly',
-      asset: 'USDC',
-      network: 'arbitrum',
-      rail: 'usdc_arbitrum',
-      chainId: 42161,
-      tokenAddress: '0xaf88d065e77c8cC2239327C5EDb3A432268e5831',
+      asset: 'BTC',
+      network: 'bitcoin',
+      rail: 'btc_bitcoin',
+      chainId: 0,
+      tokenAddress: '',
       amountUsdCents: 1899,
       quotedAmountAtomic: '18990000',
-      paymentAddress: '0x1111111111111111111111111111111111111111',
+      paymentAddress: 'bc1qrestoredbitcoinaddress000000000000000000',
       paymentUri: null,
       qrCodeDataUrl: null,
       status: 'awaiting_payment',
@@ -750,15 +718,15 @@ describe('CruushPlusStore', () => {
 
     renderStore();
 
-    expect(await screen.findByText(/waiting for your payment to arrive/i)).toBeInTheDocument();
-    expect(screen.getByText('0x1111111111111111111111111111111111111111')).toBeInTheDocument();
+    expect(await screen.findByRole('list', { name: 'Payment progress' })).toHaveTextContent('0/6 confirmations');
+    expect(screen.getByText('bc1qrestoredbitcoinaddress000000000000000000')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Cash App' })).toHaveAttribute('aria-pressed', 'true');
     expect(screen.getByRole('button', { name: 'A crypto wallet' })).toHaveAttribute('aria-pressed', 'false');
     expect(screen.getByRole('button', { name: 'Payment started' })).toBeDisabled();
     expect(createCryptoPaymentIntent).not.toHaveBeenCalled();
   });
 
-  it('keeps an unavailable restored rail locked after polling reports the payment paid', async () => {
+  it('keeps a restored Bitcoin payment locked after polling reports the payment paid', async () => {
     let pollPayment: (() => void) | null = null;
     const setIntervalSpy = vi.spyOn(window, 'setInterval').mockImplementation((
       ((handler: TimerHandler, timeout?: number) => {
@@ -768,19 +736,19 @@ describe('CruushPlusStore', () => {
         return 1;
       }) as typeof window.setInterval
     ));
-    vi.mocked(getCryptoProcessorStatus).mockResolvedValue(processorStatus(['usdc_base']));
+    vi.mocked(getCryptoProcessorStatus).mockResolvedValue(bitcoinOnlyProcessorStatus());
     const restoredIntent = {
       id: '00000000-0000-4000-8000-000000000012',
       userId: '00000000-0000-4000-8000-000000000001',
       planId: 'plus_monthly' as const,
-      asset: 'USDC' as const,
-      network: 'arbitrum' as const,
-      rail: 'usdc_arbitrum' as const,
-      chainId: 42161,
-      tokenAddress: '0xaf88d065e77c8cC2239327C5EDb3A432268e5831',
+      asset: 'BTC' as const,
+      network: 'bitcoin' as const,
+      rail: 'btc_bitcoin' as const,
+      chainId: 0,
+      tokenAddress: '',
       amountUsdCents: 1899,
       quotedAmountAtomic: '18990000',
-      paymentAddress: '0x2222222222222222222222222222222222222222',
+      paymentAddress: 'bc1qpaidbitcoinaddress00000000000000000000',
       paymentUri: null,
       qrCodeDataUrl: null,
       status: 'awaiting_payment' as const,
@@ -803,7 +771,7 @@ describe('CruushPlusStore', () => {
       await new Promise((resolve) => window.setTimeout(resolve, 0));
       expect(pollPayment).not.toBeNull();
       setIntervalSpy.mockRestore();
-      expect(await screen.findByText(/waiting for your payment to arrive/i)).toBeInTheDocument();
+      expect(await screen.findByRole('list', { name: 'Payment progress' })).toHaveTextContent('0/6 confirmations');
 
       await act(async () => {
         pollPayment?.();
@@ -821,19 +789,19 @@ describe('CruushPlusStore', () => {
   });
 
   it('hides stale payment instructions at the server deadline and requires a fresh payment', async () => {
-    vi.mocked(getCryptoProcessorStatus).mockResolvedValue(processorStatus(['usdc_base']));
+    vi.mocked(getCryptoProcessorStatus).mockResolvedValue(bitcoinOnlyProcessorStatus());
     vi.mocked(createCryptoPaymentIntent).mockResolvedValue({
       id: '00000000-0000-4000-8000-000000000010',
       userId: '00000000-0000-4000-8000-000000000001',
       planId: 'plus_monthly',
-      asset: 'USDC',
-      network: 'base',
-      rail: 'usdc_base',
-      chainId: 8453,
-      tokenAddress: '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913',
+      asset: 'BTC',
+      network: 'bitcoin',
+      rail: 'btc_bitcoin',
+      chainId: 0,
+      tokenAddress: '',
       amountUsdCents: 1899,
       quotedAmountAtomic: '18990000',
-      paymentAddress: '0x73659c60270d326c06Ac204F1A9C63f889a3D14B',
+      paymentAddress: 'bc1qexpiredbitcoinaddress000000000000000000',
       paymentUri: null,
       qrCodeDataUrl: null,
       status: 'awaiting_payment',
@@ -847,24 +815,24 @@ describe('CruushPlusStore', () => {
     fireEvent.click(await screen.findByRole('button', { name: 'A crypto wallet' }));
 
     expect(await screen.findByText(/this payment window expired/i)).toBeInTheDocument();
-    expect(screen.queryByText('0x73659c60270d326c06Ac204F1A9C63f889a3D14B')).not.toBeInTheDocument();
+    expect(screen.queryByText('bc1qexpiredbitcoinaddress000000000000000000')).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Start a fresh payment' })).toBeEnabled();
   });
 
   it('keeps a seen payment confirming after its send window closes without showing the address', async () => {
-    vi.mocked(getCryptoProcessorStatus).mockResolvedValue(processorStatus(['usdc_base']));
+    vi.mocked(getCryptoProcessorStatus).mockResolvedValue(bitcoinOnlyProcessorStatus());
     vi.mocked(getCurrentCryptoPaymentIntent).mockResolvedValue({
       id: '00000000-0000-4000-8000-000000000010',
       userId: '00000000-0000-4000-8000-000000000001',
       planId: 'plus_monthly',
-      asset: 'USDC',
-      network: 'base',
-      rail: 'usdc_base',
-      chainId: 8453,
-      tokenAddress: '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913',
+      asset: 'BTC',
+      network: 'bitcoin',
+      rail: 'btc_bitcoin',
+      chainId: 0,
+      tokenAddress: '',
       amountUsdCents: 1899,
       quotedAmountAtomic: '18990000',
-      paymentAddress: '0x73659c60270d326c06Ac204F1A9C63f889a3D14B',
+      paymentAddress: 'bc1qconfirmingbitcoinaddress00000000000000',
       paymentUri: null,
       qrCodeDataUrl: null,
       status: 'confirming',
@@ -878,16 +846,12 @@ describe('CruushPlusStore', () => {
 
     expect(await screen.findByText(/payment seen\. waiting for network confirmation/i)).toBeInTheDocument();
     expect(screen.queryByText(/this payment window expired/i)).not.toBeInTheDocument();
-    expect(screen.queryByText('0x73659c60270d326c06Ac204F1A9C63f889a3D14B')).not.toBeInTheDocument();
+    expect(screen.queryByText('bc1qconfirmingbitcoinaddress00000000000000')).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Payment started' })).toBeDisabled();
   });
 
   it('keeps plan and payment source fixed while an address request is in flight', async () => {
-    vi.mocked(getCryptoProcessorStatus).mockResolvedValue(processorStatus([
-      'usdc_arbitrum',
-      'pyusd_arbitrum',
-      'usdc_base',
-    ]));
+    vi.mocked(getCryptoProcessorStatus).mockResolvedValue(bitcoinOnlyProcessorStatus());
     let resolveIntent: ((value: never) => void) | null = null;
     vi.mocked(createCryptoPaymentIntent).mockImplementation(() => new Promise((resolve) => {
       resolveIntent = resolve as (value: never) => void;
@@ -904,19 +868,19 @@ describe('CruushPlusStore', () => {
   });
 
   it('does not offer a second charge after the payment is already paid', async () => {
-    vi.mocked(getCryptoProcessorStatus).mockResolvedValue(processorStatus(['usdc_base']));
+    vi.mocked(getCryptoProcessorStatus).mockResolvedValue(bitcoinOnlyProcessorStatus());
     vi.mocked(createCryptoPaymentIntent).mockResolvedValue({
       id: '00000000-0000-4000-8000-000000000010',
       userId: '00000000-0000-4000-8000-000000000001',
       planId: 'plus_monthly',
-      asset: 'USDC',
-      network: 'base',
-      rail: 'usdc_base',
-      chainId: 8453,
-      tokenAddress: '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913',
+      asset: 'BTC',
+      network: 'bitcoin',
+      rail: 'btc_bitcoin',
+      chainId: 0,
+      tokenAddress: '',
       amountUsdCents: 1899,
       quotedAmountAtomic: '18990000',
-      paymentAddress: '0x73659c60270d326c06Ac204F1A9C63f889a3D14B',
+      paymentAddress: 'bc1qpaidbitcoinaddress00000000000000000000',
       paymentUri: null,
       qrCodeDataUrl: null,
       status: 'paid',
@@ -935,18 +899,18 @@ describe('CruushPlusStore', () => {
   });
 
   it('shows the payment QR code once the server returns one', async () => {
-    vi.mocked(getCryptoProcessorStatus).mockResolvedValue(processorStatus(['usdc_base']));
+    vi.mocked(getCryptoProcessorStatus).mockResolvedValue(bitcoinOnlyProcessorStatus());
     vi.mocked(createCryptoPaymentIntent).mockResolvedValue({
       id: '00000000-0000-4000-8000-000000000010',
       userId: '00000000-0000-4000-8000-000000000001',
       planId: 'plus_monthly',
-      asset: 'USDC',
-      network: 'base',
+      asset: 'BTC',
+      network: 'bitcoin',
+      rail: 'btc_bitcoin',
       amountUsdCents: 1899,
       quotedAmountAtomic: '18990000',
-      paymentAddress: '0x73659c60270d326c06Ac204F1A9C63f889a3D14B',
-      paymentUri:
-        'ethereum:0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913@8453/transfer?address=0x73659c60270d326c06Ac204F1A9C63f889a3D14B&uint256=18990000',
+      paymentAddress: 'bc1qqrbitcoinaddress0000000000000000000000',
+      paymentUri: 'bitcoin:bc1qqrbitcoinaddress0000000000000000000000?amount=0.0001899',
       qrCodeDataUrl: 'data:image/png;base64,fake',
       status: 'awaiting_payment',
       expiresAt: null,
@@ -959,12 +923,22 @@ describe('CruushPlusStore', () => {
 
     fireEvent.click(await screen.findByRole('button', { name: 'A crypto wallet' }));
 
-    const qrImage = await screen.findByAltText(/USDC payment address QR code/i);
+    const qrImage = await screen.findByAltText(/BTC payment address QR code/i);
     expect(qrImage).toHaveAttribute('src', 'data:image/png;base64,fake');
+    expect(screen.getByRole('link', { name: 'Open app' })).toHaveAttribute('href', expect.stringContaining('bitcoin:'));
+    expect(screen.queryByRole('link', { name: 'Open wallet' })).not.toBeInTheDocument();
+    expect(screen.getByText('Make sure your wallet also has enough crypto to cover its network fee.')).toBeInTheDocument();
+
+    const paymentGuide = screen.getByRole('button', { name: 'How to send this payment' });
+    expect(paymentGuide).toHaveAttribute('aria-expanded', 'false');
+    expect(paymentGuide.closest('[data-slot="accordion-item"]')).not.toHaveClass('rounded-none', 'border-x-0', 'border-b-0');
+    expect(screen.queryByText('Open your wallet or exchange and choose Send.')).not.toBeInTheDocument();
+    fireEvent.click(paymentGuide);
+    expect(await screen.findByText('Open your wallet and choose Send Bitcoin.')).toBeInTheDocument();
   });
 
   it('reuses the same idempotency key after an uncertain request failure', async () => {
-    vi.mocked(getCryptoProcessorStatus).mockResolvedValue(processorStatus(['usdc_base']));
+    vi.mocked(getCryptoProcessorStatus).mockResolvedValue(bitcoinOnlyProcessorStatus());
     vi.mocked(createCryptoPaymentIntent)
       .mockRejectedValueOnce(new Error('Connection interrupted.'))
       .mockRejectedValueOnce(new Error('Connection interrupted.'));
@@ -1003,12 +977,12 @@ describe('Pulse checkout shares the live processor', () => {
   it('loads Pulse packs and sends the chosen pack to the real Pulse intent API', async () => {
     vi.mocked(getPulsePacks).mockResolvedValue({ packs: [{ id: 'ping_3', name: '3 Pulses', description: '3 permanent Pulse credits', pingCount: 3, amountCents: 999, currency: 'USD' }] });
     vi.mocked(getCurrentPulsePaymentIntent).mockResolvedValue(null);
-    vi.mocked(getCryptoProcessorStatus).mockResolvedValue({ ready: true, asset: 'USDC', network: 'arbitrum', confirmationTarget: 1, rails: [{ id: 'usdc_arbitrum', asset: 'USDC', network: 'arbitrum', chainId: 42161, tokenAddress: '', ready: true }] });
-    vi.mocked(createPulsePaymentIntent).mockResolvedValue({ id: 'pulse-order', userId: 'member', planId: 'ping_3', productType: 'ping_pack', asset: 'USDC', network: 'arbitrum', rail: 'usdc_arbitrum', chainId: 42161, tokenAddress: '', amountUsdCents: 999, quotedAmountAtomic: '9990000', paymentAddress: '0x123', paymentUri: null, qrCodeDataUrl: null, status: 'paid', expiresAt: null, createdAt: null, updatedAt: null, paidAt: null });
+    vi.mocked(getCryptoProcessorStatus).mockResolvedValue(bitcoinOnlyProcessorStatus());
+    vi.mocked(createPulsePaymentIntent).mockResolvedValue({ id: 'pulse-order', userId: 'member', planId: 'ping_3', productType: 'ping_pack', asset: 'BTC', network: 'bitcoin', rail: 'btc_bitcoin', chainId: 0, tokenAddress: '', amountUsdCents: 999, quotedAmountAtomic: '9990000', paymentAddress: 'bc1qpulsebitcoinaddress000000000000000000', paymentUri: null, qrCodeDataUrl: null, status: 'paid', expiresAt: null, createdAt: null, updatedAt: null, paidAt: null });
     render(<MemoryRouter><CruushPlusStore product="ping_pack" /></MemoryRouter>);
     fireEvent.click(await screen.findByRole('button', { name: 'Cash App' }));
-    await waitFor(() => expect(createPulsePaymentIntent).toHaveBeenCalledWith(expect.objectContaining({ packId: 'ping_3', rail: 'usdc_arbitrum', sendingApp: 'cash_app' })));
-    expect(await screen.findByText('Payment confirmed. Your Pulses are available.')).toBeInTheDocument();
+    await waitFor(() => expect(createPulsePaymentIntent).toHaveBeenCalledWith(expect.objectContaining({ packId: 'ping_3', rail: 'btc_bitcoin', sendingApp: 'cash_app' })));
+    expect(await screen.findByRole('button', { name: 'Pulses added' })).toBeDisabled();
     expect(screen.getByRole('button', { name: 'cruush+ checkout' })).toBeInTheDocument();
   });
 });
@@ -1037,7 +1011,7 @@ describe('Bitcoin through Cash App, PayPal, Venmo or a wallet', () => {
     };
   }
 
-  /** Every rail ready: the stablecoin sources sit next to the Bitcoin ones. */
+  /** All processor rails report ready; checkout still exposes Bitcoin only. */
   function everyRailProcessorStatus(): CryptoProcessorStatus {
     return {
       ...bitcoinOnlyProcessorStatus(),
@@ -1103,6 +1077,25 @@ describe('Bitcoin through Cash App, PayPal, Venmo or a wallet', () => {
     expect(screen.getByText('$99.99 + processing fee')).toBeInTheDocument();
   });
 
+  it('does not regress a Bitcoin-only checkout to the unavailable stablecoin fallback', async () => {
+    vi.mocked(getBitcoinSendingEligibility).mockResolvedValue({ rail: 'btc_bitcoin', products: {} });
+    renderStore();
+
+    const picker = await screen.findByLabelText('Where you are paying from');
+    expect(within(picker).getAllByText('BTC · Bitcoin')).toHaveLength(4);
+    expect(screen.queryByText(/crypto payment is not available yet/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/stablecoin transfers are not available/i)).not.toBeInTheDocument();
+
+    const paypal = within(picker).getByRole('button', { name: 'PayPal' });
+    expect(paypal).toBeEnabled();
+    fireEvent.click(paypal);
+
+    await waitFor(() => expect(createCryptoPaymentIntent).toHaveBeenCalledWith(expect.objectContaining({
+      rail: 'btc_bitcoin',
+      sendingApp: 'paypal',
+    })));
+  });
+
   it('sends the chosen app with the Bitcoin rail so the order records it', async () => {
     vi.mocked(getBitcoinSendingEligibility).mockResolvedValue({ rail: 'btc_bitcoin', products: {} });
     vi.mocked(createCryptoPaymentIntent).mockRejectedValue(new Error('Stop after request mapping.'));
@@ -1111,7 +1104,7 @@ describe('Bitcoin through Cash App, PayPal, Venmo or a wallet', () => {
     fireEvent.click(await screen.findByRole('button', { name: 'Venmo' }));
     expect(screen.getByRole('button', { name: 'Venmo' })).toHaveAttribute('aria-pressed', 'true');
     const paymentGuideToggle = screen.getByRole('button', { name: /how to send this payment/i });
-    expect(paymentGuideToggle).toHaveClass('text-base');
+    expect(paymentGuideToggle).toHaveClass('text-sm');
     fireEvent.click(paymentGuideToggle);
     const paymentGuideTitle = await screen.findByRole('heading', { name: 'Cash App, PayPal or Venmo' });
     expect(paymentGuideTitle).toHaveClass('text-base');
@@ -1219,7 +1212,7 @@ describe('Bitcoin through Cash App, PayPal, Venmo or a wallet', () => {
     expect(within(otherPrices).getAllByRole('listitem')).toHaveLength(4);
   });
 
-  it('keeps every plan listed for a stablecoin method the Bitcoin sample does not cover', async () => {
+  it('keeps every plan listed when the Bitcoin eligibility sample does not cover a plan', async () => {
     vi.mocked(getCryptoProcessorStatus).mockResolvedValue(everyRailProcessorStatus());
     vi.mocked(getBitcoinSendingEligibility).mockResolvedValue({
       rail: 'btc_bitcoin',
@@ -1227,13 +1220,13 @@ describe('Bitcoin through Cash App, PayPal, Venmo or a wallet', () => {
     });
     renderStore();
 
-    // Cash App on USDC is the default source, so the Bitcoin sample must not filter it.
+    // Bitcoin remains the only checkout rail; the eligibility sample only filters app minimums.
     fireEvent.click(await screen.findByRole('button', { name: /Compare plans/i }));
     const otherPrices = await screen.findByRole('list', { name: 'Other cruush+ prices' });
     expect(within(otherPrices).getByText('7 days')).toBeInTheDocument();
   });
 
-  it('exits Checking minimum when the Bitcoin network sample is unavailable', async () => {
+  it('keeps Bitcoin app checkout available when the eligibility sample is unavailable', async () => {
     vi.mocked(getBitcoinSendingEligibility).mockRejectedValue(new Error('chain source unavailable'));
     renderStore();
 
@@ -1327,7 +1320,9 @@ describe('Bitcoin through Cash App, PayPal, Venmo or a wallet', () => {
     const paymentProgress = await screen.findByRole('list', { name: 'Payment progress' });
     expect(within(paymentProgress).getAllByRole('listitem')).toHaveLength(1);
     expect(within(paymentProgress).getByText('0/6 confirmations')).toBeInTheDocument();
-    expect(screen.queryByText(/waiting for your payment to arrive/i)).not.toBeInTheDocument();
+    expect(screen.getByText(/waiting for your payment to arrive/i)).toBeInTheDocument();
+    expect(screen.getByText('Protected order')).toBeInTheDocument();
+    expect(screen.getByText(/^Order timer:/)).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'PayPal' })).toHaveAttribute('aria-pressed', 'true');
     expect(screen.getByRole('button', { name: 'Cash App' })).toHaveAttribute('aria-pressed', 'false');
     expect(screen.getByRole('button', { name: 'Venmo' })).toHaveAttribute('aria-pressed', 'false');
@@ -1337,7 +1332,7 @@ describe('Bitcoin through Cash App, PayPal, Venmo or a wallet', () => {
     expect(screen.queryByText(/^Venmo: have about/)).not.toBeInTheDocument();
   });
 
-  it('shows the stablecoin and Bitcoin sources side by side once every rail is ready', async () => {
+  it('shows only Bitcoin sources once every rail is ready', async () => {
     vi.mocked(getCryptoProcessorStatus).mockResolvedValue(everyRailProcessorStatus());
     vi.mocked(getBitcoinSendingEligibility).mockResolvedValue({ rail: 'btc_bitcoin', products: {} });
     renderStore();
@@ -1347,21 +1342,21 @@ describe('Bitcoin through Cash App, PayPal, Venmo or a wallet', () => {
     const buttons = within(picker).getAllByRole('button');
     expect(buttons.map((button) => button.getAttribute('aria-label'))).toEqual([
       'Cash App', 'PayPal', 'Venmo', 'A crypto wallet',
-      'Cash App', 'PayPal', 'Venmo', 'A crypto wallet',
     ]);
     expect(buttons.map((button) => button.textContent)).toEqual([
-      'Cash AppUSDC · Arbitrum', 'PayPalPYUSD · Arbitrum', 'VenmoPYUSD · Ethereum', 'A crypto walletUSDC · Base',
       'Cash AppBTC · Bitcoin', 'PayPalBTC · Bitcoin', 'VenmoBTC · Bitcoin', 'A crypto walletBTC · Bitcoin',
     ]);
     for (const button of buttons) {
       expect(button).toBeEnabled();
       expect(button.className).not.toContain('col-span');
     }
-    // Only one source is selected across both sets.
-    expect(buttons.filter((button) => button.getAttribute('aria-pressed') === 'true')).toHaveLength(1);
+    // A source becomes selected only after the member chooses one.
+    await waitFor(() => {
+      expect(buttons.filter((button) => button.getAttribute('aria-pressed') === 'true')).toHaveLength(0);
+    });
 
-    fireEvent.click(buttons[5]);
-    expect(buttons[5]).toHaveAttribute('aria-pressed', 'true');
-    expect(buttons[1]).toHaveAttribute('aria-pressed', 'false');
+    fireEvent.click(buttons[1]);
+    expect(buttons[1]).toHaveAttribute('aria-pressed', 'true');
+    expect(buttons[0]).toHaveAttribute('aria-pressed', 'false');
   });
 });

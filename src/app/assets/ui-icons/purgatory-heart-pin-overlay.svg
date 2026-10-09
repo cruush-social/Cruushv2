@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="80" height="90" viewBox="0 -8 64 72">
+  <title>Approved Purgatory heart-pin overlay</title>
+  <g transform="translate(8 8) scale(0.166666666666667) translate(-58 -306)">
+    <defs>
+      <linearGradient id="a-horn" gradientUnits="userSpaceOnUse" x1="110" y1="239" x2="110" y2="343">
+        <stop stop-color="#D32E4C"/><stop offset=".3" stop-color="#AD223A"/><stop offset=".6" stop-color="#851B2C"/><stop offset="1" stop-color="#5C111F"/>
+      </linearGradient>
+      <linearGradient id="a-halo" gradientUnits="userSpaceOnUse" x1="260" y1="239" x2="260" y2="314">
+        <stop stop-color="#FFFFFF"/><stop offset=".2" stop-color="#FFFFFF"/><stop offset=".55" stop-color="#FFF3CC"/><stop offset="1" stop-color="#FFD24D"/>
+      </linearGradient>
+    </defs>
+    <path d="M146.5 239 C124 248 109 265 100 283 C92 300 89 318 92 332 C93.5 339 97 342 104 342 C121 343 145 333 150 322 C152 318 148 313 145 306 C138 292 136 279 137 266 C137 255 141 244 146.5 239Z" fill="url(#a-horn)"/>
+    <g transform="translate(0 -18)">
+      <path d="M341.064657 304.629351 A72.826 24.973 23.338 1 1 207.329343 246.928649 A72.826 24.973 23.338 1 1 341.064657 304.629351Z M323.205461 296.490614 A53.449 11.682 23.851 1 1 225.436539 253.265386 A53.449 11.682 23.851 1 1 323.205461 296.490614Z" fill="url(#a-halo)" fill-rule="evenodd" shape-rendering="geometricPrecision"/>
+    </g>
+  </g>
+</svg>

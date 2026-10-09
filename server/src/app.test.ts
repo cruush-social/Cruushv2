@@ -15,7 +15,8 @@ import {
   type EncryptedRelationshipRecordRow
 } from "./encrypted-relationships.js";
 import { emptyProfile, profileVisibilityRulesSchema } from "./profile-schema.js";
-import { createCrowdTokens, encryptProfileVisibility, encryptSensitiveProfile, type ProfileVisibilityRules } from "./profile-sensitive.js";
+import { GhostLandUnavailableError, isGhostLand } from "./ghost-land.js";
+import { createCrowdTokens, decryptSensitiveProfile, encryptProfileVisibility, encryptSensitiveProfile, type ProfileVisibilityRules } from "./profile-sensitive.js";
 import { createMemoryRateLimiter } from "./rate-limit.js";
 import {
   buildRevokeActionToken,
@@ -33,8 +34,9 @@ const { notifyNearbyUsersForLocationUpdate } = vi.hoisted(() => ({
   notifyNearbyUsersForLocationUpdate: vi.fn()
 }));
 
-const { notifyNearbyUsersForFeedPost } = vi.hoisted(() => ({
-  notifyNearbyUsersForFeedPost: vi.fn()
+const { notifyNearbyUsersForFeedPost, notifyMutualCruushesForFeedPost } = vi.hoisted(() => ({
+  notifyNearbyUsersForFeedPost: vi.fn(),
+  notifyMutualCruushesForFeedPost: vi.fn()
 }));
 
 vi.mock("./nearby-notifications.js", () => ({
@@ -42,7 +44,15 @@ vi.mock("./nearby-notifications.js", () => ({
 }));
 
 vi.mock("./feed-post-notifications.js", () => ({
-  notifyNearbyUsersForFeedPost
+  notifyNearbyUsersForFeedPost,
+  notifyMutualCruushesForFeedPost
+}));
+
+// Route tests supply terrain availability; tile fetching and water geometry
+// are covered by ghost-land.test.ts, without live tile requests here.
+vi.mock("./ghost-land.js", async (importOriginal) => ({
+  ...await importOriginal<typeof import("./ghost-land.js")>(),
+  isGhostLand: vi.fn()
 }));
 
 const query = vi.fn();
@@ -476,11 +486,16 @@ afterAll(async () => {
 
 beforeEach(() => {
   query.mockReset().mockResolvedValue({ rows: [] });
+  vi.mocked(isGhostLand).mockReset().mockResolvedValue(true);
   notifyNearbyUsersForLocationUpdate.mockReset().mockResolvedValue({
     attempted: false,
     sent: 0
   });
   notifyNearbyUsersForFeedPost.mockReset().mockResolvedValue({
+    attempted: true,
+    sent: 0
+  });
+  notifyMutualCruushesForFeedPost.mockReset().mockResolvedValue({
     attempted: true,
     sent: 0
   });
@@ -881,6 +896,7 @@ describe("server", () => {
     expect(response.headers["x-content-type-options"]).toBe("nosniff");
     expect(response.headers["x-frame-options"]).toBe("DENY");
     expect(response.headers["referrer-policy"]).toBe("no-referrer");
+    expect(response.headers["permissions-policy"]).toBe("camera=(), microphone=()");
     expect(response.json()).toEqual({
       service: "cruush-server",
       auth: "session-cookie",
@@ -3077,17 +3093,22 @@ describe("server", () => {
   });
 
   it("records adult age verification for a legacy session", async () => {
-    query
-      .mockResolvedValueOnce({
-        rows: [{
+    query.mockImplementation(async (sql: string) => {
+      if (sql.includes("from app_sessions s")) {
+        return { rows: [{
           user_id: userId,
           email: "river@example.com",
           account_status: "active"
-        }]
-      })
-      .mockResolvedValueOnce({ rows: [{ id: userId }] })
-      .mockResolvedValueOnce({
-        rows: [{
+        }] };
+      }
+      if (sql.includes("select signup_birth_year from app_users") && sql.includes("for update")) {
+        return { rows: [{ signup_birth_year: null }] };
+      }
+      if (sql.includes("select year_of_birth from profiles")) {
+        return { rows: [{ year_of_birth: 1998 }] };
+      }
+      if (sql.includes("from app_users u") && sql.includes("left join profiles p")) {
+        return { rows: [{
           id: userId,
           email: "river@example.com",
           app_display_name: "River",
@@ -3099,8 +3120,10 @@ describe("server", () => {
           age_verified_at: "2026-08-13T12:00:00.000Z",
           code_of_conduct_accepted_version: "2026-07-07",
           code_of_conduct_accepted_at: "2026-08-13T12:00:00.000Z"
-        }]
-      });
+        }] };
+      }
+      return { rows: [] };
+    });
 
     const response = await app.inject({
       method: "POST",
@@ -3114,8 +3137,10 @@ describe("server", () => {
     });
 
     expect(response.statusCode).toBe(200);
-    expect(query.mock.calls[1]?.[0]).toContain("set signup_birth_year = $2");
-    expect(query.mock.calls[1]?.[1]).toEqual([userId, 1998]);
+    const update = query.mock.calls.find(([sql]) => String(sql).includes("set signup_birth_year = coalesce(signup_birth_year, $2)"));
+    expect(update?.[1]).toEqual([userId, 1998]);
+    expect(query.mock.calls.some(([sql]) => String(sql).includes("for update"))).toBe(true);
+    expect(query.mock.calls.some(([sql]) => String(sql).trim().toLowerCase() === "commit")).toBe(true);
     expect(response.json().data.needsAgeVerification).toBe(false);
   });
 
@@ -3816,19 +3841,16 @@ describe("server", () => {
   });
 
   it("stores code of conduct acceptance and returns a refreshed session", async () => {
-    query
-      .mockResolvedValueOnce({
-        rows: [{
-          user_id: userId
-        }]
-      })
-      .mockResolvedValueOnce({
-        rows: [{
-          id: userId
-        }]
-      })
-      .mockResolvedValueOnce({
-        rows: [{
+    query.mockImplementation(async (sql: string) => {
+      if (sql.includes("from app_sessions s")) return { rows: [{ user_id: userId }] };
+      if (sql.includes("select id::text, code_of_conduct_accepted_version")) {
+        return { rows: [{ id: userId, code_of_conduct_accepted_version: null }] };
+      }
+      if (sql.includes("update app_users set code_of_conduct_accepted_version")) {
+        return { rows: [{ id: userId }] };
+      }
+      if (sql.includes("from app_users u") && sql.includes("left join profiles p")) {
+        return { rows: [{
           id: userId,
           email: "river@example.com",
           app_display_name: "River",
@@ -3838,8 +3860,10 @@ describe("server", () => {
           year_of_birth: 1998,
           code_of_conduct_accepted_version: "2026-07-07",
           code_of_conduct_accepted_at: "2026-07-07T15:00:00.000Z"
-        }]
-      });
+        }] };
+      }
+      return { rows: [] };
+    });
 
     const response = await app.inject({
       method: "POST",
@@ -3853,9 +3877,13 @@ describe("server", () => {
     });
 
     expect(response.statusCode).toBe(200);
-    expect(query.mock.calls[1]?.[0]).toContain("update app_users");
-    expect(query.mock.calls[1]?.[0]).toContain("code_of_conduct_accepted_version");
-    expect(query.mock.calls[1]?.[1]).toEqual(["2026-07-07", userId]);
+    const acceptance = query.mock.calls.find(([sql]) => String(sql).includes("update app_users set code_of_conduct_accepted_version"));
+    expect(acceptance?.[1]).toEqual([userId, "2026-07-07"]);
+    const queuedWelcome = query.mock.calls.find(([sql]) => String(sql).includes("insert into service_area_email_outbox"));
+    expect(queuedWelcome?.[0]).toContain("payload_ciphertext");
+    expect(queuedWelcome?.[1]).toHaveLength(10);
+    expect(JSON.stringify(queuedWelcome?.[1])).not.toContain("sinners-welcome/");
+    expect(query.mock.calls.some(([sql]) => String(sql).trim().toLowerCase() === "commit")).toBe(true);
     expect(response.json().data).toMatchObject({
       needsCodeOfConduct: false,
       codeOfConductVersion: "2026-07-07",
@@ -4259,6 +4287,7 @@ describe("server", () => {
 
     expect(response.statusCode).toBe(200);
     expect(response.json().data[0].lastMessage).toBe("legacy preview");
+    expect(String(query.mock.calls[0]?.[0])).not.toContain("last_message_user.email");
   });
 
   it("keeps the block boundary on the open-only DM route", async () => {
@@ -4294,6 +4323,7 @@ describe("server", () => {
   });
 
   it("opens or creates a dm conversation on POST /api/conversations/dm", async () => {
+    const otherUserId = "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97";
     const matchRecord = await encryptedRelationshipRecordRow({
       id: "match-1",
       type: "mutual_cruush",
@@ -4307,21 +4337,14 @@ describe("server", () => {
     });
 
     query
-      .mockResolvedValueOnce({
-        rows: [matchRecord]
-      })
-      .mockResolvedValueOnce({ rows: [] })
-      .mockResolvedValueOnce({ rows: [] })
-      .mockResolvedValueOnce({ rows: [matchToken] })
-      // A mutual cruush with an active token holds the default precise-location
-      // grant, so the revocation lookup runs before the block check.
-      .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({
         rows: [{
           id: "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97"
         }]
       })
+      // Existing DMs remain accessible without the new-contact OOS check.
+      .mockResolvedValueOnce({ rows: [{ id: conversationId }] })
       .mockResolvedValueOnce({
         rows: [{
           id: conversationId
@@ -4329,7 +4352,36 @@ describe("server", () => {
       })
       .mockResolvedValueOnce({
         rows: []
-      })
+      });
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/conversations/dm",
+      headers: { "x-user-id": userId },
+      payload: { otherUserId }
+    });
+
+    expect(response.statusCode).toBe(201);
+    expect(response.json()).toEqual({ data: { id: conversationId } });
+    expect(query).toHaveBeenCalledTimes(5);
+    expect(query.mock.calls[0]?.[0]).toContain("from user_blocks");
+    expect(query.mock.calls[0]?.[1]).toEqual([userId, otherUserId]);
+    expect(query.mock.calls[1]?.[0]).toContain("from app_users");
+    expect(query.mock.calls[1]?.[1]).toEqual([otherUserId]);
+    expect(query.mock.calls[2]?.[0]).toContain("from conversations");
+    expect(query.mock.calls[2]?.[0]).toContain("where kind = 'dm' and dm_key = $1");
+    expect(query.mock.calls[2]?.[1]).toEqual([[userId, otherUserId].sort().join(":")]);
+    expect(query.mock.calls[3]?.[0]).toContain("on conflict (dm_key)");
+    expect(query.mock.calls[3]?.[1]).toEqual([[userId, otherUserId].sort().join(":"), userId]);
+    expect(query.mock.calls[4]?.[0]).toContain("insert into conversation_members");
+    expect(query.mock.calls[4]?.[0]).toContain("$1::uuid, $2::uuid");
+    expect(query.mock.calls[4]?.[0]).toContain("where not exists");
+    expect(query.mock.calls[4]?.[1]).toEqual([conversationId, userId, otherUserId]);
+
+    // Opening returns only an id. Preserve the full mutual conversation
+    // payload coverage on the inbox route that now loads those details.
+    query.mockReset();
+    query
       .mockResolvedValueOnce({
         rows: [{
           id: conversationId,
@@ -4347,28 +4399,27 @@ describe("server", () => {
           other_user_photo: "https://example.com/alex.jpg",
           member_count: 2
         }]
-      });
+      })
+      .mockResolvedValueOnce({ rows: [matchRecord] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [matchToken] })
+      .mockResolvedValueOnce({ rows: [] });
 
-    const response = await app.inject({
-      method: "POST",
-      url: "/api/conversations/dm",
-      headers: {
-        "x-user-id": userId
-      },
-      payload: {
-        otherUserId: "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97"
-      }
+    const listResponse = await app.inject({
+      method: "GET",
+      url: "/api/conversations",
+      headers: { "x-user-id": userId }
     });
 
-    expect(response.statusCode).toBe(201);
-    expect(query.mock.calls[0]?.[0]).toContain("encrypted_relationship_records");
-    expect(query.mock.calls[3]?.[0]).toContain("encrypted_relationship_tokens");
-    expect(query.mock.calls[4]?.[0]).toContain("encrypted_privacy_audit_events");
-    expect(query.mock.calls[5]?.[0]).toContain("from user_blocks");
-    expect(query.mock.calls[7]?.[0]).toContain("insert into conversations");
-    expect(query.mock.calls[8]?.[0]).toContain("insert into conversation_members");
-    expect(response.json()).toEqual({
-      data: {
+    expect(listResponse.statusCode).toBe(200);
+    expect(query.mock.calls[0]?.[0]).toContain("from conversation_members cm");
+    expect(query.mock.calls[1]?.[0]).toContain("encrypted_relationship_records");
+    expect(query.mock.calls[4]?.[0]).toContain("encrypted_relationship_tokens");
+    expect(query.mock.calls[5]?.[0]).toContain("encrypted_privacy_audit_events");
+    expect(query.mock.calls[6]?.[0]).toContain("from user_blocks");
+    expect(listResponse.json()).toEqual({
+      data: [{
         id: conversationId,
         kind: "dm",
         user: {
@@ -4389,8 +4440,42 @@ describe("server", () => {
         mutual: true,
         canMessage: true,
         tags: []
-      }
+      }]
     });
+  });
+
+  it("opens a dm when the legacy dm_key conflict target is unavailable", async () => {
+    const otherUserId = "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97";
+
+    query
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [{ id: otherUserId }] })
+      .mockResolvedValueOnce({ rows: [{ id: conversationId }] })
+      .mockRejectedValueOnce(Object.assign(new Error("missing dm_key conflict constraint"), { code: "42P10" }))
+      .mockResolvedValueOnce({ rows: [{ id: conversationId }] })
+      .mockResolvedValueOnce({ rows: [] });
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/conversations/dm",
+      headers: { "x-user-id": userId },
+      payload: { otherUserId }
+    });
+
+    expect(response.statusCode).toBe(201);
+    expect(response.json()).toEqual({ data: { id: conversationId } });
+    expect(query).toHaveBeenCalledTimes(6);
+    expect(query.mock.calls[2]?.[0]).toContain("where kind = 'dm' and dm_key = $1");
+    expect(query.mock.calls[2]?.[1]).toEqual([[userId, otherUserId].sort().join(":")]);
+    expect(query.mock.calls[3]?.[0]).toContain("on conflict (dm_key)");
+    expect(query.mock.calls[4]?.[0]).toContain("with existing as");
+    expect(query.mock.calls[4]?.[0]).not.toContain("on conflict");
+    expect(query.mock.calls[4]?.[1]).toEqual(query.mock.calls[3]?.[1]);
+    // Membership insertion no longer needs a unique conflict target.
+    expect(query.mock.calls[5]?.[0]).toContain("insert into conversation_members");
+    expect(query.mock.calls[5]?.[0]).toContain("where not exists");
+    expect(query.mock.calls[5]?.[0]).not.toContain("on conflict");
+    expect(query.mock.calls[5]?.[1]).toEqual([conversationId, userId, otherUserId]);
   });
 
   it("creates a group conversation with the creator as owner", async () => {
@@ -4418,6 +4503,7 @@ describe("server", () => {
       // grant, so the revocation lookup runs before the block check.
       .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [{ id: memberId }] }) // profile visibility: no opt-in restriction
       .mockResolvedValueOnce({
       rows: [{
         id: conversationId,
@@ -4461,11 +4547,13 @@ describe("server", () => {
     expect(query.mock.calls[4]?.[0]).toContain("encrypted_relationship_tokens");
     expect(query.mock.calls[5]?.[0]).toContain("encrypted_privacy_audit_events");
     expect(query.mock.calls[6]?.[0]).toContain("from user_blocks");
-    expect(query.mock.calls[7]?.[0]).toContain("insert into conversations");
-    expect(query.mock.calls[7]?.[0]).toContain("insert into conversation_members");
-    expect(query.mock.calls[7]?.[0]).toContain("'owner'");
-    expect(query.mock.calls[8]?.[0]).toContain("insert into app_notifications");
-    expect(query.mock.calls[8]?.[1]).toEqual([
+    expect(query.mock.calls[7]?.[0]).toContain("profile_visibility_ciphertext");
+    expect(query.mock.calls[7]?.[1]).toEqual([[memberId]]);
+    expect(query.mock.calls[8]?.[0]).toContain("insert into conversations");
+    expect(query.mock.calls[8]?.[0]).toContain("insert into conversation_members");
+    expect(query.mock.calls[8]?.[0]).toContain("'owner'");
+    expect(query.mock.calls[9]?.[0]).toContain("insert into app_notifications");
+    expect(query.mock.calls[9]?.[1]).toEqual([
       memberId,
       "group_membership",
       "You were added to Beta crew",
@@ -4877,6 +4965,7 @@ describe("server", () => {
       // grant, so the revocation lookup runs before the block check.
       .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [{ id: memberId }] }) // profile visibility: no opt-in restriction
       .mockResolvedValueOnce({ rows: [{ id: memberId }] })
       .mockResolvedValueOnce({
         rows: [appNotificationRow({
@@ -4905,11 +4994,13 @@ describe("server", () => {
     expect(query.mock.calls[4]?.[0]).toContain("encrypted_relationship_tokens");
     expect(query.mock.calls[5]?.[0]).toContain("encrypted_privacy_audit_events");
     expect(query.mock.calls[6]?.[0]).toContain("from user_blocks");
-    expect(query.mock.calls[7]?.[0]).toContain("insert into conversation_members");
-    expect(query.mock.calls[7]?.[0]).not.toContain("club_memberships");
-    expect(query.mock.calls[7]?.[0]).toContain("'member'");
-    expect(query.mock.calls[8]?.[0]).toContain("insert into app_notifications");
-    expect(query.mock.calls[8]?.[1]).toEqual([
+    expect(query.mock.calls[7]?.[0]).toContain("profile_visibility_ciphertext");
+    expect(query.mock.calls[7]?.[1]).toEqual([[memberId]]);
+    expect(query.mock.calls[8]?.[0]).toContain("insert into conversation_members");
+    expect(query.mock.calls[8]?.[0]).not.toContain("club_memberships");
+    expect(query.mock.calls[8]?.[0]).toContain("'member'");
+    expect(query.mock.calls[9]?.[0]).toContain("insert into app_notifications");
+    expect(query.mock.calls[9]?.[1]).toEqual([
       memberId,
       "group_membership",
       "You were added to Group chat",
@@ -4944,6 +5035,7 @@ describe("server", () => {
       .mockResolvedValueOnce({ rows: [matchToken] })
       .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [{ id: memberId }] }) // profile visibility: no opt-in restriction
       .mockResolvedValueOnce({ rows: [{ id: null, member_limit_reached: true }] });
 
     const response = await app.inject({
@@ -4955,8 +5047,10 @@ describe("server", () => {
 
     expect(response.statusCode).toBe(409);
     expect(response.json().error.message).toBe("This conversation has reached its member limit.");
-    expect(query.mock.calls[7]?.[0]).toContain("member_count < $3");
-    expect(query.mock.calls[7]?.[1]).toEqual([conversationId, memberId, 100]);
+    expect(query.mock.calls[7]?.[0]).toContain("profile_visibility_ciphertext");
+    expect(query.mock.calls[7]?.[1]).toEqual([[memberId]]);
+    expect(query.mock.calls[8]?.[0]).toContain("member_count < $3");
+    expect(query.mock.calls[8]?.[1]).toEqual([conversationId, memberId, 100]);
   });
 
   it("rejects non-mutual users before adding them to a group", async () => {
@@ -5102,10 +5196,21 @@ describe("server", () => {
     });
 
     expect(response.statusCode).toBe(201);
-    expect(response.json().data).toMatchObject({
+    expect(response.json()).toEqual({ data: { id: conversationId } });
+
+    const listResponse = await app.inject({
+      method: "GET",
+      url: "/api/conversations",
+      headers: { "x-user-id": userId }
+    });
+
+    expect(listResponse.statusCode).toBe(200);
+    expect(listResponse.json().data).toHaveLength(1);
+    expect(listResponse.json().data[0]).toMatchObject({
       id: conversationId,
       kind: "dm",
       mutual: false,
+      canMessage: true,
       user: {
         id: dmPartnerId,
         name: "Alex"
@@ -5115,26 +5220,8 @@ describe("server", () => {
 
   it("blocks dm conversation creation when either user blocked the other", async () => {
     const otherUserId = "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97";
-    const matchRecord = await encryptedRelationshipRecordRow({
-      id: "match-blocked-dm",
-      type: "mutual_cruush",
-      actorUserId: userId,
-      targetUserId: otherUserId
-    });
-    const matchToken = await encryptedMatchTokenRow({
-      relationshipRecordId: "match-blocked-dm",
-      userOneId: userId,
-      userTwoId: otherUserId
-    });
 
     query
-      .mockResolvedValueOnce({ rows: [matchRecord] })
-      .mockResolvedValueOnce({ rows: [] })
-      .mockResolvedValueOnce({ rows: [] })
-      .mockResolvedValueOnce({ rows: [matchToken] })
-      // A mutual cruush with an active token holds the default precise-location
-      // grant, so the revocation lookup runs before the block check.
-      .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({ rows: [{ exists: true }] });
 
     const response = await app.inject({
@@ -5155,13 +5242,14 @@ describe("server", () => {
     expect(response.statusCode).toBe(403);
     expect(blockCheck?.[0]).toContain("from user_blocks");
     expect(blockCheck?.[1]).toEqual([userId, otherUserId]);
-    expect(query.mock.calls[5]?.[0]).toContain("from user_blocks");
+    expect(query).toHaveBeenCalledTimes(1);
+    expect(blockCheck?.[0]).toContain("blocker_user_id::text = $2::text and blocked_user_id::text = $1::text");
     expect(queries.some((sql) => sql.includes("from app_users"))).toBe(false);
     expect(queries.some((sql) => sql.includes("insert into conversations"))).toBe(false);
     expect(response.json()).toEqual({
       error: {
         code: "FORBIDDEN",
-        message: "This user is not accepting messages from you right now.",
+        message: "You cannot message this user.",
         details: null
       }
     });
@@ -6722,6 +6810,7 @@ describe("server", () => {
           id: targetUserId
         }]
       })
+      .mockResolvedValueOnce({ rows: [{ id: targetUserId }] }) // current profile visibility
       .mockResolvedValueOnce({
         rows: [{
           id: "report-1",
@@ -6746,8 +6835,10 @@ describe("server", () => {
 
     expect(response.statusCode).toBe(201);
     expect(query.mock.calls[0]?.[0]).toContain("from profiles");
-    expect(query.mock.calls[1]?.[0]).toContain("insert into reports");
-    expect(query.mock.calls[1]?.[1]).toEqual([
+    expect(query.mock.calls[1]?.[0]).toContain("profile_visibility_ciphertext");
+    expect(query.mock.calls[1]?.[1]).toEqual([[targetUserId]]);
+    expect(query.mock.calls[2]?.[0]).toContain("insert into reports");
+    expect(query.mock.calls[2]?.[1]).toEqual([
       userId,
       "profile",
       targetUserId,
@@ -6797,6 +6888,7 @@ describe("server", () => {
           id: targetUserId
         }]
       })
+      .mockResolvedValueOnce({ rows: [{ id: targetUserId }] }) // current profile visibility
       .mockResolvedValueOnce({
         rows: [{
           id: "report-email-1",
@@ -7136,6 +7228,7 @@ describe("server", () => {
 
     query
       .mockResolvedValueOnce({ rows: [{ id: targetUserId }] })
+      .mockResolvedValueOnce({ rows: [{ id: targetUserId }] }) // current profile visibility
       .mockResolvedValueOnce({ rows: [{ media_object_id: mediaObjectId, profile_photo_url: profilePhotoUrl }] })
       .mockResolvedValueOnce({
         rows: [{ id: "report-photo", status: "open", created_at: "2026-04-29T12:26:00.000Z" }]
@@ -7154,8 +7247,10 @@ describe("server", () => {
     });
 
     expect(response.statusCode).toBe(201);
-    expect(query.mock.calls[1]?.[0]).toContain("cross join lateral unnest");
-    expect(query.mock.calls[2]?.[1]).toEqual([
+    expect(query.mock.calls[1]?.[0]).toContain("profile_visibility_ciphertext");
+    expect(query.mock.calls[1]?.[1]).toEqual([[targetUserId]]);
+    expect(query.mock.calls[2]?.[0]).toContain("cross join lateral unnest");
+    expect(query.mock.calls[3]?.[1]).toEqual([
       userId,
       "profile_photo",
       targetUserId,
@@ -7542,11 +7637,15 @@ describe("server", () => {
     expect(query.mock.calls[4]?.[0]).toContain("insert into moderation_access_events");
   });
 
-  it("returns and updates support requests from the email dashboard", async () => {
+  it.each([
+    { role: "moderator", category: "bug", contactEmail: null, requesterEmail: null },
+    { role: "admin", category: "bug", contactEmail: null, requesterEmail: null },
+    { role: "moderator", category: "question", contactEmail: "c******@example.com", requesterEmail: "j*****@example.com" }
+  ])("returns and updates support requests from the email dashboard ($role, $category)", async ({ role, category, contactEmail, requesterEmail }) => {
     const targetUserId = "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97";
     const requestId = "2f35619f-e09d-4f65-a7ea-8f6dd149ec11";
     query
-      .mockResolvedValueOnce({ rows: [{ role: "moderator" }] })
+      .mockResolvedValueOnce({ rows: [{ role }] })
       .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({
         rows: [{
@@ -7555,7 +7654,7 @@ describe("server", () => {
           requester_display_name: "Jordan",
           requester_email: "jordan@example.com",
           contact_email: "contact@example.com",
-          category: "bug",
+          category,
           subject: "Messages are missing",
           message: "The chat screen is blank.",
           source: "settings",
@@ -7606,11 +7705,11 @@ describe("server", () => {
     expect(query.mock.calls[2]?.[1]).toEqual(["open", null, 25, 0]);
     expect(listResponse.json().data.requests[0]).toMatchObject({
       subject: "Messages are missing",
-      contactEmail: "c******@example.com",
+      contactEmail,
       githubIssueNumber: 42,
       requester: {
         displayName: "Jordan",
-        email: "j*****@example.com"
+        email: requesterEmail
       }
     });
     expect(listResponse.json().data.surveySummary).toEqual({
@@ -7640,7 +7739,7 @@ describe("server", () => {
 
     query.mockReset();
     query
-      .mockResolvedValueOnce({ rows: [{ role: "moderator" }] })
+      .mockResolvedValueOnce({ rows: [{ role }] })
       .mockResolvedValueOnce({
         rows: [{
           id: requestId,
@@ -7648,7 +7747,7 @@ describe("server", () => {
           requester_display_name: null,
           requester_email: null,
           contact_email: "contact@example.com",
-          category: "bug",
+          category,
           subject: "Messages are missing",
           message: "The chat screen is blank.",
           source: "settings",
@@ -7681,7 +7780,9 @@ describe("server", () => {
     expect(query.mock.calls[3]?.[0]).toContain("insert into moderation_access_events");
     expect(updateResponse.json().data.request).toMatchObject({
       id: requestId,
-      status: "closed"
+      status: "closed",
+      contactEmail,
+      requester: { email: null }
     });
   });
 
@@ -8453,7 +8554,6 @@ describe("server", () => {
       "auth",
       "https://cruush.test/",
       expect.objectContaining({
-        userAgent: "vitest",
         aiSupport: expect.objectContaining({ status: "pending" })
       })
     ]);
@@ -8513,9 +8613,8 @@ describe("server", () => {
     });
   });
 
-  it("creates a signed-in support request without requiring contact email", async () => {
+  it("does not link a signed-in bug report to an account email without opt-in", async () => {
     query
-      .mockResolvedValueOnce({ rows: [{ email: "river@example.com" }] })
       // The route checks whether the reporter is staff before applying the
       // member cap. This member is not.
       .mockResolvedValueOnce({ rows: [] })
@@ -8543,19 +8642,16 @@ describe("server", () => {
     });
 
     expect(response.statusCode).toBe(201);
-    // The member never types an address: support replies to the account email
-    // read from app_users.
-    expect(String(query.mock.calls[0]?.[0])).toContain("select email from app_users");
-    expect(query.mock.calls[2]?.[1]).toEqual([
+    expect(String(query.mock.calls[0]?.[0])).not.toContain("select email from app_users");
+    expect(query.mock.calls[1]?.[1]).toEqual([
       userId,
-      "river@example.com",
+      null,
       "bug",
       "Settings bug",
       "The settings screen got stuck after opening support.",
       "settings",
-      "",
+      "/",
       expect.objectContaining({
-        userAgent: expect.any(String),
         aiSupport: expect.objectContaining({ status: "pending" })
       })
     ]);
@@ -9596,6 +9692,7 @@ describe("server", () => {
       lng: -74.002,
       accuracyM: 50
     });
+    const viewerLocation = await encryptedLocationEnvelopeRow({ subjectUserId: userId, lat: 40.7128, lng: -74.006 });
 
     query
       .mockResolvedValueOnce({ rows: [] })
@@ -9617,7 +9714,7 @@ describe("server", () => {
           updated_at: "2026-04-28T12:00:00.000Z"
         }]
       })
-      .mockResolvedValueOnce({ rows: [targetLocation] })
+      .mockResolvedValueOnce({ rows: [targetLocation, viewerLocation] })
       .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({ rows: [] })
@@ -9634,7 +9731,11 @@ describe("server", () => {
     expect(response.statusCode).toBe(200);
     // Seven of these resolve the DL photo audience for the one listed member:
     // shared crowds, their NSFW photo policy, and their viewer relationship.
-    expect(query).toHaveBeenCalledTimes(18);
+    // One batch also loads the authorized member's encrypted saved state.
+    expect(query).toHaveBeenCalledTimes(20);
+    expect(query).toHaveBeenCalledWith(expect.stringContaining("from oos_service_area_state"), [[targetUserId]]);
+    expect(query.mock.calls[4]?.[0]).toContain("profile_visibility_ciphertext");
+    expect(query.mock.calls[4]?.[1]).toEqual([[targetUserId]]);
     expect(query.mock.calls[1]?.[0]).toContain("from profiles");
     expect(query.mock.calls[1]?.[0]).toContain("join encrypted_location_envelopes");
     expect(query.mock.calls[1]?.[0]).toContain("profiles.display_name as display_name");
@@ -9962,6 +10063,7 @@ describe("server", () => {
       lng: row.lng,
       accuracyM: 50
     })));
+    locationRows.push(await encryptedLocationEnvelopeRow({ subjectUserId: userId, lat: 40.7128, lng: -74.006 }));
 
     query.mockImplementation((sql: string) => {
       const normalizedSql = sql.toLowerCase();
@@ -10048,6 +10150,7 @@ describe("server", () => {
       lng: -74.006 - index * 0.0001,
       accuracyM: 25
     })));
+    locationRows.push(await encryptedLocationEnvelopeRow({ subjectUserId: userId, lat: 40.7128, lng: -74.006 }));
 
     query.mockImplementation((sql: string, params: unknown[] = []) => {
       const normalizedSql = sql.toLowerCase();
@@ -10143,7 +10246,11 @@ describe("server", () => {
     expect(query.mock.calls.some(([sql]) => String(sql).toLowerCase().includes("insert into encrypted_visibility_tokens"))).toBe(true);
   });
 
-  it("ignores the NPC Ghost demo flag for non-admin discovery users", async () => {
+  it.each([true, false])("ignores the NPC Ghost demo flag for non-admin discovery users (land available: %s)", async (landAvailable) => {
+    const viewerLocation = await encryptedLocationEnvelopeRow({ subjectUserId: userId, lat: 40.7128, lng: -74.006 });
+    if (!landAvailable) {
+      vi.mocked(isGhostLand).mockRejectedValue(new GhostLandUnavailableError());
+    }
     const evenNpcRow = {
       id: "00000000-0000-4000-8000-000000000002",
       email: "test-cruush-02@cruush.local",
@@ -10181,8 +10288,9 @@ describe("server", () => {
     };
     const locationRow = await encryptedLocationEnvelopeRow({
       subjectUserId: evenNpcRow.id,
-      lat: 40.7128,
-      lng: -74.006,
+      // Use an uncached location for the outage case so it must consult terrain.
+      lat: landAvailable ? 40.7128 : 40.8095,
+      lng: landAvailable ? -74.006 : -73.963,
       accuracyM: 25
     });
 
@@ -10202,7 +10310,7 @@ describe("server", () => {
       }
 
       if (normalizedSql.includes("from encrypted_location_envelopes")) {
-        return Promise.resolve({ rows: [locationRow] });
+        return Promise.resolve({ rows: [locationRow, viewerLocation] });
       }
 
       return Promise.resolve({ rows: [] });
@@ -10225,6 +10333,12 @@ describe("server", () => {
     });
 
     expect(response.statusCode).toBe(200);
+    if (!landAvailable) {
+      expect(isGhostLand).toHaveBeenCalled();
+      expect(response.json().data.profiles).toEqual([]);
+      return;
+    }
+    expect(response.json().data.profiles).toHaveLength(1);
     const profile = response.json().data.profiles[0];
     const payload = decryptDisplayLocationTokenForTest({
       key: displayKey.key,
@@ -10237,6 +10351,7 @@ describe("server", () => {
   });
 
   it("ignores the NPC Ghost demo flag in production discovery", async () => {
+    const viewerLocation = await encryptedLocationEnvelopeRow({ subjectUserId: userId, lat: 40.7128, lng: -74.006 });
     const sessionToken = generateSessionToken();
     const cookie = createSessionCookie(sessionToken, {
       secure: true,
@@ -10300,7 +10415,7 @@ describe("server", () => {
       }
 
       if (normalizedSql.includes("from encrypted_location_envelopes")) {
-        return Promise.resolve({ rows: [locationRow] });
+        return Promise.resolve({ rows: [locationRow, viewerLocation] });
       }
 
       return Promise.resolve({ rows: [] });
@@ -10354,6 +10469,7 @@ describe("server", () => {
       preciseToMutualCruushes: true
     });
     const locationRows = await Promise.all([
+      encryptedLocationEnvelopeRow({ subjectUserId: userId, lat: 40.7128, lng: -74.006 }),
       encryptedLocationEnvelopeRow({
         subjectUserId: matchedUserId,
         lat: 40.711,
@@ -10601,6 +10717,7 @@ describe("server", () => {
       custom_hiv_status: ""
     });
     const locationRows = await Promise.all([
+      encryptedLocationEnvelopeRow({ subjectUserId: userId, lat: 40.7128, lng: -74.006 }),
       encryptedLocationEnvelopeRow({
         subjectUserId: "t4t-user",
         lat: 40.711,
@@ -10753,8 +10870,11 @@ describe("server", () => {
   });
 
   it("returns an empty array when no nearby profiles have stored coordinates", async () => {
+    const viewerLocation = await encryptedLocationEnvelopeRow({ subjectUserId: userId, lat: 40.7128, lng: -74.006 });
     query
       .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [viewerLocation] })
       .mockResolvedValueOnce({ rows: [] });
 
     const response = await app.inject({
@@ -10775,6 +10895,7 @@ describe("server", () => {
   });
 
   it("falls back to the legacy profile schema on GET /api/users", async () => {
+    const viewerLocation = await encryptedLocationEnvelopeRow({ subjectUserId: userId, lat: 40.7128, lng: -74.006 });
     query
       .mockResolvedValueOnce({ rows: [] })
       .mockRejectedValueOnce({
@@ -10797,7 +10918,8 @@ describe("server", () => {
           fuzzy_lng: -74.0005
         }]
       })
-      .mockResolvedValueOnce({ rows: [] });
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [viewerLocation] });
 
     const response = await app.inject({
       method: "GET",
@@ -10810,7 +10932,7 @@ describe("server", () => {
     expect(response.statusCode).toBe(200);
     // Seven of these resolve the DL photo audience for the one legacy member:
     // shared crowds, their NSFW photo policy, and their viewer relationship.
-    expect(query).toHaveBeenCalledTimes(14);
+    expect(query).toHaveBeenCalledTimes(15);
     expect(query.mock.calls[2]?.[0]).toContain("tribes as legacy_vibe_tags");
     expect(query.mock.calls[2]?.[0]).toContain("where last_active >= now() - interval '4 days'");
 
@@ -10837,6 +10959,7 @@ describe("server", () => {
 
   it("keeps Stealth users out of legacy discovery fallback results", async () => {
     const legacyUserId = "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97";
+    const viewerLocation = await encryptedLocationEnvelopeRow({ subjectUserId: userId, lat: 40.7128, lng: -74.006 });
     const stealthPolicy = await encryptedVisibilityPolicyRow({
       subjectUserId: legacyUserId,
       baseMode: "STEALTH"
@@ -10845,6 +10968,9 @@ describe("server", () => {
     query.mockImplementation((sql: string, params: unknown[] = []) => {
       const normalizedSql = sql.toLowerCase();
 
+      if (normalizedSql.includes("from encrypted_location_envelopes")) {
+        return Promise.resolve({ rows: [viewerLocation] });
+      }
       if (normalizedSql.includes("from profiles") && normalizedSql.includes("where id = $1")) {
         return Promise.resolve({ rows: [] });
       }
@@ -10896,6 +11022,7 @@ describe("server", () => {
 
   it("restores a legacy discovery profile when its saved Stealth policy outlives cruush+", async () => {
     const legacyUserId = "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97";
+    const viewerLocation = await encryptedLocationEnvelopeRow({ subjectUserId: userId, lat: 40.7128, lng: -74.006 });
     const retainedStealthPolicy = await encryptedVisibilityPolicyRow({
       subjectUserId: legacyUserId,
       baseMode: "STEALTH"
@@ -10904,6 +11031,9 @@ describe("server", () => {
     query.mockImplementation((sql: string, params: unknown[] = []) => {
       const normalizedSql = sql.toLowerCase();
 
+      if (normalizedSql.includes("from encrypted_location_envelopes")) {
+        return Promise.resolve({ rows: [viewerLocation] });
+      }
       if (normalizedSql.includes("from profiles") && normalizedSql.includes("where id = $1")) {
         return Promise.resolve({ rows: [] });
       }
@@ -10960,6 +11090,7 @@ describe("server", () => {
 
   it("keeps Ghost location rendering in legacy discovery fallback results", async () => {
     const legacyUserId = "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97";
+    const viewerLocation = await encryptedLocationEnvelopeRow({ subjectUserId: userId, lat: 40.7128, lng: -74.006 });
     const ghostPolicy = await encryptedVisibilityPolicyRow({
       subjectUserId: legacyUserId,
       baseMode: "GHOST"
@@ -10968,6 +11099,9 @@ describe("server", () => {
     query.mockImplementation((sql: string, params: unknown[] = []) => {
       const normalizedSql = sql.toLowerCase();
 
+      if (normalizedSql.includes("from encrypted_location_envelopes")) {
+        return Promise.resolve({ rows: [viewerLocation] });
+      }
       if (normalizedSql.includes("from profiles") && normalizedSql.includes("where id = $1")) {
         return Promise.resolve({ rows: [] });
       }
@@ -11048,6 +11182,8 @@ describe("server", () => {
           age_verified_at: "2026-04-28T12:00:00.000Z"
         }]
       })
+      .mockResolvedValueOnce({ rows: [] }) // encrypted viewer location
+      .mockResolvedValueOnce({ rows: [] }) // viewer travel pin
       .mockResolvedValueOnce({
         rows: [{
           id: "post-1",
@@ -11073,11 +11209,15 @@ describe("server", () => {
 
     expect(response.statusCode).toBe(200);
     expect(query.mock.calls[0]?.[0]).toContain("from app_sessions s");
-    expect(query.mock.calls[1]?.[0]).toContain("from posts p");
-    expect(query.mock.calls[1]?.[0]).toContain("join profiles pr on pr.id = p.user_id");
-    expect(query.mock.calls[1]?.[0]).toContain("lower(trim(coalesce(pr.display_name, ''))) <> 'user deleted profile'");
-    expect(query.mock.calls[1]?.[0]).toContain("p.map_ping_id");
-    expect(query.mock.calls[1]?.[0]).toContain("p.expires_in = 'never' or p.created_at >= now()");
+    expect(query.mock.calls[1]?.[0]).toContain("from encrypted_location_envelopes");
+    expect(query.mock.calls[2]?.[0]).toContain("from user_travel_pins");
+    expect(query.mock.calls[3]?.[0]).toContain("from posts p");
+    expect(query.mock.calls[3]?.[0]).toContain("join profiles pr on pr.id = p.user_id");
+    expect(query.mock.calls[3]?.[0]).toContain("lower(trim(coalesce(pr.display_name, ''))) <> 'user deleted profile'");
+    expect(query.mock.calls[3]?.[0]).toContain("p.map_ping_id");
+    expect(query.mock.calls[3]?.[0]).toContain("p.created_at >= now() - case");
+    expect(query.mock.calls[3]?.[0]).not.toContain("$2 = 'never'");
+    expect(query.mock.calls[3]?.[0]).not.toContain("p.expires_in = 'never' or p.created_at >= now()");
     expect(response.json()).toEqual({
       data: [{
         id: "post-1",
@@ -11099,6 +11239,35 @@ describe("server", () => {
         }
       }]
     });
+  });
+
+  it("excludes active Mile High Club authors from the Feed when requested", async () => {
+    query
+      .mockResolvedValueOnce({ rows: [] }) // encrypted viewer location
+      .mockResolvedValueOnce({ rows: [] }) // viewer travel pin
+      .mockResolvedValueOnce({ rows: [] });
+
+    const response = await app.inject({
+      method: "GET",
+      url: "/api/posts?excludeMileHighClub=1",
+      headers: { "x-user-id": userId }
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(String(query.mock.calls[2]?.[0])).toContain(`not exists (
+        select 1
+        from user_travel_pins active_travel_pin`);
+    expect(String(query.mock.calls[2]?.[0])).toContain("active_travel_pin.set_at > now() - interval '24 hours'");
+  });
+
+  it("rejects contradictory Mile High Club Feed filters", async () => {
+    const response = await app.inject({
+      method: "GET",
+      url: "/api/posts?mileHighClub=1&excludeMileHighClub=1",
+      headers: { "x-user-id": userId }
+    });
+
+    expect(response.statusCode).toBe(400);
   });
 
   it("continues scanning older Feed rows when a full page is hidden by audience privacy", async () => {
@@ -11193,10 +11362,13 @@ describe("server", () => {
   });
 
   it("returns Ping feed posts through normal feed privacy without exposing their internal Ping link", async () => {
+    const viewerLocation = await encryptedLocationEnvelopeRow({ subjectUserId: userId, lat: 40.7128, lng: -74.006 });
     query
       .mockResolvedValueOnce({
         rows: [{ user_id: userId, age_verified_at: "2026-04-28T12:00:00.000Z" }]
       })
+      .mockResolvedValueOnce({ rows: [viewerLocation] })
+      .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({
         rows: [{
           id: "post-ping-1",
@@ -11224,7 +11396,7 @@ describe("server", () => {
     });
 
     expect(response.statusCode).toBe(200);
-    const feedSql = String(query.mock.calls[1]?.[0]);
+    const feedSql = String(query.mock.calls[3]?.[0]);
     expect(feedSql).toContain("p.map_ping_id");
     expect(feedSql).toContain("from user_blocks block");
     expect(feedSql).not.toContain("notification.dedupe_key = 'map-ping:'");
@@ -11265,6 +11437,8 @@ describe("server", () => {
           age_verified_at: "2026-04-28T12:00:00.000Z"
         }]
       })
+      .mockResolvedValueOnce({ rows: [] }) // encrypted viewer location
+      .mockResolvedValueOnce({ rows: [] }) // viewer travel pin
       .mockResolvedValueOnce({ rows: [] });
 
     const response = await app.inject({
@@ -11276,10 +11450,10 @@ describe("server", () => {
     });
 
     expect(response.statusCode).toBe(200);
-    expect(query.mock.calls[1]?.[0]).toContain("from user_blocks block");
-    expect(query.mock.calls[1]?.[0]).toContain("blocker_user_id = $1");
-    expect(query.mock.calls[1]?.[0]).toContain("blocked_user_id = p.user_id");
-    expect(query.mock.calls[1]?.[1]).toEqual([userId, "7d", null, null, 50, null, 30]);
+    expect(query.mock.calls[3]?.[0]).toContain("from user_blocks block");
+    expect(query.mock.calls[3]?.[0]).toContain("blocker_user_id = $1");
+    expect(query.mock.calls[3]?.[0]).toContain("blocked_user_id = p.user_id");
+    expect(query.mock.calls[3]?.[1]).toEqual([userId, "7d", null, null, 50, null, 30]);
   });
 
   it("filters crowd-targeted posts by the reader's crowd memberships at the query boundary", async () => {
@@ -11290,6 +11464,8 @@ describe("server", () => {
           age_verified_at: "2026-04-28T12:00:00.000Z"
         }]
       })
+      .mockResolvedValueOnce({ rows: [] }) // encrypted viewer location
+      .mockResolvedValueOnce({ rows: [] }) // viewer travel pin
       .mockResolvedValueOnce({ rows: [] });
 
     const response = await app.inject({
@@ -11301,9 +11477,9 @@ describe("server", () => {
     });
 
     expect(response.statusCode).toBe(200);
-    expect(query.mock.calls[1]?.[0]).toContain("feed_post_crowd_targets target");
-    expect(query.mock.calls[1]?.[0]).toContain("profile_sensitive_tokens viewer_crowd_token");
-    expect(query.mock.calls[1]?.[0]).toContain("viewer_crowd_token.user_id = $1");
+    expect(query.mock.calls[3]?.[0]).toContain("feed_post_crowd_targets target");
+    expect(query.mock.calls[3]?.[0]).toContain("profile_sensitive_tokens viewer_crowd_token");
+    expect(query.mock.calls[3]?.[0]).toContain("viewer_crowd_token.user_id = $1");
   });
 
   it("persists the feed expiry choice used by future Pings", async () => {
@@ -11345,6 +11521,93 @@ describe("server", () => {
         feedWindow: "7d"
       }
     });
+  });
+
+  it("normalizes legacy Never to 30d for the Feed Posted within window without changing post expiry", async () => {
+    query.mockResolvedValueOnce({
+      rows: [{
+        feed_location_pin_visibility: "mutuals",
+        feed_show_distance_labels: true,
+        feed_post_expiry_default: "never",
+        feed_window_default: "30d"
+      }]
+    });
+
+    const response = await app.inject({
+      method: "PUT",
+      url: "/api/feed/settings",
+      headers: { "x-user-id": userId },
+      payload: {
+        locationPinVisibility: "mutuals",
+        showDistanceLabels: true,
+        feedWindow: "never"
+      }
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(query.mock.calls[0]?.[1]).toEqual([userId, "mutuals", true, null, "30d"]);
+    expect(response.json().data.feedWindow).toBe("30d");
+    expect(response.json().data.postExpiryDefault).toBe("never");
+  });
+
+  it("persists 30d as the Feed Posted within window", async () => {
+    query.mockResolvedValueOnce({
+      rows: [{
+        feed_location_pin_visibility: "mutuals",
+        feed_show_distance_labels: true,
+        feed_post_expiry_default: "never",
+        feed_window_default: "30d"
+      }]
+    });
+
+    const response = await app.inject({
+      method: "PUT",
+      url: "/api/feed/settings",
+      headers: { "x-user-id": userId },
+      payload: { locationPinVisibility: "mutuals", showDistanceLabels: true, feedWindow: "30d" }
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(query.mock.calls[0]?.[1]).toEqual([userId, "mutuals", true, null, "30d"]);
+    expect(response.json().data.feedWindow).toBe("30d");
+  });
+
+  it("uses the requested Posted within day count when loading Feed posts", async () => {
+    query
+      .mockResolvedValueOnce({ rows: [] }) // encrypted viewer location
+      .mockResolvedValueOnce({ rows: [] }) // viewer travel pin
+      .mockResolvedValueOnce({ rows: [] });
+
+    const response = await app.inject({
+      method: "GET",
+      url: "/api/posts?within=8d",
+      headers: { "x-user-id": userId }
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(query.mock.calls[2]?.[1]?.[1]).toBe("8d");
+    expect(String(query.mock.calls[2]?.[0])).toContain("split_part($2, 'd', 1)::integer * interval '1 day'");
+    expect(String(query.mock.calls[2]?.[0])).not.toContain("p.expires_in = 'never' or p.created_at >= now()");
+  });
+
+  it("applies the 30d created-at cutoff for a legacy Posted within Never request", async () => {
+    query
+      .mockResolvedValueOnce({ rows: [] }) // encrypted viewer location
+      .mockResolvedValueOnce({ rows: [] }) // viewer travel pin
+      .mockResolvedValueOnce({ rows: [] });
+
+    const response = await app.inject({
+      method: "GET",
+      url: "/api/posts?within=never",
+      headers: { "x-user-id": userId }
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(query.mock.calls[2]?.[0]).toContain("p.created_at >= now() - case");
+    expect(query.mock.calls[2]?.[0]).toContain("split_part($2, 'd', 1)::integer * interval '1 day'");
+    expect(query.mock.calls[2]?.[0]).not.toContain("$2 = 'never'");
+    expect(query.mock.calls[2]?.[0]).not.toContain("p.expires_in = 'never' or p.created_at >= now()");
+    expect(query.mock.calls[2]?.[1]?.[1]).toBe("30d");
   });
 
   it("returns the persisted feed expiry choice on another page or device", async () => {
@@ -11466,7 +11729,10 @@ describe("server", () => {
     expect(response.statusCode).toBe(201);
     // The reciprocal distance-label rule reads both members' visibility
     // policies when the new post is mapped back, after the insert.
-    expect(query).toHaveBeenCalledTimes(5);
+    expect(query).toHaveBeenCalledTimes(8);
+    expect(query.mock.calls[3]?.[0]).toContain("from encrypted_location_envelopes");
+    expect(query.mock.calls[4]?.[0]).toContain("from user_travel_pins");
+    expect(query.mock.calls[7]?.[0]).toContain("from oos_service_area_state");
     expect(query.mock.calls[2]?.[0]).toContain("insert into posts");
     expect(query.mock.calls[2]?.[0]).toContain("content_ciphertext");
     expect(query.mock.calls[2]?.[0]).toContain("'[encrypted]'");
@@ -11677,6 +11943,9 @@ describe("server", () => {
       // policies while the created post is mapped back.
       .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({
         rows: [{
           cruush_plus_enabled: true,
@@ -11731,9 +12000,9 @@ describe("server", () => {
     expect(query.mock.calls[2]?.[0]).toContain("when $2 = '2d' then interval '2 days'");
     expect(query.mock.calls[2]?.[0]).toContain("when $2 = '3d' then interval '3 days'");
     expect(query.mock.calls[2]?.[0]).toContain("when $2 = '5d' then interval '5 days'");
-    expect(query.mock.calls[7]?.[0]).toContain("when $2 = 'never' then 'infinity'::timestamptz");
+    expect(query.mock.calls[10]?.[0]).toContain("when $2 = 'never' then 'infinity'::timestamptz");
     expect(query.mock.calls[2]?.[1]?.[1]).toBe("7d");
-    expect(query.mock.calls[7]?.[1]?.[1]).toBe("never");
+    expect(query.mock.calls[10]?.[1]?.[1]).toBe("never");
     expect(sevenDayResponse.json().data.expiresAt).toBe("2026-05-05T12:00:00.000Z");
     expect(neverResponse.json().data.expiresAt).toBeNull();
     expect(notifyNearbyUsersForFeedPost).toHaveBeenNthCalledWith(1, expect.anything(), {
@@ -11742,6 +12011,16 @@ describe("server", () => {
       audience: "public"
     });
     expect(notifyNearbyUsersForFeedPost).toHaveBeenNthCalledWith(2, expect.anything(), {
+      postId: "post-never",
+      authorUserId: userId,
+      audience: "public"
+    });
+    expect(notifyMutualCruushesForFeedPost).toHaveBeenNthCalledWith(1, expect.anything(), {
+      postId: "post-seven-days",
+      authorUserId: userId,
+      audience: "public"
+    });
+    expect(notifyMutualCruushesForFeedPost).toHaveBeenNthCalledWith(2, expect.anything(), {
       postId: "post-never",
       authorUserId: userId,
       audience: "public"
@@ -12265,7 +12544,7 @@ describe("server", () => {
     });
   });
 
-  it("returns locked free activity from GET /api/cruush/me", async () => {
+  it("returns full incoming cruush history to a free signed-in user", async () => {
     const incomingOne = await encryptedRelationshipRecordRow({
       id: "incoming-1",
       type: "cruush",
@@ -12391,13 +12670,22 @@ describe("server", () => {
           id: "incoming-2",
           createdAt: "2026-04-28T11:00:00.000Z",
           mutual: false,
-          locked: true,
+          locked: false,
           permissions: {
             canMessage: true,
             canRevealPreciseLocation: false,
             matchId: null
           },
-          user: null
+          user: {
+            id: "8f707f0b-81aa-470d-b0e1-321d493d04d2",
+            name: "Sam",
+            pronouns: "she/they",
+            photo: null,
+            photoExplicit: false,
+            photoRelationship: { isMutualCruush: false, sharesCrowd: false },
+            travelling: false,
+            vibes: ["Soft", "Goth", "Geek"]
+          }
         }],
         sent: [{
           id: "sent-1",
@@ -12447,7 +12735,7 @@ describe("server", () => {
     });
   });
 
-  it("does not expose Basic activity backlog after the newest item is cleared", async () => {
+  it("keeps active incoming cruush history visible after the newest item is cleared", async () => {
     const olderIncoming = await encryptedRelationshipRecordRow({
       id: "incoming-older",
       type: "cruush",
@@ -12525,7 +12813,11 @@ describe("server", () => {
       views: 1
     }));
     expect(response.json().data.incoming).toEqual([
-      expect.objectContaining({ id: "incoming-older", locked: true, user: null })
+      expect.objectContaining({
+        id: "incoming-older",
+        locked: false,
+        user: expect.objectContaining({ id: "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97", name: "Alex" })
+      })
     ]);
     expect(response.json().data.views).toEqual([
       expect.objectContaining({ id: "view-older", locked: true, user: null })
@@ -12855,7 +13147,8 @@ describe("server", () => {
         rows: [{
           user_id: otherUserId
         }]
-      });
+      })
+      .mockResolvedValueOnce({ rows: [{ id: otherUserId }] }); // current profile visibility
 
     const response = await app.inject({
       method: "GET",
@@ -12867,9 +13160,11 @@ describe("server", () => {
     const queries = query.mock.calls.map(([sql]) => String(sql));
 
     expect(response.statusCode).toBe(200);
-    expect(query).toHaveBeenCalledTimes(5);
+    expect(query).toHaveBeenCalledTimes(6);
     expect(query.mock.calls[3]?.[0]).toContain("from user_blocks");
-    expect(query.mock.calls[4]?.[0]).toContain("from user_travel_pins");
+    expect(query.mock.calls[4]?.[0]).toContain("profile_visibility_ciphertext");
+    expect(query.mock.calls[4]?.[1]).toEqual([[otherUserId]]);
+    expect(query.mock.calls[5]?.[0]).toContain("from user_travel_pins");
     expect(queries.some((sql) => sql.includes("where profiles.id = any"))).toBe(false);
     expect(response.json()).toEqual({
       data: {
@@ -12883,6 +13178,7 @@ describe("server", () => {
     query
       .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [{ id: "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97" }] })
       .mockResolvedValueOnce({
         rows: [{
           id: "cruush-3",
@@ -12910,13 +13206,18 @@ describe("server", () => {
     });
 
     expect(response.statusCode).toBe(201);
-    expect(query).toHaveBeenCalledTimes(5);
+    expect(query).toHaveBeenCalledTimes(9);
     expect(query.mock.calls[0]?.[0]).toContain("encrypted_relationship_records");
-    expect(query.mock.calls[2]?.[0]).toContain("insert into encrypted_relationship_records");
-    expect(query.mock.calls[4]?.[0]).toContain("insert into app_notifications");
-    expect(query.mock.calls[4]?.[1]?.[4]).toBe(`/profile/${userId}`);
-    expect(JSON.stringify(query.mock.calls[2]?.[1])).not.toContain("Jordan");
-    expect(JSON.stringify(query.mock.calls[2]?.[1])).not.toContain("53fd68d7-24fc-4cff-8cd7-a97ec0cadf97");
+    expect(query.mock.calls[2]?.[0]).toContain("profile_visibility_ciphertext");
+    expect(query.mock.calls[2]?.[1]).toEqual([["53fd68d7-24fc-4cff-8cd7-a97ec0cadf97"]]);
+    expect(query.mock.calls[3]?.[0]).toContain("insert into encrypted_relationship_records");
+    expect(query.mock.calls[5]?.[0]).toContain("from encrypted_location_envelopes");
+    expect(query.mock.calls[6]?.[0]).toContain("from user_travel_pins");
+    expect(query.mock.calls[7]?.[0]).toContain("profile_visibility_ciphertext");
+    expect(query.mock.calls[8]?.[0]).toContain("insert into app_notifications");
+    expect(query.mock.calls[8]?.[1]?.[4]).toBe(`/profile/${userId}`);
+    expect(JSON.stringify(query.mock.calls[3]?.[1])).not.toContain("Jordan");
+    expect(JSON.stringify(query.mock.calls[3]?.[1])).not.toContain("53fd68d7-24fc-4cff-8cd7-a97ec0cadf97");
     expect(response.json()).toEqual({
       data: {
         id: "cruush-3",
@@ -13134,6 +13435,7 @@ describe("server", () => {
     query
       .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [{ id: "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97" }] })
       .mockResolvedValueOnce({
         rows: [{
           id: "cruush-4",
@@ -13179,11 +13481,19 @@ describe("server", () => {
     });
 
     expect(response.statusCode).toBe(201);
-    expect(query.mock.calls[4]?.[0]).toContain("insert into encrypted_relationship_records");
-    expect(query.mock.calls[5]?.[0]).toContain("insert into encrypted_relationship_tokens");
-    expect(query.mock.calls[9]?.[0]).toContain("encrypted_relationship_tokens");
-    expect(query.mock.calls[12]?.[0]).toContain("insert into conversations");
-    expect(query.mock.calls[13]?.[0]).toContain("insert into conversation_members");
+    expect(query.mock.calls[2]?.[0]).toContain("profile_visibility_ciphertext");
+    expect(query.mock.calls[2]?.[1]).toEqual([["53fd68d7-24fc-4cff-8cd7-a97ec0cadf97"]]);
+    expect(query.mock.calls[5]?.[0]).toContain("insert into encrypted_relationship_records");
+    expect(query.mock.calls[6]?.[0]).toContain("insert into encrypted_relationship_tokens");
+    expect(query.mock.calls[10]?.[0]).toContain("encrypted_relationship_tokens");
+    expect(query.mock.calls[13]?.[0]).toContain("insert into conversations");
+    expect(query.mock.calls[14]?.[0]).toContain("insert into conversation_members");
+    expect(query.mock.calls[14]?.[0]).toContain("on conflict (conversation_id, user_id) where user_id is not null do nothing");
+    expect(query.mock.calls[14]?.[1]).toEqual([
+      "conversation-mutual",
+      userId,
+      "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97"
+    ]);
     const notificationWrites = query.mock.calls.filter(([sql]) => String(sql).includes("insert into app_notifications"));
     expect(notificationWrites.map(([, params]) => params?.[4])).toEqual([
       "/profile/53fd68d7-24fc-4cff-8cd7-a97ec0cadf97",
@@ -13231,6 +13541,7 @@ describe("server", () => {
     query
       .mockResolvedValueOnce({ rows: [matchRecord] })
       .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [{ id: "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97" }] })
       .mockResolvedValueOnce({ rows: [existingCruush] })
       .mockResolvedValueOnce({ rows: [matchRecord] })
       .mockResolvedValueOnce({ rows: [] })
@@ -13259,16 +13570,18 @@ describe("server", () => {
     });
 
     expect(response.statusCode).toBe(200);
-    // The ninth read is the precise-location revocation lookup the default
-    // mutual-cruush grant requires. The only writes ensure the existing match
+    // The precise-location revocation lookup preserves the default
+    // mutual-cruush grant. The only writes ensure the existing match
     // has a direct conversation; no relationship token is reissued.
-    expect(query).toHaveBeenCalledTimes(12);
+    expect(query).toHaveBeenCalledTimes(13);
     expect(query.mock.calls[0]?.[0]).toContain("encrypted_relationship_records");
-    expect(query.mock.calls[7]?.[0]).toContain("encrypted_privacy_audit_events");
-    expect(query.mock.calls[9]?.[0]).toContain("insert into conversations");
-    expect(query.mock.calls[10]?.[0]).toContain("with existing as");
-    expect(query.mock.calls[10]?.[0]).not.toContain("on conflict");
-    expect(query.mock.calls[11]?.[0]).toContain("insert into conversation_members");
+    expect(query.mock.calls[2]?.[0]).toContain("profile_visibility_ciphertext");
+    expect(query.mock.calls[2]?.[1]).toEqual([["53fd68d7-24fc-4cff-8cd7-a97ec0cadf97"]]);
+    expect(query.mock.calls[8]?.[0]).toContain("encrypted_privacy_audit_events");
+    expect(query.mock.calls[10]?.[0]).toContain("insert into conversations");
+    expect(query.mock.calls[11]?.[0]).toContain("with existing as");
+    expect(query.mock.calls[11]?.[0]).not.toContain("on conflict");
+    expect(query.mock.calls[12]?.[0]).toContain("insert into conversation_members");
     expect(query.mock.calls.map((call) => call[0]).join("\n")).not.toContain("insert into encrypted_relationship_tokens");
     expect(response.json()).toEqual({
       data: {
@@ -13441,7 +13754,8 @@ describe("server", () => {
       },
       payload: {
         baseMode: "GHOST",
-        ghostRadiusMeters: 1609
+        ghostRadiusMeters: 1609,
+        ghostLeashVisible: false
       }
     });
 
@@ -13449,6 +13763,7 @@ describe("server", () => {
     expect(response.json().data).toEqual(expect.objectContaining({
       baseMode: "GHOST",
       ghostModeEnabled: true,
+      ghostLeashVisible: false,
       ghostRotationExpiresAtMs: expect.any(Number)
     }));
     expect(response.json().data).not.toHaveProperty("animationHint");
@@ -13896,6 +14211,7 @@ describe("server", () => {
         pronouns: ["they/them"],
         custom_pronouns: "",
         year_of_birth: 1994,
+        show_age: false,
         ethnicity: ["Latinx"],
         identities: ["Non-binary"],
         presentation: ["Femme"],
@@ -13981,6 +14297,7 @@ describe("server", () => {
         pronouns: ["they/them"],
         custom_pronouns: "",
         year_of_birth: 1994,
+        show_age: false,
         ethnicity: "Latinx",
         identities: ["Non-binary"],
         presentation: ["Femme"],
@@ -14036,6 +14353,8 @@ describe("server", () => {
       }
     });
     expect(response.json().data).not.toHaveProperty("location");
+    // Legacy profile coordinates are not proof of a persisted membership state.
+    expect(response.json().data).not.toHaveProperty("outOfSight");
   });
 
   it("returns kink and fetish interests with field-level visibility metadata", async () => {
@@ -14108,6 +14427,7 @@ describe("server", () => {
           pronouns: ["they/them"],
           custom_pronouns: "",
           year_of_birth: 1998,
+          show_age: false,
           ethnicity: ["Latinx"],
           identities: ["Non-binary"],
           presentation: ["Femme"],
@@ -14169,6 +14489,7 @@ describe("server", () => {
       })
     });
     expect(response.json().data.crowds).not.toContain("Dyke");
+    expect(response.json().data.year_of_birth).toBeNull();
   });
 
   it("returns 404 for profile detail when either user has blocked the other", async () => {
@@ -14331,6 +14652,7 @@ describe("server", () => {
   });
 
   it("reveals mutual-cruush protected kinks only when the viewer has an active match", async () => {
+    const viewerLocation = await encryptedLocationEnvelopeRow({ subjectUserId: userId, lat: 40.7128, lng: -74.006 });
     const matchRecord = await encryptedRelationshipRecordRow({
       id: "match-1",
       type: "mutual_cruush",
@@ -14368,6 +14690,9 @@ describe("server", () => {
       // grant, so the revocation lookup runs before the block check.
       .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [viewerLocation] })
+      .mockResolvedValueOnce({ rows: [] }) // viewer travel pin
+      .mockResolvedValueOnce({ rows: [{ id: "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97" }] })
       .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({
         rows: [{
@@ -14868,6 +15193,7 @@ describe("server", () => {
     expect(profileInsertCall?.[0]).toContain("insert into profiles");
     expect(profileInsertCall?.[1]?.[0]).toBe(userId);
     expect(profileInsertValue(profileInsertCall, "year_of_birth")).toBe(1994);
+    expect(profileInsertValue(profileInsertCall, "show_age")).toBe(true);
     expect(profileInsertValue(profileInsertCall, "ethnicity")).toEqual(["Latinx"]);
     expect(profileInsertCall?.[0]).not.toContain("updated_at)");
     expect(appUserDisplayNameUpdateCall?.[1]).toEqual([userId, "Cruusher"]);
@@ -14880,6 +15206,7 @@ describe("server", () => {
         zodiac: [],
         health_preferences: [],
         year_of_birth: 1994,
+        show_age: true,
         photo_metadata: [],
         side_badges: {
           left: null,
@@ -15117,6 +15444,7 @@ describe("server", () => {
         pronouns: [],
         custom_pronouns: "",
         year_of_birth: 1994,
+        show_age: false,
         ethnicity: [],
         identities: [],
         presentation: [],
@@ -15165,6 +15493,9 @@ describe("server", () => {
       ...emptyProfile,
       display_name: "Cruusher",
       year_of_birth: 1994,
+      // Keep the public boolean false so any plaintext true would still
+      // expose the private trans-status value this test protects.
+      show_age: false,
       is_trans: true,
       trans_status_visibility: "mutual_crowds",
       crowds: ["T4T", "Dyke"],
@@ -15199,6 +15530,19 @@ describe("server", () => {
     expect(profileInsertCall?.[1]).not.toContain("T4T");
     expect(profileInsertCall?.[1]).not.toContain("Dyke");
     expect(profileInsertCall?.[1]).not.toContain(true);
+    expect(profileInsertValue(profileInsertCall, "show_age")).toBe(false);
+    expect(profileInsertCall?.[0]).not.toMatch(/\bis_trans\b/);
+    expect(decryptSensitiveProfile(app.config, {
+      profile_sensitive_ciphertext: String(profileInsertValue(profileInsertCall, "profile_sensitive_ciphertext")),
+      profile_sensitive_nonce: String(profileInsertValue(profileInsertCall, "profile_sensitive_nonce")),
+      profile_sensitive_auth_tag: String(profileInsertValue(profileInsertCall, "profile_sensitive_auth_tag")),
+      profile_sensitive_key_version: String(profileInsertValue(profileInsertCall, "profile_sensitive_key_version"))
+    })).toMatchObject({
+      is_trans: true,
+      crowds: ["T4T", "Dyke"],
+      kinks: ["leather"],
+      hiv_status: ["undetectable"]
+    });
 
     const tokenInsertCall = query.mock.calls.find((call) => String(call[0]).includes("insert into profile_sensitive_tokens"));
     expect(tokenInsertCall?.[1]?.[1]).not.toContain("leather");
@@ -15207,6 +15551,7 @@ describe("server", () => {
 
     expect(response.json()).toEqual({
       data: expect.objectContaining({
+        show_age: false,
         is_trans: true,
         trans_status_visibility: "mutual_crowds",
         crowds: ["T4T", "Dyke"],
@@ -16209,6 +16554,7 @@ describe("server", () => {
     expect(query.mock.calls[profileWriteIndex]?.[0]).toContain("location_updated_at");
     expect(query.mock.calls[profileWriteIndex]?.[1]?.[0]).toBe(userId);
     expect(profileWriteIndex).toBeLessThan(locationWriteIndex);
+    expect(query.mock.calls.some((call) => String(call[0]).includes("encrypted_first_entry_locations"))).toBe(false);
     expect(locationWriteIndex).toBeLessThan(pingRevocationIndex);
     expect(pingRevocationIndex).toBeLessThan(commitIndex);
     const persistedLocationParams = query.mock.calls[locationWriteIndex]?.[1] ?? [];
@@ -16230,7 +16576,28 @@ describe("server", () => {
     });
     expect(response.json().data).not.toHaveProperty("lat");
     expect(response.json().data).not.toHaveProperty("lng");
+    expect(response.json().data).not.toHaveProperty("first_entry_location");
     expect(notifyNearbyUsersForLocationUpdate).toHaveBeenCalledTimes(1);
+  });
+
+  it("rolls back a GPS save when its encrypted service-area state cannot persist", async () => {
+    query.mockImplementation(async (sql: string) => {
+      if (sql.includes("insert into oos_service_area_state")) {
+        throw new Error("encrypted state persistence unavailable");
+      }
+      return { rows: [] };
+    });
+    const response = await app.inject({
+      method: "PUT",
+      url: "/api/profiles/me/location",
+      headers: { "x-user-id": userId },
+      payload: { lat: 40.711, lng: -74.002, fuzz_radius_meters: 50 }
+    });
+    expect(response.statusCode).toBe(500);
+    const statements = query.mock.calls.map((call) => String(call[0]).trim().toLowerCase());
+    expect(statements).toContain("rollback");
+    expect(statements).not.toContain("commit");
+    expect(notifyNearbyUsersForLocationUpdate).not.toHaveBeenCalled();
   });
 
   it("returns a separate self-only public Ghost decoy token when syncing an active Ghost location", async () => {
@@ -16451,12 +16818,16 @@ describe("server", () => {
     expect(listSql).toContain("c.visibility_scope = 'public'");
     expect(listSql).toContain("c.visibility_scope = 'checked_in'");
     expect(listCall?.[1]).toEqual(expect.arrayContaining([100, 23, 46]));
-    // The page stays bounded, and both radius limits still apply: the viewport
-    // radius and the independent NYC service-area radius.
+    // The viewport radius remains parameterized. Service-area bounds are now
+    // SQL literals, so verify the independent NYC bound in its AND clause.
     expect(listCall?.[1]?.[8]).toBe(100);
     expect(listCall?.[1]?.[9]).toBe(23);
     expect(listCall?.[1]?.[10]).toBe(46);
-    expect(listCall?.[1]?.[13]).toBe(100);
+    expect(listSql).toContain(")) <= $9");
+    const serviceAreaClause = listSql.match(/and\s+\((\s*3958\.7613[\s\S]*?)\)\s*listed/)?.[1];
+    expect(serviceAreaClause).toContain("p.latitude - 40.7128::double precision");
+    expect(serviceAreaClause).toContain("p.longitude - -74.006::double precision");
+    expect(serviceAreaClause).toMatch(/\)\)\s*<= 100\b/);
   });
 
   it.each([
@@ -16471,8 +16842,8 @@ describe("server", () => {
     });
     const listCall = query.mock.calls.find(([sql]) => String(sql).includes("where p.status = 'published'"));
     expect(response.statusCode).toBe(200);
-    expect(String(listCall?.[0])).toContain("not (p.facility_type = any($16::text[]))");
-    expect(listCall?.[1]?.[15]).toEqual(expected);
+    expect(String(listCall?.[0])).toContain("not (p.facility_type = any($13::text[]))");
+    expect(listCall?.[1]?.[12]).toEqual(expected);
   });
 
   it("rejects a published Spot search radius above 100 miles before database access", async () => {

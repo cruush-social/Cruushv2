@@ -1,6 +1,11 @@
 import { z } from "zod";
 import { profileVisibilityRulesSchema } from "./profile-schema.js";
 
+const clubVisibilityRulesSchema = profileVisibilityRulesSchema.refine(
+  (rules) => rules.outside_service_area_members === false,
+  { path: ["outside_service_area_members"], message: "Purgatory member visibility applies to member profiles, not Clubs." }
+);
+
 const normalizeTags = (values: string[]) => Array.from(new Set(
   values
     .flatMap((value) => value.split(","))
@@ -27,13 +32,13 @@ export const clubParamsSchema = z.object({
 
 const clubMetadataShape = {
   title: z.string().trim().min(1).max(120),
-  summary: z.string().trim().min(1).max(1000),
+  summary: z.string().trim().max(1000),
   tags: normalizedTagsSchema
 };
 
 export const createClubPayloadSchema = z.object({
   ...clubMetadataShape,
-  visibilityRules: profileVisibilityRulesSchema.optional(),
+  visibilityRules: clubVisibilityRulesSchema.optional(),
   memberIds: z.array(z.uuid()).max(999)
     .transform((ids) => Array.from(new Set(ids)))
 }).strict();
@@ -41,7 +46,7 @@ export const createClubPayloadSchema = z.object({
 export const updateClubPayloadSchema = z.object(clubMetadataShape).strict();
 
 export const clubVisibilityPayloadSchema = z.object({
-  visibilityRules: profileVisibilityRulesSchema
+  visibilityRules: clubVisibilityRulesSchema
 }).strict();
 
 export const reviewClubJoinRequestParamsSchema = clubParamsSchema.extend({

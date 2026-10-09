@@ -13,6 +13,9 @@ const {
   enablePushNotifications: vi.fn(),
 }));
 
+const serviceArea = vi.hoisted(() => ({ profilePinsAllowed: true }));
+vi.mock('./MapServiceAreaContext', () => ({ useMapServiceArea: () => serviceArea }));
+
 vi.mock('../lib/notificationsApi', async () => {
   const actual = await vi.importActual<typeof import('../lib/notificationsApi')>('../lib/notificationsApi');
 
@@ -30,6 +33,7 @@ vi.mock('../lib/pushNotifications', () => ({
 
 describe('NotificationSettings', () => {
   beforeEach(() => {
+    serviceArea.profilePinsAllowed = true;
     getNotificationPreferences.mockReset();
     updateNotificationPreferences.mockReset();
     enablePushNotifications.mockReset();
@@ -39,7 +43,9 @@ describe('NotificationSettings', () => {
       cruushEnabled: true,
       messagesEnabled: true,
       groupsEnabled: true,
+      pulseEnabled: true,
       nearbyEnabled: true,
+      mutualFeedEnabled: true,
       rewardsEnabled: true,
       siteRemindersEnabled: true,
       soundEnabled: true,
@@ -50,7 +56,9 @@ describe('NotificationSettings', () => {
       cruushEnabled: true,
       messagesEnabled: true,
       groupsEnabled: true,
+      pulseEnabled: true,
       nearbyEnabled: true,
+      mutualFeedEnabled: true,
       rewardsEnabled: true,
       siteRemindersEnabled: true,
       soundEnabled: true,
@@ -61,12 +69,40 @@ describe('NotificationSettings', () => {
       cruushEnabled: true,
       messagesEnabled: false,
       groupsEnabled: true,
+      pulseEnabled: true,
       nearbyEnabled: true,
+      mutualFeedEnabled: true,
       rewardsEnabled: true,
       siteRemindersEnabled: true,
       soundEnabled: true,
       ...partial,
     }));
+  });
+
+  it('disables only Pulse alerts outside effective area and preserves the saved preference', async () => {
+    serviceArea.profilePinsAllowed = false;
+    const { rerender } = render(<MemoryRouter><NotificationSettings /></MemoryRouter>);
+    const pulse = await screen.findByRole('switch', { name: 'Toggle Pulse alerts' });
+    expect(pulse).toBeDisabled();
+    expect(pulse).toBeChecked();
+    fireEvent.click(pulse);
+    expect(updateNotificationPreferences).not.toHaveBeenCalled();
+    for (const control of screen.getAllByRole('switch').filter((control) => control !== pulse)) {
+      expect(control).toBeEnabled();
+    }
+    fireEvent.click(screen.getByRole('switch', { name: 'Toggle Message alerts' }));
+    await waitFor(() => expect(updateNotificationPreferences).toHaveBeenCalledWith({ messagesEnabled: false }));
+    await waitFor(() => expect(screen.getByRole('switch', { name: 'Toggle Message alerts' })).toBeEnabled());
+    expect(pulse).toBeChecked();
+
+    // Physical in-area and active in-area MHC use the same effective access result.
+    serviceArea.profilePinsAllowed = true;
+    rerender(<MemoryRouter><NotificationSettings /></MemoryRouter>);
+    expect(pulse).toBeEnabled();
+    expect(pulse).toBeChecked();
+    expect(updateNotificationPreferences).toHaveBeenCalledTimes(1);
+    fireEvent.click(pulse);
+    await waitFor(() => expect(updateNotificationPreferences).toHaveBeenLastCalledWith({ pulseEnabled: false }));
   });
 
   it('enables push from a direct user action', async () => {
@@ -105,6 +141,11 @@ describe('NotificationSettings', () => {
     fireEvent.click(screen.getByRole('switch', { name: 'Toggle Nearby people' }));
     await waitFor(() => expect(updateNotificationPreferences).toHaveBeenCalledWith({
       nearbyEnabled: false,
+    }));
+
+    fireEvent.click(screen.getByRole('switch', { name: 'Toggle Feed posts from cruushes' }));
+    await waitFor(() => expect(updateNotificationPreferences).toHaveBeenCalledWith({
+      mutualFeedEnabled: false,
     }));
 
     fireEvent.click(screen.getByRole('switch', { name: 'Toggle Reward updates' }));

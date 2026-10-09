@@ -422,7 +422,7 @@ export default function Auth({ onAuth }: AuthProps) {
               <span>cruush</span>
             </p>
             <div className="launch-login-auth-beta-capsule" data-testid="launch-login-auth-beta-capsule">
-              nyc open beta
+              NYC &amp; PURGATORY OPEN BETA
             </div>
           </div>
         </div>

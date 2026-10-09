@@ -7,6 +7,10 @@ export const MAP_SERVICE_CENTER = {
   longitude: -74.006,
 } as const;
 
+export const MAP_SERVICE_AREAS = [
+  { center: MAP_SERVICE_CENTER, radiusMiles: MAP_SERVICE_RADIUS_MILES },
+] as const;
+
 const LATITUDE_MILES_PER_DEGREE = 69;
 
 function longitudeMilesPerDegree(latitude: number) {
@@ -27,17 +31,30 @@ export function mapServiceMinZoomForViewport(width: number, height: number, fall
   return Math.max(0, Math.log2(metersPerPixelAtCenter * availablePixels / serviceDiameterMeters));
 }
 
-const latitudeRadius = MAP_SERVICE_RADIUS_MILES / LATITUDE_MILES_PER_DEGREE;
-const longitudeRadius = MAP_SERVICE_RADIUS_MILES / longitudeMilesPerDegree(MAP_SERVICE_CENTER.latitude);
+const serviceAreaBounds = MAP_SERVICE_AREAS.reduce((bounds, area) => {
+  const latitudeRadius = area.radiusMiles / LATITUDE_MILES_PER_DEGREE;
+  const longitudeRadius = area.radiusMiles / longitudeMilesPerDegree(area.center.latitude);
+  return {
+    west: Math.min(bounds.west, area.center.longitude - longitudeRadius),
+    south: Math.min(bounds.south, area.center.latitude - latitudeRadius),
+    east: Math.max(bounds.east, area.center.longitude + longitudeRadius),
+    north: Math.max(bounds.north, area.center.latitude + latitudeRadius),
+  };
+}, {
+  west: Number.POSITIVE_INFINITY,
+  south: Number.POSITIVE_INFINITY,
+  east: Number.NEGATIVE_INFINITY,
+  north: Number.NEGATIVE_INFINITY,
+});
 
 export const MAP_SERVICE_MAX_BOUNDS = [
   [
-    MAP_SERVICE_CENTER.longitude - longitudeRadius,
-    MAP_SERVICE_CENTER.latitude - latitudeRadius,
+    serviceAreaBounds.west,
+    serviceAreaBounds.south,
   ],
   [
-    MAP_SERVICE_CENTER.longitude + longitudeRadius,
-    MAP_SERVICE_CENTER.latitude + latitudeRadius,
+    serviceAreaBounds.east,
+    serviceAreaBounds.north,
   ],
 ] as const;
 
@@ -95,8 +112,8 @@ function createOutsideRadiusHole(center: MapRadiusCenter, radiusMiles: number): 
 
 /**
  * A world polygon with the approved circular service area cut out as a hole.
- * Rendering it above map tiles creates fog of war outside the 100-mile circle
- * without tinting or decorating anything inside it.
+ * Rendering it above map tiles creates fog of war outside the service areas
+ * without tinting or decorating anything inside them.
  */
 export function createMapOutsideRadiusMask(
   center: MapRadiusCenter,
@@ -121,7 +138,40 @@ export function createMapOutsideRadiusMask(
   };
 }
 
-export const MAP_SERVICE_OUTSIDE_MASK = createMapOutsideRadiusMask(
-  MAP_SERVICE_CENTER,
-  MAP_SERVICE_RADIUS_MILES,
-);
+export const MAP_SERVICE_OUTSIDE_MASK = {
+  type: 'Feature',
+  properties: {},
+  geometry: {
+    type: 'Polygon',
+    coordinates: [
+      [
+        [-180, -WEB_MERCATOR_MAX_LATITUDE],
+        [180, -WEB_MERCATOR_MAX_LATITUDE],
+        [180, WEB_MERCATOR_MAX_LATITUDE],
+        [-180, WEB_MERCATOR_MAX_LATITUDE],
+        [-180, -WEB_MERCATOR_MAX_LATITUDE],
+      ],
+      ...MAP_SERVICE_AREAS.map(({ center, radiusMiles }) => createOutsideRadiusHole(center, radiusMiles)),
+    ],
+  },
+} satisfies MapServiceOutsideMask;
+
+export function distanceMiles(
+  from: { latitude: number; longitude: number },
+  to: { latitude: number; longitude: number },
+) {
+  const latitudeDelta = (to.latitude - from.latitude) * Math.PI / 180;
+  const longitudeDelta = (to.longitude - from.longitude) * Math.PI / 180;
+  const fromLatitude = from.latitude * Math.PI / 180;
+  const toLatitude = to.latitude * Math.PI / 180;
+  const haversine = Math.sin(latitudeDelta / 2) ** 2
+    + Math.cos(fromLatitude) * Math.cos(toLatitude) * Math.sin(longitudeDelta / 2) ** 2;
+
+  return 2 * EARTH_RADIUS_MILES * Math.asin(Math.min(1, Math.sqrt(haversine)));
+}
+
+export function isWithinMapServiceArea(point: { latitude: number; longitude: number }) {
+  return MAP_SERVICE_AREAS.some(({ center, radiusMiles }) => (
+    distanceMiles(point, center) <= radiusMiles
+  ));
+}

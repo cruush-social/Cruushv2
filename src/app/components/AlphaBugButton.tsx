@@ -1,4 +1,4 @@
-import { FormEvent, useEffect, useMemo, useState } from 'react';
+import { FormEvent, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useLocation } from 'react-router';
 import { Bug, CheckCircle2 } from 'lucide-react';
@@ -7,6 +7,7 @@ import { createSupportRequest } from '../lib/supportApi';
 import { hasPersistentNoticeFlag, setPersistentNoticeFlag } from '../lib/persistentNotice';
 import { dismissUserNotice, getUserNoticeDismissal } from '../lib/userNoticesApi';
 import { Button } from './ui/button';
+import { Checkbox } from './ui/checkbox';
 import { Input } from './ui/input';
 import {
   Dialog,
@@ -35,7 +36,6 @@ type NavigatorUserAgentData = {
   mobile?: boolean;
   platform?: string;
   getHighEntropyValues?: (hints: string[]) => Promise<{
-    model?: string;
     platform?: string;
     platformVersion?: string;
     mobile?: boolean;
@@ -52,24 +52,22 @@ async function getBugDeviceContext() {
 
   if (typeof userAgentData?.getHighEntropyValues === 'function') {
     highEntropy = await userAgentData
-      .getHighEntropyValues(['model', 'platform', 'platformVersion'])
+      .getHighEntropyValues(['platform', 'platformVersion'])
       .catch(() => ({}));
   }
 
-  const androidModel = /;\s*([^;()]+?)\s+Build\//i.exec(navigator.userAgent)?.[1]?.trim();
-  const model = highEntropy.model?.trim() || androidModel || undefined;
   const platform = highEntropy.platform?.trim()
     || userAgentData?.platform?.trim()
     || navigator.platform?.trim()
     || undefined;
-  const platformVersion = highEntropy.platformVersion?.trim() || undefined;
+  const browser = /(?:Edg|Chrome|Firefox|Safari)\//.exec(navigator.userAgent)?.[0]?.replace('/', '') || undefined;
   const mobile = highEntropy.mobile ?? userAgentData?.mobile;
 
-  if (!model && !platform && !platformVersion && mobile === undefined) {
+  if (!platform && !browser && mobile === undefined) {
     return undefined;
   }
 
-  return { model, platform, platformVersion, mobile };
+  return { platform, browser, appVersion: import.meta.env.VITE_APP_VERSION || undefined, mobile };
 }
 
 function getCurrentPageUrl() {
@@ -77,7 +75,7 @@ function getCurrentPageUrl() {
     return '/';
   }
 
-  return `${window.location.pathname}${window.location.search}` || '/';
+  return window.location.pathname || '/';
 }
 
 function getBugTipPlacement(pathname: string) {
@@ -208,17 +206,21 @@ export default function AlphaBugButton({
   const location = useLocation();
   const [open, setOpen] = useState(false);
   const [contactEmail, setContactEmail] = useState('');
+  const [linkAccountEmail, setLinkAccountEmail] = useState(false);
   const [message, setMessage] = useState('');
   const [status, setStatus] = useState<'idle' | 'submitting' | 'success'>('idle');
   const [error, setError] = useState('');
   const [errorCode, setErrorCode] = useState('');
-  const [deviceSummary, setDeviceSummary] = useState('');
+  const [shareDeviceDetails, setShareDeviceDetails] = useState(false);
+  const [deviceContext, setDeviceContext] = useState<Awaited<ReturnType<typeof getBugDeviceContext>>>(undefined);
+  const deviceRequestIdRef = useRef(0);
   const [showTip, setShowTip] = useState(false);
   const pageUrl = useMemo(
-    () => `${location.pathname}${location.search}` || getCurrentPageUrl(),
-    [open, location.pathname, location.search],
+    () => location.pathname || getCurrentPageUrl(),
+    [open, location.pathname],
   );
   const mapRoute = location.pathname === '/map' || location.pathname.startsWith('/map/');
+  const keepMapButtonGlobalOnDesktop = mapRoute && typeof window !== 'undefined' && window.innerWidth >= 640;
 
   useEffect(() => {
     if (!enabled || typeof document === 'undefined') {
@@ -305,19 +307,25 @@ export default function AlphaBugButton({
     setErrorCode('');
 
     try {
-      const device = await getBugDeviceContext();
+      const device = shareDeviceDetails
+        ? deviceContext ?? await getBugDeviceContext()
+        : undefined;
       await createSupportRequest({
         category: 'bug',
         subject: `Alpha bug: ${pageUrl}`,
         message: message.trim(),
         ...(trimmedContactEmail ? { contactEmail: trimmedContactEmail } : {}),
+        ...(linkAccountEmail ? { linkAccountEmail: true } : {}),
         source: 'unknown',
         pageUrl,
         ...(device ? { device } : {}),
       });
       setStatus('success');
       setContactEmail('');
+      setLinkAccountEmail(false);
       setMessage('');
+      setShareDeviceDetails(false);
+      setDeviceContext(undefined);
     } catch (bugError) {
       setError(bugError instanceof Error ? bugError.message : 'Unable to send this bug report.');
       setErrorCode('BUG_REPORT_SUBMIT_FAILED');
@@ -340,11 +348,14 @@ export default function AlphaBugButton({
     setSlot(getBugButtonSlot());
   }, [location.pathname]);
 
-  const triggerButton = (
+  // One reporter per screen: map sheets own their header reporter while open;
+  // the fixed map reporter returns only when no sheet/popup slot is active.
+  const activeSlot = slot;
+  const triggerButton = (docked = false) => (
     <button
       aria-label="Report alpha bug"
       data-testid="alpha-bug-button"
-      className={`cruush-alpha-bug-button inline-flex items-center justify-center rounded-full border border-destructive/45 bg-destructive text-white shadow-[0_18px_44px_rgba(0,0,0,0.42)] backdrop-blur-md transition-[background-color,opacity] duration-150 hover:bg-destructive/90 focus:outline-none focus-visible:ring-2 focus-visible:ring-destructive ${slot
+      className={`cruush-alpha-bug-button inline-flex items-center justify-center rounded-full border border-destructive/45 bg-destructive text-white shadow-[0_18px_44px_rgba(0,0,0,0.42)] backdrop-blur-md transition-[background-color,opacity] duration-150 hover:bg-destructive/90 focus:outline-none focus-visible:ring-2 focus-visible:ring-destructive ${docked
         ? 'h-full w-full'
         : `fixed right-[calc(0.75rem+env(safe-area-inset-right))] top-[calc(0.75rem+env(safe-area-inset-top))] z-[1500] ${mapRoute ? 'h-12 w-12 sm:h-10 sm:w-10 lg:h-11 lg:w-11' : 'h-9 w-9 sm:h-10 sm:w-10 lg:h-11 lg:w-11'}`}`}
       title="Report a bug"
@@ -356,9 +367,30 @@ export default function AlphaBugButton({
 
   // Radix context flows through portals, so the trigger works from inside the
   // slot exactly as it does floating free.
-  const trigger = slot
-    ? createPortal(<DialogTrigger asChild>{triggerButton}</DialogTrigger>, slot)
-    : <DialogTrigger asChild>{triggerButton}</DialogTrigger>;
+  const trigger = activeSlot
+    ? createPortal(<DialogTrigger asChild>{triggerButton(true)}</DialogTrigger>, activeSlot)
+    : keepMapButtonGlobalOnDesktop
+      ? createPortal(<DialogTrigger asChild>{triggerButton()}</DialogTrigger>, document.body)
+      : <DialogTrigger asChild>{triggerButton()}</DialogTrigger>;
+
+  const handleShareDeviceDetailsChange = (checked: boolean) => {
+    setShareDeviceDetails(checked);
+    const requestId = deviceRequestIdRef.current + 1;
+    deviceRequestIdRef.current = requestId;
+
+    if (!checked) {
+      setDeviceContext(undefined);
+      return;
+    }
+
+    void getBugDeviceContext().then((device) => {
+      if (deviceRequestIdRef.current !== requestId) {
+        return;
+      }
+
+      setDeviceContext(device);
+    });
+  };
 
   return (
     <Dialog
@@ -367,18 +399,11 @@ export default function AlphaBugButton({
         setOpen(nextOpen);
         if (nextOpen) {
           dismissTip();
-          void getBugDeviceContext().then((device) => {
-            if (!device) {
-              setDeviceSummary('');
-              return;
-            }
-
-            setDeviceSummary([device.model, device.platform, device.platformVersion]
-              .filter(Boolean)
-              .join(' '));
-          });
         }
         if (!nextOpen) {
+          deviceRequestIdRef.current += 1;
+          setShareDeviceDetails(false);
+          setDeviceContext(undefined);
           setError('');
           setErrorCode('');
           setStatus('idle');
@@ -398,15 +423,10 @@ export default function AlphaBugButton({
         </div>
       ) : null}
       {trigger}
-      <DialogContent floating data-testid="alpha-bug-dialog" overlayClassName="alpha-bug-overlay !z-[1602]" className="!z-[1603] max-w-md content-start rounded-lg border-white/10 bg-background p-4 sm:p-6">
+      <DialogContent floating data-testid="alpha-bug-dialog" overlayClassName="alpha-bug-overlay !z-[1602]" className="!z-[1603] max-w-md content-start overflow-hidden rounded-2xl border border-white/25 bg-black/48 p-4 backdrop-blur-xl backdrop-saturate-150 sm:p-6">
         <DialogHeader>
-          <DialogTitle>Report alpha bug</DialogTitle>
+          <DialogTitle>Report beta bug</DialogTitle>
         </DialogHeader>
-        {deviceSummary ? (
-          <div className="rounded-md border border-white/10 bg-white/[0.035] px-3 py-2 text-xs text-muted-foreground">
-            Device: <span className="font-semibold text-foreground">{deviceSummary}</span>
-          </div>
-        ) : null}
 
         {status === 'success' ? (
           <div className="rounded-md border border-primary/25 bg-primary/10 p-4 text-sm">
@@ -440,6 +460,7 @@ export default function AlphaBugButton({
                   type="email"
                   value={contactEmail}
                 />
+                <p className="text-xs text-muted-foreground">Support uses this only for follow-up and deletes it after 30 days.</p>
               </div>
             ) : null}
             <div className="space-y-2">
@@ -457,6 +478,22 @@ export default function AlphaBugButton({
               />
               <p className="text-right text-xs text-muted-foreground">{message.length}/4000</p>
             </div>
+            <p className="text-xs text-muted-foreground">Sharing device and browser details helps us diagnose the problem.</p>
+            <label className="flex cursor-pointer items-center gap-3 text-sm text-foreground">
+              <Checkbox
+                aria-label="Share device and browser details"
+                checked={shareDeviceDetails}
+                disabled={status === 'submitting'}
+                onCheckedChange={(checked) => handleShareDeviceDetailsChange(checked === true)}
+              />
+              <span>Share device and browser details</span>
+            </label>
+            {!requireContactEmail ? (
+              <label className="flex cursor-pointer items-start gap-3 text-sm text-foreground">
+                <Checkbox aria-label="Allow email follow-up" checked={linkAccountEmail} disabled={status === 'submitting'} onCheckedChange={(checked) => setLinkAccountEmail(checked === true)} />
+                <span>Allow support to use my account email for follow-up. It is deleted after 30 days.</span>
+              </label>
+            ) : null}
             <Button
               className="w-full"
               disabled={status === 'submitting'}

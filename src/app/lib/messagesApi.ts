@@ -16,6 +16,7 @@ export type ConversationThread = {
     name: string;
     pronouns: string;
     photo: string | null;
+    outOfSight?: boolean;
     photoExplicit?: boolean;
     photoRelationship?: DlModePhotoRelationship;
     sideBadges?: SideBadges;
@@ -26,6 +27,7 @@ export type ConversationThread = {
   distance: string;
   updatedAt: string;
   lastMessage: string;
+  lastMessageAuthorName?: string;
   unreadCount: number;
   pinned: boolean;
   muted?: boolean;
@@ -58,6 +60,7 @@ export type MessageSender = {
   name: string;
   pronouns: string;
   photo: string | null;
+  outOfSight?: boolean;
   photoExplicit?: boolean;
   photoRelationship?: DlModePhotoRelationship;
 };
@@ -107,6 +110,7 @@ export type GroupMemberRecord = {
   name: string;
   pronouns: string;
   photo: string | null;
+  outOfSight?: boolean;
   photoExplicit?: boolean;
   photoRelationship?: DlModePhotoRelationship;
   role: 'owner' | 'admin' | 'moderator' | 'member';

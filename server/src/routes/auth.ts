@@ -55,6 +55,7 @@ import { verifyLoginSecondFactor } from "../two-factor.js";
 import { isOwnerFullAccessEmail, ownerCanBypassAccountStatus } from "../owner-access.js";
 import { birthYearFromDateOfBirth } from "../profile-schema.js";
 import { syncVerifiedMemberToResendAudience } from "../resend-audience.js";
+import { acceptCodeOfConductAndQueueSinnersWelcome, deliverPendingSinnersWelcomeEmailsForUser } from "../sinners-welcome-email.js";
 
 type SessionLookupRow = {
   user_id: string;
@@ -1401,18 +1402,32 @@ export async function registerAuthRoutes(app: FastifyInstance) {
       throw new ApiError(400, "VALIDATION_ERROR", "Enter a valid date of birth.");
     }
 
-    const result = await app.db.query<{ id: string }>(
-      `update app_users
-       set signup_birth_year = $2,
-           age_verified_at = coalesce(age_verified_at, now())
-       where id = $1
-       returning id`,
-      [userId, birthYear]
-    );
+    await runTransaction(app.db, async (db) => {
+      // Serialize with profile saves before checking either established year.
+      const account = await db.query<{ signup_birth_year: number | null }>(
+        `select signup_birth_year from app_users where id = $1 for update`,
+        [userId]
+      );
+      if (!account.rows[0]) {
+        throw new ApiError(401, "AUTH_REQUIRED", "Authentication required.");
+      }
+      const profile = await db.query<{ year_of_birth: number | null }>(
+        `select year_of_birth from profiles where id = $1 limit 1`,
+        [userId]
+      );
+      const establishedYears = [account.rows[0].signup_birth_year, profile.rows[0]?.year_of_birth];
+      if (establishedYears.some((year) => year != null && year !== birthYear)) {
+        throw new ApiError(400, "VALIDATION_ERROR", "Birth year cannot be changed.");
+      }
 
-    if (!result.rows[0]) {
-      throw new ApiError(401, "AUTH_REQUIRED", "Authentication required.");
-    }
+      await db.query(
+        `update app_users
+         set signup_birth_year = coalesce(signup_birth_year, $2),
+             age_verified_at = coalesce(age_verified_at, now())
+         where id = $1`,
+        [userId, birthYear]
+      );
+    });
 
     return reply.send({
       data: await loadAuthSession(app, userId)
@@ -1427,18 +1442,15 @@ export async function registerAuthRoutes(app: FastifyInstance) {
       throw new ApiError(400, "VALIDATION_ERROR", "Code of conduct version is out of date.");
     }
 
-    const result = await app.db.query<{ id: string }>(
-      `update app_users
-       set code_of_conduct_accepted_version = $1,
-           code_of_conduct_accepted_at = now()
-       where id = $2
-       returning id`,
-      [CURRENT_CODE_OF_CONDUCT_VERSION, userId]
-    );
+    const result = await acceptCodeOfConductAndQueueSinnersWelcome(app, userId, CURRENT_CODE_OF_CONDUCT_VERSION);
 
     if (!result.rows[0]) {
       throw new ApiError(401, "AUTH_REQUIRED", "Authentication required.");
     }
+
+    void deliverPendingSinnersWelcomeEmailsForUser(app, userId).catch(() => {
+      app.log.warn("Sinners welcome email delivery deferred");
+    });
 
     return reply.send({
       data: await loadAuthSession(app, userId)

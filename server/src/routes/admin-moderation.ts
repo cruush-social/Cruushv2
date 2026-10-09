@@ -2,6 +2,7 @@ import type { FastifyInstance, FastifyReply } from "fastify";
 import { z } from "zod";
 import { normalizeAccountStatus, type AccountStatus } from "../account-status.js";
 import { listBetaCityRequests } from "../beta-city-requests.js";
+import { activeBugReportContactEmail, type BugReportContact } from "../bug-report-email-retention.js";
 import { decryptTextContentOrFallback } from "../content-encryption.js";
 import type { DbClient } from "../db.js";
 import { ApiError } from "../errors.js";
@@ -221,8 +222,9 @@ type QueueRow = {
   total_count: string | number;
 };
 
-type SurveyRow = {
+type SurveyRow = BugReportContact & {
   id: string;
+  category: string;
   display_name: string | null;
   email: string | null;
   subject: string;
@@ -252,7 +254,7 @@ type ModeratedUserRow = {
   total_count?: string | number;
 };
 
-type SupportRequestRow = {
+type SupportRequestRow = BugReportContact & {
   id: string;
   requester_user_id: string | null;
   requester_display_name: string | null;
@@ -494,10 +496,11 @@ function mapQueueRow(row: QueueRow) {
 }
 
 function mapSurveyRow(row: SurveyRow, role: ModeratorRole) {
+  const email = row.category === "bug" ? activeBugReportContactEmail(row) : row.email;
   return {
     id: row.id,
     displayName: row.display_name?.trim() || "cruush user",
-    email: role === "admin" && row.email ? row.email : null,
+    email: role === "admin" && email ? email : null,
     subject: row.subject,
     message: row.message,
     status: row.status,
@@ -554,16 +557,24 @@ function mapModeratedUser(row: ModeratedUserRow, role: ModeratorRole) {
 }
 
 function mapSupportRequestRow(row: SupportRequestRow, role: ModeratorRole) {
-  const contactEmail = row.contact_email?.trim() || null;
-  const requesterEmail = row.requester_email?.trim() || null;
+  const contactEmail = row.category === "bug"
+    ? activeBugReportContactEmail(row) : row.contact_email?.trim() || null;
+  // Account membership is not consent to reveal the joined account email.
+  const requesterEmail = row.category === "bug"
+    ? contactEmail : row.requester_email?.trim() || null;
+  const canReadBugReportEmail = row.category !== "bug" || role === "admin";
   return {
     id: row.id,
     requester: row.requester_user_id ? {
       userId: row.requester_user_id,
       displayName: row.requester_display_name?.trim() || "cruush user",
-      email: requesterEmail ? (role === "admin" ? requesterEmail : maskEmail(requesterEmail)) : null
+      email: requesterEmail && canReadBugReportEmail
+        ? (role === "admin" ? requesterEmail : maskEmail(requesterEmail))
+        : null
     } : null,
-    contactEmail: contactEmail ? (role === "admin" ? contactEmail : maskEmail(contactEmail)) : null,
+    contactEmail: contactEmail && canReadBugReportEmail
+      ? (role === "admin" ? contactEmail : maskEmail(contactEmail))
+      : null,
     category: row.category,
     subject: row.subject,
     message: row.message,
@@ -1152,6 +1163,10 @@ export async function registerAdminModerationRoutes(app: FastifyInstance) {
          support_requests.id::text as id,
          coalesce(profile.display_name, users.display_name, 'cruush user') as display_name,
          support_requests.contact_email as email,
+         support_requests.category,
+         support_requests.contact_email,
+         support_requests.contact_email_opted_in,
+         support_requests.contact_email_expires_at,
          support_requests.subject,
          support_requests.message,
          support_requests.status,
@@ -1267,8 +1282,10 @@ export async function registerAdminModerationRoutes(app: FastifyInstance) {
          support.id::text as id,
          support.requester_user_id::text as requester_user_id,
          coalesce(profile.display_name, requester.display_name, 'cruush user') as requester_display_name,
-         requester.email as requester_email,
+         case when support.category = 'bug' then null else requester.email end as requester_email,
          support.contact_email,
+         support.contact_email_opted_in,
+         support.contact_email_expires_at,
          support.category,
          support.subject,
          support.message,
@@ -1387,6 +1404,8 @@ export async function registerAdminModerationRoutes(app: FastifyInstance) {
          null::text as requester_display_name,
          null::text as requester_email,
          contact_email,
+         contact_email_opted_in,
+         contact_email_expires_at,
          category,
          subject,
          message,

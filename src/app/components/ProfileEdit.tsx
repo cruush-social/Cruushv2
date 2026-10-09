@@ -284,6 +284,7 @@ export function ProfilePhotoCropper({
   subjectLabel?: string;
 }) {
   const imageRef = useRef<HTMLImageElement | null>(null);
+  const cropViewportRef = useRef<HTMLDivElement | null>(null);
   const dragRef = useRef<{ x: number; y: number } | null>(null);
   const [offset, setOffset] = useState({ x: 0, y: 0 });
   const [rotation, setRotation] = useState(0);
@@ -367,11 +368,18 @@ export function ProfilePhotoCropper({
       const drawScale = baseScale * zoom;
       const drawWidth = imageWidth * drawScale;
       const drawHeight = imageHeight * drawScale;
+      const cropViewportBounds = cropViewportRef.current?.getBoundingClientRect();
+      const offsetScaleX = cropViewportBounds?.width
+        ? canvas.width / cropViewportBounds.width
+        : 2 * (canvas.width / 1200);
+      const offsetScaleY = cropViewportBounds?.height
+        ? canvas.height / cropViewportBounds.height
+        : 2 * (canvas.height / 1500);
 
       context.fillStyle = '#000';
       context.fillRect(0, 0, canvas.width, canvas.height);
       context.save();
-      context.translate(canvas.width / 2 + offset.x * 2 * (canvas.width / 1200), canvas.height / 2 + offset.y * 2 * (canvas.height / 1500));
+      context.translate(canvas.width / 2 + offset.x * offsetScaleX, canvas.height / 2 + offset.y * offsetScaleY);
       context.rotate((rotation * Math.PI) / 180);
       context.drawImage(image, -drawWidth / 2, -drawHeight / 2, drawWidth, drawHeight);
       context.restore();
@@ -394,6 +402,7 @@ export function ProfilePhotoCropper({
     >
       <div className="my-auto max-h-[calc(100dvh-1rem)] w-full max-w-md overflow-y-auto overscroll-contain rounded-2xl border border-white/12 bg-background text-foreground shadow-[0_28px_90px_rgba(0,0,0,0.52)] sm:max-h-[calc(100dvh-2rem)]">
         <div
+          ref={cropViewportRef}
           className="relative mx-auto aspect-[4/5] touch-none overflow-hidden bg-black"
           onPointerCancel={handlePointerEnd}
           onPointerDown={handlePointerDown}
@@ -581,6 +590,7 @@ function toProfileSavePayload(
     pronouns: limitToThree(profile.pronouns ?? []),
     custom_pronouns: (profile.custom_pronouns ?? '').trim(),
     year_of_birth: profile.year_of_birth ?? null,
+    show_age: profile.show_age !== false,
     ethnicity: profile.ethnicity ?? '',
     identities: limitGenderIdentities(profile.identities || []),
     presentation: limitToThree(profile.presentation ?? []),
@@ -646,6 +656,8 @@ export default function ProfileEdit({ embedded = false, onCancel, onSaved }: Pro
   const [profile, setProfile] = useState<ProfilePayload>(emptyProfilePayload);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [profileDirty, setProfileDirty] = useState(false);
+  const [profileSaveState, setProfileSaveState] = useState<'idle' | 'saved' | 'error'>('idle');
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [photoUploadError, setPhotoUploadError] = useState<string | null>(null);
@@ -757,11 +769,18 @@ export default function ProfileEdit({ embedded = false, onCancel, onSaved }: Pro
     };
   }, [pendingPhoto]);
 
+  const markProfileDirty = () => {
+    setProfileDirty(true);
+    setProfileSaveState('idle');
+  };
+
   const handleChange = <K extends keyof ProfilePayload>(field: K, value: ProfilePayload[K]) => {
+    markProfileDirty();
     setProfile((prev) => ({ ...prev, [field]: value }));
   };
 
   const handleTransChange = (checked: boolean) => {
+    markProfileDirty();
     setProfile((prev) => ({
       ...prev,
       is_trans: checked,
@@ -778,6 +797,7 @@ export default function ProfileEdit({ embedded = false, onCancel, onSaved }: Pro
   const handleCrowdsChange = (crowds: string[]) => {
     const normalizedCrowds = normalizeCrowdValues(crowds);
 
+    markProfileDirty();
     setProfile((prev) => ({
       ...prev,
       crowds: normalizedCrowds,
@@ -816,6 +836,7 @@ export default function ProfileEdit({ embedded = false, onCancel, onSaved }: Pro
   const hobbyLimit = cruushPlus ? CRUUSH_PLUS_PROFILE_HOBBIES : MAX_PROFILE_HOBBIES;
 
   const handleKinksChange = (selectedKinks: string[]) => {
+    markProfileDirty();
     setProfile((prev) => {
       const limitedSelectedKinks = limitKinks(selectedKinks, kinkLimit);
       const existingById = new Map((prev.kink_interests ?? []).map((interest) => [interest.kink_id, interest]));
@@ -836,19 +857,19 @@ export default function ProfileEdit({ embedded = false, onCancel, onSaved }: Pro
     try {
       const savedProfile = await saveMyProfile(toProfileSavePayload(profile, kinkLimit, profileTagLimit, hobbyLimit));
       if (profileSaveRequestRef.current !== requestId) {
-        return;
+        return false;
       }
 
       applySavedProfile(savedProfile);
-      if (embedded) {
-        return;
-      } else {
-        navigate(-1);
-      }
+      setProfileDirty(false);
+      setProfileSaveState('saved');
+      return true;
     } catch (saveError) {
       if (profileSaveRequestRef.current === requestId) {
         setError(saveError instanceof Error ? saveError.message : 'Failed to save profile.');
+        setProfileSaveState('error');
       }
+      return false;
     } finally {
       if (profileSaveRequestRef.current === requestId) {
         setSaving(false);
@@ -1041,6 +1062,16 @@ export default function ProfileEdit({ embedded = false, onCancel, onSaved }: Pro
       return;
     }
 
+    // Profile edits can remain dirty after the user switches to Badges. The
+    // badge guard runs first, then the ordinary profile guard still protects
+    // those edits regardless of the tab that happens to be visible.
+    if (profileDirty) {
+      const shouldSave = window.confirm('Save profile changes before leaving?');
+      if (!shouldSave || !(await handleSave())) {
+        return;
+      }
+    }
+
     if (embedded) {
       onCancel?.();
     } else {
@@ -1082,7 +1113,7 @@ export default function ProfileEdit({ embedded = false, onCancel, onSaved }: Pro
     pronouns: profile.pronouns || [],
     identities: limitGenderIdentities(profile.identities || []),
     presentation: limitToThree(profile.presentation || []),
-    sexuality: singleValue(profile.sexuality || []),
+    sexuality: limitToThree(profile.sexuality || []),
     body_type: limitToThree(profile.body_type || []),
     position: limitToThree(profile.position || []),
     role: limitToThree(profile.role || []),
@@ -1130,6 +1161,7 @@ export default function ProfileEdit({ embedded = false, onCancel, onSaved }: Pro
     <div className={embedded ? 'bg-transparent pb-0' : 'min-h-screen bg-background pb-20'}>
       <AppPageHeader
         title="Edit Profile"
+        className="z-[60]"
         onBack={() => void handleCancel()}
         backLabel={embedded ? 'Back to profile preview' : 'Back'}
         onClose={embedded ? () => void handleCancel() : undefined}
@@ -1144,7 +1176,13 @@ export default function ProfileEdit({ embedded = false, onCancel, onSaved }: Pro
               background: 'var(--cruush-gradient)',
             }}
           >
-            {activeTab === 'badges' && badgeSaveState === 'saving' || activeTab !== 'badges' && saving ? 'Saving...' : 'Save'}
+            {activeTab === 'badges' && badgeSaveState === 'saving'
+              ? 'Saving...'
+              : activeTab !== 'badges' && saving
+                ? 'Saving...'
+                : activeTab !== 'badges' && profileSaveState === 'saved'
+                  ? 'Saved'
+                  : 'Save'}
           </Button>
         )}
       />
@@ -1297,18 +1335,6 @@ export default function ProfileEdit({ embedded = false, onCancel, onSaved }: Pro
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="bio">Bio</Label>
-              <Textarea
-                id="bio"
-                placeholder="Tell people about yourself..."
-                value={normalizedProfile.bio}
-                onChange={e => handleChange('bio', e.target.value)}
-                className="min-h-[120px] bg-input-background"
-              />
-              <p className="text-xs text-muted-foreground">Add tags below so people can find your profile in Seeking and Visibility. Basic includes 3; cruush+ includes 10.</p>
-            </div>
-
-            <div className="space-y-2">
               <Label htmlFor="profile-tags">Tags</Label>
               <p className="text-xs text-muted-foreground">Pick up to {profileTagLimit}</p>
               <TagInput
@@ -1325,6 +1351,17 @@ export default function ProfileEdit({ embedded = false, onCancel, onSaved }: Pro
                 }}
               />
               {profileTagError ? <p className="text-sm text-destructive">{profileTagError}</p> : null}
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="bio">Bio</Label>
+              <Textarea
+                id="bio"
+                placeholder="Tell people about yourself..."
+                value={normalizedProfile.bio}
+                onChange={e => handleChange('bio', e.target.value)}
+                className="min-h-[120px] bg-input-background"
+              />
             </div>
 
             <div className="space-y-2">
@@ -1369,9 +1406,17 @@ export default function ProfileEdit({ embedded = false, onCancel, onSaved }: Pro
                   type="number"
                   placeholder="2000"
                   value={normalizedProfile.year_of_birth ?? ''}
-                  onChange={e => handleChange('year_of_birth', e.target.value ? parseInt(e.target.value, 10) : null)}
+                  readOnly
                   className="bg-input-background"
                 />
+                <div className="flex items-center gap-2 pt-1">
+                  <Checkbox
+                    id="show-age"
+                    checked={normalizedProfile.show_age !== false}
+                    onCheckedChange={(checked) => handleChange('show_age', checked === true)}
+                  />
+                  <Label htmlFor="show-age">Show my age</Label>
+                </div>
               </div>
               <div className="space-y-2">
                 <Label htmlFor="ethnicity">Ethnicity</Label>
@@ -1443,7 +1488,7 @@ export default function ProfileEdit({ embedded = false, onCancel, onSaved }: Pro
                   value={normalizedProfile.crowds}
                   onChange={handleCrowdsChange}
                 />
-                <p className="text-xs text-muted-foreground">Pick up to {MAX_PROFILE_GROUP_SELECTIONS}</p>
+                <p className="text-xs text-muted-foreground">Crowds are shared social spaces, like gay or dyke bars, not identity labels. Change who can see you in Map Controls &gt; Visibility.</p>
               </div>
             </div>
 

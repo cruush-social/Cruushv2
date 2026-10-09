@@ -15,9 +15,11 @@ import {
 } from '../lib/desktopPageLayoutPreferences';
 import { getMyCruushActivity } from '../lib/cruushApi';
 import { getConversations } from '../lib/messagesApi';
+import { getFeedPosts } from '../lib/postApi';
 import { useMapServiceArea } from './MapServiceAreaContext';
 
 const CRUUSH_SEEN_AT_KEY = 'cruush.activity.seenAt';
+const MUTUAL_FEED_SEEN_AT_KEY = 'feed.mutual.seenAt';
 
 const navItems = [
   { path: '/map', globe: true, label: 'Map' },
@@ -64,6 +66,35 @@ function ProfileNavIcon({ active }: { active: boolean }) {
   );
 }
 
+function UnreadFlashingNavIcon({
+  whiteSrc,
+  gradientSrc,
+  sizeClassName,
+  gradientClassName = '',
+}: {
+  whiteSrc: string;
+  gradientSrc: string;
+  sizeClassName: string;
+  gradientClassName?: string;
+}) {
+  return (
+    <span aria-hidden="true" className={`relative block shrink-0 ${sizeClassName}`} data-tone="unread-flash">
+      <img
+        alt=""
+        className="cruush-unread-nav-icon-white absolute inset-0 h-full w-full object-contain brightness-0 invert"
+        draggable={false}
+        src={whiteSrc}
+      />
+      <img
+        alt=""
+        className={`cruush-unread-nav-icon-gradient absolute inset-0 h-full w-full object-contain ${gradientClassName}`}
+        draggable={false}
+        src={gradientSrc}
+      />
+    </span>
+  );
+}
+
 export default function BottomNav({
   outsideServiceArea: outsideServiceAreaOverride,
   mapSurface = false,
@@ -90,10 +121,13 @@ export default function BottomNav({
   const [desktopPageLayout, setDesktopPageLayout] = useState(getDesktopPageLayout);
   const [unreadMessages, setUnreadMessages] = useState(false);
   const [unreadCruushes, setUnreadCruushes] = useState(false);
+  const [unreadMutualFeedPosts, setUnreadMutualFeedPosts] = useState(false);
+  const [outsideServiceAreaFeedNudge, setOutsideServiceAreaFeedNudge] = useState(false);
+  const hasShownOutsideServiceAreaFeedNudge = useRef(false);
   const mapServiceArea = useMapServiceArea();
   const outsideServiceArea = outsideServiceAreaOverride ?? mapServiceArea.outsideServiceArea;
   const visibleNavItems = outsideServiceArea
-    ? navItems.filter((item) => ['/cruush', '/messages', '/profile'].includes(item.path))
+    ? navItems.filter((item) => ['/feed', '/cruush', '/messages', '/profile'].includes(item.path))
     : navItems;
   const isOwnProfilePanelOpen = Boolean(
     (location.state as { openOwnProfilePanel?: boolean } | null)?.openOwnProfilePanel
@@ -120,15 +154,28 @@ export default function BottomNav({
 
   useEffect(() => addDesktopPageLayoutChangedListener(setDesktopPageLayout), []);
 
+  // Feed is the useful first stop when a newly signed-in member cannot enter
+  // the map. Show the existing unread flash once for this app session, then
+  // clear it as soon as they open Feed.
+  useEffect(() => {
+    if (!outsideServiceArea || hasShownOutsideServiceAreaFeedNudge.current) return;
+    hasShownOutsideServiceAreaFeedNudge.current = true;
+    setOutsideServiceAreaFeedNudge(true);
+  }, [outsideServiceArea]);
+
   useEffect(() => {
     let cancelled = false;
     const refresh = async () => {
       if (location.pathname.startsWith('/cruush')) {
         window.localStorage.setItem(CRUUSH_SEEN_AT_KEY, new Date().toISOString());
       }
-      const [messagesResult, cruushResult] = await Promise.allSettled([
+      if (location.pathname.startsWith('/feed')) {
+        window.localStorage.setItem(MUTUAL_FEED_SEEN_AT_KEY, new Date().toISOString());
+      }
+      const [messagesResult, cruushResult, feedResult] = await Promise.allSettled([
         getConversations(),
         getMyCruushActivity(),
+        getFeedPosts({ within: '7d', limit: 30 }),
       ]);
       if (cancelled) return;
       if (messagesResult.status === 'fulfilled') {
@@ -138,6 +185,12 @@ export default function BottomNav({
         const seenAt = Date.parse(window.localStorage.getItem(CRUUSH_SEEN_AT_KEY) ?? '') || 0;
         setUnreadCruushes(!location.pathname.startsWith('/cruush')
           && cruushResult.value.incoming.some((item) => Date.parse(item.createdAt) > seenAt));
+        if (feedResult.status === 'fulfilled') {
+          const seenAt = Date.parse(window.localStorage.getItem(MUTUAL_FEED_SEEN_AT_KEY) ?? '') || 0;
+          const mutualUserIds = new Set(cruushResult.value.mutual.map((item) => item.user.id));
+          setUnreadMutualFeedPosts(!location.pathname.startsWith('/feed')
+            && feedResult.value.some((post) => mutualUserIds.has(post.user.id) && Date.parse(post.createdAt) > seenAt));
+        }
       }
     };
     void refresh();
@@ -154,6 +207,11 @@ export default function BottomNav({
     if (path === '/cruush') {
       window.localStorage.setItem(CRUUSH_SEEN_AT_KEY, new Date().toISOString());
       setUnreadCruushes(false);
+    }
+    if (path === '/feed') {
+      window.localStorage.setItem(MUTUAL_FEED_SEEN_AT_KEY, new Date().toISOString());
+      setUnreadMutualFeedPosts(false);
+      setOutsideServiceAreaFeedNudge(false);
     }
     const sidePanelView = desktopSidePanelViews[path];
     const usesDesktopPopups = desktopPageLayoutDevice && desktopPageLayout === 'popups';
@@ -181,7 +239,7 @@ export default function BottomNav({
 
   return (
     <nav ref={navRef} className="pointer-events-none fixed bottom-0 left-0 right-0 z-[60] px-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] pt-2">
-      {!isMapRoute && !isCruiseCarouselRoute && !mapSurface ? (
+      {!outsideServiceArea && !isMapRoute && !isCruiseCarouselRoute && !mapSurface ? (
         <div
           aria-hidden="true"
           className="pointer-events-none absolute inset-x-0 bottom-0 h-28 bg-gradient-to-t from-background from-[68%] via-background/96 via-[82%] to-background/0"
@@ -189,8 +247,8 @@ export default function BottomNav({
       ) : null}
       <div
         data-testid="bottom-nav-pill"
-        className={`cruush-bottom-nav-pill pointer-events-auto relative z-10 mx-auto flex w-full items-center justify-between rounded-full border border-white/10 bg-[color:var(--cruush-black-glass)] px-1.5 pb-1.5 pt-2 shadow-[0_20px_60px_rgba(0,0,0,0.42)] backdrop-blur-[var(--cruush-black-glass-blur)] transition-transform ${outsideServiceArea ? 'max-w-[12rem]' : 'max-w-[23rem]'}`}
-        data-capsule-width={outsideServiceArea ? 192 : 368}
+        className="cruush-bottom-nav-pill pointer-events-auto relative z-10 mx-auto flex w-full max-w-[23rem] items-center justify-between rounded-full border border-white/10 bg-[color:var(--cruush-black-glass)] px-1.5 pb-1.5 pt-2 shadow-[0_20px_60px_rgba(0,0,0,0.42)] backdrop-blur-[var(--cruush-black-glass-blur)] transition-transform"
+        data-capsule-width={368}
       >
         {visibleNavItems.map((item) => {
           const active = isActive(item.path);
@@ -198,6 +256,8 @@ export default function BottomNav({
             ? unreadMessages
             : item.path === '/cruush'
               ? unreadCruushes
+              : item.path === '/feed'
+                ? unreadMutualFeedPosts || outsideServiceAreaFeedNudge
               : false;
           const gradientIcon = active || hasUnread;
           return (
@@ -205,10 +265,18 @@ export default function BottomNav({
               key={item.path}
               aria-current={active ? 'page' : undefined}
               aria-label={item.label}
-              aria-description={hasUnread ? (item.path === '/messages' ? 'Unread messages' : 'New incoming cruushes') : undefined}
+              aria-description={hasUnread
+                ? item.path === '/messages'
+                  ? 'Unread messages'
+                  : item.path === '/feed'
+                    ? outsideServiceAreaFeedNudge
+                      ? 'Open Feed'
+                      : 'New posts from mutual cruushes'
+                    : 'New incoming cruushes'
+                : undefined}
               data-tutorial-target={item.path === '/feed' ? 'feed' : undefined}
               onClick={() => handleNavClick(item.path)}
-              className={`relative flex h-[3.75rem] w-[3.75rem] min-w-0 shrink-0 items-center justify-center rounded-full bg-transparent transition-colors max-[360px]:h-12 max-[360px]:w-12 ${
+              className={`relative flex h-[3.75rem] w-[3.75rem] min-w-0 shrink-0 touch-manipulation items-center justify-center rounded-full bg-transparent transition-colors max-[360px]:h-12 max-[360px]:w-12 ${
                 active
                   ? 'text-primary'
                   : 'text-white/52 hover:text-white/78'
@@ -219,24 +287,44 @@ export default function BottomNav({
               ) : 'profile' in item ? (
                 <ProfileNavIcon active={active} />
               ) : 'brand' in item ? (
-                <img
-                  alt=""
-                  aria-hidden="true"
-                  className={`h-12 w-12 object-contain max-[360px]:h-10 max-[360px]:w-10 ${gradientIcon ? 'cruush-brand-logo' : 'brightness-0 invert'}`}
-                  data-tone={gradientIcon ? 'gradient-white-wordmark' : 'white'}
-                  draggable={false}
-                  src={cruushLogo}
-                />
+                hasUnread ? (
+                  <UnreadFlashingNavIcon
+                    whiteSrc={cruushLogo}
+                    gradientSrc={cruushLogo}
+                    sizeClassName="h-12 w-12 max-[360px]:h-10 max-[360px]:w-10"
+                    gradientClassName="cruush-brand-logo"
+                  />
+                ) : (
+                  <img
+                    alt=""
+                    aria-hidden="true"
+                    className={`h-12 w-12 object-contain max-[360px]:h-10 max-[360px]:w-10 ${gradientIcon ? 'cruush-brand-logo' : 'brightness-0 invert'}`}
+                    data-tone={gradientIcon ? 'gradient-white-wordmark' : 'white'}
+                    draggable={false}
+                    src={cruushLogo}
+                  />
+                )
               ) : (
-                <img
-                  alt=""
-                  aria-hidden="true"
-                  className={item.path === '/feed'
-                    ? `h-[4.25rem] w-[4.25rem] max-w-none object-contain max-[360px]:h-[3.4rem] max-[360px]:w-[3.4rem] ${gradientIcon ? 'cruush-colored-ui-asset' : ''}`
-                    : `h-[3.6rem] w-[3.6rem] object-contain max-[360px]:h-[2.9rem] max-[360px]:w-[2.9rem] ${gradientIcon ? 'cruush-colored-ui-asset' : ''}`}
-                  draggable={false}
-                  src={gradientIcon ? item.activeIcon : item.icon}
-                />
+                hasUnread ? (
+                  <UnreadFlashingNavIcon
+                    whiteSrc={item.icon!}
+                    gradientSrc={item.activeIcon!}
+                    sizeClassName={item.path === '/feed'
+                      ? 'h-[4.25rem] w-[4.25rem] max-[360px]:h-[3.4rem] max-[360px]:w-[3.4rem]'
+                      : 'h-[3.6rem] w-[3.6rem] max-[360px]:h-[2.9rem] max-[360px]:w-[2.9rem]'}
+                    gradientClassName="cruush-colored-ui-asset"
+                  />
+                ) : (
+                  <img
+                    alt=""
+                    aria-hidden="true"
+                    className={item.path === '/feed'
+                      ? `h-[4.25rem] w-[4.25rem] max-w-none object-contain max-[360px]:h-[3.4rem] max-[360px]:w-[3.4rem] ${gradientIcon ? 'cruush-colored-ui-asset' : ''}`
+                      : `h-[3.6rem] w-[3.6rem] object-contain max-[360px]:h-[2.9rem] max-[360px]:w-[2.9rem] ${gradientIcon ? 'cruush-colored-ui-asset' : ''}`}
+                    draggable={false}
+                    src={gradientIcon ? item.activeIcon : item.icon}
+                  />
+                )
               )}
             </button>
           );

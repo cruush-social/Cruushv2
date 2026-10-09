@@ -9,12 +9,13 @@ export type CreateSupportRequestPayload = {
   subject: string;
   message: string;
   contactEmail?: string;
+  linkAccountEmail?: boolean;
   source: SupportRequestSource;
   pageUrl?: string;
   device?: {
-    model?: string;
     platform?: string;
-    platformVersion?: string;
+    browser?: string;
+    appVersion?: string;
     mobile?: boolean;
   };
   screenshot?: {

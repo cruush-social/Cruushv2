@@ -2,8 +2,8 @@ import { fireEvent, render, screen, within } from '@testing-library/react';
 import { useState } from 'react';
 import MapVisibilitySurface, { DEFAULT_VISIBILITY_STATE, type VisibilityControlState } from './MapVisibilitySurface';
 
-function VisibilityHarness({ hasCruushPlus = false, onUpgrade = vi.fn() }: { hasCruushPlus?: boolean; onUpgrade?: () => void }) {
-  const [value, setValue] = useState<VisibilityControlState>(DEFAULT_VISIBILITY_STATE);
+function VisibilityHarness({ hasCruushPlus = false, onUpgrade = vi.fn(), showOutsideServiceAreaControl, initialValue = DEFAULT_VISIBILITY_STATE }: { hasCruushPlus?: boolean; onUpgrade?: () => void; showOutsideServiceAreaControl?: boolean; initialValue?: VisibilityControlState }) {
+  const [value, setValue] = useState<VisibilityControlState>(initialValue);
   const [applied, setApplied] = useState<VisibilityControlState | null>(null);
 
   return (
@@ -13,6 +13,7 @@ function VisibilityHarness({ hasCruushPlus = false, onUpgrade = vi.fn() }: { has
         onOpenChange={() => {}}
         value={value}
         hasCruushPlus={hasCruushPlus}
+        showOutsideServiceAreaControl={showOutsideServiceAreaControl}
         onUpgrade={onUpgrade}
         onChange={setValue}
         onClear={() => setValue(DEFAULT_VISIBILITY_STATE)}
@@ -21,6 +22,7 @@ function VisibilityHarness({ hasCruushPlus = false, onUpgrade = vi.fn() }: { has
       <output data-testid="hidden-body-types">{value.bodyTypes.join(',')}</output>
       <output data-testid="applied-identities">{applied?.identities.join(',') ?? ''}</output>
       <output data-testid="applied-mile-high-club">{String(applied?.mileHighClub ?? false)}</output>
+      <output data-testid="applied-out-of-sight">{String(applied?.outsideServiceAreaMembers ?? false)}</output>
     </>
   );
 }
@@ -34,10 +36,47 @@ function selectVisibilityOption(label: string, option: string) {
 }
 
 describe('MapVisibilitySurface', () => {
-  it('keeps Visibility Controls above the fixed bottom navigation', () => {
+  it('omits the member-only Purgatory row when reused for Club visibility', () => {
+    render(<VisibilityHarness showOutsideServiceAreaControl={false} />);
+    expect(screen.queryByRole('switch', { name: 'Purgatory members' })).not.toBeInTheDocument();
+    expect(screen.getByRole('switch', { name: 'Hide me from people with no profile picture' })).toBeInTheDocument();
+  });
+  it('counts Purgatory members within the three Basic hidden filters', () => {
+    render(<VisibilityHarness initialValue={{ ...DEFAULT_VISIBILITY_STATE, identities: ['man'], presentations: ['masc'], crowds: ['Gay'] }} />);
+    const control = screen.getByRole('switch', { name: 'Purgatory members' });
+    expect(control).not.toBeChecked();
+    expect(control.closest('.rounded-2xl')).toHaveClass('border-white/10', 'bg-white/[0.035]', 'p-4');
+    fireEvent.click(control);
+    expect(control).not.toBeChecked();
+    expect(screen.getByText('You can use up to 3 hidden filters. Remove one before adding another.')).toBeInTheDocument();
+  });
+  it('lets Basic members choose Purgatory as one of three hidden filters', () => {
+    render(<VisibilityHarness initialValue={{ ...DEFAULT_VISIBILITY_STATE, identities: ['man'], presentations: ['masc'] }} />);
+    const control = screen.getByRole('switch', { name: 'Purgatory members' });
+    fireEvent.click(control);
+    expect(control).toBeChecked();
+    fireEvent.click(screen.getByRole('button', { name: 'Apply' }));
+    expect(screen.getByTestId('applied-out-of-sight')).toHaveTextContent('true');
+  });
+  it('always allows turning the Purgatory restriction off, even for a legacy over-limit Basic state', () => {
+    render(<VisibilityHarness initialValue={{ ...DEFAULT_VISIBILITY_STATE, outsideServiceAreaMembers: true, identities: ['man'], presentations: ['masc'], crowds: ['Gay'] }} />);
+    const control = screen.getByRole('switch', { name: 'Purgatory members' });
+    expect(control).toBeChecked();
+    fireEvent.click(control);
+    expect(control).not.toBeChecked();
+  });
+  it('allows cruush+ to add Purgatory after three other hidden filters', () => {
+    render(<VisibilityHarness hasCruushPlus initialValue={{ ...DEFAULT_VISIBILITY_STATE, identities: ['man'], presentations: ['masc'], crowds: ['Gay'] }} />);
+    const control = screen.getByRole('switch', { name: 'Purgatory members' });
+    fireEvent.click(control);
+    expect(control).toBeChecked();
+    expect(screen.queryByText('You can use up to 3 hidden filters. Remove one before adding another.')).not.toBeInTheDocument();
+  });
+  it('keeps Visibility Controls flush with the desktop viewport and leaves the map unmasked', () => {
     render(<VisibilityHarness />);
 
     expect(screen.getByRole('dialog', { name: 'Visibility Controls' })).toHaveClass('z-[1100]');
+    expect(document.querySelector('[data-slot="sheet-overlay"]')).toHaveClass('sm:bg-transparent');
     expect(screen.getByRole('tablist')).not.toHaveClass('sticky', 'top-0', 'z-20');
   });
 

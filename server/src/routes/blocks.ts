@@ -1,6 +1,7 @@
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import { ApiError } from "../errors.js";
+import { loadOutOfSightStatuses, type OutOfSightStatus } from "../out-of-sight-location.js";
 import { getActiveAccountUserId, getAuthenticatedUserId } from "../request-auth.js";
 
 const blockPayloadSchema = z.object({
@@ -110,6 +111,9 @@ export async function registerBlockRoutes(app: FastifyInstance) {
       [blockerUserId]
     );
 
+    const physicalStatuses = await loadOutOfSightStatuses(app, result.rows.map((row) => row.id))
+      .catch(() => new Map<string, OutOfSightStatus>());
+
     return reply.send({
       data: {
         blockedUsers: result.rows.map((row) => ({
@@ -117,7 +121,9 @@ export async function registerBlockRoutes(app: FastifyInstance) {
           displayName: row.display_name?.trim() || "cruush user",
           photo: row.photo ?? null,
           photoExplicit: row.photo_explicit === true,
-          createdAt: new Date(row.created_at).toISOString()
+          createdAt: new Date(row.created_at).toISOString(),
+          ...(physicalStatuses.get(row.id) === "in_area" || physicalStatuses.get(row.id) === "out_of_sight"
+            ? { outOfSight: physicalStatuses.get(row.id) === "out_of_sight" } : {})
         }))
       }
     });

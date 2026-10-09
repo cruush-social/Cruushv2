@@ -29,6 +29,7 @@ import { recordMediaRead } from "../media-read-budget.js";
 import { assertUsersNotBlocked } from "../user-blocks.js";
 import { getRelationshipPermissions } from "../match-relationships.js";
 import { canViewNsfwPhoto } from "../nsfw-photo-audience.js";
+import { loadOosHiddenProfileIds } from "../profile-oos-visibility.js";
 
 const MAX_PROFILE_PHOTOS = 4;
 const mediaUuidPattern = "[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}";
@@ -130,6 +131,11 @@ async function sendEncryptedMedia(
   mediaObject: EncryptedMediaRow,
   viewerUserId: string
 ) {
+  if (mediaObject.owner_user_id !== viewerUserId
+      && mediaObject.surface !== "message_photo"
+      && (await loadOosHiddenProfileIds(app, viewerUserId, [mediaObject.owner_user_id])).has(mediaObject.owner_user_id)) {
+    throw new ApiError(404, "NOT_FOUND", "Media not found.");
+  }
   if (mediaObject.owner_user_id !== viewerUserId
       && mediaObject.explicit_classification !== "non_explicit"
       && !await canViewNsfwPhoto(app, mediaObject.owner_user_id, viewerUserId)) {

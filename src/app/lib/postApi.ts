@@ -3,8 +3,8 @@ import type { CruushBadge } from './billingApi';
 import type { SideBadges } from './profileApi';
 import type { DlModePhotoRelationship } from './dlMode';
 
-export type FeedPostExpiry = '30m' | '1h' | '3h' | '6h' | '12h' | '24h' | '2d' | '3d' | '5d' | '7d' | 'never';
-export type FeedPostWindow = '1h' | '3h' | '6h' | '24h' | '7d';
+export type FeedPostExpiry = '30m' | '1h' | '3h' | '6h' | '12h' | '24h' | '2d' | '3d' | '5d' | '7d' | '8d' | '9d' | '10d' | '11d' | '12d' | '13d' | '14d' | '15d' | '16d' | '17d' | '18d' | '19d' | '20d' | '21d' | '22d' | '23d' | '24d' | '25d' | '26d' | '27d' | '28d' | '29d' | '30d' | 'never';
+export type FeedPostWindow = '1h' | '3h' | '6h' | '24h' | '7d' | '8d' | '9d' | '10d' | '11d' | '12d' | '13d' | '14d' | '15d' | '16d' | '17d' | '18d' | '19d' | '20d' | '21d' | '22d' | '23d' | '24d' | '25d' | '26d' | '27d' | '28d' | '29d' | '30d';
 export type FeedLocationPinVisibility = 'off' | 'mutuals' | 'same_crowd' | 'public';
 export type FeedPostAudience = 'public' | 'mutuals' | 'crowd';
 
@@ -23,6 +23,7 @@ export type FeedPost = {
   createdAt: string;
   distance: string;
   audience: FeedPostAudience;
+  showDistance?: boolean;
   tags?: string[];
   photos?: FeedPhoto[];
   crowdTargets?: string[];
@@ -39,6 +40,7 @@ export type FeedPost = {
     name: string;
     pronouns: string;
     photo: string | null;
+    outOfSight?: boolean;
     photoExplicit?: boolean;
     sharesCrowd?: boolean;
     photoRelationship?: DlModePhotoRelationship;
@@ -70,6 +72,7 @@ export type FeedPostFilters = {
   seeking?: {
     searchQuery?: string;
     mileHighClub?: boolean;
+    excludeMileHighClub?: boolean;
     ageRange?: [number, number];
     identities?: string[];
     presentations?: string[];
@@ -95,6 +98,7 @@ export type CreateFeedPostPayload = {
   content: string;
   expiresIn: FeedPostExpiry;
   audience: FeedPostAudience;
+  showDistance: boolean;
   crowdTargets?: string[];
   photoMediaIds?: string[];
   tags?: string[];
@@ -126,6 +130,9 @@ export async function getFeedPosts(filters: FeedPostFilters = {}) {
 
   if (filters.seeking?.mileHighClub) {
     params.set('mileHighClub', '1');
+  }
+  if (filters.seeking?.excludeMileHighClub) {
+    params.set('excludeMileHighClub', '1');
   }
   if (filters.seeking?.searchQuery?.trim()) {
     params.set('q', filters.seeking.searchQuery.trim());

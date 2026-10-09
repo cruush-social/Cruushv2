@@ -164,7 +164,7 @@ export default function UserActivityCapsule({
         </>
       )}
 
-      {actions ? <div className={`cruush-user-activity-actions col-start-3 self-center ${compactIdentityMeta ? 'row-start-1' : 'row-start-2'}`}>{actions}</div> : null}
+      {actions ? <div className={`cruush-user-activity-actions col-start-3 self-center ${compactIdentityMeta ? 'row-start-1' : 'row-start-2'}`} onClick={(event) => event.stopPropagation()}>{actions}</div> : null}
 
       {content ? <div className="cruush-user-activity-content col-start-2 col-end-4 min-w-0">{content}</div> : null}
       </div>

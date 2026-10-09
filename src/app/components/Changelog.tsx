@@ -3,6 +3,16 @@ import AppPageHeader from './AppPageHeader';
 
 const changelogReleases = [
   {
+    version: 'v2.0',
+    items: [
+      'Use cruush from anywhere; the map remains limited to supported locations.',
+      'The updated UI brings clearer controls and smoother navigation across the map, profiles, Feed, Messages, and Clubs.',
+      'Follow Bitcoin orders for cruush+ and Pulse with clearer payment and confirmation progress.',
+      'Choose more Feed post durations and control mutual Feed-post notifications.',
+      'Bug fixes and stability improvements throughout the app.',
+    ],
+  },
+  {
     version: 'v1.9',
     items: [
       'Browse persistent Clubs from Messages with separate My Clubs and Browse Clubs views.',

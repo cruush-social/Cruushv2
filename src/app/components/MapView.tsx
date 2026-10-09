@@ -43,6 +43,7 @@ import {
 } from 'lucide-react';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import beachUmbrellaIcon from '../assets/ui-icons/beach-umbrella-1689481.png';
+import purgatoryHeartOverlay from '../assets/ui-icons/purgatory-heart-pin-overlay.svg';
 import { CruushIcon, GhostColoredIcon } from './CruushIconImage';
 import { resolveMediaUrl } from '../lib/apiClient';
 import { getProfileGradientStops } from '../lib/profileGradient';
@@ -116,6 +117,13 @@ type InitialViewport = {
   zoom: number;
 };
 
+export type MapViewportBounds = {
+  north: number;
+  south: number;
+  east: number;
+  west: number;
+};
+
 interface MapViewProps {
   onPinClick: (marker: MapMarker) => void;
   onMapClick?: () => void;
@@ -177,7 +185,12 @@ const MAP_LABEL_FONT_REGULAR = ['Cormorant Garamond'];
 const MAP_LABEL_FONT_BOLD = ['Cormorant Garamond Bold', 'Cormorant Garamond'];
 export const MAP_TILE_LABEL_SCALE = 1.5625;
 const MAP_ACCESSIBILITY_TEXT_SCALE = 1.25;
+const MAP_HOVER_TITLE_FONT_SIZE_PX = 15;
+// Heart previews scale their containing layer to 1.38x. Keep the nested
+// Signal and badge titles at the same effective size as an unscaled Spot title.
+const MAP_HEART_HOVER_TITLE_FONT_SIZE_PX = MAP_HOVER_TITLE_FONT_SIZE_PX / 1.38;
 export const MAP_PIN_UNIT_SCALE = 1;
+export const MAP_MARKER_VIEWPORT_OVERSCAN = 0.15;
 const MARKER_INTERACTION_SUPPRESS_MS = 350;
 // Clustering hides individual people, so it starts later and gives up sooner:
 // pins only merge when they are nearly on top of one another.
@@ -644,6 +657,9 @@ type SpiderfiedCluster = {
     approximateLongitude: number;
   };
   memberIds: string[];
+  // Keep the exact displayed members and coordinates from the expansion. A
+  // viewport refresh caused by panning must not rearrange an open fan.
+  members: MapMarker[];
   pinned: boolean;
 };
 
@@ -711,15 +727,38 @@ function getSpiderfyOffsets(count: number, clearancePx = 0, minimumRadius = 0): 
   });
 }
 
-function getSpiderfiedMarkerMap(markers: MapMarker[], spiderfiedCluster: SpiderfiedCluster | null, zoom: number, map?: MapLibreMap | null) {
+function createSpiderfiedCluster(
+  cluster: MapMarker,
+  markers: MapMarker[],
+  pinned: boolean,
+): SpiderfiedCluster | null {
+  const requestedMemberIds = cluster.cluster?.memberIds ?? [];
+  const markersById = new Map(markers.map((marker) => [marker.id, marker]));
+  const members = requestedMemberIds
+    .map((memberId) => markersById.get(memberId))
+    .filter((marker): marker is MapMarker => Boolean(marker));
+
+  if (members.length < 2) {
+    return null;
+  }
+
+  return {
+    center: {
+      approximateLatitude: cluster.approximateLatitude,
+      approximateLongitude: cluster.approximateLongitude,
+    },
+    memberIds: members.map((marker) => marker.id),
+    members,
+    pinned,
+  };
+}
+
+function getSpiderfiedMarkerMap(_markers: MapMarker[], spiderfiedCluster: SpiderfiedCluster | null, zoom: number) {
   if (!spiderfiedCluster || spiderfiedCluster.memberIds.length < 2) {
     return new Map<string, DisplayMapMarker>();
   }
 
-  const markersById = new Map(markers.map((marker) => [marker.id, marker]));
-  const members = spiderfiedCluster.memberIds
-    .map((memberId) => markersById.get(memberId))
-    .filter((marker): marker is MapMarker => Boolean(marker));
+  const members = spiderfiedCluster.members;
 
   const peopleOnly = members.every((marker) => (marker.kind ?? 'person') === 'person');
   if (members.length < 2 || (!peopleOnly && new Set(members.map(coordinateKey)).size !== 1)) {
@@ -734,9 +773,9 @@ function getSpiderfiedMarkerMap(markers: MapMarker[], spiderfiedCluster: Spiderf
   // oversized diagonal gap that made a two-person fan span most of a phone.
   const clearance = peopleOnly ? 164 : 0;
   const offsets = getSpiderfyOffsets(fannedMembers.length, clearance, owner ? clearance : 0);
-  const project = (marker: MapMarker) => map && typeof map.project === 'function'
-    ? map.project([marker.approximateLongitude, marker.approximateLatitude])
-    : mercatorPixelPoint(marker, zoom);
+  // Spiderfy geometry is tied to map scale, never the current viewport origin.
+  // Panning therefore keeps the fan unchanged; only zoom alters the geometry.
+  const project = (marker: MapMarker) => mercatorPixelPoint(marker, zoom);
   const center = peopleOnly ? project({ ...members[0], ...spiderfiedCluster.center }) : null;
 
   return new Map(members.map((marker, index) => [
@@ -759,6 +798,35 @@ function getSpiderfiedMarkerMap(markers: MapMarker[], spiderfiedCluster: Spiderf
 
 function isMapMarker(value: MapMarker) {
   return Number.isFinite(value.approximateLatitude) && Number.isFinite(value.approximateLongitude);
+}
+
+function getMapViewportBounds(map: MapLibreMap): MapViewportBounds | null {
+  const bounds = map.getBounds();
+  const nextBounds = {
+    north: bounds.getNorth(),
+    south: bounds.getSouth(),
+    east: bounds.getEast(),
+    west: bounds.getWest(),
+  };
+
+  return Object.values(nextBounds).every(Number.isFinite) ? nextBounds : null;
+}
+
+export function isMarkerWithinViewportOverscan(
+  marker: MapMarker,
+  bounds: MapViewportBounds | null,
+  overscan = MAP_MARKER_VIEWPORT_OVERSCAN,
+) {
+  if (!bounds || !isMapMarker(marker)) {
+    return true;
+  }
+
+  const latitudePadding = (bounds.north - bounds.south) * overscan;
+  const longitudePadding = (bounds.east - bounds.west) * overscan;
+  return marker.approximateLatitude >= bounds.south - latitudePadding
+    && marker.approximateLatitude <= bounds.north + latitudePadding
+    && marker.approximateLongitude >= bounds.west - longitudePadding
+    && marker.approximateLongitude <= bounds.east + longitudePadding;
 }
 
 function isPersonCluster(marker: MapMarker) {
@@ -984,13 +1052,22 @@ function applyPersonMarkerClusters(
   zoom: number,
   focusCoordinates: MapViewProps['focusCoordinates'],
   spiderfiedCluster: SpiderfiedCluster | null = null,
-  map?: MapLibreMap | null,
 ): DisplayMapMarker[] {
-  const spiderfiedMarkersById = getSpiderfiedMarkerMap(markers, spiderfiedCluster, zoom, map);
+  const activeSpiderfyIds = new Set(spiderfiedCluster?.memberIds ?? []);
+  // Preserve the expanded set exactly until a zoom event closes it. Discovery
+  // data is viewport-scoped, so panning can otherwise replace or reorder these
+  // members even though the map scale did not change.
+  const stableMarkers = spiderfiedCluster
+    ? [
+      ...markers.filter((marker) => !activeSpiderfyIds.has(marker.id)),
+      ...spiderfiedCluster.members,
+    ]
+    : markers;
+  const spiderfiedMarkersById = getSpiderfiedMarkerMap(stableMarkers, spiderfiedCluster, zoom);
   const spiderfiedIds = new Set(spiderfiedMarkersById.keys());
 
   const clusteredIds = new Set<string>();
-  const clusterableMarkers = markers
+  const clusterableMarkers = stableMarkers
     .filter((marker) => canClusterMarker(marker, focusCoordinates))
     .filter((marker) => !spiderfiedIds.has(marker.id))
     .sort((a, b) => a.id.localeCompare(b.id));
@@ -1025,14 +1102,14 @@ function applyPersonMarkerClusters(
   // Keep the same cluster button at its anchor during expansion so a
   // desktop click after hover (or a tap after a hold) can pin it open.
   if (spiderfiedCluster && spiderfiedIds.size >= 2) {
-    const members = markers.filter((marker) => spiderfiedIds.has(marker.id) && canClusterMarker(marker, focusCoordinates));
+    const members = stableMarkers.filter((marker) => spiderfiedIds.has(marker.id) && canClusterMarker(marker, focusCoordinates));
     if (members.length >= 2 && members.every((marker) => (marker.kind ?? 'person') === 'person')) {
       clusters.push(buildPeopleCluster(members, 'spiderfy'));
     }
   }
 
   return [
-    ...markers
+    ...stableMarkers
       .filter((marker) => !clusteredIds.has(marker.id))
       .map((marker) => spiderfiedMarkersById.get(marker.id) ?? marker),
     ...clusters,
@@ -1255,7 +1332,9 @@ function MarkerSideBadge({
         glyphClassName="cruush-ghost-rotation-badge-symbol h-full w-full"
         contentClassName={`flex h-full w-full items-center justify-center text-white ${isCurrentUser && marker.displayMode === 'GHOST' ? 'overflow-hidden rounded-full' : ''}`}
       />
-      <BadgeHoverLabel align={side === 'left' ? 'start' : 'end'} compactHorizontalPadding revealed={revealed}>{displayedBadgeLabel}</BadgeHoverLabel>
+      <BadgeHoverLabel align={side === 'left' ? 'start' : 'end'} compactHorizontalPadding compactVerticalPadding revealed={revealed}>
+        <span style={revealed ? { fontSize: MAP_HEART_HOVER_TITLE_FONT_SIZE_PX } : undefined}>{displayedBadgeLabel}</span>
+      </BadgeHoverLabel>
     </span>
   );
 }
@@ -1636,7 +1715,7 @@ function MarkerHeart({ marker, isCurrentUser }: { marker: MapMarker; isCurrentUs
   return (
     <svg
       aria-hidden="true"
-      className="relative z-10 h-20 w-20"
+      className={`relative z-10 h-20 w-20${marker.outOfSight === true && !isNpcGhostDemo ? ' overflow-visible' : ''}`}
       data-testid={`marker-heart-${marker.id}`}
       data-has-photo={hasPhoto ? 'true' : 'false'}
       data-marker-theme={isNpcGhostDemo ? 'npc-ghost-demo' : theme}
@@ -1810,6 +1889,17 @@ function MarkerHeart({ marker, isCurrentUser }: { marker: MapMarker; isCurrentUs
         />
       ) : null}
       {pingActive && !travellerActive ? <PulseEkgHeartTrace clipId={clipId} /> : null}
+      {marker.outOfSight === true && !isNpcGhostDemo ? (
+        <image
+          data-testid={`marker-purgatory-heart-overlay-${marker.id}`}
+          height="72"
+          href={purgatoryHeartOverlay}
+          pointerEvents="none"
+          width="64"
+          x="0"
+          y="-8"
+        />
+      ) : null}
     </svg>
   );
 }
@@ -1893,9 +1983,10 @@ function PlaceMarker({ marker, previewed = false }: { marker: MapMarker; preview
         <SignalBadge
           borderColor="#55C8FF"
           className="block shadow-[0_8px_24px_rgba(0,0,0,0.5)]"
+          compactHorizontalPadding
           testId={`place-marker-title-${marker.place?.id ?? marker.id}`}
         >
-          {marker.displayName}
+          <span style={{ fontSize: MAP_HOVER_TITLE_FONT_SIZE_PX }}>{marker.displayName}</span>
         </SignalBadge>
       </span>
       <span className={`relative flex h-12 w-12 origin-center rotate-45 items-center justify-center rounded-[0.7rem] border-2 border-[#55C8FF] bg-black/94 text-white backdrop-blur-md transition-transform duration-150 ${previewed ? 'scale-[1.38]' : ''}`}>
@@ -2038,7 +2129,7 @@ export function MapMarkerPin({ marker, previewed = false }: { marker: MapMarker;
             </span>
             {(signalPreview || isOwnerGhostDecoy) && !exitActive ? (
               <span
-                className={`absolute left-1/2 top-0 z-30 flex w-max max-w-[16rem] -translate-x-1/2 -translate-y-full flex-col items-center gap-1 transition-opacity duration-150 ${pingActive || previewed ? 'opacity-100' : 'opacity-0'}`}
+                className={`absolute left-1/2 top-0 z-30 flex w-max max-w-none origin-bottom -translate-x-1/2 -translate-y-full flex-col items-center gap-1 transition-opacity ${previewed ? 'scale-[0.7246376812] opacity-100 delay-150 duration-150' : pingActive ? 'opacity-100 duration-150' : 'opacity-0 duration-0'}`}
                 data-signal-position="v2-frame-top"
                 data-testid={`marker-signal-stack-${marker.id}`}
               >
@@ -2048,7 +2139,7 @@ export function MapMarkerPin({ marker, previewed = false }: { marker: MapMarker;
                   testId={`marker-signal-badge-${marker.id}`}
                 >
                   {pingActive ? <PulseEkgSignalTrace /> : null}
-                  <span className="cruush-ghost-rotation-signal-symbol relative">
+                  <span className="cruush-ghost-rotation-signal-symbol relative whitespace-nowrap [overflow-wrap:normal]" style={{ fontSize: MAP_HOVER_TITLE_FONT_SIZE_PX }}>
                     {isOwnerGhostDecoy
                       ? <GhostRotationCountdown expiresAtMs={marker.ghostRotationExpiresAtMs} />
                       : signalPreview}
@@ -2429,6 +2520,7 @@ function MapView({
   const [mapLoadStatus, setMapLoadStatus] = useState<'loading' | 'ready' | 'error'>('loading');
   const [mapError, setMapError] = useState<string | null>(null);
   const [currentZoom, setCurrentZoom] = useState(DEFAULT_ZOOM);
+  const [viewportBounds, setViewportBounds] = useState<MapViewportBounds | null>(null);
   const [largerMapText, setLargerMapText] = useState(
     () => getAccessibilityPreferences().largerText,
   );
@@ -2458,18 +2550,24 @@ function MapView({
         currentZoom,
         focusCoordinates,
         spiderfiedCluster,
-        mapInstance,
       );
       // Clustering can collapse nearby members, but individual member
       // coordinates stay exactly where the API placed them at every zoom.
       const withPlaceClusters = applyPlaceMarkerClusters(clusteredMarkers, currentZoom);
       return separateOverlappingMarkers(withPlaceClusters, currentZoom);
     },
-    [currentZoom, denseMarkerResult.markers, focusCoordinates, spiderfiedCluster, mapInstance, ghostClusterVisibilityTick],
+    [currentZoom, denseMarkerResult.markers, focusCoordinates, spiderfiedCluster, ghostClusterVisibilityTick],
   );
   const renderedMarkerSignature = useMemo(() => JSON.stringify(renderedMarkers), [renderedMarkers]);
   const renderedMarkersRef = useRef(renderedMarkers);
   renderedMarkersRef.current = renderedMarkers;
+  const mountedMarkers = useMemo(
+    () => renderedMarkers.filter((marker) => isMarkerWithinViewportOverscan(marker, viewportBounds)),
+    [renderedMarkers, viewportBounds],
+  );
+  const mountedMarkerSignature = useMemo(() => JSON.stringify(mountedMarkers), [mountedMarkers]);
+  const mountedMarkersRef = useRef(mountedMarkers);
+  mountedMarkersRef.current = mountedMarkers;
   const viewportMarkerSignature = useMemo(() => renderedMarkers
     .filter(isMapMarker)
     .map((marker) => [
@@ -2560,6 +2658,7 @@ function MapView({
         // A restored camera can start above or below the default zoom. Cluster
         // against its actual scale before the first user zoom event.
         setCurrentZoom(map.getZoom());
+        setViewportBounds(getMapViewportBounds(map));
         setMapInstance(map);
 
         const clearReadyTimeout = () => {
@@ -2624,6 +2723,9 @@ function MapView({
             setCurrentZoom(map.getZoom());
           }
         });
+        // The complete marker set still drives clustering and auto-fit. This
+        // only controls which finished map markers stay mounted after a pan.
+        map.on('moveend', () => setViewportBounds(getMapViewportBounds(map)));
         map.on('style.load', handleMapStyleLoad);
         map.on('load', handleMapLoad);
         map.on('idle', markMapReady);
@@ -3022,7 +3124,7 @@ function MapView({
       return;
     }
 
-    const visibleMarkers = renderedMarkersRef.current.filter(isMapMarker);
+    const visibleMarkers = mountedMarkersRef.current.filter(isMapMarker);
     // Diff against the markers already on the map so a zoom step or one
     // changed pin no longer tears down and rebuilds every marker element.
     const nextSignatures = new Map(visibleMarkers.map((marker) => [marker.id, JSON.stringify(marker)]));
@@ -3052,17 +3154,14 @@ function MapView({
           marker,
           (selectedMarker) => {
             if (isSpiderfyCluster(selectedMarker)) {
-              const memberIds = selectedMarker.cluster?.memberIds ?? [];
+              const nextSpiderfiedCluster = createSpiderfiedCluster(
+                selectedMarker,
+                denseMarkerResult.markers,
+                true,
+              );
 
-              if (memberIds.length >= 2) {
-                setSpiderfiedCluster({
-                  center: {
-                    approximateLatitude: selectedMarker.approximateLatitude,
-                    approximateLongitude: selectedMarker.approximateLongitude,
-                  },
-                  memberIds,
-                  pinned: true,
-                });
+              if (nextSpiderfiedCluster) {
+                setSpiderfiedCluster(nextSpiderfiedCluster);
               }
               return;
             }
@@ -3128,16 +3227,22 @@ function MapView({
           },
           (previewedMarker) => {
             if (isSpiderfyCluster(previewedMarker)) {
-              const memberIds = previewedMarker.cluster?.memberIds ?? [];
-              if (memberIds.length >= 2) {
-                setSpiderfiedCluster((current) => current?.pinned ? current : ({
-                  center: {
-                    approximateLatitude: previewedMarker.approximateLatitude,
-                    approximateLongitude: previewedMarker.approximateLongitude,
-                  },
-                  memberIds,
-                  pinned: false,
-                }));
+              const nextSpiderfiedCluster = createSpiderfiedCluster(
+                previewedMarker,
+                denseMarkerResult.markers,
+                false,
+              );
+              if (nextSpiderfiedCluster) {
+                setSpiderfiedCluster((current) => {
+                  // A cluster remains under the pointer while its marker data
+                  // refreshes during a pan. Keep the opened fan's snapshot in
+                  // that case; otherwise the cards visibly reshuffle without
+                  // any zoom change. Hovering a different cluster still opens
+                  // that cluster as usual.
+                  const sameCluster = current?.memberIds.length === nextSpiderfiedCluster.memberIds.length
+                    && current.memberIds.every((memberId) => nextSpiderfiedCluster.memberIds.includes(memberId));
+                  return current?.pinned || sameCluster ? current : nextSpiderfiedCluster;
+                });
               }
               return;
             }
@@ -3201,7 +3306,7 @@ function MapView({
     return () => {
       cancelled = true;
     };
-  }, [currentZoom, mapInstance, renderedMarkerSignature]);
+  }, [currentZoom, mapInstance, mountedMarkerSignature]);
 
   // A pinch on the map belongs to the map. Safari zooms the whole page on its
   // own gesture events, and a two-finger move can still reach the page where a

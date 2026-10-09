@@ -69,6 +69,7 @@ const publicRules: ProfileVisibilityRules = {
   search_query: "",
   active_crowd_modes: [],
   mile_high_club_members: false,
+  outside_service_area_members: false,
       members_without_photos: false,
   age_range: null,
   distance: null,
@@ -165,6 +166,7 @@ class MapPingDb implements DbClient {
   readonly pings: StoredPing[];
   recipients: ReturnType<typeof recipientProfile>[] = [];
   receivedPings: Array<{ id: string; source_user_id: string; radius_miles: number; expires_at: string }> = [];
+  travelPins: Array<{ user_id: string; latitude: number; longitude: number; label: string; set_at: string }> = [];
   profile = senderProfile();
   insertCount = 0;
   postInsertCount = 0;
@@ -262,9 +264,8 @@ class MapPingDb implements DbClient {
       return { rows: [{ balance: 0 }] as T[] };
     }
 
-    // Nobody in these tests is travelling; Mile High Club has its own coverage.
     if (sql.includes("from user_travel_pins")) {
-      return { rows: [] as T[] };
+      return { rows: this.travelPins.filter((pin) => pin.user_id === params[0]) as T[] };
     }
 
     // The Pulse notification fan-out runs after the send and is covered on its
@@ -950,6 +951,38 @@ describe("map Pings", () => {
     }));
 
     expect(status.receivedPings).toEqual([]);
+  });
+
+  it.each([
+    { scenario: "in-area encrypted location", coordinates: [40.713, -74.006], pin: false, count: 1 },
+    { scenario: "outside encrypted location", coordinates: [42.3601, -71.0589], pin: false, count: 0 },
+    { scenario: "missing encrypted location", coordinates: null, pin: false, count: 0 },
+    { scenario: "active in-area MHC over outside location", coordinates: [42.3601, -71.0589], pin: true, count: 1 }
+  ])("uses the recipient's effective OOS context for a received Ping: $scenario", async (testCase) => {
+    const db = new MapPingDb();
+    db.profile = senderProfile({ ...publicRules, outside_service_area_members: true });
+    db.recipients = [recipientProfile(senderUserId)];
+    db.receivedPings = [{
+      id: "20000000-0000-4000-8000-000000000023",
+      source_user_id: nearbyUserId,
+      radius_miles: 1,
+      expires_at: new Date(now.getTime() + MAP_PING_ACTIVE_MS).toISOString()
+    }];
+    const locations = new Map([[nearbyUserId, location(nearbyUserId, 40.7128, -74.006)]]);
+    if (testCase.coordinates) {
+      locations.set(senderUserId, location(senderUserId, testCase.coordinates[0], testCase.coordinates[1]));
+    }
+    if (testCase.pin) {
+      db.travelPins = [{
+        user_id: senderUserId, latitude: 40.713, longitude: -74.006,
+        label: "", set_at: now.toISOString()
+      }];
+    }
+
+    const result = await getMapPingStatus(appWithDb(db), senderUserId, dependencies({ locations }));
+
+    expect(result.receivedPings).toHaveLength(testCase.count);
+    expect(JSON.stringify(result)).not.toMatch(/outside_service_area|coordinates|latitude|longitude/);
   });
 
   it("rejects plaintext origins and signals by construction", () => {

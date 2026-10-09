@@ -20,7 +20,7 @@ describe('DesktopDockPanel', () => {
     setViewport(originalInnerWidth, originalInnerHeight);
   });
 
-  it('keeps the right panel below Map Controls while the left panel stays below top chrome', () => {
+  it('lets panels move through map-chrome space while preserving a map-edge gap', () => {
     setViewport(1280, 800);
 
     const { unmount } = render(
@@ -29,7 +29,7 @@ describe('DesktopDockPanel', () => {
       </DesktopDockPanel>,
     );
 
-    expect(screen.getByLabelText('Right panel')).toHaveStyle({ top: '136px', height: '518px' });
+    expect(screen.getByLabelText('Right panel')).toHaveStyle({ top: '10px', height: '780px' });
 
     unmount();
 
@@ -39,10 +39,10 @@ describe('DesktopDockPanel', () => {
       </DesktopDockPanel>,
     );
 
-    expect(screen.getByLabelText('Left panel')).toHaveStyle({ top: '90px', height: '564px' });
+    expect(screen.getByLabelText('Left panel')).toHaveStyle({ top: '10px', height: '780px' });
   });
 
-  it('lets a profile preview extend 34px lower while keeping a 112px bottom-control clearance', () => {
+  it('keeps an explicit bottom clearance while allowing a profile preview to move upward', () => {
     setViewport(1280, 800);
 
     render(
@@ -51,10 +51,10 @@ describe('DesktopDockPanel', () => {
       </DesktopDockPanel>,
     );
 
-    expect(screen.getByLabelText('Profile preview')).toHaveStyle({ top: '90px', height: '598px' });
+    expect(screen.getByLabelText('Profile preview')).toHaveStyle({ top: '10px', height: '678px' });
   });
 
-  it('preserves the Map Controls clearance on a narrow desktop viewport', () => {
+  it('uses the same top edge gap on a narrow desktop viewport', () => {
     setViewport(800, 900);
 
     render(
@@ -64,10 +64,10 @@ describe('DesktopDockPanel', () => {
     );
 
     const panel = screen.getByLabelText('Right panel');
-    expect(panel).toHaveStyle({ left: '400px', top: '132px', width: '390px', height: '630px' });
+    expect(panel).toHaveStyle({ left: '400px', top: '10px', width: '390px', height: '880px' });
   });
 
-  it('recalculates the default bottom clearance when resizing across the desktop breakpoint', () => {
+  it('retains the edge gap when resizing across the desktop breakpoint', () => {
     setViewport(800, 900);
 
     render(
@@ -79,6 +79,18 @@ describe('DesktopDockPanel', () => {
     setViewport(1280, 900);
     act(() => window.dispatchEvent(new Event('resize')));
 
-    expect(screen.getByLabelText('Responsive panel')).toHaveStyle({ top: '136px', height: '618px' });
+    expect(screen.getByLabelText('Responsive panel')).toHaveStyle({ top: '10px', height: '880px' });
+  });
+
+  it('keeps modal popups beneath persistent map controls', () => {
+    setViewport(1280, 800);
+
+    render(
+      <DesktopDockPanel slot="right" ariaLabel="Spot popup" layer="modal">
+        <p>Spot content</p>
+      </DesktopDockPanel>,
+    );
+
+    expect(Number(screen.getByLabelText('Spot popup').style.zIndex)).toBeLessThan(900);
   });
 });

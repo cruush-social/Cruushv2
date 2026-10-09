@@ -74,9 +74,9 @@ export type SupportRequestEmailInput = {
   message: string;
   pageUrl: string;
   device?: {
-    model?: string;
     platform?: string;
-    platformVersion?: string;
+    browser?: string;
+    appVersion?: string;
     mobile?: boolean;
   } | null;
   requesterUserId: string | null;
@@ -114,6 +114,7 @@ type SupportRequestReplyEmailInput = {
   replyToEmail: string;
   request: SupportRequestEmailInput;
   replyMessage: string;
+  idempotencyKey?: string;
 };
 
 type UserReportInboxEmailInput = {
@@ -404,6 +405,7 @@ async function sendResendEmail(input: {
   subject: string;
   failureMessage: string;
   idempotencyKey?: string;
+  redactRecipientInFailureLog?: boolean;
 } & ResendEmailContent) {
   const { attachments, config, email, failureMessage, from, logger, replyTo, subject } = input;
   const content = input.template
@@ -430,7 +432,9 @@ async function sendResendEmail(input: {
 
   if (!response.ok) {
     // Provider responses may echo the email content, including token URLs.
-    logger.error({ email, statusCode: response.status }, failureMessage);
+    logger.error(input.redactRecipientInFailureLog
+      ? { statusCode: response.status }
+      : { email, statusCode: response.status }, failureMessage);
     throw new ApiError(502, "INTERNAL_ERROR", "Failed to send email.");
   }
 
@@ -994,8 +998,9 @@ export async function sendSupportRequestInboxEmail(input: SupportRequestInboxEma
     ["Requester user ID", request.requesterUserId ?? "signed out"],
     ["Reply email", request.contactEmail ?? "none provided"],
     ["Page", request.pageUrl || "unknown"],
-    ["Device model", request.device?.model || "browser did not provide one"],
-    ["Platform", [request.device?.platform, request.device?.platformVersion].filter(Boolean).join(" ") || "unknown"],
+    ["Browser", request.device?.browser || "unknown"],
+    ["Platform", request.device?.platform || "unknown"],
+    ["App version", request.device?.appVersion || "unknown"],
     ["Screenshot", request.screenshot ? request.screenshot.filename : "none"],
     ["Created at", request.createdAt]
   ];
@@ -1076,6 +1081,10 @@ export async function sendSupportRequestReplyEmail(input: SupportRequestReplyEma
     logger,
     replyTo: REPORTS_INBOX_EMAIL,
     subject: `Re: [support] ${request.category}: ${request.subject}`,
+    ...(request.category === "bug" && input.idempotencyKey ? {
+      idempotencyKey: input.idempotencyKey,
+      redactRecipientInFailureLog: true
+    } : {}),
     html,
     text,
     failureMessage: "support reply email delivery failed"
@@ -1183,5 +1192,110 @@ export async function sendSubscriptionExpiryEmail(input: {
     },
     failureMessage: "Subscription reminder email failed."
   });
+  return { accepted: true, providerMessageId: delivery.providerMessageId };
+}
+
+export async function sendOutOfSightWelcomeEmail(input: {
+  config: AppConfig;
+  email: string;
+  idempotencyKey: string;
+  logger: FastifyBaseLogger;
+}) {
+  const { config, email, idempotencyKey, logger } = input;
+  if (!config.RESEND_API_KEY || !config.MAIL_FROM) {
+    return { accepted: false, providerMessageId: null };
+  }
+
+  const appUrl = escapeHtml(config.APP_URL.replace(/\/$/, ""));
+  const subject = "congratulations, you have entered Purgatory";
+  const text = [
+    "The app just noticed that you are outside the service area. Congratulations, your GPS has promoted you to the waiting room. Do not panic. This is not a ban, a breakup, or an exorcism.",
+    "You are still a full cruush member. You can post, message, connect, and use the Feed, Clubs, Messages, and Profiles globally. The Map is taking a personal day and will not be accepting visitors in this state.",
+    "As a Purgatory member, profile location pins stay dark and unavailable to you, regardless of cruush status. Ghost Mode is unavailable here and points toward Mile High Club (MHC). If you use MHC to access the service area, location controls work under the normal privacy rules.",
+    "You can also use Visibility Controls to hide your profile and activity from Purgatory members completely. Existing chats and history stay available. Purgatory members can never access your precise location. Please enjoy the rest of the app and resist the urge to negotiate with your pin.",
+    `Open cruush: ${config.APP_URL.replace(/\/$/, "")}/settings`,
+    "xoxo,\nJulien Lenaz\nlead developer of cruush 🖤",
+    "Questions? hello@cruush.app"
+  ].join("\n\n");
+  const html = `<!doctype html>
+<html lang="en"><head><meta charset="utf-8" /><meta name="viewport" content="width=device-width" /><meta name="x-apple-disable-message-reformatting" /><title>${subject}</title></head>
+<body style="margin:0;background:#050507;color:#fff;font-family:'Spectral',Georgia,'Times New Roman',serif;">
+<table width="100%" cellpadding="0" cellspacing="0" role="presentation" style="background:#050507;"><tr><td align="center" style="padding:34px 14px 42px;background:radial-gradient(circle at 50% 112%,rgba(111,0,255,.38),transparent 40%),radial-gradient(circle at 16% 8%,rgba(255,0,114,.18),transparent 29%),radial-gradient(circle at 86% 12%,rgba(17,129,255,.17),transparent 31%),#080808;">
+<table border="0" width="100%" cellpadding="0" cellspacing="0" role="presentation" style="max-width:620px;">
+<tr><td align="center" style="padding:0 0 24px;"><img alt="cruush" width="118" height="123" src="${CRUUSH_EMAIL_LOGO_URL}" style="display:block;margin:0 auto;border:0;mix-blend-mode:screen;" /></td></tr>
+<tr><td style="padding:1px;border:1px solid rgba(255,255,255,.26);border-radius:28px;background:rgba(0,0,0,.02);background-image:linear-gradient(180deg,rgba(255,255,255,.026),rgba(255,255,255,0));box-shadow:0 0 2px 1px rgba(255,255,255,.26) inset,0 0 10px 4px rgba(255,255,255,.1) inset,0 4px 16px rgba(17,17,26,.05),0 8px 24px rgba(17,17,26,.05);backdrop-filter:blur(22px) saturate(1.48) brightness(1.06) contrast(1.01);-webkit-backdrop-filter:blur(22px) saturate(1.48) brightness(1.06) contrast(1.01);"><table border="0" width="100%" cellpadding="0" cellspacing="0" role="presentation" style="border-radius:27px;background:transparent;"><tr><td style="padding:38px 34px 34px;">
+<div style="margin:0 0 18px;color:#ff5c9a;font-family:Arial,sans-serif;font-size:11px;font-weight:700;letter-spacing:2px;text-transform:uppercase;">congratulations, sort of</div>
+<h1 style="margin:0 0 20px;color:#fff;font-family:'Cormorant Garamond',Georgia,'Times New Roman',serif;font-size:39px;line-height:1.04;font-weight:700;">you have entered Purgatory.</h1>
+<div style="color:#eeeeF2;font-family:'Spectral',Georgia,'Times New Roman',serif;font-size:17px;line-height:1.7;">
+The app just noticed that you are outside the service area. Congratulations, your GPS has promoted you to the waiting room. Do not panic. This is not a ban, a breakup, or an exorcism.<br /><br />
+You are still a full cruush member. You can post, message, connect, and use the Feed, Clubs, Messages, and Profiles globally. The Map is taking a personal day and will not be accepting visitors in this state.<br /><br />
+As a Purgatory member, profile location pins stay dark and unavailable to you, regardless of cruush status. Ghost Mode is unavailable here and points toward Mile High Club (MHC). If you use MHC to access the service area, location controls work under the normal privacy rules.<br /><br />
+You can also use Visibility Controls to hide your profile and activity from Purgatory members completely. Existing chats and history stay available. Purgatory members can never access your precise location. Please enjoy the rest of the app and resist the urge to negotiate with your pin.
+</div>
+<table cellpadding="0" cellspacing="0" role="presentation" style="margin:28px 0 0;"><tr><td bgcolor="#6f00ff" style="border-radius:999px;background:#ff0072;background:linear-gradient(90deg,#ff0072 6.08%,#6f00ff 43.11%,#3826ff 58.46%,#004bff 73.81%,#1181ff 100%);"><a href="${appUrl}/settings" style="display:inline-block;padding:13px 22px;color:#fff;text-decoration:none;font-family:'Spectral',Georgia,'Times New Roman',serif;font-size:14px;font-weight:700;">Open cruush</a></td></tr></table>
+<p style="margin:28px 0 0;color:#eeeeF2;font-family:'Spectral',Georgia,'Times New Roman',serif;font-size:17px;line-height:1.7;">xoxo,<br />Julien Lenaz<br />lead developer of cruush 🖤</p>
+</td></tr></table></td></tr>
+<tr><td align="center" style="padding:22px 0 0;color:#898995;font-family:'Spectral',Georgia,'Times New Roman',serif;font-size:12px;line-height:1.5;">Questions? <a href="mailto:hello@cruush.app" style="color:#c7c7d0;">hello@cruush.app</a></td></tr>
+</table></td></tr></table></body></html>`;
+
+  const delivery = await sendResendEmail({
+    config,
+    email,
+    idempotencyKey,
+    redactRecipientInFailureLog: true,
+    logger,
+    subject,
+    html,
+    text,
+    failureMessage: "Out of Sight welcome email delivery failed"
+  });
+  return { accepted: true, providerMessageId: delivery.providerMessageId };
+}
+
+export async function sendSinnersWelcomeEmail(input: {
+  config: AppConfig;
+  email: string;
+  idempotencyKey: string;
+  logger: FastifyBaseLogger;
+}) {
+  const { config, email, idempotencyKey, logger } = input;
+  if (!config.RESEND_API_KEY || !config.MAIL_FROM) {
+    return { accepted: false, providerMessageId: null };
+  }
+
+  // Approved preview copy, including the owner's latest techno-occult correction.
+  // Keep this separate from the unchanged Purgatory template.
+  const subject = "welcome to the Sinner's Map";
+  const paragraphs = [
+    "You signed the cruush Code of Conduct. In the old language, that means your soul is now marked for the Sinner's Map. If you are returning from Purgatory, welcome back. The gates noticed you made it home.",
+    "cruush is a technopagan occult artifact powered by sex magic. You are not merely opening an app. You are crossing the threshold into the Feed, Clubs, Crowds, Cruise Carousel, and everything else waiting beyond the oath.",
+    "Be honest. Respect boundaries. Keep private things private. Do not spoof your location. Location spoofing is a reportable violation, and accounts caught doing it will be banned. The Sinner's Map has many mysteries. Fake GPS coordinates are not one of them.",
+    "You have been welcomed, witnessed, and technically warned. Try to behave."
+  ];
+  const appUrl = escapeHtml(config.APP_URL.replace(/\/$/, ""));
+  const text = [
+    "the oath is sealed", "welcome to the Sinner's Map.", ...paragraphs,
+    `Enter cruush: ${config.APP_URL.replace(/\/$/, "")}/settings`,
+    "xoxo,\nJulien Lenaz\nlead developer of cruush 🖤", "Questions? hello@cruush.app"
+  ].join("\n\n");
+  const html = `<!doctype html>
+<html lang="en"><head><meta charset="utf-8" /><meta name="viewport" content="width=device-width" /><meta name="x-apple-disable-message-reformatting" /><title>cruush: ${subject}</title></head>
+<body style="margin:0;background:#050507;color:#fff;font-family:'Spectral',Georgia,'Times New Roman',serif;">
+<table width="100%" cellpadding="0" cellspacing="0" role="presentation" style="background:#050507;"><tr><td align="center" style="padding:34px 14px 42px;background:radial-gradient(circle at 50% 112%,rgba(111,0,255,.38),transparent 40%),radial-gradient(circle at 16% 8%,rgba(255,0,114,.18),transparent 29%),radial-gradient(circle at 86% 12%,rgba(17,129,255,.17),transparent 31%),#080808;">
+<table border="0" width="100%" cellpadding="0" cellspacing="0" role="presentation" style="max-width:620px;">
+<tr><td align="center" style="padding:0 0 24px;"><img alt="cruush" width="118" height="123" src="${CRUUSH_EMAIL_LOGO_URL}" style="display:block;margin:0 auto;border:0;mix-blend-mode:screen;" /></td></tr>
+<tr><td style="padding:1px;border:1px solid rgba(255,255,255,.26);border-radius:28px;background:rgba(0,0,0,.02);background-image:linear-gradient(180deg,rgba(255,255,255,.026),rgba(255,255,255,0));box-shadow:0 0 2px 1px rgba(255,255,255,.26) inset,0 0 10px 4px rgba(255,255,255,.1) inset,0 4px 16px rgba(17,17,26,.05),0 8px 24px rgba(17,17,26,.05);backdrop-filter:blur(22px) saturate(1.48) brightness(1.06) contrast(1.01);-webkit-backdrop-filter:blur(22px) saturate(1.48) brightness(1.06) contrast(1.01);"><table border="0" width="100%" cellpadding="0" cellspacing="0" role="presentation" style="border-radius:27px;background:transparent;"><tr><td style="padding:38px 34px 34px;">
+<div style="margin:0 0 18px;color:#ff5c9a;font-family:Arial,sans-serif;font-size:11px;font-weight:700;letter-spacing:2px;text-transform:uppercase;">the oath is sealed</div>
+<h1 style="margin:0 0 20px;color:#fff;font-family:'Cormorant Garamond',Georgia,'Times New Roman',serif;font-size:39px;line-height:1.04;font-weight:700;">welcome to the Sinner's Map.</h1>
+<div style="color:#eeeeF2;font-family:'Spectral',Georgia,'Times New Roman',serif;font-size:17px;line-height:1.7;">${paragraphs.join("<br /><br />\n")}</div>
+<table cellpadding="0" cellspacing="0" role="presentation" style="margin:28px 0 0;"><tr><td bgcolor="#6f00ff" style="border-radius:999px;background:#ff0072;background:linear-gradient(90deg,#ff0072 6.08%,#6f00ff 43.11%,#3826ff 58.46%,#004bff 73.81%,#1181ff 100%);"><a href="${appUrl}/settings" style="display:inline-block;padding:13px 22px;color:#fff;text-decoration:none;font-family:'Spectral',Georgia,'Times New Roman',serif;font-size:14px;font-weight:700;">Enter cruush</a></td></tr></table>
+<p style="margin:28px 0 0;color:#eeeeF2;font-family:'Spectral',Georgia,'Times New Roman',serif;font-size:17px;line-height:1.7;">xoxo,<br />Julien Lenaz<br />lead developer of cruush 🖤</p>
+</td></tr></table></td></tr>
+<tr><td align="center" style="padding:22px 0 0;color:#898995;font-family:'Spectral',Georgia,'Times New Roman',serif;font-size:12px;line-height:1.5;">Questions? <a href="mailto:hello@cruush.app" style="color:#c7c7d0;">hello@cruush.app</a></td></tr>
+</table></td></tr></table></body></html>`;
+
+  const delivery = await sendResendEmail({ config, email, idempotencyKey,
+    redactRecipientInFailureLog: true, logger, subject, html, text,
+    failureMessage: "Sinners welcome email delivery failed" });
   return { accepted: true, providerMessageId: delivery.providerMessageId };
 }

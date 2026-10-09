@@ -917,7 +917,7 @@
     min-width: 0;
     max-width: 100%;
     overflow: hidden;
-    font-size: clamp(0.96rem, 2.55dvh, 1.16rem);
+    font-size: clamp(1.32rem, 3.5dvh, 1.6rem);
     line-height: 1.05;
     text-shadow:
       0 0.4rem 0.9rem rgba(0, 0, 0, 0.96),
@@ -956,7 +956,7 @@
     min-height: 3.9rem;
   }
 
-  .launch-login-auth-form { --cruush-auth-input-scale: 0.78; }
+  .launch-login-auth-form { --cruush-auth-input-scale: 1.075; }
 
   .launch-login-auth-form--signup {
     --cruush-auth-input-scale: 1;
@@ -1013,7 +1013,7 @@
     height: 2.18rem;
     margin-top: 0.72rem !important;
     border-radius: 0.32rem;
-    font-size: 0.82rem;
+    font-size: 1.125rem;
     font-weight: 700;
     text-shadow: 0 1px 0 rgba(0, 0, 0, 0.52);
     box-shadow:
@@ -1031,7 +1031,7 @@
     min-height: 2rem;
     padding-block: 0.28rem;
     color: rgba(255, 255, 255, 0.78);
-    font-size: 0.9rem;
+    font-size: 1.25rem;
     font-weight: 600;
     line-height: 1.14;
   }
@@ -1087,7 +1087,7 @@
     width: 100%;
     margin-top: 0 !important;
     color: rgba(245, 248, 252, 0.68);
-    font-size: 0.78rem;
+    font-size: 1.15rem;
     line-height: 1.12;
     overflow-wrap: anywhere;
     text-shadow:
@@ -1104,8 +1104,16 @@
     width: 100%;
     min-height: 1.12rem;
     margin-top: 0 !important;
-    font-size: 0.9rem;
+    font-size: 1.25rem;
     line-height: 1.08;
+  }
+
+  .launch-login-auth-beta-capsule,
+  .launch-login-auth-primary-links,
+  .launch-login-auth-consent,
+  .launch-login-auth-footer-policies,
+  .launch-login-auth-footer-accordion > summary {
+    font-size: 1.1rem;
   }
 }
 
@@ -1156,15 +1164,32 @@ html[data-cruush-larger-text] .launch-login-auth-footer-accordion > summary {
 
 @media (max-width: 640px) {
   html[data-cruush-larger-text] .launch-login-auth-tagline {
-    font-size: clamp(1.2rem, 3.1875dvh, 1.45rem);
+    font-size: clamp(1.65rem, 4.375dvh, 2rem);
   }
 
   html[data-cruush-larger-text] .launch-login-auth-form {
-    --cruush-auth-input-scale: 0.975;
+    --cruush-auth-input-scale: 1.34375;
   }
 
   html[data-cruush-larger-text] .launch-login-auth-submit {
-    font-size: 1.025rem;
+    font-size: 1.40625rem;
+  }
+
+  html[data-cruush-larger-text] .launch-login-auth-secondary,
+  html[data-cruush-larger-text] .launch-login-auth-contact {
+    font-size: 1.5625rem;
+  }
+
+  html[data-cruush-larger-text] .launch-login-auth-footer [aria-label="Legal and safety links"] {
+    font-size: 1.4375rem;
+  }
+
+  html[data-cruush-larger-text] .launch-login-auth-beta-capsule,
+  html[data-cruush-larger-text] .launch-login-auth-primary-links,
+  html[data-cruush-larger-text] .launch-login-auth-consent,
+  html[data-cruush-larger-text] .launch-login-auth-footer-policies,
+  html[data-cruush-larger-text] .launch-login-auth-footer-accordion > summary {
+    font-size: 1.375rem;
   }
 }
 

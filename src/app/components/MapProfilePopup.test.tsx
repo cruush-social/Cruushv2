@@ -2,6 +2,9 @@ import { act, fireEvent, render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import MapProfilePopup from './MapProfilePopup';
+
+const { serviceArea } = vi.hoisted(() => ({ serviceArea: { profilePinsAllowed: false } }));
+vi.mock('./MapServiceAreaContext', () => ({ useMapServiceArea: () => serviceArea }));
 import {
   DISTANCE_PREFERENCES_CHANGED_EVENT,
   DISTANCE_PREFERENCES_STORAGE_KEY,
@@ -69,6 +72,7 @@ vi.mock('./ProfileEdit', () => ({
 
 describe('MapProfilePopup', () => {
   beforeEach(() => {
+    serviceArea.profilePinsAllowed = false;
     window.localStorage.removeItem('cruush:distance-preference');
     getMyProfile.mockReset();
     getProfileById.mockReset();
@@ -116,6 +120,46 @@ describe('MapProfilePopup', () => {
     });
   });
 
+  it('shows the server-owned Purgatory badge beside the existing MHC badge', async () => {
+    const profile = await getProfileById();
+    getProfileById.mockResolvedValue({ ...profile, outOfSight: true, travelling: true });
+    render(<MemoryRouter><MapProfilePopup user={{ id: 'user-1', name: 'River' }} onClose={vi.fn()} /></MemoryRouter>);
+    const badge = await screen.findByRole('button', { name: 'This is a Purgatory member.' });
+    expect(screen.getByRole('img', { name: 'Mile High Club' })).toBeInTheDocument();
+    fireEvent.click(badge);
+    expect(await screen.findByRole('tooltip')).toHaveTextContent('currently outside cruush’s service area');
+  });
+
+  it('does not carry Purgatory membership into the next popup while its profile loads', async () => {
+    const profile = await getProfileById();
+    getProfileById.mockResolvedValueOnce({ ...profile, outOfSight: true });
+    const props = { user: { id: 'user-1', name: 'River' }, onClose: vi.fn() };
+    const { rerender } = render(<MemoryRouter><MapProfilePopup {...props} /></MemoryRouter>);
+    await screen.findByRole('button', { name: 'This is a Purgatory member.' });
+    let resolveProfile!: (resolvedProfile: typeof profile) => void;
+    getProfileById.mockReturnValueOnce(new Promise((resolve) => { resolveProfile = resolve; }));
+    rerender(<MemoryRouter><MapProfilePopup {...props} user={{ id: 'user-2', name: 'Jordan' }} /></MemoryRouter>);
+    expect(screen.queryByRole('button', { name: 'This is a Purgatory member.' })).not.toBeInTheDocument();
+    await act(async () => { resolveProfile({ ...profile, id: 'user-2', outOfSight: false }); });
+    expect(screen.queryByRole('button', { name: 'This is a Purgatory member.' })).not.toBeInTheDocument();
+  });
+
+  it('keeps a mutually permitted popup pin dark on mobile OOS and restores it in service area', async () => {
+    const profile = await getProfileById();
+    getProfileById.mockResolvedValue({ ...profile, viewer_relationship: { ...profile.viewer_relationship, mutual_cruush: true, can_reveal_precise_location: true } });
+    const props = { user: { id: 'user-1', name: 'River', relationship: { mutualCruush: true } }, onClose: vi.fn() };
+    const { rerender } = render(<MemoryRouter><MapProfilePopup {...props} /></MemoryRouter>);
+    const blocked = await screen.findByRole('button', { name: 'Map location unavailable' });
+    expect(blocked).toBeDisabled();
+    expect(blocked).toHaveAttribute('title', 'Map location unavailable');
+    expect(blocked).toHaveStyle({ background: 'var(--cruush-gradient-soft-28), #0A0A12' });
+    expect(blocked.style.getPropertyValue('--profile-center-pin-mobile-background')).toBe('var(--cruush-gradient-soft-28), #0A0A12');
+
+    serviceArea.profilePinsAllowed = true;
+    rerender(<MemoryRouter><MapProfilePopup {...props} /></MemoryRouter>);
+    expect(screen.getByRole('button', { name: 'Center the map on River' })).toBeEnabled();
+  });
+
   it('keeps desktop profile tabs in normal flow without a redundant full-profile button', async () => {
     render(
       <MemoryRouter initialEntries={['/map']}>
@@ -153,7 +197,7 @@ describe('MapProfilePopup', () => {
     expect(screen.queryByText('0.4 mi')).not.toBeInTheDocument();
   });
 
-  it('updates the desktop own-profile preview immediately after an embedded save', async () => {
+  it('updates the own-profile data without closing the embedded editor after save', async () => {
     const { emptyProfilePayload } = await import('../lib/profileApi');
     const onProfileSaved = vi.fn();
     const initialProfile = {
@@ -205,7 +249,6 @@ describe('MapProfilePopup', () => {
       id: 'user-1',
       display_name: 'Updated River',
     }));
-    expect(await screen.findByText('Updated River')).toBeInTheDocument();
-    expect(screen.getByText('he/him')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Save embedded edit' })).toBeInTheDocument();
   });
 });

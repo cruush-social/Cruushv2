@@ -16,6 +16,7 @@ import MapHome, {
   isCoordinateInViewport,
   SPOT_MAP_VIEW_LIMIT,
 } from './MapHome';
+import { MapServiceAreaProvider, useMapServiceArea } from './MapServiceAreaContext';
 
 const { getNearbyUsers } = vi.hoisted(() => ({
   getNearbyUsers: vi.fn(),
@@ -357,6 +358,16 @@ vi.mock('./MapView', async () => {
 function LocationProbe() {
   const location = useLocation();
   return <div data-testid="location-probe">{location.pathname}</div>;
+}
+
+function ServiceAreaRouteProbe() {
+  const navigate = useNavigate();
+  const { outsideServiceArea } = useMapServiceArea();
+  return <>
+    <span data-testid="service-area-state">{outsideServiceArea ? 'outside' : 'inside'}</span>
+    <button onClick={() => navigate('/feed')}>Go to Feed</button>
+    <button onClick={() => navigate('/map')}>Return to Map</button>
+  </>;
 }
 
 function ProfileBackProbe() {
@@ -1268,14 +1279,85 @@ describe('MapHome', () => {
       expect(screen.getByRole('button', { name: 'cruush+ rewards' })).toBeInTheDocument();
       expect(screen.getByTestId('outside-service-area-map-filter')).toHaveClass('grayscale', 'brightness-[0.68]');
       expect(screen.getByTestId('outside-service-area-map-overlay')).toBeInTheDocument();
-      expect(screen.getByTestId('map-top-actions')).toHaveAttribute('data-capsule-width', '128');
-      expect(screen.queryByTestId('map-plus-stack')).not.toBeInTheDocument();
+      expect(screen.getByTestId('map-top-actions')).toHaveAttribute('data-capsule-width', '298');
+      expect(screen.getByTestId('map-plus-stack')).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Cruise Carousel' })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Mile High Club' })).toHaveAttribute('data-tutorial-target', 'ghost');
+      expect(screen.getByRole('button', { name: 'DL Mode settings' })).toBeInTheDocument();
+      expect(screen.getByTestId('map-visibility-button')).toBeInTheDocument();
+      expect(screen.queryByTestId('map-controls-trigger')).not.toBeInTheDocument();
       expect(screen.queryByTestId('map-bug-button-slot')).not.toBeInTheDocument();
       await waitFor(() => expect(query).toHaveBeenCalled());
       expect(getCurrentPosition).not.toHaveBeenCalled();
     } finally {
       delete (global.navigator as { permissions?: Permissions }).permissions;
     }
+  });
+
+  it('keeps the out-of-service navigation state across routes until the map confirms an in-area result', async () => {
+    const { OutsideServiceAreaError } = await import('../lib/usersApi');
+    const baseProfile = await getMyProfile();
+    getMyProfile.mockResolvedValue({
+      ...baseProfile,
+      location: { id: 'me', fuzzy_lat: 41.9, fuzzy_lng: -75.6, fuzz_radius_meters: 250, location_updated_at: '2026-09-17T00:00:00.000Z' },
+    });
+    getNearbyUsers.mockRejectedValue(new OutsideServiceAreaError('NYC open beta.'));
+    const query = vi.fn().mockResolvedValue({ state: 'prompt' });
+    Object.defineProperty(global.navigator, 'permissions', {
+      configurable: true,
+      value: { query },
+    });
+
+    try {
+      render(
+        <MapServiceAreaProvider>
+          <MemoryRouter initialEntries={['/map']}>
+            <Routes>
+              <Route path="/map" element={<MapHome />} />
+              <Route path="/feed" element={<div>Feed page</div>} />
+            </Routes>
+            <ServiceAreaRouteProbe />
+          </MemoryRouter>
+        </MapServiceAreaProvider>,
+      );
+
+      await screen.findByRole('button', { name: 'Turn on Mile High Club' });
+      expect(screen.getByTestId('service-area-state')).toHaveTextContent('outside');
+      fireEvent.click(screen.getByRole('button', { name: 'Go to Feed' }));
+      expect(screen.getByText('Feed page')).toBeInTheDocument();
+      expect(screen.getByTestId('service-area-state')).toHaveTextContent('outside');
+
+      getNearbyUsers.mockResolvedValue([]);
+      fireEvent.click(screen.getByRole('button', { name: 'Return to Map' }));
+      await waitFor(() => expect(screen.getByTestId('service-area-state')).toHaveTextContent('inside'));
+      expect(screen.queryByRole('button', { name: 'Turn on Mile High Club' })).not.toBeInTheDocument();
+    } finally {
+      delete (global.navigator as { permissions?: Permissions }).permissions;
+    }
+  });
+
+  it('keeps the admin out-of-service preview navigation state after opening Feed', async () => {
+    render(
+      <MapServiceAreaProvider>
+        <MemoryRouter initialEntries={['/settings/outside-service-area-test']}>
+          <Routes>
+            <Route path="/settings/outside-service-area-test" element={<MapHome forceOutsideServiceArea />} />
+            <Route path="/feed" element={<div>Feed page</div>} />
+            <Route path="/map" element={<MapHome />} />
+          </Routes>
+          <ServiceAreaRouteProbe />
+        </MemoryRouter>
+      </MapServiceAreaProvider>,
+    );
+
+    await screen.findByRole('button', { name: 'Turn on Mile High Club' });
+    expect(screen.getByTestId('service-area-state')).toHaveTextContent('outside');
+    fireEvent.click(screen.getByRole('button', { name: 'Go to Feed' }));
+    expect(screen.getByText('Feed page')).toBeInTheDocument();
+    expect(screen.getByTestId('service-area-state')).toHaveTextContent('outside');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Return to Map' }));
+    await waitFor(() => expect(screen.getByTestId('service-area-state')).toHaveTextContent('inside'));
   });
 
   it('exposes the real Ping control to the tutorial and opens the Ping sheet', async () => {
@@ -1292,7 +1374,7 @@ describe('MapHome', () => {
     await openMapControls();
     const pingControl = await screen.findByRole('button', { name: 'Send a Pulse' });
     const rightActions = screen.getByTestId('map-right-actions');
-    expect(rightActions).toHaveClass('lg:top-16', 'lg:right-3');
+    expect(rightActions).toHaveClass('lg:top-[5.5rem]', 'lg:right-3');
     const mapControls = screen.getByTestId('map-zoom-controls');
     const visibilityControl = screen.getByTestId('map-visibility-button');
     expect(pingControl).toHaveAttribute('data-tutorial-target', 'ping');
@@ -1935,8 +2017,8 @@ describe('MapHome', () => {
     fireEvent.click(recentToggle);
 
     expect(recentToggle).toHaveAccessibleName('Hide recently active bar');
-    expect(recentPanel).toHaveClass('w-fit', 'max-w-full', 'p-3');
-    expect(screen.getByTestId('recently-active-tray')).toHaveClass('gap-2');
+    expect(recentPanel).toHaveClass('w-fit', 'max-w-full', 'px-[5px]', 'py-3');
+    expect(screen.getByTestId('recently-active-tray')).toHaveClass('gap-[5px]');
     expect(screen.getByTestId('recently-active-tile-user-1')).toHaveClass('w-20');
 
     fireEvent.click(recentToggle);
@@ -2179,8 +2261,8 @@ describe('MapHome', () => {
       '[&_svg]:!w-full',
     );
     expect(pingButton).not.toHaveClass('absolute', 'mt-2');
-    // Desktop controls sit 8px below the bug button; mobile offsets are unchanged.
-    expect(rightActions).toHaveClass('right-3', 'top-[4.625rem]', 'sm:right-4', 'sm:top-[5.375rem]', 'lg:right-3', 'lg:top-16');
+    // Controls use the approved compact clearance beneath the top capsule.
+    expect(rightActions).toHaveClass('right-3', 'top-[5.5rem]', 'sm:right-4', 'sm:top-[5.5rem]', 'lg:right-3', 'lg:top-[5.5rem]');
     expect(cruushPlusButton).toHaveClass(
       'cruush-plus-shimmer-button',
       'cruush-logo-font',
@@ -2192,12 +2274,9 @@ describe('MapHome', () => {
       'max-[360px]:h-[3.03875rem]',
       'max-[360px]:px-[0.414375rem]',
       'max-[360px]:text-[0.82875rem]',
-      'sm:h-[3.5rem]',
-      'sm:px-[1.225rem]',
-      'sm:text-[1.575rem]',
-      'lg:h-[3.85rem]',
-      'lg:px-[1.4rem]',
-      'lg:text-[1.75rem]',
+      'sm:h-[3.85rem]',
+      'sm:px-[1.4rem]',
+      'sm:text-[1.75rem]',
     );
     expect(screen.queryByRole('button', { name: 'Safety Center' })).not.toBeInTheDocument();
     expect(luckyIcon).toHaveClass('h-11', 'w-11', 'scale-[1.28]', 'object-contain');
@@ -2694,7 +2773,11 @@ describe('MapHome', () => {
     fireEvent.click(await screen.findByRole('button', { name: 'Show recently active bar' }));
     fireEvent.click(await screen.findByRole('button', { name: 'Open Jordan profile' }));
     fireEvent.click(await screen.findByRole('button', { name: 'Report Jordan' }));
-    fireEvent.change(screen.getByLabelText('Reason'), { target: { value: 'impersonation' } });
+    fireEvent.click(screen.getByRole('combobox', { name: 'Reason' }));
+    const reason = await screen.findByRole('option', { name: 'Impersonation' });
+    fireEvent.pointerDown(reason, { button: 0, pointerType: 'touch' });
+    fireEvent.pointerUp(reason, { button: 0, pointerType: 'touch' });
+    fireEvent.click(reason);
     fireEvent.click(screen.getByRole('button', { name: 'Submit report' }));
 
     await waitFor(() => expect(createReport).toHaveBeenCalledWith({
@@ -3207,7 +3290,7 @@ describe('MapHome', () => {
     expect(navigator.geolocation.getCurrentPosition).not.toHaveBeenCalled();
   });
 
-  it('shows the signed-in user true and shared Ghost pins with a true-location radius and rotating leash', async () => {
+  it('shows the owner Ghost leash by default and removes only the leash when the saved option turns off', async () => {
     useIsMobile.mockReturnValue(false);
     vi.useFakeTimers({ shouldAdvanceTime: true });
     vi.setSystemTime(new Date('2026-08-12T20:00:00.000Z'));
@@ -3281,6 +3364,7 @@ describe('MapHome', () => {
         preciseLocationVisibility: 'none',
         updatedAtMs: Date.now(),
         ghostRotationExpiresAtMs: rotationExpiresAtMs + 15 * 60 * 1000,
+        ghostLeashVisible: false,
       });
     decryptDisplayLocationToken.mockImplementation(async (token) => {
       const rotated = token.tokenId === rotatedGhostToken.tokenId;
@@ -3342,7 +3426,7 @@ describe('MapHome', () => {
 
     await waitFor(() => {
       expect(screen.getByTestId('marker-me-ghost-decoy')).toHaveAttribute('data-lat', '40.718');
-      expect(screen.getByTestId('map-focus')).toHaveAttribute('data-ghost-leash-to-lng', '-74.001');
+      expect(screen.getByTestId('map-focus')).toHaveAttribute('data-ghost-leash-to-lng', '');
     });
     expect(decryptDisplayLocationToken).toHaveBeenCalledWith(rotatedGhostToken);
     vi.useRealTimers();
@@ -3439,7 +3523,7 @@ describe('MapHome', () => {
     // breakpoint; desktop no longer uses its own 6.25rem value.
     expect(recentPanel.parentElement).toHaveClass('bottom-[calc(5.75rem+env(safe-area-inset-bottom))]', 'left-0', 'right-0', 'z-[130]');
     expect(recentPanel.parentElement).not.toHaveClass('bottom-[calc(6.25rem+env(safe-area-inset-bottom))]');
-    expect(recentPanel).toHaveClass('max-w-[35.75rem]', 'rounded-2xl', 'bg-[color:var(--cruush-black-glass)]', 'backdrop-blur-[var(--cruush-black-glass-blur)]', 'p-3');
+    expect(recentPanel).toHaveClass('max-w-[35.75rem]', 'rounded-2xl', 'bg-[color:var(--cruush-black-glass)]', 'backdrop-blur-[var(--cruush-black-glass-blur)]', 'px-[5px]', 'py-3');
     expect(screen.getByTestId('recently-active-tray')).toHaveClass('justify-center', 'overflow-hidden');
     expect(screen.getByTestId('recently-active-tray')).not.toHaveClass('scrollbar-subtle', 'pb-2');
     expect(screen.getByTestId('recently-active-tray')).toHaveAttribute('data-scrollable', 'false');
@@ -3450,7 +3534,9 @@ describe('MapHome', () => {
     const recentImage = recentTile.querySelector('img');
     expect(recentImage).not.toBeNull();
     fireEvent.error(recentImage!);
-    expect(await screen.findByTestId('recently-active-fallback-user-1')).toBeInTheDocument();
+    const fallback = await screen.findByTestId('recently-active-fallback-user-1');
+    expect(fallback).toBeInTheDocument();
+    expect(fallback.querySelector('img')).toHaveClass('h-14', 'w-14');
     fireEvent.click(recentTile);
     expect(await screen.findByRole('button', { name: /message now/i })).toBeInTheDocument();
     expect(screen.getByRole('complementary')).toBeInTheDocument();
@@ -3481,7 +3567,7 @@ describe('MapHome', () => {
     expect(restoredRecentToggle).toHaveAttribute('aria-expanded', 'true');
     expect(restoredRecentToggle).toHaveAccessibleName('Hide recently active bar');
     expect(restoredRecentToggle).toHaveTextContent('Recently Active');
-    expect(restoredRecentPanel).toHaveClass('max-w-[35.75rem]', 'rounded-2xl', 'bg-[color:var(--cruush-black-glass)]', 'backdrop-blur-[var(--cruush-black-glass-blur)]', 'p-3');
+    expect(restoredRecentPanel).toHaveClass('max-w-[35.75rem]', 'rounded-2xl', 'bg-[color:var(--cruush-black-glass)]', 'backdrop-blur-[var(--cruush-black-glass-blur)]', 'px-[5px]', 'py-3');
     expect(screen.getByTestId('recently-active-tray')).toBeInTheDocument();
   });
 
@@ -3516,7 +3602,7 @@ describe('MapHome', () => {
     fireEvent.click(await screen.findByRole('button', { name: 'Show recently active bar' }));
     const recentTray = await screen.findByTestId('recently-active-tray');
     expect(recentTray).toHaveAttribute('data-scrollable', 'true');
-    expect(recentTray).toHaveClass('overflow-x-auto', 'scrollbar-hide');
+    expect(recentTray).toHaveClass('overflow-x-auto', 'scrollbar-hide', 'snap-x', 'snap-mandatory', 'scroll-px-0');
     expect(recentTray).not.toHaveClass('pb-2', 'scrollbar-subtle');
     expect(recentTray).toHaveStyle({ width: '34.25rem', maxWidth: '100%' });
     expect(within(recentTray).getAllByRole('button')).toHaveLength(10);
@@ -3691,7 +3777,8 @@ describe('MapHome', () => {
     const fallback = screen.getByTestId('recently-active-fallback-user-1');
     expect(fallback.querySelector('[data-testid="dl-mode-mark"]')).toHaveAttribute('data-tone', 'white');
     expect(fallback.querySelector('[data-testid="dl-mode-photo-placeholder"]')).toHaveClass('opacity-75');
-    expect([...fallback.querySelectorAll('tspan')].map((line) => line.textContent)).toEqual(['cruushes', 'only']);
+    expect(fallback.querySelector('[data-testid="dl-mode-photo-placeholder"]')).toHaveClass('h-14', 'w-14');
+    expect(fallback.querySelectorAll('text')).toHaveLength(0);
     expect(fallback.querySelector('img')).toBeNull();
   });
 

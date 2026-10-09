@@ -3,10 +3,29 @@ import { emptyProfile } from "./profile-schema.js";
 import type { ProfileVisibilityRules } from "./profile-sensitive.js";
 import {
   canSubjectViewProfile,
-  countVisibilityExclusionFilters
+  countVisibilityExclusionFilters,
+  visibilityRulesArePublic
 } from "./profile-visibility.js";
 
 describe("profile visibility rules", () => {
+  it("makes Out of Sight an opt-in exclusion that fails closed independently of other audiences", () => {
+    const rules: ProfileVisibilityRules = {
+      ...emptyProfile.visibility_rules,
+      outside_service_area_members: true
+    };
+
+    expect(visibilityRulesArePublic(emptyProfile.visibility_rules)).toBe(true);
+    expect(visibilityRulesArePublic(rules)).toBe(false);
+    expect(countVisibilityExclusionFilters(rules)).toBe(1);
+    expect(canSubjectViewProfile(rules, { outside_service_area: false })).toBe(true);
+    expect(canSubjectViewProfile(rules, { outside_service_area: true })).toBe(false);
+    expect(canSubjectViewProfile(rules, {})).toBe(false);
+    // Existing relationships do not override this rule, including a mutual
+    // whose effective location is still outside the service area.
+    expect(canSubjectViewProfile(rules, { outside_service_area: true, mile_high_club_member: false })).toBe(false);
+    expect(canSubjectViewProfile(rules, { outside_service_area: false, mile_high_club_member: true })).toBe(true);
+  });
+
   it("treats selected trait values as excluded audiences", () => {
     const rules: ProfileVisibilityRules = {
       ...emptyProfile.visibility_rules,

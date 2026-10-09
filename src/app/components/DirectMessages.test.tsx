@@ -1,7 +1,7 @@
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import DirectMessages from './DirectMessages';
+import DirectMessages, { resolveConversationDistance } from './DirectMessages';
 
 const { createGroupConversation, deleteConversationForEveryone, getConversations, getMyCruushActivity } = vi.hoisted(() => ({
   createGroupConversation: vi.fn(),
@@ -32,6 +32,10 @@ const { openConversationOrInbox } = vi.hoisted(() => ({
 
 const { createClub } = vi.hoisted(() => ({
   createClub: vi.fn(),
+}));
+
+const { createFeedPost } = vi.hoisted(() => ({
+  createFeedPost: vi.fn(),
 }));
 
 vi.mock('../lib/messagesApi', async () => {
@@ -91,7 +95,20 @@ vi.mock('../lib/clubsApi', async () => ({
   createClub,
 }));
 
+vi.mock('../lib/postApi', async () => ({
+  ...(await vi.importActual<typeof import('../lib/postApi')>('../lib/postApi')),
+  createFeedPost,
+}));
+
 describe('DirectMessages', () => {
+  it('keeps server coarse labels while enriching only the ordinary Nearby default', () => {
+    expect(resolveConversationDistance('Among sinners', '2 mi')).toBe('Among sinners');
+    expect(resolveConversationDistance('Far far away', '2 mi')).toBe('Far far away');
+    expect(resolveConversationDistance('Holmdel, NJ', '2 mi')).toBe('Holmdel, NJ');
+    expect(resolveConversationDistance('Nearby', '2 mi')).toBe('2 mi');
+    expect(resolveConversationDistance('Nearby', undefined)).toBe('Nearby');
+  });
+
   beforeEach(() => {
     createGroupConversation.mockReset();
     deleteConversationForEveryone.mockReset();
@@ -104,6 +121,101 @@ describe('DirectMessages', () => {
     getMyBillingStatus.mockReset().mockResolvedValue({ cruushPlus: true });
     openConversationOrInbox.mockReset();
     createClub.mockReset();
+    createFeedPost.mockReset().mockResolvedValue({});
+  });
+
+  it('uses the last-message author for shared profile and Spot previews', async () => {
+    getConversations.mockResolvedValue([
+      {
+        id: '11111111-1111-4111-8111-111111111111',
+        kind: 'dm',
+        user: { id: '22222222-2222-4222-8222-222222222222', name: 'jay', pronouns: 'he/him', photo: null },
+        distance: 'Nearby',
+        updatedAt: '2026-10-08T12:00:00.000Z',
+        lastMessage: '[[cruush:profile:33333333-3333-4333-8333-333333333333]] jay',
+        lastMessageAuthorName: 'Julien',
+        unreadCount: 0,
+        pinned: false,
+        tags: [],
+      },
+      {
+        id: '44444444-4444-4444-8444-444444444444',
+        kind: 'group',
+        user: { id: '44444444-4444-4444-8444-444444444444', name: 'Night plans', pronouns: '', photo: null },
+        distance: 'Nearby',
+        updatedAt: '2026-10-08T12:01:00.000Z',
+        lastMessage: '[[cruush:place:55555555-5555-4555-8555-555555555555]] Rockbar',
+        lastMessageAuthorName: 'Julien',
+        unreadCount: 0,
+        pinned: false,
+        tags: [],
+      },
+      {
+        id: '66666666-6666-4666-8666-666666666666',
+        kind: 'group',
+        user: { id: '66666666-6666-4666-8666-666666666666', name: 'Club chat', pronouns: '', photo: null },
+        distance: 'Nearby',
+        updatedAt: '2026-10-08T12:02:00.000Z',
+        lastMessage: '[[cruush:club:77777777-7777-4777-8777-777777777777]] Night owls',
+        lastMessageAuthorName: 'Julien',
+        unreadCount: 0,
+        pinned: false,
+        tags: [],
+      },
+    ]);
+    getMyCruushActivity.mockResolvedValue({ mutual: [], sent: [] });
+
+    render(<MemoryRouter><DirectMessages /></MemoryRouter>);
+
+    expect(await screen.findByText('Julien shared a profile.')).toBeInTheDocument();
+    expect(screen.getByText('Julien shared a Spot.')).toBeInTheDocument();
+    expect(screen.getByText('[[cruush:club:77777777-7777-4777-8777-777777777777]] Night owls')).toBeInTheDocument();
+    const nightPlansCard = screen.getByText('Night plans').closest('[data-testid="conversation-preview-row"]');
+    const clubChatCard = screen.getByText('Club chat').closest('[data-testid="conversation-preview-row"]');
+    expect(nightPlansCard).not.toBeNull();
+    expect(clubChatCard).not.toBeNull();
+    expect(within(nightPlansCard as HTMLElement).getByRole('button', { name: 'Open Night plans group messages' })).toBeInTheDocument();
+    expect(within(clubChatCard as HTMLElement).getByRole('button', { name: 'Open Club chat group messages' })).toBeInTheDocument();
+    expect(within(nightPlansCard as HTMLElement).queryByTestId('activity-corner-action')).not.toBeInTheDocument();
+    expect(within(clubChatCard as HTMLElement).queryByTestId('activity-corner-action')).not.toBeInTheDocument();
+  });
+
+  it('shows the Purgatory heart overlay only for a confirmed DM member, never group or Club identity', async () => {
+    getConversations.mockResolvedValue([
+      { id: 'dm-1', kind: 'dm', user: { id: 'member-1', name: 'DM member', pronouns: '', photo: null, outOfSight: true }, distance: 'Nearby', updatedAt: '2026-10-08T12:00:00.000Z', lastMessage: 'Hi', unreadCount: 0, pinned: false, tags: [] },
+      { id: 'group-1', kind: 'group', user: { id: 'group-1', name: 'Group identity', pronouns: '', photo: null, outOfSight: true }, distance: 'Nearby', updatedAt: '2026-10-08T12:00:00.000Z', lastMessage: 'Hi', unreadCount: 0, pinned: false, tags: [] },
+      { id: 'club-1', kind: 'group', clubId: 'club-1', user: { id: 'club-1', name: 'Club identity', pronouns: '', photo: null, outOfSight: true }, distance: 'Nearby', updatedAt: '2026-10-08T12:00:00.000Z', lastMessage: 'Hi', unreadCount: 0, pinned: false, tags: [] },
+    ]);
+    getMyCruushActivity.mockResolvedValue({ mutual: [], sent: [] });
+
+    render(<MemoryRouter><DirectMessages /></MemoryRouter>);
+
+    for (const [name, expected] of [['DM member', true], ['Group identity', false]] as const) {
+      const row = (await screen.findByText(name)).closest('[data-testid="conversation-preview-row"]');
+      expect(row).not.toBeNull();
+      expect(Boolean(within(row as HTMLElement).queryByTestId('purgatory-heart-overlay'))).toBe(expected);
+    }
+
+    // Club conversations render in their separate Club directory, never as member preview rows.
+    expect(screen.queryByText('Club identity')).not.toBeInTheDocument();
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      headers: new Headers({ 'content-type': 'application/json' }),
+      text: vi.fn().mockResolvedValue(JSON.stringify({ data: [{
+        id: 'club-1', title: 'Club identity', summary: '', tags: [], currentUserRole: 'member',
+        conversationId: 'club-1', pendingJoinRequestCount: 0, memberCount: 2,
+        lastActiveAt: '2026-10-08T12:00:00.000Z',
+      }] })),
+    }));
+    try {
+      fireEvent.click(screen.getByRole('tab', { name: 'Clubs' }));
+      const clubCard = (await screen.findByText('Club identity')).closest('[data-testid="club-directory-card"]');
+      expect(clubCard).not.toBeNull();
+      expect(within(clubCard as HTMLElement).queryByTestId('purgatory-heart-overlay')).not.toBeInTheDocument();
+    } finally {
+      vi.unstubAllGlobals();
+    }
   });
 
   it('browses Clubs without a tag and creates an owner-only Club before choosing cruushes', async () => {
@@ -170,7 +282,8 @@ describe('DirectMessages', () => {
       const clubProfileCard = screen.getByTestId('club-mutual-53fd68d7-24fc-4cff-8cd7-a97ec0cadf97');
       expect(clubProfileCard).toHaveClass('bg-black/72', 'hover:bg-black/86', 'min-h-[7.5rem]', 'content-center');
       expect(clubProfileCard).toHaveAttribute('aria-pressed', 'false');
-      expect(within(clubProfileCard).getByText('founder')).toBeInTheDocument();
+      expect(within(clubProfileCard).getByTestId('profile-action-trio')).toBeInTheDocument();
+      expect(within(clubProfileCard).queryByText('founder')).not.toBeInTheDocument();
       expect(within(clubProfileCard).getByText('Night owl')).toBeInTheDocument();
       fireEvent.change(screen.getByLabelText('Club name'), { target: { value: 'Brooklyn techno' } });
       fireEvent.change(screen.getByLabelText('Short description'), { target: { value: 'A Club for local dancers.' } });
@@ -191,7 +304,12 @@ describe('DirectMessages', () => {
         memberIds: [],
         visibilityRules: expect.any(Object),
       })));
-      expect(screen.getByText('Created Club chat')).toBeInTheDocument();
+      expect(createFeedPost).toHaveBeenCalledWith({
+        content: 'New Club: Brooklyn techno',
+        expiresIn: 'never',
+        audience: 'public',
+      });
+      expect(await screen.findByText('Created Club chat')).toBeInTheDocument();
     } finally {
       vi.unstubAllGlobals();
     }
@@ -253,7 +371,7 @@ describe('DirectMessages', () => {
     expect(screen.queryByText('Alex')).not.toBeInTheDocument();
   });
 
-  it('searches Clubs by tag from the Clubs tab and opens a result', async () => {
+  it('uses the Messages search for Clubs and opens a result', async () => {
     getConversations.mockResolvedValue([]);
     getMyCruushActivity.mockResolvedValue({ mutual: [], sent: [] });
     const fetchMock = vi.fn().mockResolvedValue({
@@ -288,11 +406,12 @@ describe('DirectMessages', () => {
 
       fireEvent.click(await screen.findByRole('tab', { name: 'Clubs' }));
       fireEvent.click(await screen.findByRole('tab', { name: 'Browse Clubs' }));
-      const search = screen.getByPlaceholderText('Search Clubs by name, description, or tag');
+      expect(screen.queryByLabelText('Search Browse Clubs')).not.toBeInTheDocument();
+      const search = screen.getByPlaceholderText('Search people, threads, vibes');
       fireEvent.change(search, { target: { value: 'techno' } });
 
       expect(await screen.findByText('Brooklyn techno')).toBeInTheDocument();
-      expect(fetchMock).toHaveBeenCalledWith('/api/clubs?sort=recent&q=techno&tags=techno', expect.objectContaining({ credentials: 'include' }));
+      await waitFor(() => expect(fetchMock).toHaveBeenCalledWith('/api/clubs?sort=recent&q=techno&tags=techno', expect.objectContaining({ credentials: 'include' })));
       const openButton = screen.getAllByRole('button', { name: 'Open Brooklyn techno Club' })
         .find((button) => button.classList.contains('size-10')) as HTMLElement;
       expect(openButton).toHaveStyle({ background: 'var(--cruush-gradient)' });
@@ -711,7 +830,8 @@ describe('DirectMessages', () => {
     const groupProfileCard = screen.getByTestId('group-mutual-53fd68d7-24fc-4cff-8cd7-a97ec0cadf97');
     expect(groupProfileCard).toHaveClass('bg-black/72', 'hover:bg-black/86', 'min-h-[7.5rem]', 'content-center');
     expect(groupProfileCard).toHaveAttribute('aria-pressed', 'false');
-    expect(within(groupProfileCard).getByText('founder')).toBeInTheDocument();
+    expect(within(groupProfileCard).getByTestId('profile-action-trio')).toBeInTheDocument();
+    expect(within(groupProfileCard).queryByText('founder')).not.toBeInTheDocument();
     expect(within(groupProfileCard).getByText('Night owl')).toBeInTheDocument();
 
     const groupComposer = screen.getByRole('heading', { name: 'New group' }).closest('.fixed');
@@ -799,7 +919,8 @@ describe('DirectMessages', () => {
     fireEvent.click(screen.getByRole('button', { name: /^Start chat with someone/ }));
     const directProfileCard = await screen.findByTestId('message-mutual-discovery-53fd68d7-24fc-4cff-8cd7-a97ec0cadf97');
     expect(directProfileCard).toHaveClass('bg-black/72', 'hover:bg-black/86', 'min-h-[7.5rem]', 'content-center');
-    expect(within(directProfileCard).getByText('founder')).toBeInTheDocument();
+    expect(within(directProfileCard).getByTestId('profile-action-trio')).toBeInTheDocument();
+    expect(within(directProfileCard).queryByText('founder')).not.toBeInTheDocument();
     expect(within(directProfileCard).getByText('Night owl')).toBeInTheDocument();
     fireEvent.click(await screen.findByRole('button', { name: 'Message River' }));
 
@@ -956,8 +1077,8 @@ describe('DirectMessages', () => {
 
     expect(await screen.findByText('Alex')).toBeInTheDocument();
     expect(screen.getByText('River')).toBeInTheDocument();
-    expect(screen.queryByText('0.2 mi')).not.toBeInTheDocument();
-    expect(screen.queryByText('5 mi')).not.toBeInTheDocument();
+    expect(screen.getByText('0.2 mi')).toBeInTheDocument();
+    expect(screen.getByText('5 mi')).toBeInTheDocument();
     expect(screen.getByText('Sort people by')).toBeInTheDocument();
     const sortPicker = screen.getByRole('button', { name: /Sort people by Recently online/ });
     expect(sortPicker).toHaveAttribute('data-slot', 'accordion-trigger');
@@ -1078,7 +1199,7 @@ describe('DirectMessages', () => {
     fireEvent.click(await screen.findByRole('button', { name: 'New message' }));
     fireEvent.click(screen.getByRole('button', { name: /^Create group message/ }));
     await screen.findByText('Recent far');
-    expect(screen.queryByText('Nearby')).not.toBeInTheDocument();
+    expect(screen.getAllByText('Nearby')).toHaveLength(2);
     const recentFar = screen.getByText('Recent far');
     const olderClose = screen.getByText('Older close');
     expect(recentFar.compareDocumentPosition(olderClose) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();

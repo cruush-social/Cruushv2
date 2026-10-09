@@ -3,6 +3,7 @@ import {
   buildSubscriptionExpiryEmail,
   sendBitcoinMonitoringCapacityAlertEmail,
   sendPasswordResetEmail,
+  sendOutOfSightWelcomeEmail,
   sendSubscriptionExpiryEmail,
   sendSupportRequestInboxEmail,
   sendUserReportInboxEmail,
@@ -48,6 +49,51 @@ afterEach(() => {
 });
 
 describe("mailer", () => {
+  it("sends the approved Purgatory entry email in the supplied glass theme", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ id: "oos_1" }) });
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(sendOutOfSightWelcomeEmail({
+      config,
+      email: "member@example.invalid",
+      idempotencyKey: "oos-welcome/user-1",
+      logger
+    })).resolves.toEqual({ accepted: true, providerMessageId: "oos_1" });
+
+    const request = fetchMock.mock.calls[0][1];
+    const body = JSON.parse(request.body);
+    expect(request.headers["Idempotency-Key"]).toBe("oos-welcome/user-1");
+    expect(body.to).toEqual(["member@example.invalid"]);
+    expect(body.subject).toBe("congratulations, you have entered Purgatory");
+    expect(body.html).toContain("backdrop-filter:blur(22px)");
+    expect(body.html).toContain("radial-gradient");
+    expect(body.html).toContain("profile location pins stay dark and unavailable");
+    expect(body.html).toContain("If you use MHC to access the service area");
+    expect(body.html).toContain("Existing chats and history stay available");
+    expect(body.html).toContain("your GPS has promoted you to the waiting room");
+    expect(body.html).toContain("The Map is taking a personal day");
+    expect(body.html).toContain("resist the urge to negotiate with your pin");
+    expect(body.html).toContain("Julien Lenaz<br />lead developer of cruush");
+    expect(body.html).toContain(`${config.APP_URL}/settings`);
+    expect(body.html).not.toContain("{{{RESEND_UNSUBSCRIBE_URL}}}");
+    expect(body.text).toContain("Purgatory");
+    expect(body.html).toContain("you have entered Purgatory.");
+    expect(body.text).not.toContain("Out of Sight");
+    expect(body.html).not.toContain("Out of Sight");
+  });
+
+  it("does not send an Out of Sight email when delivery is unconfigured", async () => {
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+    await expect(sendOutOfSightWelcomeEmail({
+      config: { ...config, RESEND_API_KEY: "" },
+      email: "member@example.invalid",
+      idempotencyKey: "oos-welcome/user-1",
+      logger
+    })).resolves.toEqual({ accepted: false, providerMessageId: null });
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
   it("sends Bitcoin monitoring capacity alerts to the owner email", async () => {
     const fetchMock = vi.fn().mockResolvedValue({ ok: true });
     vi.stubGlobal("fetch", fetchMock);

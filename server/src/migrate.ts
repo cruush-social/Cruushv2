@@ -2,6 +2,12 @@ import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import pg from "pg";
+import { loadConfig } from "./config.js";
+import { decryptOosState, encryptOosState, type OosStateCryptoConfig } from "./oos-state-crypto.js";
+import {
+  decryptServiceAreaEmailPayload, encryptServiceAreaEmailPayload, serviceAreaEmailDedupeToken,
+  type ServiceAreaEmailPayload, type ServiceAreaEmailOutboxRow
+} from "./service-area-email-outbox.js";
 
 const { Pool } = pg;
 
@@ -224,7 +230,19 @@ const migrationFiles = [
   "203_encrypted_club_enrollments.sql",
   "204_clubs20_coupon_and_club_side_quests.sql",
   "205_survey_gift_promo_code.sql",
-  "206_subscription_survey_uniqueness.sql"
+  "206_subscription_survey_uniqueness.sql",
+  "207_feed_window_never.sql",
+  "208_bug_report_email_retention.sql",
+  "209_profile_age_visibility.sql",
+  "210_feed_post_distance_visibility.sql",
+  "211_feed_post_expiry_thirty_days.sql",
+  "212_mutual_feed_post_notifications.sql",
+  "213_feed_window_thirty_days.sql",
+  "214_report_location_spoofing.sql",
+  "215_oos_welcome_email.sql",
+  "217_sinners_welcome_email.sql",
+  "218_encrypted_oos_service_area_state.sql",
+  "219_encrypted_service_area_email_outbox.sql"
 ];
 const rewardSafetyPreflightFiles = [
   "079_daily_check_in_rewards.sql",
@@ -232,24 +250,194 @@ const rewardSafetyPreflightFiles = [
 ] as const;
 const productionBaselineFile = "203_encrypted_club_enrollments.sql";
 
-const databaseUrl = process.env.DATABASE_URL;
-
-if (!databaseUrl) {
-  throw new Error("DATABASE_URL is required to run migrations.");
-}
-
 const currentDir = path.dirname(fileURLToPath(import.meta.url));
 const sqlDir = path.resolve(currentDir, "../sql");
-const pool = new Pool({ connectionString: databaseUrl, max: 1 });
 
-async function runMigration(file: string, phase = "migration") {
-  const sql = await readFile(path.join(sqlDir, file), "utf8");
-  const client = await pool.connect();
+type MigrationClient = Pick<pg.PoolClient, "query">;
+const legacyEmailQueues = ["oos_welcome_emails", "sinners_welcome_emails"] as const;
+const outboxOperationalFields = [
+  "queued_at", "claim_token", "claimed_until", "email_started_at", "email_sent_at",
+  "cancelled_at", "reconciliation_required_at"
+] as const;
+type LegacyEmailRow = Record<typeof outboxOperationalFields[number], string | null> & {
+  event_id: string; user_id: string; event_kind: ServiceAreaEmailPayload["kind"];
+  prior_outside_event_id: string | null; idempotency_key: string;
+  email_to: string | null; provider_message_id: string | null;
+};
 
+async function migrationTableExists(client: MigrationClient, table: string) {
+  const result = await client.query<{ present: boolean }>(
+    "select to_regclass(format('%I.%I', current_schema(), $1::text)) is not null as present", [table]
+  );
+  return result.rows[0]?.present === true;
+}
+
+/** Do not recreate a contracted plaintext queue on the runner's 203-baseline replay. */
+export async function shouldSkipLegacyServiceAreaQueue(client: MigrationClient, file: string) {
+  const table = file === "215_oos_welcome_email.sql" ? legacyEmailQueues[0]
+    : file === "217_sinners_welcome_email.sql" ? legacyEmailQueues[1] : null;
+  return table !== null && await migrationTableExists(client, "service_area_email_outbox")
+    && !await migrationTableExists(client, table);
+}
+
+/** Caller owns BEGIN/COMMIT. No sends, new enrollment, location reads or key rotation. */
+export async function migrateLegacyServiceAreaEmailOutboxes(client: MigrationClient, config: OosStateCryptoConfig) {
+  // Release must quiesce legacy mail workers before contracting their tables.
+  // Lock all queues first: no writer or account deletion can change a copied row.
+  await client.query("lock table service_area_email_outbox in access exclusive mode");
+  const present: typeof legacyEmailQueues[number][] = [];
+  for (const table of legacyEmailQueues) {
+    if (await migrationTableExists(client, table)) {
+      await client.query(`lock table ${table} in access exclusive mode`);
+      present.push(table);
+    }
+  }
+  for (const table of present) {
+    const columns = await client.query<{ column_name: string }>(
+      "select column_name from information_schema.columns where table_schema = current_schema() and table_name = $1", [table]
+    );
+    const known = new Set([
+      "event_id", "user_id", "idempotency_key", "email_to", "provider_message_id", ...outboxOperationalFields,
+      ...(table === "sinners_welcome_emails" ? ["event_kind", "prior_outside_event_id"] : [])
+    ]);
+    // Never silently drop a future/unrecognized legacy field.
+    if (columns.rows.some((column) => !known.has(column.column_name))) {
+      throw new Error("Unrecognized legacy service-area email schema.");
+    }
+    const hasCancelledAt = columns.rows.some((column) => column.column_name === "cancelled_at");
+    const operationalSelect = outboxOperationalFields.map((field) =>
+      field === "cancelled_at" && !hasCancelledAt ? "null::text as cancelled_at" : `${field}::text as ${field}`
+    ).join(", ");
+    const kindSelect = table === "oos_welcome_emails"
+      ? "'outside_entry'::text as event_kind, null::text as prior_outside_event_id"
+      : "event_kind, prior_outside_event_id::text";
+    const expectedCount = await client.query<{ count: string }>(`select count(*)::text as count from ${table}`);
+    let copied = 0;
+    let after: string | null = null;
+    for (;;) {
+      // Cast timestamps to text to retain PostgreSQL microseconds (JS Date loses them).
+      const batch: pg.QueryResult<LegacyEmailRow> = await client.query<LegacyEmailRow>(
+        `select event_id::text, user_id::text, ${kindSelect}, idempotency_key, email_to,
+           provider_message_id, ${operationalSelect} from ${table}
+         where ($1::uuid is null or event_id > $1::uuid) order by event_id limit 200`, [after]
+      );
+      if (batch.rows.length === 0) break;
+      for (const row of batch.rows) {
+        const payload: ServiceAreaEmailPayload = {
+          kind: row.event_kind, priorOutsideEventId: row.prior_outside_event_id,
+          providerIdempotencyKey: row.idempotency_key, emailTo: row.email_to,
+          providerMessageId: row.provider_message_id
+        };
+        const identity = payload.kind === "first_coc" ? row.user_id
+          : payload.kind === "service_return" ? payload.priorOutsideEventId! : row.event_id;
+        const dedupe = serviceAreaEmailDedupeToken(config, row.user_id, payload.kind, identity);
+        const encrypted = encryptServiceAreaEmailPayload(config, row.user_id, row.event_id, payload);
+        await client.query(
+          `insert into service_area_email_outbox (
+             event_id, user_id, dedupe_token, payload_ciphertext, payload_nonce, payload_auth_tag,
+             wrapped_payload_dek, payload_dek_nonce, payload_dek_auth_tag, payload_key_version,
+             queued_at, claim_token, claimed_until, email_started_at, email_sent_at, cancelled_at,
+             reconciliation_required_at
+           ) values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17)
+           on conflict (event_id) do nothing`,
+          [row.event_id, row.user_id, dedupe, encrypted.payload_ciphertext, encrypted.payload_nonce,
+            encrypted.payload_auth_tag, encrypted.wrapped_payload_dek, encrypted.payload_dek_nonce,
+            encrypted.payload_dek_auth_tag, encrypted.payload_key_version,
+            ...outboxOperationalFields.map((field) => row[field])]
+        );
+        const verified = await client.query<ServiceAreaEmailOutboxRow & LegacyEmailRow & { dedupe_token: string }>(
+          `select event_id::text, user_id::text, dedupe_token, payload_ciphertext, payload_nonce,
+             payload_auth_tag, wrapped_payload_dek, payload_dek_nonce, payload_dek_auth_tag, payload_key_version,
+             ${outboxOperationalFields.map((field) => `${field}::text as ${field}`).join(", ")}
+           from service_area_email_outbox where event_id = $1`, [row.event_id]
+        );
+        const saved = verified.rows[0];
+        if (!saved || saved.user_id !== row.user_id || saved.event_id !== row.event_id || saved.dedupe_token !== dedupe
+          || JSON.stringify(decryptServiceAreaEmailPayload(config, saved)) !== JSON.stringify(payload)
+          || outboxOperationalFields.some((field) => saved[field] !== row[field])) {
+          throw new Error("Service-area email preservation verification failed.");
+        }
+        copied++;
+        after = row.event_id;
+      }
+    }
+    if (String(copied) !== expectedCount.rows[0]?.count) {
+      throw new Error("Service-area email migration count mismatch.");
+    }
+  }
+  // Only after BOTH queues have been completely read back and authenticated.
+  // No CASCADE: unexpected dependencies abort the transaction rather than lose data.
+  for (const table of present) await client.query(`drop table ${table}`);
+}
+
+export async function runMigration(
+  client: pg.PoolClient, file: string, phase = "migration", cryptoConfig?: OosStateCryptoConfig
+) {
   try {
+    const sql = await readFile(path.join(sqlDir, file), "utf8");
     console.log(`Running ${file} (${phase})`);
     await client.query("begin");
+    if (["215_oos_welcome_email.sql", "217_sinners_welcome_email.sql", "219_encrypted_service_area_email_outbox.sql"].includes(file)) {
+      // Serialize replay guards with contraction, including concurrent migrators.
+      await client.query("select pg_advisory_xact_lock(219, 20261009)");
+      if (await shouldSkipLegacyServiceAreaQueue(client, file)) {
+        await client.query("commit");
+        console.log(`Skipped ${file} (plaintext queue already contracted)`);
+        return;
+      }
+    }
     await client.query(sql);
+    if (file === "219_encrypted_service_area_email_outbox.sql") {
+      try {
+        await migrateLegacyServiceAreaEmailOutboxes(client, cryptoConfig ?? loadConfig());
+      } catch {
+        // Do not log PostgreSQL details or crypto input containing private legacy data.
+        throw new Error("Encrypted service-area outbox migration failed; transaction must roll back.");
+      }
+    }
+    if (file === "218_encrypted_oos_service_area_state.sql") {
+      const legacyColumns = await client.query<{ count: string }>(
+        `select count(*)::text as count from information_schema.columns
+         where table_schema = current_schema() and table_name = 'oos_service_area_state'
+           and column_name in ('is_outside', 'current_event_id')`
+      );
+      const legacyCount = Number(legacyColumns.rows[0]?.count ?? 0);
+      if (legacyCount !== 0 && legacyCount !== 2) throw new Error("Incomplete legacy OOS state schema.");
+      if (legacyCount === 2) {
+        const config = cryptoConfig ?? loadConfig();
+        const rows = await client.query<{
+          user_id: string; is_outside: boolean; current_event_id: string | null;
+        }>(`select user_id::text, is_outside, current_event_id::text
+            from oos_service_area_state for update`);
+        for (const row of rows.rows) {
+          const state = { is_outside: row.is_outside, current_event_id: row.current_event_id };
+          const encrypted = encryptOosState(config, row.user_id, state);
+          if (JSON.stringify(decryptOosState(config, row.user_id, encrypted)) !== JSON.stringify(state)) {
+            throw new Error("OOS state encryption verification failed.");
+          }
+          await client.query(
+            `update oos_service_area_state set state_ciphertext = $2, state_nonce = $3,
+               state_auth_tag = $4, wrapped_state_dek = $5, state_dek_nonce = $6,
+               state_dek_auth_tag = $7, state_key_version = $8 where user_id = $1`,
+            [row.user_id, encrypted.state_ciphertext, encrypted.state_nonce, encrypted.state_auth_tag,
+              encrypted.wrapped_state_dek, encrypted.state_dek_nonce, encrypted.state_dek_auth_tag,
+              encrypted.state_key_version]
+          );
+        }
+        await client.query(`alter table oos_service_area_state
+          alter column state_ciphertext set not null, alter column state_nonce set not null,
+          alter column state_auth_tag set not null, alter column wrapped_state_dek set not null,
+          alter column state_dek_nonce set not null, alter column state_dek_auth_tag set not null,
+          alter column state_key_version set not null,
+          drop column is_outside, drop column current_event_id`);
+      }
+      const missing = await client.query<{ count: string }>(
+        `select count(*)::text as count from oos_service_area_state where state_ciphertext is null
+          or state_nonce is null or state_auth_tag is null or wrapped_state_dek is null
+          or state_dek_nonce is null or state_dek_auth_tag is null or state_key_version is null`
+      );
+      if (Number(missing.rows[0]?.count ?? 0) !== 0) throw new Error("Incomplete encrypted OOS state migration.");
+    }
     await client.query("commit");
     console.log(`Finished ${file} (${phase})`);
   } catch (error) {
@@ -260,65 +448,75 @@ async function runMigration(file: string, phase = "migration") {
   }
 }
 
-try {
-  const productionBaselineSchema = await pool.query<{
-    encrypted_club_enrollments: boolean;
-    encrypted_club_enrollments_user_index: boolean;
-    conversation_member_index: boolean;
-  }>(
-    `select
-       to_regclass('public.encrypted_club_enrollments') is not null as encrypted_club_enrollments,
-       to_regclass('public.idx_encrypted_club_enrollments_user') is not null as encrypted_club_enrollments_user_index,
-       exists (
-         select 1
-         from information_schema.columns
-         where table_schema = 'public'
-           and table_name = 'conversation_members'
-           and column_name = 'member_index'
-       ) as conversation_member_index`
-  );
-  const baselineSchema = productionBaselineSchema.rows[0];
-  const hasProductionBaseline = Boolean(
-    baselineSchema?.encrypted_club_enrollments &&
-      baselineSchema.encrypted_club_enrollments_user_index &&
-      baselineSchema.conversation_member_index
-  );
-  const productionBaselineIndex = migrationFiles.indexOf(productionBaselineFile);
-  const pendingMigrationFiles = hasProductionBaseline
-    ? migrationFiles.slice(productionBaselineIndex + 1)
-    : migrationFiles;
+async function main() {
+  const databaseUrl = process.env.DATABASE_URL;
+  if (!databaseUrl) throw new Error("DATABASE_URL is required to run migrations.");
+  const pool = new Pool({ connectionString: databaseUrl, max: 1 });
+  try {
+    const productionBaselineSchema = await pool.query<{
+      encrypted_club_enrollments: boolean;
+      encrypted_club_enrollments_user_index: boolean;
+      conversation_member_index: boolean;
+    }>(
+      `select
+         to_regclass('public.encrypted_club_enrollments') is not null as encrypted_club_enrollments,
+         to_regclass('public.idx_encrypted_club_enrollments_user') is not null as encrypted_club_enrollments_user_index,
+         exists (
+           select 1
+           from information_schema.columns
+           where table_schema = 'public'
+             and table_name = 'conversation_members'
+             and column_name = 'member_index'
+         ) as conversation_member_index`
+    );
+    const baselineSchema = productionBaselineSchema.rows[0];
+    const hasProductionBaseline = Boolean(
+      baselineSchema?.encrypted_club_enrollments &&
+        baselineSchema.encrypted_club_enrollments_user_index &&
+        baselineSchema.conversation_member_index
+    );
+    const productionBaselineIndex = migrationFiles.indexOf(productionBaselineFile);
+    const pendingMigrationFiles = hasProductionBaseline
+      ? migrationFiles.slice(productionBaselineIndex + 1)
+      : migrationFiles;
 
-  if (hasProductionBaseline) {
-    console.log(`Detected schema through ${productionBaselineFile}; running newer migrations only.`);
-  }
-
-  const rewardSchema = await pool.query<{
-    reward_settings: boolean;
-    daily_activity_credits: boolean;
-    reward_grants: boolean;
-  }>(
-    `select
-       to_regclass('public.reward_settings') is not null as reward_settings,
-       to_regclass('public.daily_activity_credits') is not null as daily_activity_credits,
-       to_regclass('public.reward_grants') is not null as reward_grants`
-  );
-  const existingRewardSchema = rewardSchema.rows[0];
-
-  if (
-    existingRewardSchema?.reward_settings &&
-    existingRewardSchema.daily_activity_credits &&
-    existingRewardSchema.reward_grants
-  ) {
-    for (const file of rewardSafetyPreflightFiles) {
-      await runMigration(file, "reward safety preflight");
+    if (hasProductionBaseline) {
+      console.log(`Detected schema through ${productionBaselineFile}; running newer migrations only.`);
     }
-  }
 
-  for (const file of pendingMigrationFiles) {
-    await runMigration(file);
-  }
+    const rewardSchema = await pool.query<{
+      reward_settings: boolean;
+      daily_activity_credits: boolean;
+      reward_grants: boolean;
+    }>(
+      `select
+         to_regclass('public.reward_settings') is not null as reward_settings,
+         to_regclass('public.daily_activity_credits') is not null as daily_activity_credits,
+         to_regclass('public.reward_grants') is not null as reward_grants`
+    );
+    const existingRewardSchema = rewardSchema.rows[0];
 
-  console.log("Migrations complete.");
-} finally {
-  await pool.end();
+    if (
+      existingRewardSchema?.reward_settings &&
+      existingRewardSchema.daily_activity_credits &&
+      existingRewardSchema.reward_grants
+    ) {
+      for (const file of rewardSafetyPreflightFiles) {
+        await runMigration(await pool.connect(), file, "reward safety preflight");
+      }
+    }
+
+    for (const file of pendingMigrationFiles) {
+      await runMigration(await pool.connect(), file);
+    }
+
+    console.log("Migrations complete.");
+  } finally {
+    await pool.end();
+  }
+}
+
+// Importing the scoped migration helpers must not connect to or migrate a database.
+if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  await main();
 }

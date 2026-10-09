@@ -34,6 +34,8 @@ import { postExpirySchema, type PostExpiry } from "./post-schema.js";
 import { getTravelPin, type TravelPin } from "./travel-pins.js";
 import { notifyGroupPulseRecipients, notifyPulseRecipients } from "./pulse-notifications.js";
 import { getSideQuestPingBalance } from "./side-quests.js";
+import { isWithinServiceArea } from "./service-area.js";
+import { isGroupPulseEligible } from "./oos-notification-visibility.js";
 
 export const MAP_PING_RADIUS_MILES = [1, 3, 5, 10, 15, 25, 50] as const;
 export type MapPingRadiusMiles = typeof MAP_PING_RADIUS_MILES[number];
@@ -55,7 +57,30 @@ const FEED_POST_EXPIRY_MS: Record<Exclude<PostExpiry, "never">, number> = {
   "2d": 2 * 24 * 60 * 60 * 1000,
   "3d": 3 * 24 * 60 * 60 * 1000,
   "5d": 5 * 24 * 60 * 60 * 1000,
-  "7d": 7 * 24 * 60 * 60 * 1000
+  "7d": 7 * 24 * 60 * 60 * 1000,
+  "8d": 8 * 24 * 60 * 60 * 1000,
+  "9d": 9 * 24 * 60 * 60 * 1000,
+  "10d": 10 * 24 * 60 * 60 * 1000,
+  "11d": 11 * 24 * 60 * 60 * 1000,
+  "12d": 12 * 24 * 60 * 60 * 1000,
+  "13d": 13 * 24 * 60 * 60 * 1000,
+  "14d": 14 * 24 * 60 * 60 * 1000,
+  "15d": 15 * 24 * 60 * 60 * 1000,
+  "16d": 16 * 24 * 60 * 60 * 1000,
+  "17d": 17 * 24 * 60 * 60 * 1000,
+  "18d": 18 * 24 * 60 * 60 * 1000,
+  "19d": 19 * 24 * 60 * 60 * 1000,
+  "20d": 20 * 24 * 60 * 60 * 1000,
+  "21d": 21 * 24 * 60 * 60 * 1000,
+  "22d": 22 * 24 * 60 * 60 * 1000,
+  "23d": 23 * 24 * 60 * 60 * 1000,
+  "24d": 24 * 24 * 60 * 60 * 1000,
+  "25d": 25 * 24 * 60 * 60 * 1000,
+  "26d": 26 * 24 * 60 * 60 * 1000,
+  "27d": 27 * 24 * 60 * 60 * 1000,
+  "28d": 28 * 24 * 60 * 60 * 1000,
+  "29d": 29 * 24 * 60 * 60 * 1000,
+  "30d": 30 * 24 * 60 * 60 * 1000
 };
 
 type MapPingRow = {
@@ -265,7 +290,8 @@ function assertLocationIsFresh(location: LocationPayload, userId: string, now: D
 function recipientVisibilitySubject(
   app: FastifyInstance,
   row: RecipientProfileRow,
-  coordinates: VisibilityCoordinates
+  coordinates: VisibilityCoordinates,
+  outsideServiceArea: boolean
 ): VisibilitySubjectProfile | null {
   const sensitiveProfile = decryptSensitiveProfile(app.config, row);
 
@@ -274,6 +300,7 @@ function recipientVisibilitySubject(
   }
 
   return {
+    outside_service_area: outsideServiceArea,
     tags: row.tags ?? [],
     year_of_birth: row.year_of_birth,
     identities: row.identities ?? [],
@@ -615,7 +642,12 @@ async function recipientCanReceiveMapPing(
     return false;
   }
 
-  const subject = recipientVisibilitySubject(app, recipient, recipientCoordinates);
+  const subject = recipientVisibilitySubject(
+    app,
+    recipient,
+    recipientCoordinates,
+    !isWithinServiceArea(recipientCoordinates)
+  );
 
   return Boolean(subject && canSubjectViewProfile(context.senderRules, subject, displayedSourceCoordinates));
 }
@@ -651,6 +683,9 @@ export async function createGroupPulse(
   },
   overrides: Partial<MapPingDependencies> = {}
 ) {
+  if (!await isGroupPulseEligible(app, input.userId)) {
+    throw new ApiError(403, "FEATURE_RESTRICTED", "Pulse is unavailable outside the current beta service area.");
+  }
   const dependencies = resolveDependencies(overrides);
   const now = dependencies.now();
   const entitlement = await dependencies.getEntitlement(app, input.userId);
@@ -666,6 +701,10 @@ export async function createGroupPulse(
 
     if (!account.rows[0]) {
       throw new ApiError(403, "FEATURE_RESTRICTED", "Pulse is unavailable for this account.");
+    }
+
+    if (!await isGroupPulseEligible({ config: app.config, db }, input.userId)) {
+      throw new ApiError(403, "FEATURE_RESTRICTED", "Pulse is unavailable outside the current beta service area.");
     }
 
     const existing = (await db.query<GroupPulseRow>(
@@ -715,6 +754,10 @@ export async function createGroupPulse(
         "Your next Pulse is not available yet.",
         { nextEligibleAt: allowance.nextEligibleAt }
       );
+    }
+
+    if (!await isGroupPulseEligible({ config: app.config, db }, input.userId)) {
+      throw new ApiError(403, "FEATURE_RESTRICTED", "Pulse is unavailable outside the current beta service area.");
     }
 
     const inserted = (await db.query<GroupPulseRow>(

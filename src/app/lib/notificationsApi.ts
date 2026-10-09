@@ -30,6 +30,7 @@ export type NotificationPreferences = {
   messagesEnabled: boolean;
   groupsEnabled: boolean;
   nearbyEnabled: boolean;
+  mutualFeedEnabled: boolean;
   rewardsEnabled: boolean;
   siteRemindersEnabled: boolean;
   pulseEnabled: boolean;

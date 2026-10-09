@@ -88,6 +88,8 @@ Logo and icon direction:
 
 ## Interface Principles
 
+- October 8 center-column sizing: “all the content in the center column and fill to the width of that column ... on mobile, that is also the window.” Primary content, including profile hero media and its overlays, fills the existing centered app-content column on desktop. It does not size to the browser window. On mobile, the same column is the viewport width. Preserve each surface’s existing internal composition unless Julien names a change.
+
 - The website should feel dense but elegant. Do not reduce profile or filter complexity to make screens easier.
 - Use progressive disclosure, sheets, tabs, sections, and hierarchy to make dense data fast to scan.
 - Use one unified panel and bottom-sheet language across map, feed, profile, filters, messages, safety, groups, events, places, and settings.
@@ -115,6 +117,8 @@ Required tabs:
 
 The active tab uses the brand gradient. The nav background should be a solid dark surface with a subtle top border. Do not add a progressive dark fade, transparent scrim, or backdrop blur at the bottom edge of the viewport.
 
+For members outside the map service area, Julien said “let out of service area users have the feed in their bottom bar” and “the bottom bar should be the same otherwise in terms of size and appearance of icons etc” (October 8, 2026). Keep the ordinary capsule and icon sizes, omit only Map, and retain that navigation state while they use Feed, Messages, and Profile until a new map service-area result confirms they are inside.
+
 ## Map Home
 
 The map home is the core product surface. It must never be represented as a placeholder.
@@ -138,6 +142,8 @@ Map controls:
 - On mobile, tapping a person on the map or in the recent tray should open their full profile directly.
 - On desktop, tapping a person on the map or in the recent tray should open a floating mini-profile popup in cruush styling.
 - Desktop map popups should make messaging the clearest primary action.
+- October 8, 2026: at tablet widths, the cruush+ map control uses the desktop control size. Map Controls must clear the top bar instead of overlapping it.
+- October 8, 2026: map Signal text and capsules match Spot hover-title sizing; side-badge hover labels and Spot titles use tight padding.
 
 Last active display:
 
@@ -323,6 +329,7 @@ Public profile sections:
 - Basics
 - Intimacy
 - Health
+- Profile attribute capsule lists fit up to three capsules per row; in Intimacy, non-Kinks cards use two columns and Kinks & Fetishes remains its own full-width row. (2026-10-08, Julien)
 
 Basics fields:
 
@@ -503,7 +510,7 @@ Feed requirements:
 
 - Short local posts
 - Expiration countdowns
-- A post set to `Never` remains eligible for the Feed regardless of its creation date. Do not apply a separate seven-day cutoff. Julien: “I never said i wanted a 7 day expiry windows” (2026-10-07).
+- Post expiry `Never` means the post does not expire; it is not a seven-day lifetime. Julien: “I never said i wanted a 7 day expiry windows” (2026-10-07). Updated October 9: the selected `Posted within` creation-time filter applies to every post, including never-expiring posts. Removing `Never` from the Posted within control does not remove post-expiry `Never` or delete older posts.
 - Composer
 - Distance context
 - Moderation states
@@ -756,6 +763,10 @@ These are not preferences. Breaking one is a bug.
   language and do not appear on profile chrome, map chrome, or panels.
 - A control that carries a word rather than an icon is a **pill**, fully
   rounded, never a rounded rectangle.
+- October 8 badge-title editing: "always used filled icons for this btw no
+  outline ones." The badge-picker title-edit pencil is filled, never outlined.
+  This applies to that pencil control only; other icon controls remain unchanged
+  unless named.
 
 ### Notifications
 - Back, title, Settings, and Bug remain on one header line at every width. Bulk mark-read and delete
@@ -798,3 +809,7 @@ On October 6, 2026, Julien clarified: “DL mode censoring should change its pre
 ## Shared black glass, September 12, 2026
 
 The black-glass consistency request applies only to Map Controls, the map top bar and bottom navigation bar. Match the existing top bar background (background color at 25 percent opacity, 12px blur) only within those named controls. Preserve their geometry and approved hover states. Signals, badges, Ghost internals, other panels, headers, capsules, inputs and dimming backdrops are excluded. A separate explicit approval makes the inner Settings page transparent only when embedded in a popup; fullscreen Settings stays unchanged. Source: task 01a09549, September 12, “mapcontrols, top and bottom bar, thats it” and the popup-only Settings approval. The earlier app-wide interpretation was unauthorized and is superseded.
+
+## Tab treatment, October 9, 2026
+
+Julien: “the grey tab style IS THE STYLE.” Use the existing grey active-tab treatment for new selector tabs unless a later request explicitly names another fill. Do not substitute pink button fills.

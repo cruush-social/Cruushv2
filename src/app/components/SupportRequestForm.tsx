@@ -3,6 +3,7 @@ import { DROPDOWN_TRIGGER_CLASS } from '../lib/controlStyles';
 import { CheckCircle2 } from 'lucide-react';
 import { createGeneralSuspensionAppeal, createSuspensionAppeal, createSupportRequest, type SupportRequestCategory, type SupportRequestSource } from '../lib/supportApi';
 import { Button } from './ui/button';
+import { Checkbox } from './ui/checkbox';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { Textarea } from './ui/textarea';
@@ -35,7 +36,7 @@ function getCurrentPageUrl() {
     return '';
   }
 
-  return `${window.location.pathname}${window.location.search}` || '/';
+  return window.location.pathname || '/';
 }
 
 export default function SupportRequestForm({
@@ -51,6 +52,7 @@ export default function SupportRequestForm({
   const idPrefix = useId();
   const [category, setCategory] = useState<SupportRequestCategory>(initialCategory);
   const [contactEmail, setContactEmail] = useState('');
+  const [linkAccountEmail, setLinkAccountEmail] = useState(false);
   const [subject, setSubject] = useState('');
   const [message, setMessage] = useState('');
   const [status, setStatus] = useState<'idle' | 'submitting' | 'success'>('idle');
@@ -193,6 +195,7 @@ export default function SupportRequestForm({
           subject: subject.trim(),
           message: message.trim(),
           ...(trimmedEmail ? { contactEmail: trimmedEmail } : {}),
+          ...(category === 'bug' && linkAccountEmail ? { linkAccountEmail: true } : {}),
           source,
           pageUrl: getCurrentPageUrl(),
         });
@@ -200,6 +203,7 @@ export default function SupportRequestForm({
       setStatus('success');
       setSubject('');
       setMessage('');
+      setLinkAccountEmail(false);
       setIdDocument(null);
       setSelfie(null);
       setIdPreviewUrl(null);
@@ -359,6 +363,18 @@ export default function SupportRequestForm({
             />
             <p className="text-right text-xs text-muted-foreground">{message.length}/4000</p>
           </div> : null}
+
+          {signedIn && !appealMode && !generalAppealMode && !contentRemovalMode && category === 'bug' ? (
+            <label className="flex cursor-pointer items-start gap-3 text-sm text-foreground">
+              <Checkbox
+                aria-label="Allow email follow-up"
+                checked={linkAccountEmail}
+                disabled={status === 'submitting'}
+                onCheckedChange={(checked) => setLinkAccountEmail(checked === true)}
+              />
+              <span>Allow support to use my account email for follow-up. It is deleted after 30 days.</span>
+            </label>
+          ) : null}
 
           <Button
             className="w-full"

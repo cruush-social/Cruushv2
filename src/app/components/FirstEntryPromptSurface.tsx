@@ -44,7 +44,7 @@ export default function FirstEntryPromptSurface({
         data-dialog-framing="first-entry"
         data-testid={testId}
         overlayClassName="cruush-first-entry-prompt-overlay"
-        className="cruush-first-entry-prompt max-w-[22rem] gap-4 overflow-y-auto rounded-2xl border-white/10 bg-card/95 p-4"
+        className="cruush-first-entry-prompt max-w-[22rem] gap-4 overflow-y-auto rounded-2xl border border-white/25 bg-black/48 p-4 backdrop-blur-xl backdrop-saturate-150"
       >
         <DialogHeader bugButton={false} className="gap-2 text-left">
           {icon}

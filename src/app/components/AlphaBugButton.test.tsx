@@ -73,7 +73,7 @@ describe('AlphaBugButton', () => {
     );
 
     fireEvent.click(reportButton);
-    const dialog = screen.getByRole('dialog', { name: 'Report alpha bug' });
+    const dialog = screen.getByRole('dialog', { name: 'Report beta bug' });
     expect(dialog).toHaveAttribute('data-testid', 'alpha-bug-dialog');
     expect(dialog).toHaveAttribute('data-dialog-framing', 'floating');
     expect(dialog).toHaveClass('content-start', 'p-4', 'sm:p-6');
@@ -87,10 +87,10 @@ describe('AlphaBugButton', () => {
 
     await waitFor(() => expect(createSupportRequest).toHaveBeenCalledWith(expect.objectContaining({
       category: 'bug',
-      subject: 'Alpha bug: /map?layer=nearby',
+      subject: 'Alpha bug: /map',
       message: 'Map pins disappeared after I changed filters.',
       source: 'unknown',
-      pageUrl: '/map?layer=nearby',
+      pageUrl: '/map',
     })));
     expect(await screen.findByText('Bug report sent')).toBeInTheDocument();
     expect(screen.queryByText('Describe what broke and how support can reproduce it.')).not.toBeInTheDocument();
@@ -108,7 +108,7 @@ describe('AlphaBugButton', () => {
     });
     fireEvent.click(screen.getByRole('button', { name: 'Send bug report' }));
     await waitFor(() => expect(createSupportRequest).toHaveBeenCalledWith(expect.objectContaining({
-      pageUrl: '/privacy/dl-mode?from=settings',
+      pageUrl: '/privacy/dl-mode',
     })));
   });
 
@@ -148,34 +148,65 @@ describe('AlphaBugButton', () => {
 
     await waitFor(() => expect(createSupportRequest).toHaveBeenCalledWith(expect.objectContaining({
       category: 'bug',
-      subject: 'Alpha bug: /support?appeal=1',
+      subject: 'Alpha bug: /support',
       message: 'The appeal upload opens the camera instead of my photo picker.',
       contactEmail: 'person@example.com',
       source: 'unknown',
-      pageUrl: '/support?appeal=1',
+      pageUrl: '/support',
     })));
     expect(await screen.findByText('Bug report sent')).toBeInTheDocument();
   });
 
-  it('records browser-provided device context with the page when no screenshot is available', async () => {
+  it('does not read or submit device context without explicit opt-in', async () => {
+    const getHighEntropyValues = vi.fn().mockResolvedValue({
+      platform: 'Android',
+      mobile: true,
+    });
     Object.defineProperty(navigator, 'userAgentData', {
       configurable: true,
       value: {
         mobile: true,
         platform: 'Android',
-        getHighEntropyValues: vi.fn().mockResolvedValue({
-          model: 'Pixel 9',
-          platform: 'Android',
-          platformVersion: '16',
-          mobile: true,
-        }),
+        getHighEntropyValues,
       },
     });
     renderAlphaBugButton(true, '/map?layer=nearby');
 
     fireEvent.click(screen.getByRole('button', { name: 'Report alpha bug' }));
-    expect(await screen.findByText('Device:')).toBeInTheDocument();
-    expect(screen.getByText('Pixel 9 Android 16')).toBeInTheDocument();
+    expect(screen.getByRole('checkbox', { name: 'Share device and browser details' })).not.toBeChecked();
+    expect(getHighEntropyValues).not.toHaveBeenCalled();
+    fireEvent.change(screen.getByLabelText('What broke?'), {
+      target: { value: 'The profile preview is too narrow at this window size.' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Send bug report' }));
+
+    await waitFor(() => expect(createSupportRequest).toHaveBeenCalledTimes(1));
+    expect(getHighEntropyValues).not.toHaveBeenCalled();
+    expect(createSupportRequest.mock.calls[0][0]).not.toHaveProperty('device');
+  });
+
+  it('records browser-provided device context after explicit opt-in', async () => {
+    const getHighEntropyValues = vi.fn().mockResolvedValue({
+      platform: 'Android',
+      mobile: true,
+    });
+    Object.defineProperty(navigator, 'userAgentData', {
+      configurable: true,
+      value: {
+        mobile: true,
+        platform: 'Android',
+        getHighEntropyValues,
+      },
+    });
+    renderAlphaBugButton(true, '/map?layer=nearby');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Report alpha bug' }));
+    expect(getHighEntropyValues).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Share device and browser details' }));
+    expect(screen.getByText('Sharing device and browser details helps us diagnose the problem.')).toBeInTheDocument();
+    expect(screen.queryByText('Device:')).not.toBeInTheDocument();
+    expect(screen.queryByText('Android')).not.toBeInTheDocument();
+    expect(getHighEntropyValues).toHaveBeenCalledOnce();
     expect(screen.queryByText('/map?layer=nearby')).not.toBeInTheDocument();
     fireEvent.change(screen.getByLabelText('What broke?'), {
       target: { value: 'The profile preview is too narrow at this window size.' },
@@ -183,13 +214,27 @@ describe('AlphaBugButton', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Send bug report' }));
 
     await waitFor(() => expect(createSupportRequest).toHaveBeenCalledWith(expect.objectContaining({
-      pageUrl: '/map?layer=nearby',
+      pageUrl: '/map',
       device: {
-        model: 'Pixel 9',
         platform: 'Android',
-        platformVersion: '16',
         mobile: true,
       },
+    })));
+  });
+
+  it('discloses and submits account-email linkage only when selected', async () => {
+    renderAlphaBugButton(true, '/settings');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Report alpha bug' }));
+    expect(screen.getByText('Allow support to use my account email for follow-up. It is deleted after 30 days.')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Allow email follow-up' }));
+    fireEvent.change(screen.getByLabelText('What broke?'), {
+      target: { value: 'The profile preview is too narrow at this window size.' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Send bug report' }));
+
+    await waitFor(() => expect(createSupportRequest).toHaveBeenCalledWith(expect.objectContaining({
+      linkAccountEmail: true,
     })));
   });
 
@@ -228,6 +273,32 @@ describe('AlphaBugButton', () => {
     expect(slot).toContainElement(reportButton);
     expect(reportButton).toHaveClass('h-full', 'w-full');
     expect(reportButton).not.toHaveClass('fixed');
+  });
+
+  it.each([375, 1280])('uses the popup-local reporter instead of duplicating the map reporter at %ipx', (width) => {
+    const widthDescriptor = Object.getOwnPropertyDescriptor(window, 'innerWidth');
+    Object.defineProperty(window, 'innerWidth', { configurable: true, value: width });
+    const mapSlot = document.createElement('div');
+    mapSlot.dataset.testid = 'map-bug-button-slot';
+    const popupSlot = document.createElement('div');
+    document.body.appendChild(mapSlot);
+    document.body.appendChild(popupSlot);
+    registerBugButtonSlot(mapSlot);
+    registerBugButtonSlot(popupSlot);
+
+    try {
+      renderAlphaBugButton(true, '/map');
+
+      const reportButtons = screen.getAllByRole('button', { name: 'Report alpha bug' });
+      expect(reportButtons).toHaveLength(1);
+      expect(popupSlot).toContainElement(reportButtons[0]);
+      expect(reportButtons[0]).toHaveClass('h-full', 'w-full');
+      expect(reportButtons[0]).not.toHaveClass('fixed');
+    } finally {
+      mapSlot.remove();
+      popupSlot.remove();
+      if (widthDescriptor) Object.defineProperty(window, 'innerWidth', widthDescriptor);
+    }
   });
 
   it('stays docked in a popup slot across its entrance animation, with no measured offset', () => {

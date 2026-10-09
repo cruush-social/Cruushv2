@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, type MutableRefObject } from 'react';
-import { Bell, X } from 'lucide-react';
+import { X } from 'lucide-react';
 import { useLocation, useNavigate } from 'react-router';
 import { toast } from '../lib/toast';
 import { CruushIcon } from './CruushIconImage';
@@ -240,7 +240,7 @@ export default function ForegroundNotifications({ showLatestRewardOnFirstPoll = 
           {notification.type === 'mutual_cruush' ? (
             <CruushIcon name="mutual" variant="white" className="h-5 w-5" />
           ) : (
-            <Bell className="h-4 w-4" />
+            <CruushIcon name="notifications" variant="white" className="h-5 w-5" />
           )}
         </span>
         <span className="min-w-0 flex-1">

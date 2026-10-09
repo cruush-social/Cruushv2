@@ -446,7 +446,7 @@ export const RELATIONSHIP_STATUS = [
   "Let's discuss",
   'Ask me',
   'Prefer not to say',
-];
+].sort((a, b) => a.localeCompare(b));
 
 export const ZODIAC = [
   'Aries', 'Taurus', 'Gemini', 'Cancer', 'Leo', 'Virgo',

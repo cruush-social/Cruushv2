@@ -57,4 +57,12 @@ describe("conversation vibes", () => {
 
     expect(mapped.user.vibes).toBeUndefined();
   });
+
+  it("carries the last-message author into the conversation preview payload", () => {
+    const mapped = mapConversationRow(app, row({ last_message_author_name: "Julien" }), {}) as {
+      lastMessageAuthorName?: string;
+    };
+
+    expect(mapped.lastMessageAuthorName).toBe("Julien");
+  });
 });

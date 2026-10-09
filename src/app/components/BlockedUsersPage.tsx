@@ -113,6 +113,7 @@ export default function BlockedUsersPage() {
                 label={`${blockedUser.displayName} avatar`}
                 masked={shouldMaskPhoto(dlModeActive, blockedUser.photoExplicit)}
                 photo={blockedUser.photo}
+                outOfSight={blockedUser.outOfSight === true}
                 userId={blockedUser.userId}
                 onClick={() => navigate(`/profile/${blockedUser.userId}`)}
                 fallback={<CruushIcon name="profile" className="size-4 opacity-75" />}

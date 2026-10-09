@@ -212,7 +212,6 @@ describe("support routes", () => {
       "auth",
       "https://cruush.test/",
       expect.objectContaining({
-        userAgent: "vitest",
         aiSupport: expect.objectContaining({ status: "pending" })
       })
     ]);
@@ -380,10 +379,9 @@ describe("support routes", () => {
     });
   }, 10000);
 
-  it("creates a signed-in support request without requiring contact email", async () => {
+  it("does not link a signed-in bug report to an account email without opt-in", async () => {
     const app = buildSupportApp();
     query
-      .mockResolvedValueOnce({ rows: [{ email: "member@example.com" }] })
       // The route checks whether the reporter is staff before applying the
       // member cap. This member is not.
       .mockResolvedValueOnce({ rows: [] })
@@ -409,9 +407,9 @@ describe("support routes", () => {
         source: "settings",
         pageUrl: "/settings",
         device: {
-          model: "Pixel 9",
+          browser: "Chrome",
           platform: "Android",
-          platformVersion: "16",
+          appVersion: "1.9.1",
           mobile: true
         }
       }
@@ -419,25 +417,88 @@ describe("support routes", () => {
     await app.close();
 
     expect(response.statusCode).toBe(201);
-    expect(query.mock.calls[2]?.[1]).toEqual([
+    expect(query.mock.calls[1]?.[1]).toEqual([
       userId,
-      "member@example.com",
+      null,
       "bug",
       "Settings bug",
       "The settings screen got stuck after opening support.",
       "settings",
       "/settings",
       expect.objectContaining({
-        userAgent: expect.any(String),
         device: {
-          model: "Pixel 9",
+          browser: "Chrome",
           platform: "Android",
-          platformVersion: "16",
+          appVersion: "1.9.1",
           mobile: true
         },
         aiSupport: expect.objectContaining({ status: "pending" })
       })
     ]);
+  });
+
+  it("links a signed-in bug report to the account email only after opt-in", async () => {
+    const app = buildSupportApp();
+    query
+      .mockResolvedValueOnce({ rows: [{ email: "member@example.com" }] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({
+        rows: [{
+          id: "support-opt-in",
+          status: "open",
+          ai_triage_status: "pending",
+          created_at: "2026-07-07T12:05:00.000Z"
+        }]
+      });
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/support-requests",
+      headers: { "x-user-id": userId },
+      payload: {
+        category: "bug",
+        subject: "Settings bug",
+        message: "The settings screen got stuck after opening support.",
+        source: "settings",
+        linkAccountEmail: true
+      }
+    });
+    await app.close();
+
+    expect(response.statusCode).toBe(201);
+    expect(String(query.mock.calls[0]?.[0])).toContain("select email from app_users");
+    expect(query.mock.calls[2]?.[1]?.[1]).toBe("member@example.com");
+  });
+
+  it("strips query strings before storing a bug-report page URL", async () => {
+    const app = buildSupportApp();
+    query
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({
+        rows: [{
+          id: "support-query-free",
+          status: "open",
+          ai_triage_status: "pending",
+          created_at: "2026-10-08T12:05:00.000Z"
+        }]
+      });
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/support-requests",
+      headers: { "x-user-id": userId },
+      payload: {
+        category: "bug",
+        subject: "Settings bug",
+        message: "The settings screen got stuck after opening support.",
+        source: "settings",
+        pageUrl: "/settings?accessToken=do-not-store"
+      }
+    });
+    await app.close();
+
+    expect(response.statusCode).toBe(201);
+    expect(query.mock.calls[1]?.[1]?.[6]).toBe("/settings");
   });
 
   it("forwards support requests to the reports inbox", async () => {
@@ -639,7 +700,11 @@ describe("support routes", () => {
         return { rows: [{ role: "admin" }] };
       }
 
-      if (sql.includes("from support_requests sr") && sql.includes("recipient_email") && sql.includes("requester_user_id")) {
+      if (sql.includes("select id from support_request_replies")) {
+        return { rows: [{ id: "reply-1" }] };
+      }
+
+      if (sql.includes("from support_requests sr") && (sql.includes("recipient_email") || sql.includes("for share"))) {
         return {
           rows: [{
             id: "11111111-1111-4111-8111-111111111116",
@@ -649,6 +714,9 @@ describe("support routes", () => {
             page_url: "/settings",
             source: "settings",
             created_at: "2026-07-07T12:25:00.000Z",
+            contact_email: "reporter@example.com",
+            contact_email_opted_in: true,
+            contact_email_expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
             recipient_email: "reporter@example.com",
             requester_user_id: "user-6"
           }]
@@ -703,5 +771,56 @@ describe("support routes", () => {
         }
       }
     });
+  }, 10000);
+
+  it("does not expose bug-report reply emails to moderators", async () => {
+    const app = buildSupportApp();
+    query.mockImplementation(async (sql: string) => {
+      if (sql.includes("moderator_users")) {
+        return { rows: [{ role: "moderator" }] };
+      }
+
+      if (sql.includes("select count(*)::int as total")) {
+        return { rows: [{ total: 1 }] };
+      }
+
+      if (sql.includes("from support_requests sr") && sql.includes("left join lateral")) {
+        return {
+          rows: [{
+            id: "support-bug-privacy",
+            requester_user_id: "user-5",
+            contact_email: "reporter@example.com",
+            category: "bug",
+            subject: "Map issue",
+            message: "The map did not load after sign in.",
+            source: "settings",
+            page_url: "/settings",
+            ai_triage_status: "pending",
+            status: "open",
+            created_at: "2026-10-08T12:20:00.000Z",
+            updated_at: "2026-10-08T12:20:00.000Z",
+            recipient_email: "reporter@example.com",
+            reply_count: 0,
+            last_reply_at: null,
+            appeal_evidence_types: []
+          }]
+        };
+      }
+
+      throw new Error(`Unexpected query: ${sql}`);
+    });
+
+    const response = await app.inject({
+      method: "GET",
+      url: "/api/admin/support-requests?status=open&limit=25&offset=0",
+      headers: { "x-user-id": userId }
+    });
+    await app.close();
+
+    expect(response.statusCode).toBe(200);
+    const request = response.json().data.requests[0];
+    expect(request.contactEmail).toBeNull();
+    expect(request.recipientEmail).toBeNull();
+    expect(JSON.stringify(response.json())).not.toContain("reporter@example.com");
   }, 10000);
 });

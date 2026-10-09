@@ -77,6 +77,23 @@ function notificationRow(overrides: Record<string, unknown> = {}) {
   };
 }
 
+function queueVisibleActivitySource() {
+  // Missing viewer location fails closed to Purgatory. This source has not
+  // opted into hiding from those viewers, so normal notification checks follow.
+  query
+    .mockResolvedValueOnce({ rows: [] }) // encrypted_location_envelopes
+    .mockResolvedValueOnce({ rows: [] }) // user_travel_pins
+    .mockResolvedValueOnce({
+      rows: [{
+        id: actorUserId,
+        profile_visibility_ciphertext: null,
+        profile_visibility_nonce: null,
+        profile_visibility_auth_tag: null,
+        profile_visibility_key_version: null
+      }]
+    });
+}
+
 function buildNotificationsApp(overrides: Partial<AppConfig> = {}) {
   return buildServer({
     ...baseConfig,
@@ -135,6 +152,7 @@ describe("notification service", () => {
       createdAt: "2026-07-08T12:00:00.000Z"
     });
     expect(query.mock.calls[0]?.[0]).toContain("insert into app_notifications");
+    expect(query).toHaveBeenCalledTimes(1);
     expect(query.mock.calls[0]?.[0]).toContain("on conflict (user_id, dedupe_key) where dedupe_key is not null do nothing");
     expect(query.mock.calls[0]?.[1]).toEqual([
       recipientUserId,
@@ -150,6 +168,7 @@ describe("notification service", () => {
   });
 
   it("does not push when a dedupe key already exists", async () => {
+    queueVisibleActivitySource();
     query.mockResolvedValueOnce({ rows: [] });
 
     await expect(createAppNotificationAndPush({
@@ -167,10 +186,14 @@ describe("notification service", () => {
       title: "Someone nearby",
       body: "Someone within your radar may be in your area.",
       linkUrl: "/map?layer=nearby",
-      dedupeKey: `nearby:${recipientUserId}:495192`
+      dedupeKey: `nearby:${recipientUserId}:495192`,
+      metadata: { sourceUserId: actorUserId }
     })).resolves.toBeNull();
 
-    expect(query).toHaveBeenCalledTimes(1);
+    expect(query).toHaveBeenCalledTimes(4);
+    expect(query.mock.calls[2]?.[0]).toContain("from profiles");
+    expect(query.mock.calls[2]?.[1]).toEqual([[actorUserId]]);
+    expect(query.mock.calls[3]?.[0]).toContain("insert into app_notifications");
     expect(sendNotification).not.toHaveBeenCalled();
   });
 
@@ -293,6 +316,7 @@ describe("notification service", () => {
   });
 
   it("uses generic nearby copy for nearby activity pushes", async () => {
+    queueVisibleActivitySource();
     query
       .mockResolvedValueOnce({
         rows: [notificationRow({
@@ -301,7 +325,9 @@ describe("notification service", () => {
           body: "Someone within your radar may be in your area.",
           link_url: "/map?layer=nearby"
         })]
-      })
+      });
+    queueVisibleActivitySource();
+    query
       .mockResolvedValueOnce({
         rows: [{
           push_enabled: true,
@@ -348,9 +374,12 @@ describe("notification service", () => {
     expect(pushPayload.title).toBe("Someone nearby");
     expect(pushPayload.body).toBe("Someone within your radar may be in your area.");
     expect(JSON.stringify(pushPayload)).not.toContain("Alex");
+    expect(JSON.stringify(pushPayload)).not.toContain(actorUserId);
+    expect(query.mock.calls.filter(([sql]) => String(sql).includes("from profiles"))).toHaveLength(2);
   });
 
   it("uses generic Feed copy for nearby post pushes", async () => {
+    queueVisibleActivitySource();
     query
       .mockResolvedValueOnce({
         rows: [notificationRow({
@@ -359,7 +388,9 @@ describe("notification service", () => {
           body: "Open Feed to see what’s happening in your area.",
           link_url: "/feed?view=nearby#latest"
         })]
-      })
+      });
+    queueVisibleActivitySource();
+    query
       .mockResolvedValueOnce({
         rows: [{
           push_enabled: true,
@@ -397,7 +428,8 @@ describe("notification service", () => {
       title: "Alex posted nearby",
       body: "Sensitive post text",
       linkUrl: "/feed?view=nearby#latest",
-      dedupeKey: `nearby-feed-post:${notificationId}:${recipientUserId}`
+      dedupeKey: `nearby-feed-post:${notificationId}:${recipientUserId}`,
+      metadata: { sourceUserId: actorUserId }
     });
 
     const pushPayload = JSON.parse(sendNotification.mock.calls[0]?.[1] as string);
@@ -406,6 +438,7 @@ describe("notification service", () => {
     expect(pushPayload.url).toBe("/feed?view=nearby#latest");
     expect(JSON.stringify(pushPayload)).not.toContain("Alex");
     expect(JSON.stringify(pushPayload)).not.toContain("Sensitive post text");
+    expect(JSON.stringify(pushPayload)).not.toContain(actorUserId);
   });
 
   it("uses generic reward copy instead of labeling reward pushes as messages", async () => {
@@ -470,6 +503,7 @@ describe("notification service", () => {
     ["nearby_feed_post", "nearby_enabled"],
     ["reward", "rewards_enabled"]
   ] as const)("does not query push subscriptions when %s alerts are disabled", async (type, disabledColumn) => {
+    if (type !== "reward") queueVisibleActivitySource();
     query
       .mockResolvedValueOnce({
         rows: [notificationRow({
@@ -478,7 +512,9 @@ describe("notification service", () => {
           body: "Open cruush to check it.",
           link_url: type === "reward" ? "/rewards" : "/map?layer=nearby"
         })]
-      })
+      });
+    if (type !== "reward") queueVisibleActivitySource();
+    query
       .mockResolvedValueOnce({
         rows: [{
           push_enabled: true,
@@ -504,10 +540,12 @@ describe("notification service", () => {
       userId: recipientUserId,
       type,
       title: "Update",
-      linkUrl: type === "reward" ? "/rewards" : "/map?layer=nearby"
+      linkUrl: type === "reward" ? "/rewards" : "/map?layer=nearby",
+      ...(type !== "reward" ? { metadata: { sourceUserId: actorUserId } } : {})
     });
 
-    expect(query).toHaveBeenCalledTimes(2);
+    expect(query).toHaveBeenCalledTimes(type === "reward" ? 2 : 8);
+    expect(query.mock.calls.at(-1)?.[0]).toContain("from notification_preferences");
     expect(query.mock.calls.some(([sql]) => String(sql).includes("from push_subscriptions"))).toBe(false);
     expect(sendNotification).not.toHaveBeenCalled();
   });
@@ -543,15 +581,20 @@ describe("notification routes", () => {
           readAt: null,
           createdAt: "2026-07-08T12:00:00.000Z"
         }],
-        nextCursor: "2026-07-08T12:00:00.000Z"
+        nextCursor: `2026-07-08T12:00:00.000Z|${notificationId}`
       }
     });
+    expect(query).toHaveBeenCalledTimes(1);
+    expect(query.mock.calls[0]?.[0]).toContain("order by notification.created_at desc, notification.id desc");
   }, 10000);
 
   it("returns unread summary and marks all notifications read", async () => {
     const app = buildNotificationsApp();
     query
       .mockResolvedValueOnce({ rows: [{ unread_count: 3 }] })
+      .mockResolvedValueOnce({ rows: [] }) // encrypted_location_envelopes
+      .mockResolvedValueOnce({ rows: [] }) // user_travel_pins
+      .mockResolvedValueOnce({ rows: [] }) // no profile-activity notifications to hide
       .mockResolvedValueOnce({ rows: [{ unread_count: 0 }] });
 
     const summary = await app.inject({
@@ -574,8 +617,10 @@ describe("notification routes", () => {
     expect(summary.json()).toEqual({ data: { unreadCount: 3 } });
     expect(readAll.statusCode).toBe(200);
     expect(readAll.json()).toEqual({ data: { unreadCount: 0 } });
-    expect(query.mock.calls[1]?.[0]).toContain("update app_notifications");
-    expect(query.mock.calls[1]?.[0]).toContain("read_at = now()");
+    expect(query).toHaveBeenCalledTimes(5);
+    expect(query.mock.calls[3]?.[0]).toContain("notification.type = any($2::text[])");
+    expect(query.mock.calls[4]?.[0]).toContain("update app_notifications");
+    expect(query.mock.calls[4]?.[0]).toContain("read_at = now()");
   }, 10000);
 
   it("clears all notifications for the current user", async () => {
@@ -645,6 +690,7 @@ describe("notification routes", () => {
         messagesEnabled: true,
         groupsEnabled: true,
         nearbyEnabled: false,
+        mutualFeedEnabled: true,
         rewardsEnabled: false,
         siteRemindersEnabled: true,
         pulseEnabled: true,
@@ -657,6 +703,11 @@ describe("notification routes", () => {
     });
     expect(query.mock.calls[1]?.[0]).toContain("nearby_enabled");
     expect(query.mock.calls[1]?.[0]).toContain("rewards_enabled");
+    expect(query.mock.calls[1]?.[0]).toContain("mutual_feed_enabled");
+    expect(query.mock.calls[1]?.[1]).toEqual([
+      recipientUserId, true, true, true, true, true, false, true,
+      false, true, true, false, 0, 360, "UTC", true
+    ]);
   }, 10000);
 
   it("upserts push subscriptions and enables push preferences", async () => {
@@ -705,6 +756,7 @@ describe("notification routes", () => {
         messagesEnabled: true,
         groupsEnabled: true,
         nearbyEnabled: true,
+        mutualFeedEnabled: true,
         rewardsEnabled: true,
         siteRemindersEnabled: true,
         pulseEnabled: true,

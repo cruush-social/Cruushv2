@@ -1,12 +1,18 @@
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
-import { MemoryRouter, Route, Routes } from 'react-router';
+import { Link, MemoryRouter, Route, Routes } from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import ProfileView from './ProfileView';
+import ProfileView, { profileRecordToProfileView } from './ProfileView';
+import { emptyProfilePayload, type ProfileRecord } from '../lib/profileApi';
+import mileHighClubWhite from '../assets/ui-icons/mile-high-club-white.svg';
 
-const { revokeMutualCruush, revokeSentCruush, sendCruush } = vi.hoisted(() => ({
+const { serviceArea } = vi.hoisted(() => ({ serviceArea: { profilePinsAllowed: false } }));
+vi.mock('./MapServiceAreaContext', () => ({ useMapServiceArea: () => serviceArea }));
+
+const { revokeMutualCruush, revokeSentCruush, sendCruush, getMutualCruushMap } = vi.hoisted(() => ({
   revokeMutualCruush: vi.fn(),
   revokeSentCruush: vi.fn(),
   sendCruush: vi.fn(),
+  getMutualCruushMap: vi.fn(),
 }));
 
 const { getMyProfile, getProfileById } = vi.hoisted(() => ({
@@ -44,6 +50,7 @@ vi.mock('../lib/cruushApi', async () => {
     revokeMutualCruush,
     revokeSentCruush,
     sendCruush,
+    getMutualCruushMap,
   };
 });
 
@@ -119,7 +126,45 @@ function createProfileFixture(overrides: Record<string, unknown> = {}) {
 }
 
 describe('ProfileView', () => {
+  it('keeps server coarse labels ahead of stale navigation distance without changing ordinary precedence', () => {
+    const profile = { ...emptyProfilePayload, ...createProfileFixture(), distance_label: 'Among sinners' } as ProfileRecord;
+    const preview = { distance: '2 mi', lastActive: 'now' };
+    expect(profileRecordToProfileView(profile, preview).distance).toBe('Among sinners');
+    expect(profileRecordToProfileView({ ...profile, distance_label: 'Far far away' }, preview).distance).toBe('Far far away');
+    expect(profileRecordToProfileView({ ...profile, distance_label: 'New York, NY' }, preview).distance).toBe('New York, NY');
+    expect(profileRecordToProfileView({ ...profile, distance_label: 'Holmdel, NJ' }, preview).distance).toBe('Holmdel, NJ');
+    expect(profileRecordToProfileView({ ...profile, distance_label: '3 mi' }, preview).distance).toBe('2 mi');
+    expect(profileRecordToProfileView({ ...profile, distance_label: null, outOfSight: true }, preview).distance).toBeNull();
+    expect(profileRecordToProfileView({ ...profile, distance_label: null }, preview, true).distance).toBeNull();
+  });
+
+  it.each([
+    { label: 'Among sinners', outOfSight: false },
+    { label: 'Far far away', outOfSight: true },
+    { label: 'New York, NY', outOfSight: false },
+    { label: 'Holmdel, NJ', outOfSight: true },
+  ])('renders the server coarse label $label verbatim', async ({ label, outOfSight }) => {
+    getProfileById.mockResolvedValue(createProfileFixture({ distance_label: label, outOfSight }));
+    render(
+      <MemoryRouter initialEntries={[{ pathname: '/profile/user-1', state: { distance: '2 mi' } }]}>
+        <Routes><Route path="/profile/:userId" element={<ProfileView />} /></Routes>
+      </MemoryRouter>,
+    );
+    expect(await screen.findByText(label)).toBeInTheDocument();
+    expect(screen.queryByText(`${label} away`)).not.toBeInTheDocument();
+    expect(screen.queryByText('2 mi away')).not.toBeInTheDocument();
+  });
+
+  it('preserves the server-owned current OOS status in the full profile model', () => {
+    const profile = { ...emptyProfilePayload, ...createProfileFixture(), outOfSight: true } as ProfileRecord;
+    expect(profileRecordToProfileView(profile).outOfSight).toBe(true);
+    expect(profileRecordToProfileView({ ...profile, outOfSight: false }).outOfSight).toBe(false);
+    expect(profileRecordToProfileView({ ...profile, outOfSight: undefined }).outOfSight).toBe(false);
+  });
+
   beforeEach(() => {
+    serviceArea.profilePinsAllowed = false;
+    getMutualCruushMap.mockReset();
     revokeMutualCruush.mockReset();
     revokeSentCruush.mockReset();
     sendCruush.mockReset();
@@ -160,6 +205,23 @@ describe('ProfileView', () => {
     });
   });
 
+  it('gates a verified mutual profile pin OOS and restores it inside service area', async () => {
+    getProfileById.mockResolvedValue(createProfileFixture({ viewer_relationship: { mutual_cruush: true, can_reveal_precise_location: true, location_mode: 'PRECISE' } }));
+    getMutualCruushMap.mockResolvedValue([{ user: { id: 'user-1' }, canRevealPreciseLocation: true, coordinates: { precision: 'precise' } }]);
+    const profileRoute = () => <MemoryRouter initialEntries={['/profile/user-1']}><Routes><Route path="/profile/:userId" element={<ProfileView />} /></Routes></MemoryRouter>;
+    const { rerender } = render(profileRoute());
+    const blocked = await screen.findByRole('button', { name: 'Map location unavailable' });
+    await waitFor(() => expect(getMutualCruushMap).toHaveBeenCalled());
+    expect(blocked).toBeDisabled();
+    expect(blocked).toHaveAttribute('title', 'Map location unavailable');
+    expect(blocked).toHaveStyle({ background: 'var(--cruush-gradient-soft-28), #0A0A12' });
+    expect(blocked.style.getPropertyValue('--profile-center-pin-mobile-background')).toBe('var(--cruush-gradient-soft-28), #0A0A12');
+
+    serviceArea.profilePinsAllowed = true;
+    rerender(profileRoute());
+    expect(await screen.findByRole('button', { name: 'Center the map on Jordan' })).toBeEnabled();
+  });
+
   it('uses a viewport-fitted 4:5 hero and exposes Basics, Intimacy, and Health tabs', async () => {
     render(
       <MemoryRouter initialEntries={['/profile/user-1']}>
@@ -169,9 +231,7 @@ describe('ProfileView', () => {
       </MemoryRouter>
     );
 
-    expect(await screen.findByTestId('profile-gallery-frame')).toHaveStyle({
-      width: 'min(100%, 30rem)',
-    });
+    expect(await screen.findByTestId('profile-gallery-frame')).toHaveClass('w-full', 'max-w-2xl');
     const heroMedia = screen.getByTestId('profile-hero-media');
     expect(heroMedia).toHaveStyle({
       aspectRatio: '4 / 5',
@@ -194,6 +254,22 @@ describe('ProfileView', () => {
     expect(screen.getByText('Role')).toBeInTheDocument();
     expect(screen.getByText('Switch')).toBeInTheDocument();
     expect(getProfileById).toHaveBeenCalledWith('user-1');
+  });
+
+  it('keeps the Tags capsule visible when no tags have been entered', async () => {
+    getProfileById.mockResolvedValue(createProfileFixture({ tags: [] }));
+
+    render(
+      <MemoryRouter initialEntries={['/profile/user-1']}>
+        <Routes>
+          <Route path="/profile/:userId" element={<ProfileView />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    const tagsSection = (await screen.findByRole('heading', { name: 'Tags' })).closest('section');
+    expect(tagsSection).not.toBeNull();
+    expect(within(tagsSection as HTMLElement).getByText('Nothing listed yet.')).toBeInTheDocument();
   });
 
   it('shows the distance and last online the profile carries, with no route state', async () => {
@@ -235,7 +311,7 @@ describe('ProfileView', () => {
     // The editor takes it under Intimacy, so the profile shows it back there.
     fireEvent.click(await screen.findByRole('tab', { name: 'Intimacy' }));
 
-    expect(await screen.findByText('Relationship status')).toBeInTheDocument();
+    expect(await screen.findByText('Relationship Status')).toBeInTheDocument();
     expect(screen.getByText('Partnered')).toBeInTheDocument();
     expect(screen.getByText('Open')).toBeInTheDocument();
   });
@@ -321,8 +397,13 @@ describe('ProfileView', () => {
     const identities = screen.getByRole('heading', { name: 'Gender Identity' }).closest('section');
     expect(identities).not.toBeNull();
     expect(within(identities as HTMLElement).getByText('Non-binary')).toHaveClass('text-base');
-    expect(screen.getByText('Nothing listed yet.')).toHaveClass('text-base');
-    expect(screen.getByText('Ethnicity')).toHaveClass('text-base');
+    const zodiac = screen.getByRole('heading', { name: 'Zodiac' }).closest('section');
+    expect(zodiac).not.toBeNull();
+    expect(within(zodiac as HTMLElement).getByText('Nothing listed yet.')).toHaveClass('text-base');
+    const ethnicity = screen.getByRole('heading', { name: 'Ethnicity' }).closest('section');
+    expect(ethnicity).not.toBeNull();
+    expect(screen.getByRole('heading', { name: 'Ethnicity' })).toHaveClass('text-lg');
+    expect(within(ethnicity as HTMLElement).getByText('Latinx')).toHaveClass('text-base');
   });
 
   it('shows a large DL Mode icon and label on a masked full-profile photo', async () => {
@@ -341,8 +422,50 @@ describe('ProfileView', () => {
     );
 
     const placeholder = await screen.findByTestId('dl-mode-photo-placeholder');
-    expect(placeholder).toHaveClass('w-28');
-    expect(placeholder.querySelector('text')).toHaveTextContent('cruushes only');
+    expect(placeholder).toHaveClass('w-36');
+    expect(placeholder.querySelector('text')).toHaveTextContent('DL MODE ON');
+  });
+
+  it('shows Purgatory independently of MHC and opens its explanation on tap', async () => {
+    getProfileById.mockResolvedValue(createProfileFixture({ outOfSight: true, travelling: true }));
+    render(
+      <MemoryRouter initialEntries={['/profile/user-1']}>
+        <Routes><Route path="/profile/:userId" element={<ProfileView />} /></Routes>
+      </MemoryRouter>,
+    );
+    const badge = await screen.findByRole('button', { name: 'This is a Purgatory member.' });
+    expect(screen.getByRole('button', { name: 'This is a Mile High Club member.' })).toBeInTheDocument();
+    fireEvent.click(badge);
+    expect(await screen.findByRole('tooltip')).toHaveTextContent('currently outside cruush’s service area');
+  });
+
+  it('does not carry Purgatory membership into another profile while its request is pending', async () => {
+    getProfileById.mockResolvedValueOnce(createProfileFixture({ outOfSight: true }));
+    render(
+      <MemoryRouter initialEntries={['/profile/user-1']}>
+        <Link to="/profile/user-2">Next member</Link>
+        <Routes><Route path="/profile/:userId" element={<ProfileView />} /></Routes>
+      </MemoryRouter>,
+    );
+    await screen.findByRole('button', { name: 'This is a Purgatory member.' });
+    let resolveProfile!: (profile: ProfileRecord) => void;
+    getProfileById.mockReturnValueOnce(new Promise<ProfileRecord>((resolve) => { resolveProfile = resolve; }));
+    fireEvent.click(screen.getByRole('link', { name: 'Next member' }));
+    expect(screen.queryByRole('button', { name: 'This is a Purgatory member.' })).not.toBeInTheDocument();
+    resolveProfile(createProfileFixture({ id: 'user-2', display_name: 'River', outOfSight: false }));
+    await screen.findByRole('heading', { name: /River/ });
+    expect(screen.queryByRole('button', { name: 'This is a Purgatory member.' })).not.toBeInTheDocument();
+  });
+
+  it.each([false, undefined])('does not infer Purgatory from a travel pin when status is %s', async (outOfSight) => {
+    getProfileById.mockResolvedValue(createProfileFixture({ outOfSight, travelling: true }));
+    render(
+      <MemoryRouter initialEntries={['/profile/user-1']}>
+        <Routes><Route path="/profile/:userId" element={<ProfileView />} /></Routes>
+      </MemoryRouter>,
+    );
+    await screen.findByRole('button', { name: 'This is a Mile High Club member.' });
+    expect(screen.queryByRole('button', { name: 'This is a Purgatory member.' })).not.toBeInTheDocument();
   });
 
   it('shows the Mile High Club plane beside the name for a travelling profile', async () => {
@@ -361,12 +484,11 @@ describe('ProfileView', () => {
 
     const name = await screen.findByRole('heading', { name: /Jordan/ });
     const badge = within(name).getByRole('img', { name: 'Mile High Club' });
-    expect(badge).toHaveAttribute('title', 'Mile High Club: In from Chicago');
-    expect(badge).toHaveClass('ml-2', 'shrink-0');
-    expect(badge.getAttribute('src')).toContain('Mile%20High%20Club%20White');
-    expect(badge.getAttribute('src')).toContain('M0,-13');
-    expect(badge.getAttribute('src')).toContain('plane-width-shade');
-    expect(badge.getAttribute('src')).toContain('plane-length-shade');
+    const mileHighButton = within(name).getByRole('button', { name: 'This is a Mile High Club member.' });
+    expect(mileHighButton).toHaveClass('pointer-events-auto', 'ml-2', 'shrink-0');
+    expect(badge).toHaveClass('h-14', 'w-14');
+    expect(badge).toHaveAttribute('src', mileHighClubWhite);
+    expect(mileHighButton).not.toHaveAttribute('title');
   });
 
   it('shows the same Mile High Club plane beside the name on the travelling member’s own profile', async () => {
@@ -385,8 +507,8 @@ describe('ProfileView', () => {
 
     const name = await screen.findByRole('heading', { name: /Jordan/ });
     const badge = within(name).getByRole('img', { name: 'Mile High Club' });
-    expect(badge).toHaveAttribute('title', 'Mile High Club: In from Chicago');
-    expect(badge.getAttribute('src')).toContain('plane-width-shade');
+    expect(within(name).getByRole('button', { name: 'This is a Mile High Club member.' })).toBeInTheDocument();
+    expect(badge).toHaveAttribute('src', mileHighClubWhite);
     expect(getMyProfile).toHaveBeenCalledTimes(1);
   });
 
@@ -790,7 +912,11 @@ describe('ProfileView', () => {
     );
 
     fireEvent.click(await screen.findByRole('button', { name: 'Report profile' }));
-    fireEvent.change(screen.getByLabelText('Reason'), { target: { value: 'minor_safety' } });
+    fireEvent.click(screen.getByRole('combobox', { name: 'Reason' }));
+    const reason = await screen.findByRole('option', { name: 'Underage user concern' });
+    fireEvent.pointerDown(reason, { button: 0, pointerType: 'touch' });
+    fireEvent.pointerUp(reason, { button: 0, pointerType: 'touch' });
+    fireEvent.click(reason);
     fireEvent.change(screen.getByLabelText('Additional details (optional)'), {
       target: { value: 'The profile says they are under 18.' },
     });

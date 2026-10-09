@@ -109,6 +109,8 @@ describe('Settings', () => {
     deleteAccount.mockReset();
     sendVerificationEmail.mockReset();
     signOut.mockReset();
+    getAuthSession.mockReset();
+    getAuthSession.mockResolvedValue({ user: { email: 'member@example.com' } });
     getMyProfile.mockReset();
     getBlockedUsers.mockReset();
     unblockUser.mockReset();
@@ -183,6 +185,25 @@ describe('Settings', () => {
     expect(screen.getByRole('button', { name: /Rewards/i })).not.toHaveTextContent(
       'Streaks, referrals, and promotional access.',
     );
+  });
+
+  it('uses the Ghost Mode settings surface for standalone and embedded Settings', async () => {
+    const { rerender } = render(
+      <MemoryRouter>
+        <Settings />
+      </MemoryRouter>,
+    );
+
+    const standaloneContent = await screen.findByTestId('settings-content');
+    expect(standaloneContent).toHaveClass('max-w-2xl', 'space-y-6', 'p-6');
+    expect(screen.getByRole('heading', { name: 'Settings' })).toBeInTheDocument();
+
+    rerender(
+      <MemoryRouter>
+        <Settings embedded />
+      </MemoryRouter>,
+    );
+    expect(screen.getByTestId('settings-content')).toHaveClass('max-w-2xl', 'space-y-6', 'p-6');
   });
 
   it('keeps map and icon attribution in one capsule with the icon list collapsed', async () => {
@@ -269,7 +290,7 @@ describe('Settings', () => {
       </MemoryRouter>
     );
 
-    const version = await screen.findByText('Version 1.8');
+    const version = await screen.findByText('Version 2.0');
     const openBeta = screen.getByText('OPEN BETA');
     expect(version.parentElement).toContainElement(openBeta);
     expect(container.querySelector('img[src*="cruush-logo.svg"]')).toHaveAttribute('alt', 'cruush');
@@ -303,6 +324,24 @@ describe('Settings', () => {
     render(<MemoryRouter initialEntries={['/settings']}><Settings /><LocationProbe /></MemoryRouter>);
     fireEvent.click(await screen.findByRole('button', { name: 'Test onboarding' }));
     expect(screen.getByTestId('location-probe')).toHaveTextContent('/settings/onboarding-test');
+  });
+
+  it('lets an allowlisted developer open the out-of-service preview without a stored moderator role', async () => {
+    getStoredCurrentUser.mockReturnValue({ display_name: 'Developer' });
+    getAuthSession.mockResolvedValue({ user: {
+      email: 'admin@cruush.local', emailVerifiedAt: '2026-09-08',
+    } });
+    render(<MemoryRouter initialEntries={['/settings']}><Settings /><LocationProbe /></MemoryRouter>);
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Test out-of-service area' }));
+    expect(screen.getByTestId('location-probe')).toHaveTextContent('/settings/outside-service-area-test');
+    expect(screen.queryByRole('button', { name: /Moderator dashboard/i })).not.toBeInTheDocument();
+  });
+
+  it('does not show the out-of-service preview to a non-allowlisted member', async () => {
+    render(<MemoryRouter initialEntries={['/settings']}><Settings /></MemoryRouter>);
+    await waitFor(() => expect(getAuthSession).toHaveBeenCalled());
+    expect(screen.queryByRole('button', { name: 'Test out-of-service area' })).not.toBeInTheDocument();
   });
 
   it('opens the current changelog without version-coupled settings copy', async () => {

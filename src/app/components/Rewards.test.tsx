@@ -4,6 +4,7 @@ import { MemoryRouter } from 'react-router';
 import { CRUUSH_PLUS_FEATURES } from '../lib/cruushPlusFeatures';
 import Rewards from './Rewards';
 import type { SideQuestKey, SideQuestSummary } from '../lib/rewardsApi';
+import { getMyBillingStatus } from '../lib/billingApi';
 
 const api = vi.hoisted(() => ({
   completeTwoFactorSetup: vi.fn(),
@@ -22,6 +23,10 @@ const api = vi.hoisted(() => ({
 const toastSuccess = vi.hoisted(() => vi.fn());
 
 vi.mock('../lib/rewardsApi', () => api);
+vi.mock('../lib/billingApi', async () => ({
+  ...(await vi.importActual<typeof import('../lib/billingApi')>('../lib/billingApi')),
+  getMyBillingStatus: vi.fn(),
+}));
 vi.mock('sonner', () => ({
   toast: {
     success: toastSuccess,
@@ -102,6 +107,13 @@ describe('Rewards', () => {
     api.updateRewardTimezone.mockResolvedValue({ timezone: 'America/Chicago' });
     api.recordDailyRewardCheckIn.mockResolvedValue({ credited: true, grants: [] });
     api.getRewardSummary.mockResolvedValue(summary);
+    vi.mocked(getMyBillingStatus).mockResolvedValue({
+      cruushPlus: true,
+      expiresAt: '2099-07-30T12:00:00.000Z',
+      badges: [],
+      processor: 'fake',
+      testCheckout: true,
+    });
     api.getSideQuests.mockResolvedValue({ ...questSummary(), quests: [] });
     api.getTwoFactorStatus.mockResolvedValue({
       enabled: false,
@@ -125,6 +137,8 @@ describe('Rewards', () => {
     resolveSummary(summary);
 
     expect(await screen.findByText('6-day streak')).toBeInTheDocument();
+    const sectionHeading = screen.getByRole('heading', { name: 'cruush+ & Rewards' });
+    expect(sectionHeading.querySelector('.cruush-logo-font')).toHaveTextContent('cruush+');
     expect(screen.getByText('Check in once a day.', { exact: false })).toBeInTheDocument();
     expect(screen.getByText('Next check-in reward')).toBeInTheDocument();
     expect(screen.getByText('1 day each time')).toBeInTheDocument();
@@ -152,8 +166,9 @@ describe('Rewards', () => {
     const getCruushPlus = screen.getByRole('button', { name: 'Get cruush+' });
     const referralCard = screen.getByRole('heading', { name: 'Invite people you trust' }).closest('[data-slot="card"]');
     const timeCapsuleCard = screen.getByRole('heading', { name: /time capsule/i }).closest('[data-slot="card"]');
-    expect(mainChildren.indexOf(referralCard as Element)).toBe(mainChildren.indexOf(getCruushPlus) + 1);
-    expect(mainChildren.indexOf(referralCard as Element)).toBeLessThan(mainChildren.indexOf(timeCapsuleCard as Element));
+    expect(within(timeCapsuleCard as HTMLElement).getByRole('timer', { name: 'cruush+ time remaining' })).toHaveTextContent(/^\d+:\d{2}:\d{2}:\d{2}$/);
+    expect(mainChildren.indexOf(timeCapsuleCard as Element)).toBe(mainChildren.indexOf(getCruushPlus) + 1);
+    expect(mainChildren.indexOf(timeCapsuleCard as Element)).toBeLessThan(mainChildren.indexOf(referralCard as Element));
   });
 
   it('explains every user-accessible cruush+ feature', async () => {

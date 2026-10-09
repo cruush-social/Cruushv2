@@ -33,6 +33,7 @@ import DlModeMark from './DlModeMark';
 import PublicPolicyLinks from './PublicPolicyLinks';
 import { changePassword, deleteAccount, getAuthSession, sendVerificationEmail, signOut } from '../lib/authApi';
 import { canTestOnboarding } from '../lib/adminOnboarding';
+import { canUseDeveloperMapToolsEmail } from '../lib/developerMapTools';
 import SupportRequestForm from './SupportRequestForm';
 import AppPageHeader from './AppPageHeader';
 import {
@@ -59,6 +60,7 @@ import {
   saveDesktopPageLayout,
   type DesktopPageLayout,
 } from '../lib/desktopPageLayoutPreferences';
+import { ghostSettingsBodyClassName, ghostSettingsCardClassName } from './ghostSettingsStyles';
 
 type SettingsActionItem = {
   icon?: LucideIcon;
@@ -211,6 +213,7 @@ export default function Settings({ embedded = false, onBack, onClose, onOpenMile
   const isEmailVerified = Boolean(storedUser?.email_verified_at);
   const moderatorRole = storedUser?.moderator_role ?? null;
   const [onboardingTestEnabled, setOnboardingTestEnabled] = useState(false);
+  const [outsideServiceAreaTestEnabled, setOutsideServiceAreaTestEnabled] = useState(false);
   const [iconAttributions, setIconAttributions] = useState(ICON_ATTRIBUTIONS);
 
   useEffect(() => {
@@ -227,11 +230,18 @@ export default function Settings({ embedded = false, onBack, onClose, onOpenMile
   }, []);
 
   useEffect(() => {
-    if (moderatorRole !== 'admin') return;
     let cancelled = false;
     void getAuthSession().then(session => {
-      if (!cancelled) setOnboardingTestEnabled(canTestOnboarding(session.user));
-    }).catch(() => { if (!cancelled) setOnboardingTestEnabled(false); });
+      if (!cancelled) {
+        setOnboardingTestEnabled(moderatorRole === 'admin' && canTestOnboarding(session.user));
+        setOutsideServiceAreaTestEnabled(canUseDeveloperMapToolsEmail(session.user.email));
+      }
+    }).catch(() => {
+      if (!cancelled) {
+        setOnboardingTestEnabled(false);
+        setOutsideServiceAreaTestEnabled(false);
+      }
+    });
     return () => { cancelled = true; };
   }, [moderatorRole]);
 
@@ -338,9 +348,9 @@ export default function Settings({ embedded = false, onBack, onClose, onOpenMile
 
   const [settingsQuery, setSettingsQuery] = useState('');
   const settingsSections: Array<{ title: string; items: SettingsItem[] }> = [
-    ...(moderatorRole ? [{
+    ...(moderatorRole || outsideServiceAreaTestEnabled ? [{
       title: 'Moderation',
-      items: [{
+      items: [...(moderatorRole ? [{
         icon: ShieldAlert,
         label: 'Moderator dashboard',
         description: `Signed in as ${moderatorRole}.`,
@@ -350,10 +360,14 @@ export default function Settings({ embedded = false, onBack, onClose, onOpenMile
         label: 'Bug reports',
         description: 'Read and reply to support and bug reports.',
         action: () => navigate('/requests'),
-      }, ...(onboardingTestEnabled ? [{
+      }] : []), ...(onboardingTestEnabled ? [{
         icon: History,
         label: 'Test onboarding',
         action: () => navigate('/settings/onboarding-test'),
+      }] : []), ...(outsideServiceAreaTestEnabled ? [{
+        icon: MapPin,
+        label: 'Test out-of-service area',
+        action: () => navigate('/settings/outside-service-area-test'),
       }] : [])],
     }] : []),
     {
@@ -507,7 +521,7 @@ export default function Settings({ embedded = false, onBack, onClose, onOpenMile
         bugButtonTestId="settings-bug-button-slot"
       />
 
-      <div className={`max-w-2xl mx-auto space-y-8 ${embedded ? 'p-4' : 'p-6'}`}>
+      <div data-testid="settings-content" className={ghostSettingsBodyClassName}>
         <div className="px-2">
           <label className="sr-only" htmlFor="settings-search">Search settings</label>
           <Input
@@ -523,7 +537,7 @@ export default function Settings({ embedded = false, onBack, onClose, onOpenMile
 
         <div className="space-y-2">
           <h3 className="text-sm text-muted-foreground px-2">Email</h3>
-          <div className="bg-card rounded-2xl border border-border p-4 space-y-4">
+          <div className={ghostSettingsCardClassName}>
             <div className="flex items-start gap-3">
               {isEmailVerified ? (
                 <CruushIcon name="notifications" className="mt-0.5 h-5 w-5" variant="colored" />
@@ -606,7 +620,7 @@ export default function Settings({ embedded = false, onBack, onClose, onOpenMile
         {desktopLayoutMatchesQuery ? (
           <div className="space-y-2">
             <h3 className="px-2 text-sm text-muted-foreground">Desktop</h3>
-            <div className="rounded-2xl border border-border bg-card p-4">
+            <div className={ghostSettingsCardClassName}>
               <div className="flex items-center justify-between gap-4">
                 <span>Page layout</span>
                 <div
@@ -643,7 +657,7 @@ export default function Settings({ embedded = false, onBack, onClose, onOpenMile
         {visibleSettingsSections.map((section) => (
           <div key={section.title} className="space-y-2">
             <h3 className="text-sm text-muted-foreground px-2">{section.title}</h3>
-            <div className="bg-card rounded-2xl border border-border overflow-hidden">
+            <div className={`${ghostSettingsCardClassName} overflow-hidden`}>
               {section.items.map((item, index) => {
                 const dividerClass = index !== section.items.length - 1 ? 'border-b border-border' : '';
 
@@ -747,7 +761,7 @@ export default function Settings({ embedded = false, onBack, onClose, onOpenMile
 
         <div className="space-y-2">
           <h3 className="text-sm text-muted-foreground px-2">Map attribution</h3>
-          <div className="bg-card rounded-2xl border border-border p-4 space-y-3" data-testid="attribution-card">
+          <div className={ghostSettingsCardClassName} data-testid="attribution-card">
             <div>
               <p>Open map data</p>
               <p className="text-sm text-muted-foreground">
@@ -791,6 +805,15 @@ export default function Settings({ embedded = false, onBack, onClose, onOpenMile
                 CARTO
                 <ExternalLink className="h-3.5 w-3.5" />
               </a>
+              <a
+                className="inline-flex items-center gap-1 text-muted-foreground underline underline-offset-4 hover:text-foreground"
+                href="/town-boundary-data.html"
+                rel="noreferrer"
+                target="_blank"
+              >
+                Town boundary data
+                <ExternalLink className="h-3.5 w-3.5" />
+              </a>
             </div>
             <Accordion type="single" collapsible>
               <AccordionItem
@@ -827,7 +850,7 @@ export default function Settings({ embedded = false, onBack, onClose, onOpenMile
 
         <div className="space-y-2">
           <h3 className="px-2 text-sm text-muted-foreground">Account</h3>
-          <div className="overflow-hidden rounded-2xl border border-border bg-card">
+          <div className={`${ghostSettingsCardClassName} overflow-hidden`}>
             <button
               type="button"
               aria-label="Delete account"
@@ -871,7 +894,7 @@ export default function Settings({ embedded = false, onBack, onClose, onOpenMile
             />
             <p className="flex flex-col items-center justify-center gap-0.5 whitespace-nowrap text-xs text-muted-foreground">
               <span className="tracking-[0.18em]">OPEN BETA</span>
-              <span>Version 1.8</span>
+              <span>Version 2.0</span>
             </p>
           </div>
         </div>

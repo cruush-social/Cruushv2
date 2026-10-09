@@ -13,7 +13,7 @@ const IMPLEMENTATION_MARKERS = [
   {
     title: 'Full activity',
     file: 'server/src/routes/cruush.ts',
-    marker: 'const incoming = lockable(incomingRows, isCruushPlus);',
+    marker: 'const views = lockable(viewRows, isCruushPlus, basicVisibleViewRecordId);',
   },
   {
     title: 'More Pulses',

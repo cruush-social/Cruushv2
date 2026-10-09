@@ -22,6 +22,12 @@ describe('DlModeSettings', () => {
     );
 
     expect(screen.getByRole('heading', { name: 'DL Mode' })).toBeInTheDocument();
+    const description = screen.getByText('DL Mode hides explicit photos behind gradients.');
+    expect(description).toHaveClass(
+      'text-sm',
+      'text-muted-foreground',
+    );
+    expect(description.closest('header')).toBeNull();
     const toggle = screen.getByRole('switch', { name: 'Toggle DL Mode' });
     expect(toggle).toBeChecked();
 
@@ -46,7 +52,8 @@ describe('DlModeSettings', () => {
     );
     expect(screen.getByRole('heading', { name: 'DL Mode' }).closest('header'))
       .toHaveClass('border-white/10', 'bg-black/88', 'py-4');
-    expect(screen.getByTestId('dl-mode-settings-root')).toHaveClass('h-full', 'overflow-hidden');
+    expect(screen.getByTestId('dl-mode-settings-root')).toHaveClass('h-full', 'overflow-x-hidden', 'overflow-y-auto');
+    expect(screen.getByTestId('dl-mode-settings-root')).not.toHaveClass('overflow-hidden');
     expect(screen.getByTestId('dl-mode-settings-root')).not.toHaveClass('h-[100dvh]');
     expect(screen.getByTestId('dl-mode-settings-root')).not.toHaveClass('pb-20');
   });

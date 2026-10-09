@@ -104,7 +104,8 @@ export async function loadTravelPins(app: FastifyInstance, userIds: string[]) {
   );
 
   result.rows.forEach((row) => {
-    pins.set(row.user_id, mapTravelPin(row));
+    const pin = mapTravelPin(row);
+    if (pin.expiresAtMs > Date.now()) pins.set(row.user_id, pin);
   });
 
   return pins;

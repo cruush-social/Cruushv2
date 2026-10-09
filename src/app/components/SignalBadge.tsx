@@ -10,15 +10,19 @@ export default function SignalBadge({
   children,
   className = '',
   testId,
+  compact = false,
+  compactHorizontalPadding = false,
 }: {
   borderColor: string;
   children: ReactNode;
   className?: string;
   testId?: string;
+  compact?: boolean;
+  compactHorizontalPadding?: boolean;
 }) {
   return (
     <span
-      className={`relative overflow-hidden rounded-full border border-[3.2px] bg-black/86 px-3 py-1 text-center text-[0.7rem] font-semibold leading-tight text-white backdrop-blur-md [overflow-wrap:anywhere] ${className}`}
+      className={`relative overflow-hidden rounded-full border border-[3.2px] bg-black/86 ${compact || compactHorizontalPadding ? 'px-2' : 'px-3'} ${compact ? 'py-0.5' : 'py-1'} text-center text-[0.7rem] font-semibold leading-tight text-white backdrop-blur-md [overflow-wrap:anywhere] ${className}`}
       data-testid={testId}
       style={{
         backgroundColor: 'rgba(0, 0, 0, var(--cruush-ghost-surface-alpha, 0.86))',

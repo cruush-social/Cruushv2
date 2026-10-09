@@ -51,20 +51,19 @@ describe('BadgePickerPreview', () => {
     );
 
     await screen.findByText('What this side says');
-    const groupSelect = screen.getByRole('combobox', { name: 'Badge category' });
-    expect(Array.from(groupSelect.querySelectorAll('option'), (option) => option.textContent)).not.toContain('Acts');
-    fireEvent.change(groupSelect, { target: { value: 'Hanky code' } });
+    expect(screen.queryByRole('combobox', { name: 'Badge category' })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Hanky code' }));
     const optionLabels = screen.getAllByRole('button').map((button) => button.textContent?.trim().toLowerCase());
     HANKY_COLORS.forEach((hanky) => {
       expect(optionLabels).not.toContain(hanky.label.toLowerCase());
     });
   });
 
-  it('marks every Pride flag badge as full-frame artwork', () => {
+  it('keeps every Pride flag badge at the normal icon scale', () => {
     const flagIds = BADGE_OPTIONS.filter((option) => option.id.startsWith('flag-')).map((option) => option.id);
 
     expect(flagIds.length).toBeGreaterThan(10);
-    flagIds.forEach((flagId) => expect(resolveSavedBadgeGlyph(flagId).fillsFrame).toBe(true));
+    flagIds.forEach((flagId) => expect(resolveSavedBadgeGlyph(flagId).fillsFrame).toBe(false));
     for (const flagId of flagIds) {
       const Glyph = resolveSavedBadgeGlyph(flagId).icon;
       const { container, unmount } = render(<Glyph />);
@@ -81,20 +80,20 @@ describe('BadgePickerPreview', () => {
     );
 
     await screen.findByText('What this side says');
-    fireEvent.change(screen.getByRole('combobox', { name: 'Badge category' }), { target: { value: 'Kinks' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Kinks' }));
 
     const search = await screen.findByRole('searchbox', { name: 'Search Kinks icons' });
     expect(screen.getByText('Leather boot')).toBeInTheDocument();
     fireEvent.change(search, { target: { value: 'boot' } });
     fireEvent.click(screen.getByRole('button', { name: 'Leather boot' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Edit badge title' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Edit left badge title' }));
     fireEvent.change(screen.getByRole('textbox', { name: 'Badge title' }), { target: { value: 'abcdefghijk' } });
 
     expect(screen.getByRole('textbox', { name: 'Badge title' })).toHaveValue('abcdefghij');
-    expect(screen.getAllByLabelText('Selected')).toHaveLength(1);
+    expect(screen.queryByLabelText('Selected')).not.toBeInTheDocument();
   });
 
-  it('keeps the classic Vibe icons alongside the new Vibe pool', async () => {
+  it('lists every available Vibe pool icon once with its label', async () => {
     render(
       <MemoryRouter>
         <BadgePickerPreview embedded />
@@ -102,14 +101,52 @@ describe('BadgePickerPreview', () => {
     );
 
     await screen.findByText('What this side says');
-    fireEvent.change(screen.getByRole('combobox', { name: 'Badge category' }), { target: { value: 'Vibes' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Vibes' }));
 
     expect(await screen.findByRole('button', { name: 'Disco ball' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Raver' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Doll' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Bimbo' })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Leather boot' })).not.toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Raver' }).querySelector('svg')).not.toBeNull();
-    expect(screen.getByRole('button', { name: 'Doll' }).querySelector('span[style*="mask-image"]')).not.toBeNull();
+    expect(screen.getAllByRole('button', { name: 'Raver' })).toHaveLength(1);
+    expect(screen.getByRole('button', { name: 'Disco ball' })).toHaveTextContent('Disco ball');
+  });
+
+  it('keeps the requested pool labels while omitting removed icon choices', async () => {
+    vi.stubGlobal('fetch', vi.fn((url: string) => Promise.resolve({
+      ok: true,
+      json: () => Promise.resolve({
+        icons: url.includes('kink-')
+          ? [
+              { id: 'cock', label: 'Penis', iconCategory: 'Body', file: 'cock.png' },
+              { id: 'boobs', label: 'Breast', iconCategory: 'Body', file: 'boobs.png' },
+              { id: 'clamp', label: 'Clamp', iconCategory: 'Gear', file: 'clamp.png' },
+              { id: 'bodysuit', label: 'Bodysuit / catsuit reference', iconCategory: 'Gear', file: 'bodysuit.png' },
+            ]
+          : [
+              { id: 'handcuffs', label: 'Handcuffs sex police', iconCategory: 'Objects', file: 'handcuffs.png' },
+              { id: 'duplicate-handcuffs', label: 'Handcuffs sex police', iconCategory: 'Objects', file: 'handcuffs-duplicate.png' },
+              { id: 'clamp', label: 'Clamp', iconCategory: 'Objects', file: 'clamp.png' },
+            ],
+      }),
+    })));
+
+    render(
+      <MemoryRouter>
+        <BadgePickerPreview embedded />
+      </MemoryRouter>
+    );
+
+    await screen.findByText('What this side says');
+    fireEvent.click(screen.getByRole('button', { name: 'Kinks' }));
+    expect(await screen.findByRole('button', { name: 'Cock' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Boobs' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Clamp' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Bodysuit / catsuit reference' })).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Vibes' }));
+    expect(await screen.findByRole('button', { name: 'Handcuffs' })).toBeInTheDocument();
+    expect(screen.getAllByRole('button', { name: 'Handcuffs' })).toHaveLength(1);
+    expect(screen.queryByRole('button', { name: 'Clamp' })).not.toBeInTheDocument();
   });
 });

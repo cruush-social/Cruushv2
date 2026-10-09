@@ -34,6 +34,7 @@ import CruushPlusGateNotice from './CruushPlusGateNotice';
 
 export interface VisibilityControlState extends FilterState {
   activeCrowdModes: string[];
+  outsideServiceAreaMembers: boolean;
   restrictAge: boolean;
   restrictDistance: boolean;
 }
@@ -41,6 +42,7 @@ export interface VisibilityControlState extends FilterState {
 export const DEFAULT_VISIBILITY_STATE: VisibilityControlState = {
   ...DEFAULT_FILTER_STATE,
   activeCrowdModes: [],
+  outsideServiceAreaMembers: false,
   restrictAge: false,
   restrictDistance: false,
 };
@@ -56,6 +58,7 @@ interface MapVisibilitySurfaceProps {
   saving?: boolean;
   error?: string | null;
   hasCruushPlus?: boolean;
+  showOutsideServiceAreaControl?: boolean;
   onChange: (value: VisibilityControlState) => void;
   onClear: () => void;
   onApply: () => void;
@@ -64,7 +67,7 @@ interface MapVisibilitySurfaceProps {
   searchPlaceholder?: string;
 }
 
-type VisibilityListKey = Exclude<keyof VisibilityControlState, 'searchQuery' | 'ageRange' | 'distance' | 'hasPhoto' | 'mileHighClub' | 'activeCrowdModes' | 'restrictAge' | 'restrictDistance'>;
+type VisibilityListKey = Exclude<keyof VisibilityControlState, 'searchQuery' | 'ageRange' | 'distance' | 'hasPhoto' | 'mileHighClub' | 'activeCrowdModes' | 'outsideServiceAreaMembers' | 'restrictAge' | 'restrictDistance'>;
 const VISIBILITY_LIST_KEYS: VisibilityListKey[] = [
   'identities',
   'presentations',
@@ -98,6 +101,7 @@ export function countVisibilityExclusionFilters(value: VisibilityControlState) {
     value.restrictAge,
     value.restrictDistance,
     value.mileHighClub,
+    value.outsideServiceAreaMembers,
     ...VISIBILITY_LIST_KEYS.map((key) => value[key].length > 0),
   ].filter(Boolean).length;
 }
@@ -164,6 +168,7 @@ export default function MapVisibilitySurface({
   saving = false,
   error = null,
   hasCruushPlus = false,
+  showOutsideServiceAreaControl = true,
   onChange,
   onClear,
   onApply,
@@ -201,7 +206,7 @@ export default function MapVisibilitySurface({
       <SheetContent
         closeSide="left"
         side="right"
-        overlayClassName="z-[1090]"
+        overlayClassName="z-[1090] sm:bg-transparent"
         className="z-[1100] w-full flex h-full max-h-[100dvh] flex-col gap-0 overflow-hidden border-white/10 bg-background/95 p-0 sm:max-w-xl"
       >
         <SheetHeader className="shrink-0 border-b border-white/10 py-4 pl-14 pr-4">
@@ -307,6 +312,21 @@ export default function MapVisibilitySurface({
                   onCheckedChange={(hasPhoto) => handleLimitedChange({ ...value, hasPhoto })}
                 />
               </div>
+
+              {showOutsideServiceAreaControl ? (
+                <div className="flex items-center justify-between gap-4 rounded-2xl border border-white/10 bg-white/[0.035] p-4">
+                  <Label htmlFor="visibility-outside-service-area-members">Purgatory members</Label>
+                  <Switch
+                    id="visibility-outside-service-area-members"
+                    checked={value.outsideServiceAreaMembers}
+                    onCheckedChange={(outsideServiceAreaMembers) => {
+                      const nextValue = { ...value, outsideServiceAreaMembers };
+                      if (outsideServiceAreaMembers) handleLimitedChange(nextValue);
+                      else onChange(nextValue);
+                    }}
+                  />
+                </div>
+              ) : null}
 
               <div className="space-y-4">
                 <div className="flex items-center justify-between gap-4">

@@ -22,12 +22,11 @@ it('keeps DL MODE ON beneath the icon when the viewer setting masks the photo', 
   expect(screen.getByTestId('dl-mode-photo-placeholder').querySelector('text')).toHaveTextContent('DL MODE ON');
 });
 
-it('keeps the DL Mode label intact in compact Recently Active previews', () => {
-  render(<DlModePhotoPlaceholder splitCruushesOnly />);
+it('omits DL Mode text in compact Recently Active previews', () => {
+  render(<DlModePhotoPlaceholder showLabel={false} splitCruushesOnly />);
   const cover = screen.getByTestId('dl-mode-photo-placeholder');
   expect(cover).toHaveAttribute('aria-label', 'DL MODE ON');
-  expect(cover.querySelectorAll('tspan')).toHaveLength(0);
-  expect(cover.querySelector('text')).toHaveTextContent('DL MODE ON');
+  expect(cover.querySelector('text')).toBeNull();
 });
 
 it('keeps an owner restriction label distinct from the viewer DL Mode label', () => {

@@ -163,6 +163,7 @@ Index keys and signing/hash keys are outside this fallback mechanism.
 | `STREAM_MODERATION_ENABLED` | server | yes | `server/src/config.ts` |  |
 | `STREAM_PSEUDONYM_KEY` | server | yes | `server/src/config.ts` |  |
 | `SUPPORT_INBOX_EMAIL` | server | yes | `server/src/check-rekognition-health.ts`, `server/src/config.ts` |  |
+| `TOWN_BOUNDARY_DATABASE_PATH` | server | yes | `server/src/config.ts` | Optional absolute path to the read-only public town SQLite dataset with its adjacent validated manifest. API only; no member data. |
 | `TRUST_PROXY_HOPS` | server | yes | `server/src/config.ts` |  |
 | `TRUST_SAFETY_ALERT_EMAIL` | server | yes | `server/src/check-rekognition-health.ts`, `server/src/config.ts` |  |
 | `TURNSTILE_SECRET_KEY` | server | yes | `server/src/config.ts` |  |

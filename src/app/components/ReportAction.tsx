@@ -1,16 +1,15 @@
 import { useId, useState, type CSSProperties, type FormEvent } from 'react';
-import { DROPDOWN_TRIGGER_CLASS } from '../lib/controlStyles';
 import { Flag } from 'lucide-react';
 import { toast } from '../lib/toast';
 import {
   createReport,
-  REPORT_REASON_OPTIONS,
   type ReportReason,
   type ReportTargetType,
 } from '../lib/reportApi';
 import { buttonVariants } from './ui/button';
 import { Label } from './ui/label';
 import { Textarea } from './ui/textarea';
+import ReportReasonPicker from './ReportReasonPicker';
 import {
   Dialog,
   DialogContent,
@@ -143,22 +142,15 @@ export default function ReportAction({
 
           <div className="space-y-2">
             <Label htmlFor={reasonId}>Reason</Label>
-            <select
+            <ReportReasonPicker
               id={reasonId}
               value={reason}
-              onChange={(event) => {
-                setReason(event.target.value as ReportReason | '');
+              onChange={(nextReason) => {
+                setReason(nextReason);
                 setValidationError(null);
               }}
-              className={DROPDOWN_TRIGGER_CLASS}
               disabled={submitting}
-              aria-required="true"
-            >
-              <option value="">Choose a reason</option>
-              {REPORT_REASON_OPTIONS.map((option) => (
-                <option key={option.value} value={option.value}>{option.label}</option>
-              ))}
-            </select>
+            />
             {validationError ? <p className="text-sm text-destructive">{validationError}</p> : null}
           </div>
 

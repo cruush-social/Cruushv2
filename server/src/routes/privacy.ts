@@ -1,6 +1,7 @@
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import { getNsfwPhotoAudience, saveNsfwPhotoAudience, nsfwPhotoAudienceSchema, loadPhotoViewerRelationships } from "../nsfw-photo-audience.js";
+import { loadOutOfSightStatuses, type OutOfSightStatus } from "../out-of-sight-location.js";
 import { isWithinBetaLaunchArea } from "../beta-access.js";
 import { requireCruushPlus } from "../billing.js";
 import { runTransaction } from "../db.js";
@@ -93,6 +94,7 @@ const ghostModePayloadSchema = z.object({
   ghostRadiusLabel: z.string().optional(),
   ghostRadiusMeters: z.number().int().optional(),
   ghostRotationMinutes: z.number().int().refine((value) => GHOST_ROTATION_MINUTES.includes(value), "Ghost rotation interval is unsupported.").optional(),
+  ghostLeashVisible: z.boolean().optional(),
   preciseToMutualCruushes: z.boolean().optional(),
   preciseLocationVisibility: z.enum(["none", "mutual_cruushes"]).optional(),
   preciseToMutualCrowds: z.array(crowdPrecisionPolicySchema).max(3).optional(),
@@ -423,6 +425,7 @@ export async function registerPrivacyRoutes(app: FastifyInstance) {
       ghostModeEnabled: baseMode === "GHOST",
       ghostRadiusMeters: payload.ghostRadiusMeters ?? radiusMetersForLabel(radiusLabel),
       ghostRotationMinutes: payload.ghostRotationMinutes,
+      ghostLeashVisible: payload.ghostLeashVisible,
       preciseToMutualCruushes,
       preciseToMutualCrowds,
       darkRoomDistanceLabel: payload.darkRoomDistanceLabel === true,
@@ -634,7 +637,10 @@ export async function registerPrivacyRoutes(app: FastifyInstance) {
     }
 
     try {
-      const pin = await setTravelPin(app, userId, payload);
+      const pin = await runTransaction(app.db, async (db) => {
+        await lockMapPingSenderInTransaction(db, userId);
+        return setTravelPin({ ...app, db } as FastifyInstance, userId, payload);
+      });
 
       return reply.send({ data: { pin } });
     } catch (error) {
@@ -654,7 +660,10 @@ export async function registerPrivacyRoutes(app: FastifyInstance) {
 
   app.delete("/api/privacy/travel", async (request, reply) => {
     const userId = await getActiveAccountUserId(request);
-    await clearTravelPin(app, userId);
+    await runTransaction(app.db, async (db) => {
+      await lockMapPingSenderInTransaction(db, userId);
+      await clearTravelPin({ ...app, db } as FastifyInstance, userId);
+    });
 
     return reply.send({ data: { pin: null } });
   });
@@ -677,11 +686,18 @@ export async function registerPrivacyRoutes(app: FastifyInstance) {
     });
 
     const photoRelationships = await loadPhotoViewerRelationships(app, subjectUserId, candidates.map((candidate) => candidate.viewerUserId));
+    const physicalStatuses = await loadOutOfSightStatuses(app, candidates.map((candidate) => candidate.viewerUserId))
+      .catch(() => new Map<string, OutOfSightStatus>());
     return reply.send({
       data: {
         exact_location_access: candidates.map((candidate) => ({
           viewer_profile_token: candidate.viewerUserId,
-          viewer: { ...mapAuditProfile(profiles.get(candidate.viewerUserId), candidate.viewerUserId), photoRelationship: photoRelationships.get(candidate.viewerUserId) },
+          viewer: {
+            ...mapAuditProfile(profiles.get(candidate.viewerUserId), candidate.viewerUserId),
+            photoRelationship: photoRelationships.get(candidate.viewerUserId),
+            ...(physicalStatuses.get(candidate.viewerUserId) === "in_area" || physicalStatuses.get(candidate.viewerUserId) === "out_of_sight"
+              ? { outOfSight: physicalStatuses.get(candidate.viewerUserId) === "out_of_sight" } : {})
+          },
           reason: candidate.reason,
           permission_type: candidate.permissionType,
           granted_at_ms: candidate.grantedAtMs,

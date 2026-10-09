@@ -141,7 +141,6 @@ function LockedHeart({ label = 'Locked profile preview' }: { label?: string }) {
         label={label}
         masked
         theme="nearby"
-        fallback={<CruushIcon name="cruush" className="h-6 w-6 opacity-20" />}
       />
       <div className="absolute inset-0 flex items-center justify-center">
         <span className="flex h-8 w-8 items-center justify-center rounded-full bg-black/58 text-white">
@@ -179,10 +178,10 @@ function PersonHeart({
       restriction={getNsfwPhotoRestriction(item.user.photoExplicit, item.user.photoRelationship)}
       masked={shouldMaskPhoto(dlModeActive, item.user.photoExplicit, item.user.photoRelationship)}
       photo={item.user.photo}
+      outOfSight={item.user.outOfSight === true}
       userId={item.user.id}
       theme={'mutual' in item && item.mutual ? 'mutual' : 'nearby'}
       onClick={onOpenProfile ? () => onOpenProfile(item.user!.id) : undefined}
-      fallback={<CruushIcon name="cruush" className="h-6 w-6 opacity-25" />}
     />
   );
 }

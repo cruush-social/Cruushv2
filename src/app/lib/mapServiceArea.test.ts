@@ -5,7 +5,9 @@ import {
   MAP_SERVICE_OUTSIDE_MASK,
   MAP_SERVICE_RADIUS_MILES,
   createMapOutsideRadiusMask,
+  isWithinMapServiceArea,
 } from './mapServiceArea';
+import { SERVICE_AREAS, SERVICE_AREA_SQL, isWithinServiceArea } from '../../../server/src/service-area';
 
 const EARTH_RADIUS_MILES = 3958.7613;
 
@@ -48,31 +50,49 @@ describe('mapServiceArea', () => {
     });
   });
 
-  it('defines a twenty-mile boundary around the configured service center', () => {
+  it('keeps frontend and backend within the existing hundred-mile New York area', () => {
     const [[west, south], [east, north]] = MAP_SERVICE_MAX_BOUNDS;
-    const northSouthMiles = (north - MAP_SERVICE_CENTER.latitude) * 69;
-    const eastWestMiles = (east - MAP_SERVICE_CENTER.longitude)
-      * 69
-      * Math.cos(MAP_SERVICE_CENTER.latitude * Math.PI / 180);
 
     expect(MAP_SERVICE_RADIUS_MILES).toBe(100);
-    expect(northSouthMiles).toBeCloseTo(100, 5);
-    expect(eastWestMiles).toBeCloseTo(100, 5);
+    expect(isWithinMapServiceArea({ latitude: 40.7128, longitude: -74.006 })).toBe(true);
+    expect(isWithinMapServiceArea({ latitude: 39.9526, longitude: -75.1652 })).toBe(true);
+    expect(isWithinMapServiceArea({ latitude: 39.1, longitude: -75.1652 })).toBe(false);
+    // Philadelphia itself is already within NYC's radius; these points are
+    // inside the rejected Philadelphia extension but outside the NYC boundary.
+    for (const point of [
+      { latitude: 39.9526, longitude: -75.9 },
+      { latitude: 39.4, longitude: -75.1652 },
+    ]) {
+      expect(isWithinMapServiceArea(point)).toBe(false);
+      expect(isWithinServiceArea({ lat: point.latitude, lng: point.longitude })).toBe(false);
+    }
+    expect(isWithinServiceArea({ lat: 40.7128, lng: -74.006 })).toBe(true);
+    expect(isWithinServiceArea({ lat: 39.9526, lng: -75.1652 })).toBe(true);
+    expect(SERVICE_AREAS).toHaveLength(1);
+    expect(SERVICE_AREA_SQL).toContain('40.7128::double precision');
+    expect(SERVICE_AREA_SQL).toContain('-74.006::double precision');
+    expect(SERVICE_AREA_SQL).not.toContain('39.9526');
+    expect(SERVICE_AREA_SQL).not.toContain(' or ');
+    expect((north - MAP_SERVICE_CENTER.latitude) * 69).toBeCloseTo(100, 5);
+    expect((east - MAP_SERVICE_CENTER.longitude) * 69
+      * Math.cos(MAP_SERVICE_CENTER.latitude * Math.PI / 180)).toBeCloseTo(100, 5);
     expect(MAP_SERVICE_CENTER.latitude - south).toBeCloseTo(north - MAP_SERVICE_CENTER.latitude, 8);
     expect(MAP_SERVICE_CENTER.longitude - west).toBeCloseTo(east - MAP_SERVICE_CENTER.longitude, 8);
   });
 
   it('cuts an exact circular hole out of an otherwise solid world mask', () => {
-    const [worldRing, serviceAreaHole] = MAP_SERVICE_OUTSIDE_MASK.geometry.coordinates;
+    const [worldRing, newYorkHole] = MAP_SERVICE_OUTSIDE_MASK.geometry.coordinates;
+
+    expect(MAP_SERVICE_OUTSIDE_MASK.geometry.coordinates).toHaveLength(2);
 
     expect(MAP_SERVICE_OUTSIDE_MASK.geometry.type).toBe('Polygon');
     expect(worldRing[0]).toEqual(worldRing.at(-1));
-    expect(serviceAreaHole[0]).toEqual(serviceAreaHole.at(-1));
-    expect(serviceAreaHole).toHaveLength(721);
+    expect(newYorkHole[0]).toEqual(newYorkHole.at(-1));
+    expect(newYorkHole).toHaveLength(721);
     expect(signedArea(worldRing)).toBeGreaterThan(0);
-    expect(signedArea(serviceAreaHole)).toBeLessThan(0);
+    expect(signedArea(newYorkHole)).toBeLessThan(0);
 
-    serviceAreaHole.slice(0, -1).forEach((point) => {
+    newYorkHole.slice(0, -1).forEach((point) => {
       expect(distanceMiles(point)).toBeCloseTo(MAP_SERVICE_RADIUS_MILES, 8);
     });
   });

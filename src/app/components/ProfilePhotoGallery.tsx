@@ -8,7 +8,7 @@ import { useDlMode, shouldMaskPhoto, getNsfwPhotoRestriction, type DlModePhotoRe
 import { getProfileGradientCss } from '../lib/profileGradient';
 import type { ProfilePhotoMetadata } from '../lib/profileApi';
 import type { HeartPinTheme } from '../lib/heartPin';
-import cruushIconWhite from '../assets/ui-icons/cruush-white.png';
+import profileEditIconWhite from '../assets/ui-icons/humanity-profile-selected-winged-heart-symmetric.png';
 import DlModePhotoPlaceholder from './DlModePhotoPlaceholder';
 import type { UserBorderTone } from '../lib/userBorderTone';
 
@@ -20,6 +20,7 @@ interface ProfilePhotoGalleryProps {
   onExpandPhoto?: (photo: string) => void;
   photos: string[];
   photoMetadata?: ProfilePhotoMetadata[];
+  outOfSight?: boolean;
   reportTargetUserId?: string;
   theme?: HeartPinTheme;
   borderTone?: UserBorderTone;
@@ -33,6 +34,7 @@ export default function ProfilePhotoGallery({
   name,
   onExpandPhoto,
   photoMetadata = [],
+  outOfSight = false,
   photos,
   reportTargetUserId,
   theme = 'nearby',
@@ -102,11 +104,11 @@ export default function ProfilePhotoGallery({
           role="img"
           style={{ ...PROFILE_HERO_ASPECT_STYLE, background: getProfileGradientCss(userId ?? activePhoto) }}
         >
-          <DlModePhotoPlaceholder className="w-28" restriction={getNsfwPhotoRestriction(activePhoto ? photoMetadataByUrl.get(activePhoto) : false, relationship)} />
+          <DlModePhotoPlaceholder className="w-36" restriction={getNsfwPhotoRestriction(activePhoto ? photoMetadataByUrl.get(activePhoto) : false, relationship)} />
         </div>
       ) : (
         <div className="flex h-full w-full items-center justify-center">
-          <CruushIconImage src={cruushIconWhite} className="h-24 w-24 opacity-20" />
+          <CruushIconImage src={profileEditIconWhite} className="h-[4.5rem] w-[4.5rem] opacity-20" />
         </div>
       )}
 
@@ -129,6 +131,7 @@ export default function ProfilePhotoGallery({
             >
               <HeartPhoto
                 borderTone={borderTone}
+                outOfSight={outOfSight}
                 label={`${fallbackLabel} ${index + 1}`}
                 restriction={getNsfwPhotoRestriction(photoMetadataByUrl.get(photo), relationship)}
                 masked={shouldMaskPhoto(dlModeActive, photoMetadataByUrl.get(photo), relationship)}

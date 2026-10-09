@@ -13,6 +13,7 @@ export const reportReasonSchema = z.enum([
   "hate",
   "violence_threat",
   "privacy_location",
+  "location_spoofing",
   "other"
 ]);
 

@@ -234,6 +234,10 @@ vi.mock('./components/Rewards', () => ({
   default: () => <div>Mock Rewards</div>
 }));
 
+vi.mock('./components/CruushPlusStore', () => ({
+  default: () => <div>Mock cruush+ checkout</div>
+}));
+
 vi.mock('./components/RequestsDashboard', () => ({
   default: () => <div>Mock Requests</div>
 }));
@@ -463,6 +467,7 @@ describe('App', () => {
     expect(screen.getByRole('navigation', { name: 'Bottom Navigation' })).toBeInTheDocument();
     expect(screen.getByTestId('mock-mobile-install-prompt')).toHaveTextContent('user-1');
     expect(screen.getByTestId('mock-push-permission-prompt')).toHaveTextContent('user-1');
+    expect(screen.getByTestId('mock-dl-mode-default-notice')).toBeInTheDocument();
   });
 
   it('records one daily reward check-in after a verified session loads', async () => {
@@ -645,7 +650,7 @@ describe('App', () => {
     }
   });
 
-  it('keeps the alpha bug button on token-link routes for active alpha testers', async () => {
+  it('does not render the alpha bug button on token-link routes', async () => {
     loadCurrentSession.mockResolvedValue({
       user: {
         id: 'user-1',
@@ -667,7 +672,7 @@ describe('App', () => {
     render(<App />);
 
     expect(await screen.findByText('Mock Reset Password')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Mock Alpha Bug' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Mock Alpha Bug' })).not.toBeInTheDocument();
   });
 
   it('renders the map after login without changing the browser URL', async () => {
@@ -853,7 +858,7 @@ describe('App', () => {
     expect(await screen.findByText('Mock DL Mode Settings')).toBeInTheDocument();
   });
 
-  it('redirects the cruush+ upgrade route to rewards while signed in', async () => {
+  it('redirects the cruush+ upgrade route to checkout while signed in', async () => {
     loadCurrentSession.mockResolvedValue({
       user: {
         id: 'user-1',
@@ -873,7 +878,7 @@ describe('App', () => {
 
     render(<App />);
 
-    expect(await screen.findByText('Mock Rewards')).toBeInTheDocument();
+    expect(await screen.findByText('Mock cruush+ checkout')).toBeInTheDocument();
     expect(window.location.pathname).toBe('/');
   });
 

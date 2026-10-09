@@ -28,10 +28,11 @@ function SeekingHarness({ hasCruushPlus = false, onUpgrade = vi.fn(), showMutual
 }
 
 describe('MapFiltersSurface', () => {
-  it('keeps the Seeking sheet above the fixed bottom navigation', () => {
+  it('keeps the Seeking drawer flush with the desktop viewport and leaves the map unmasked', () => {
     render(<SeekingHarness />);
 
     expect(screen.getByRole('dialog', { name: 'Seeking Filter' })).toHaveClass('z-[1100]');
+    expect(document.querySelector('[data-slot="sheet-overlay"]')).toHaveClass('sm:bg-transparent');
   });
 
   it('keeps the close control on the left away from the fixed bug button', () => {

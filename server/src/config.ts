@@ -195,6 +195,7 @@ const configSchema = z.object({
   MEDIA_ENCRYPTION_KEY_PREVIOUS: z.string().optional(),
   MEDIA_ENCRYPTION_KEY_VERSION: z.string().trim().min(1).optional().default("v1"),
   LOCATION_ENCRYPTION_KEY: z.string().optional().default(""),
+  TOWN_BOUNDARY_DATABASE_PATH: z.string().trim().optional(),
   LOCATION_ENCRYPTION_KEY_PREVIOUS: z.string().optional(),
   LOCATION_INDEX_KEY: z.string().optional().default(""),
   VISIBILITY_POLICY_ENCRYPTION_KEY: z.string().optional().default(""),

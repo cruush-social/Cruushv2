@@ -1,4 +1,4 @@
-import { FormEvent, useMemo, useState } from 'react';
+import { FormEvent, useId, useMemo, useState } from 'react';
 import { useLocation, useNavigate, useSearchParams } from 'react-router';
 import { CheckCircle2, Flag } from 'lucide-react';
 import { Button } from './ui/button';
@@ -7,10 +7,10 @@ import { Textarea } from './ui/textarea';
 import AppPageHeader from './AppPageHeader';
 import {
   createReport,
-  REPORT_REASON_OPTIONS,
   type ReportReason,
   type ReportTargetType,
 } from '../lib/reportApi';
+import ReportReasonPicker from './ReportReasonPicker';
 
 type ReportLocationState = {
   targetType?: ReportTargetType;
@@ -74,6 +74,7 @@ type ReportPageProps = {
 };
 
 export default function ReportPage({ embedded = false, targetOverride, onBack }: ReportPageProps = {}) {
+  const reasonId = useId();
   const navigate = useNavigate();
   const location = useLocation();
   const [searchParams] = useSearchParams();
@@ -174,29 +175,8 @@ export default function ReportPage({ embedded = false, targetOverride, onBack }:
             </section>
 
             <section className="space-y-3">
-              <Label>Reason</Label>
-              <div className="grid gap-2">
-                {REPORT_REASON_OPTIONS.map((option) => (
-                  <label
-                    key={option.value}
-                    className={`flex cursor-pointer gap-3 rounded-lg border p-4 transition-colors ${
-                      reason === option.value
-                        ? 'border-primary/60 bg-primary/10'
-                        : 'border-border bg-card/70 hover:bg-accent/50'
-                    }`}
-                  >
-                    <input
-                      checked={reason === option.value}
-                      className="mt-1"
-                      name="reason"
-                      onChange={() => setReason(option.value)}
-                      type="radio"
-                      value={option.value}
-                    />
-                    <span className="block">{option.label}</span>
-                  </label>
-                ))}
-              </div>
+              <Label htmlFor={reasonId}>Reason</Label>
+              <ReportReasonPicker id={reasonId} value={reason} onChange={setReason} />
             </section>
 
             <section className="space-y-2">

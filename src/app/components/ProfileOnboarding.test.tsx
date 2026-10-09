@@ -275,12 +275,17 @@ describe('ProfileOnboarding', () => {
   it('blocks completion until every code of conduct item and the final agreement are checked', async () => {
     renderConductOnboarding();
 
+    const onboardingViewport = screen.getByTestId('onboarding-glass-panel').parentElement?.parentElement;
+    expect(onboardingViewport).toHaveClass('justify-center');
+
     await fillProfileRites();
     await reachFinalOath();
 
     const enterButton = screen.getByRole('button', { name: /enter cruush/i });
 
     expect(screen.getByText('take the oath')).toBeInTheDocument();
+    expect(onboardingViewport).toHaveClass('justify-start');
+    expect(onboardingViewport).not.toHaveClass('justify-center');
     expect(enterButton).toBeDisabled();
     expect(saveMyProfile).not.toHaveBeenCalled();
 
@@ -318,9 +323,8 @@ describe('ProfileOnboarding', () => {
     expect(screen.getByText('find your crowd')).toBeInTheDocument();
     expect(screen.queryByText('Choose your crowds.')).not.toBeInTheDocument();
     expect(screen.queryByText(/Choosing crowds here does not turn it on/i)).not.toBeInTheDocument();
-    expect(screen.getByText('Crowds are shared social spaces, like gay or dyke bars, not identity labels. Choose 1 to 3. Change who can see you in Map Controls > Visibility.')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /next rite/i })).toBeDisabled();
-    chooseCrowd('Gay');
+    expect(screen.getByText('Crowds are shared social spaces, like gay or dyke bars, not identity labels. Change who can see you in Map Controls > Visibility.')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /next rite/i })).not.toBeDisabled();
     fireEvent.click(screen.getByRole('button', { name: /next/i }));
 
     expect(screen.queryByText('declare your hunger')).not.toBeInTheDocument();
@@ -627,7 +631,7 @@ describe('ProfileOnboarding', () => {
     expect(screen.getByPlaceholderText('Your name')).toHaveValue('River');
   });
 
-  it('requires name, gender, sexuality and Crowd while leaving Vibes optional', async () => {
+  it('requires name, gender and sexuality while leaving Crowds and Vibes optional', async () => {
     const onComplete = vi.fn();
     render(<MemoryRouter><ProfileOnboarding onComplete={onComplete} previewMode needsCodeOfConduct /></MemoryRouter>);
     const next = () => screen.getByRole('button', { name: /next rite/i });
@@ -642,8 +646,11 @@ describe('ProfileOnboarding', () => {
     expect(screen.queryByText('Optional · select up to 3')).not.toBeInTheDocument();
     expect(next()).not.toBeDisabled();
     fireEvent.click(next()); // Pronouns and trans checkbox remain empty.
-    expect(next()).toBeDisabled();
+    expect(next()).not.toBeDisabled();
     chooseCrowd('Gay');
+    expect(next()).not.toBeDisabled();
+    chooseCrowd('Gay');
+    expect(screen.getByRole('button', { name: 'Gay' })).toHaveAttribute('aria-pressed', 'false');
     expect(next()).not.toBeDisabled();
     fireEvent.click(next());
     expect(screen.getByText('reveal your aura')).toBeInTheDocument();
@@ -701,10 +708,44 @@ describe('ProfileOnboarding', () => {
     expect(screen.getByText('name your form')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /next rite/i })).toBeDisabled();
     second.unmount();
-    writeOnboardingDraft({ step: 6, profile: { ...profile, crowds: [], is_trans: false } });
-    render(<MemoryRouter><ProfileOnboarding onComplete={vi.fn()} /></MemoryRouter>);
+  });
+
+  it.each([
+    [3, 'reveal your aura'],
+    [4, 'protect your key'],
+    [5, 'summon your circle'],
+    [6, 'take the oath'],
+  ])('resumes step %s with no Crowds without sending the member back', (step, heading) => {
+    writeOnboardingDraft({
+      step,
+      profile: { name: 'River', identities: ['nonbinary'], sexuality: ['queer'], crowds: [], is_trans: false },
+    });
+    renderConductOnboarding();
+    expect(screen.getByText(heading)).toBeInTheDocument();
+    expect(readOnboardingDraft()?.step).toBe(step);
+    expect(screen.queryByText('find your crowd')).not.toBeInTheDocument();
+  });
+
+  it('saves an empty Crowds selection and completes onboarding after the required oath', async () => {
+    const onComplete = renderConductOnboarding();
+    fireEvent.change(screen.getByPlaceholderText('Your name'), { target: { value: 'River' } });
+    fireEvent.click(screen.getByRole('button', { name: /next rite/i }));
+    await chooseMultiSelect('Gender Identity', 'nonbinary');
+    await chooseMultiSelect('Sexuality', 'queer');
+    fireEvent.click(screen.getByRole('button', { name: /next rite/i }));
     expect(screen.getByText('find your crowd')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /next rite/i })).toBeDisabled();
+    expect(screen.getByRole('button', { name: /next rite/i })).not.toBeDisabled();
+    fireEvent.click(screen.getByRole('button', { name: /next rite/i }));
+    expect(screen.getByText('reveal your aura')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /next rite/i }));
+    await reachFinalOath();
+    expect(screen.getByRole('button', { name: /enter cruush/i })).toBeDisabled();
+    acceptEveryConductRule();
+    fireEvent.click(screen.getByRole('button', { name: /enter cruush/i }));
+    await waitFor(() => expect(onComplete).toHaveBeenCalledTimes(1));
+    expect(saveMyProfile).toHaveBeenCalledWith(expect.objectContaining({ crowds: [] }));
+    expect(acceptCodeOfConduct).toHaveBeenCalledWith('2026-07-07');
+    expect(readOnboardingDraft()).toBeNull();
   });
 
 });

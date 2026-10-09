@@ -2,6 +2,7 @@ import type { FastifyInstance } from "fastify";
 import { randomUUID } from "node:crypto";
 import { z } from "zod";
 import { authEmailSchema } from "../auth-schema.js";
+import { activeBugReportContactEmail, BUG_REPORT_CONTACT_REDACTED, withLockedBugReportReplyContact, type BugReportContact } from "../bug-report-email-retention.js";
 import { runTransaction } from "../db.js";
 import { ApiError } from "../errors.js";
 import { encryptMediaBytes } from "../media-encryption.js";
@@ -45,7 +46,7 @@ type SupportRequestRow = {
   created_at: string | Date;
 };
 
-type SupportRequestListRow = {
+type SupportRequestListRow = BugReportContact & {
   id: string;
   requester_user_id: string | null;
   contact_email: string | null;
@@ -64,7 +65,7 @@ type SupportRequestListRow = {
   appeal_evidence_types: string[] | null;
 };
 
-type SupportRequestReplyTargetRow = {
+type SupportRequestReplyTargetRow = BugReportContact & {
   id: string;
   category: string;
   subject: string;
@@ -101,6 +102,14 @@ function getUserAgent(value: string | string[] | undefined) {
   }
 
   return value ?? "";
+}
+
+function sanitizeBugReportPageUrl(pageUrl: string) {
+  try {
+    return new URL(pageUrl, "https://cruush.invalid").pathname || "/";
+  } catch {
+    return "/";
+  }
 }
 
 async function resolveSupportContactEmail(
@@ -361,6 +370,8 @@ export async function registerSupportRoutes(app: FastifyInstance) {
          sr.id::text as id,
          sr.requester_user_id::text as requester_user_id,
          sr.contact_email,
+         sr.contact_email_opted_in,
+         sr.contact_email_expires_at,
          sr.category,
          sr.subject,
          sr.message,
@@ -370,7 +381,12 @@ export async function registerSupportRoutes(app: FastifyInstance) {
          sr.status,
          sr.created_at,
          sr.updated_at,
-         coalesce(nullif(sr.contact_email, ''), requester.email) as recipient_email,
+         case
+           when sr.category = 'bug' then case
+             when sr.contact_email_opted_in and sr.contact_email_expires_at > now()
+             then nullif(sr.contact_email, '') else null end
+           else coalesce(nullif(sr.contact_email, ''), requester.email)
+         end as recipient_email,
          coalesce(reply_stats.reply_count, 0)::int as reply_count,
          reply_stats.last_reply_at,
          appeal_evidence.evidence_types as appeal_evidence_types
@@ -408,12 +424,17 @@ export async function registerSupportRoutes(app: FastifyInstance) {
 
     const total = Number(countQuery.rows[0]?.total ?? 0);
 
+    const canAccessBugReportEmail = moderator.role === "admin";
+
     return reply.send({
       data: {
         requests: listQuery.rows.map((row) => ({
           id: row.id,
           requesterUserId: row.requester_user_id,
-          contactEmail: row.contact_email,
+          // A bug report's reply address is an explicit, time-limited opt-in.
+          // Only admins who can actually handle follow-up may read it.
+          contactEmail: row.category === "bug"
+            ? (canAccessBugReportEmail ? activeBugReportContactEmail(row) : null) : row.contact_email,
           category: row.category,
           subject: row.subject,
           message: row.message,
@@ -423,7 +444,8 @@ export async function registerSupportRoutes(app: FastifyInstance) {
           status: row.status,
           createdAt: new Date(row.created_at).toISOString(),
           updatedAt: new Date(row.updated_at).toISOString(),
-          recipientEmail: row.recipient_email,
+          recipientEmail: row.category === "bug"
+            ? (canAccessBugReportEmail ? activeBugReportContactEmail(row) : null) : row.recipient_email,
           replyCount: Number(row.reply_count ?? 0),
           lastReplyAt: row.last_reply_at ? new Date(row.last_reply_at).toISOString() : null,
           appealEvidence: (row.appeal_evidence_types ?? [])
@@ -466,7 +488,15 @@ export async function registerSupportRoutes(app: FastifyInstance) {
            sr.page_url,
            sr.source,
            sr.created_at,
-           coalesce(nullif(sr.contact_email, ''), requester.email) as recipient_email,
+           sr.contact_email,
+           sr.contact_email_opted_in,
+           sr.contact_email_expires_at,
+           case
+             when sr.category = 'bug' then case
+               when sr.contact_email_opted_in and sr.contact_email_expires_at > now()
+               then nullif(sr.contact_email, '') else null end
+             else coalesce(nullif(sr.contact_email, ''), requester.email)
+           end as recipient_email,
            sr.requester_user_id::text as requester_user_id
          from support_requests sr
          left join app_users requester on requester.id = sr.requester_user_id
@@ -481,6 +511,13 @@ export async function registerSupportRoutes(app: FastifyInstance) {
         throw new ApiError(404, "NOT_FOUND", "Support request not found.");
       }
 
+      if (supportRequest.category === "bug" && moderator.role !== "admin") {
+        throw new ApiError(403, "FORBIDDEN", "Admin access is required to reply to bug reports.");
+      }
+
+      if (supportRequest.category === "bug") {
+        supportRequest.recipient_email = activeBugReportContactEmail(supportRequest);
+      }
       if (!supportRequest.recipient_email) {
         throw new ApiError(400, "VALIDATION_ERROR", "This bug report has no reply address on file.");
       }
@@ -500,7 +537,7 @@ export async function registerSupportRoutes(app: FastifyInstance) {
         [
           supportRequest.id,
           moderator.userId,
-          supportRequest.recipient_email,
+          supportRequest.category === "bug" ? BUG_REPORT_CONTACT_REDACTED : supportRequest.recipient_email,
           supportRequest.subject,
           payload.message
         ]
@@ -528,21 +565,25 @@ export async function registerSupportRoutes(app: FastifyInstance) {
     });
 
     let deliveryStatus: "sent" | "failed" = "sent";
-    const recipientEmail = replyResult.request.recipient_email;
+    const isBugReply = replyResult.request.category === "bug";
+    let recipientEmail = isBugReply ? null : replyResult.request.recipient_email;
 
-    if (!recipientEmail) {
+    if (!isBugReply && !recipientEmail) {
       throw new ApiError(400, "VALIDATION_ERROR", "This bug report has no reply address on file.");
     }
 
-    try {
+    const sendReply = async (currentRecipientEmail: string) => {
       await sendSupportRequestReplyEmail({
         config: app.config,
         logger: app.log,
-        replyToEmail: recipientEmail,
+        replyToEmail: currentRecipientEmail,
+        // Reuse the provider's existing bounded-send path only for bug replies.
+        // This key identifies this saved reply, not a new HTTP POST retry.
+        ...(isBugReply ? { idempotencyKey: `bug-reply:${replyResult.reply.id}` } : {}),
         request: {
           id: replyResult.request.id,
           category: replyResult.request.category,
-          contactEmail: recipientEmail,
+          contactEmail: currentRecipientEmail,
           createdAt: new Date(replyResult.request.created_at).toISOString(),
           message: replyResult.request.message,
           pageUrl: replyResult.request.page_url,
@@ -552,6 +593,17 @@ export async function registerSupportRoutes(app: FastifyInstance) {
         },
         replyMessage: payload.message
       });
+    };
+
+    try {
+      if (isBugReply) {
+        recipientEmail = await withLockedBugReportReplyContact(app.db, requestId, replyResult.reply.id, sendReply);
+        if (!recipientEmail) {
+          throw new ApiError(400, "VALIDATION_ERROR", "This bug report has no reply address on file.");
+        }
+      } else {
+        await sendReply(recipientEmail!);
+      }
       await app.db.query(
         `update support_request_replies
          set delivery_status = 'sent'
@@ -566,6 +618,7 @@ export async function registerSupportRoutes(app: FastifyInstance) {
          where id = $1`,
         [replyResult.reply.id]
       );
+      if (isBugReply && error instanceof ApiError && error.code === "VALIDATION_ERROR") throw error;
       app.log.error({ err: error, supportRequestId: replyResult.request.id, replyId: replyResult.reply.id }, "support reply email delivery failed");
     }
 
@@ -585,7 +638,8 @@ export async function registerSupportRoutes(app: FastifyInstance) {
     const requesterUserId = await getOptionalAuthenticatedUserId(request);
     const payload = createSupportRequestPayloadSchema.parse(request.body);
 
-    const resolvedContactEmail = !requesterUserId && payload.source === "survey" && !payload.contactEmail
+    const resolvedContactEmail = (!requesterUserId && payload.source === "survey" && !payload.contactEmail)
+      || (payload.category === "bug" && requesterUserId && !payload.linkAccountEmail)
       ? null
       : await resolveSupportContactEmail(app, requesterUserId, payload.contactEmail);
 
@@ -607,13 +661,12 @@ export async function registerSupportRoutes(app: FastifyInstance) {
     const isAgeAppeal = isAgeSuspensionAppeal({
       category: payload.category,
       message: payload.message,
-      pageUrl: payload.pageUrl,
+      pageUrl: payload.category === "bug" ? sanitizeBugReportPageUrl(payload.pageUrl) : payload.pageUrl,
       source: payload.source,
       subject: payload.subject
     });
 
     const metadata = {
-      userAgent: getUserAgent(request.headers["user-agent"]),
       device: payload.device ?? null,
       screenshotAttached: Boolean(payload.screenshot),
       isAgeSuspensionAppeal: isAgeAppeal,
@@ -622,11 +675,16 @@ export async function registerSupportRoutes(app: FastifyInstance) {
         provider: null
       }
     };
+    const pageUrl = payload.category === "bug"
+      ? sanitizeBugReportPageUrl(payload.pageUrl)
+      : payload.pageUrl;
 
     const result = await app.db.query<SupportRequestRow>(
       `insert into support_requests (
          requester_user_id,
          contact_email,
+         contact_email_expires_at,
+         contact_email_opted_in,
          category,
          subject,
          message,
@@ -634,7 +692,8 @@ export async function registerSupportRoutes(app: FastifyInstance) {
          page_url,
          metadata
        )
-       values ($1, $2, $3, $4, $5, $6, $7, $8::jsonb)
+       values ($1, $2, case when $2 is null or $3 <> 'bug' then null else now() + interval '30 days' end,
+         ($3 = 'bug' and $2 is not null), $3, $4, $5, $6, $7, $8::jsonb)
        ${payload.source === "survey" ? "on conflict do nothing" : ""}
        returning id::text as id, status, ai_triage_status, created_at`,
       [
@@ -644,7 +703,7 @@ export async function registerSupportRoutes(app: FastifyInstance) {
         payload.subject,
         payload.message,
         payload.source,
-        payload.pageUrl,
+        pageUrl,
         metadata
       ]
     );
@@ -682,12 +741,14 @@ export async function registerSupportRoutes(app: FastifyInstance) {
         request: {
           id: row.id,
           category: payload.category,
-          contactEmail: resolvedContactEmail,
+          // The staff inbox is persistent; only the live admin inbox may expose
+          // the time-limited bug contact or link it to an account.
+          contactEmail: payload.category === "bug" ? null : resolvedContactEmail,
           createdAt: new Date(row.created_at).toISOString(),
           message: payload.message,
-          pageUrl: payload.pageUrl,
+          pageUrl,
           device: payload.device ?? null,
-          requesterUserId,
+          requesterUserId: payload.category === "bug" ? null : requesterUserId,
           screenshot: payload.screenshot
             ? {
                 filename: payload.screenshot.filename,

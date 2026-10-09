@@ -18,6 +18,7 @@ const {
   getGroupMembers,
   removeFavoriteMessageImage,
   sendFavoriteMessageImage,
+  sendGroupPulse,
   setClubMemberRole,
   setConversationDisappearingTimer,
   setConversationNotifications,
@@ -34,6 +35,7 @@ const {
   getGroupMembers: vi.fn(),
   removeFavoriteMessageImage: vi.fn(),
   sendFavoriteMessageImage: vi.fn(),
+  sendGroupPulse: vi.fn(),
   setClubMemberRole: vi.fn(),
   setConversationDisappearingTimer: vi.fn(),
   setConversationNotifications: vi.fn(),
@@ -41,8 +43,15 @@ const {
   viewMessageAttachment: vi.fn(),
 }));
 
+const serviceArea = vi.hoisted(() => ({ profilePinsAllowed: true }));
+vi.mock('./MapServiceAreaContext', () => ({ useMapServiceArea: () => serviceArea }));
+
 const { blockUser } = vi.hoisted(() => ({
   blockUser: vi.fn(),
+}));
+
+const { getProfileById } = vi.hoisted(() => ({
+  getProfileById: vi.fn(),
 }));
 
 const { createReport } = vi.hoisted(() => ({
@@ -86,6 +95,7 @@ vi.mock('../lib/messagesApi', async () => {
     getGroupMembers,
     removeFavoriteMessageImage,
     sendFavoriteMessageImage,
+    sendGroupPulse,
     setClubMemberRole,
     setConversationDisappearingTimer,
     setConversationNotifications,
@@ -96,6 +106,11 @@ vi.mock('../lib/messagesApi', async () => {
 
 vi.mock('../lib/blockApi', () => ({
   blockUser,
+}));
+
+vi.mock('../lib/profileApi', async () => ({
+  ...(await vi.importActual<typeof import('../lib/profileApi')>('../lib/profileApi')),
+  getProfileById,
 }));
 
 vi.mock('../lib/reportApi', async () => {
@@ -182,6 +197,7 @@ function mockVisualViewport({
 
 describe('PrivateGroupChat', () => {
   beforeEach(() => {
+    serviceArea.profilePinsAllowed = true;
     window.localStorage.removeItem('cruush:dl-mode-show-only-exception');
     clearConversationForEveryone.mockReset();
     createMessage.mockReset();
@@ -191,8 +207,10 @@ describe('PrivateGroupChat', () => {
     getConversationMessages.mockReset();
     getCurrentUserId.mockReset();
     getGroupMembers.mockReset();
+    getProfileById.mockReset();
     removeFavoriteMessageImage.mockReset();
     sendFavoriteMessageImage.mockReset();
+    sendGroupPulse.mockReset().mockResolvedValue({ allowance: { remaining: 0, limit: 1 } });
     setClubMemberRole.mockReset();
     setConversationDisappearingTimer.mockReset();
     setConversationNotifications.mockReset();
@@ -208,6 +226,7 @@ describe('PrivateGroupChat', () => {
     toastError.mockReset();
     getCurrentUserId.mockResolvedValue('user-1');
     getGroupMembers.mockResolvedValue([]);
+    getProfileById.mockResolvedValue(null);
     getFavoriteMessageImages.mockResolvedValue({ images: [] });
     blockUser.mockResolvedValue({
       userId: 'user-2',
@@ -256,6 +275,47 @@ describe('PrivateGroupChat', () => {
     }
   });
 
+  it('renders a shared profile with the literal Cruushes card in chat', async () => {
+    const profileId = '53fd68d7-24fc-4cff-8cd7-a97ec0cadf97';
+    getConversationMessages.mockResolvedValue({
+      conversation: {
+        id: 'profile-share-chat', kind: 'dm', user: { id: 'user-2', name: 'Sender', pronouns: 'they/them', photo: null },
+        distance: 'Nearby', updatedAt: '2026-10-08T12:00:00Z', lastMessage: '', unreadCount: 0, pinned: false, tags: [], membersLabel: '2 people',
+      },
+      messages: [{
+        id: 'shared-profile-message', userId: 'user-2', content: `[[cruush:profile:${profileId}]] River`, timestamp: '2026-10-08T12:00:00Z',
+      }],
+    });
+    getProfileById.mockResolvedValue({
+      id: profileId,
+      display_name: 'River',
+      photos: ['/river.jpg'],
+      photo_metadata: [{ url: '/river.jpg', explicit: false }],
+      pronouns: ['they/them'],
+      custom_pronouns: '',
+      side_badges: { left: null, right: null },
+      badges: [],
+      vibes: ['Night owl'],
+      last_active: '4h ago',
+      distance_label: 'Nearby',
+      viewer_relationship: { mutual_cruush: true, match_id: 'match-1', can_message: true, can_reveal_precise_location: false },
+    });
+
+    render(<MemoryRouter initialEntries={['/chat/profile-share-chat']}><Routes><Route path="/chat/:chatId" element={<PrivateGroupChat />} /></Routes></MemoryRouter>);
+
+    const card = await screen.findByTestId(`shared-profile-card-${profileId}`);
+    expect(card).toHaveClass('cruush-user-activity-capsule');
+    expect(within(card).getByText('River')).toBeInTheDocument();
+    expect(within(card).getByText('Night owl')).toBeInTheDocument();
+    expect(within(card).getByText('4h ago')).toBeInTheDocument();
+    expect(within(card).getByText('Nearby')).toBeInTheDocument();
+    expect(within(card).getByTestId('activity-vibes')).toBeInTheDocument();
+    expect(within(card).getByTestId('profile-action-trio')).toBeInTheDocument();
+    expect(within(card).getByRole('button', { name: 'Uncruush River' })).toBeInTheDocument();
+    expect(within(card).getByRole('button', { name: 'Message River' })).toBeInTheDocument();
+    expect(card).toHaveAttribute('aria-label', 'Open River profile');
+  });
+
   it('shows an empty live chat without preview messages', async () => {
     getConversationMessages.mockResolvedValue({
       conversation: {
@@ -267,6 +327,7 @@ describe('PrivateGroupChat', () => {
           pronouns: 'they/them',
           photo: null,
           lastActive: '12m ago',
+          travelling: true,
         },
         distance: 'Nearby',
         updatedAt: '2026-04-29T12:00:00.000Z',
@@ -289,7 +350,14 @@ describe('PrivateGroupChat', () => {
     );
 
     expect(await screen.findByText('No messages yet.')).toBeInTheDocument();
-    expect(screen.getByText('12m ago')).toBeInTheDocument();
+    const header = screen.getByTestId('chat-thread-header');
+    const name = within(header).getByText('River');
+    const lastActive = within(header).getByText('12m ago');
+
+    expect(name.parentElement).toContainElement(lastActive);
+    expect(within(header).getByRole('img', { name: 'River avatar' }).querySelector('[data-contrail-style]'))
+      .toHaveAttribute('data-contrail-style', 'cluster');
+    expect(within(header).queryByText('they/them')).not.toBeInTheDocument();
     expect(screen.queryByText('Nearby')).not.toBeInTheDocument();
     expect(screen.queryByText('Preview thread')).not.toBeInTheDocument();
     expect(screen.queryByText('hosting for another hour if you still want to swing by')).not.toBeInTheDocument();
@@ -732,7 +800,11 @@ describe('PrivateGroupChat', () => {
     );
 
     fireEvent.click(await screen.findByRole('button', { name: 'Report conversation' }));
-    fireEvent.change(screen.getByLabelText('Reason'), { target: { value: 'harassment' } });
+    fireEvent.click(screen.getByRole('combobox', { name: 'Reason' }));
+    const reason = await screen.findByRole('option', { name: 'Harassment or bullying' });
+    fireEvent.pointerDown(reason, { button: 0, pointerType: 'touch' });
+    fireEvent.pointerUp(reason, { button: 0, pointerType: 'touch' });
+    fireEvent.click(reason);
     fireEvent.change(screen.getByLabelText('Additional details (optional)'), {
       target: { value: 'Repeated unwanted messages.' },
     });
@@ -990,7 +1062,11 @@ describe('PrivateGroupChat', () => {
     );
 
     fireEvent.click(await screen.findByRole('button', { name: 'Report message' }));
-    fireEvent.change(screen.getByLabelText('Reason'), { target: { value: 'harassment' } });
+    fireEvent.click(screen.getByRole('combobox', { name: 'Reason' }));
+    const reason = await screen.findByRole('option', { name: 'Harassment or bullying' });
+    fireEvent.pointerDown(reason, { button: 0, pointerType: 'touch' });
+    fireEvent.pointerUp(reason, { button: 0, pointerType: 'touch' });
+    fireEvent.click(reason);
     fireEvent.click(screen.getByRole('button', { name: 'Submit report' }));
 
     await waitFor(() => expect(createReport).toHaveBeenCalledWith({
@@ -1472,6 +1548,48 @@ describe('PrivateGroupChat', () => {
     fireEvent.click(await screen.findByRole('button', { name: 'Open cas profile' }));
 
     expect(screen.getByTestId('location-probe')).toHaveTextContent('/profile/user-2');
+  });
+
+  it.each([false, true])('disables Pulse outside effective area without restricting existing chat (Club %s)', async (club) => {
+    serviceArea.profilePinsAllowed = false;
+    const conversationId = '44444444-4444-4444-8444-444444444444';
+    const clubId = '22222222-2222-4222-8222-222222222222';
+    getConversationMessages.mockResolvedValue({
+      conversation: {
+        id: conversationId, kind: 'group', clubId: club ? clubId : undefined,
+        user: { id: conversationId, name: 'Existing group', pronouns: '', photo: null },
+        distance: 'Nearby', updatedAt: '2026-10-09T12:00:00Z', lastMessage: '', unreadCount: 0,
+        pinned: false, tags: [], membersLabel: '2 people', currentUserRole: 'owner', disappearingTimer: 'off',
+      },
+      messages: [{ id: 'msg-1', userId: 'user-2', content: 'Existing chat history', timestamp: '2026-10-09T12:00:00Z' }],
+    });
+    getClub.mockResolvedValue({
+      id: clubId, title: 'Existing group', summary: '', tags: [], currentUserRole: 'owner',
+      conversationId, joinRequestStatus: 'member', memberCount: 2,
+    });
+    createMessage.mockResolvedValue({ id: 'msg-2', userId: 'user-1', content: 'Chat still works', timestamp: '2026-10-09T12:01:00Z' });
+    const view = () => <MemoryRouter initialEntries={[`/chat/${conversationId}`]}><Routes>
+      <Route path="/chat/:chatId" element={<PrivateGroupChat />} />
+      <Route path="/chat/group/:chatId/settings" element={<PrivateGroupChat />} />
+    </Routes></MemoryRouter>;
+    const { rerender } = render(view());
+    expect(await screen.findByText('Existing chat history')).toBeInTheDocument();
+    fireEvent.change(screen.getByPlaceholderText('Drop the plan...'), { target: { value: 'Chat still works' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Send message' }));
+    await waitFor(() => expect(createMessage).toHaveBeenCalledWith(conversationId, 'Chat still works'));
+    fireEvent.click(screen.getByRole('button', { name: 'Conversation settings' }));
+    const pulse = await screen.findByRole('button', { name: 'Pulse group' });
+    expect(pulse).toBeDisabled();
+    fireEvent.click(pulse);
+    expect(sendGroupPulse).not.toHaveBeenCalled();
+
+    // A fresh effective in-area result, including MHC, restores only Pulse access.
+    serviceArea.profilePinsAllowed = true;
+    rerender(view());
+    expect(pulse).toBeEnabled();
+    fireEvent.click(pulse);
+    await waitFor(() => expect(sendGroupPulse).toHaveBeenCalledWith(conversationId));
+    expect(await screen.findByText('Group Pulse sent. 0 of 1 Pulses remain.')).toBeInTheDocument();
   });
 
   it('keeps Club administration inside the existing Conversation settings menu', async () => {

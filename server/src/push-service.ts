@@ -24,6 +24,7 @@ type NotificationPreferencesRow = {
   messages_enabled: boolean;
   groups_enabled: boolean;
   nearby_enabled: boolean;
+  mutual_feed_enabled: boolean;
   rewards_enabled: boolean;
   site_reminders_enabled: boolean;
   sound_enabled: boolean;
@@ -41,6 +42,7 @@ export type NotificationPreferences = {
   messagesEnabled: boolean;
   groupsEnabled: boolean;
   nearbyEnabled: boolean;
+  mutualFeedEnabled: boolean;
   rewardsEnabled: boolean;
   siteRemindersEnabled: boolean;
   soundEnabled: boolean;
@@ -136,6 +138,7 @@ function mapPreferences(row?: Partial<NotificationPreferencesRow> | null): Notif
     messagesEnabled: row?.messages_enabled ?? true,
     groupsEnabled: row?.groups_enabled ?? true,
     nearbyEnabled: row?.nearby_enabled ?? true,
+    mutualFeedEnabled: row?.mutual_feed_enabled ?? true,
     rewardsEnabled: row?.rewards_enabled ?? true,
     siteRemindersEnabled: row?.site_reminders_enabled ?? true,
     soundEnabled: row?.sound_enabled ?? true,
@@ -181,6 +184,10 @@ function isPreferenceEnabledForType(preferences: NotificationPreferences, type: 
 
   if (type === "nearby_activity" || type === "nearby_feed_post" || type === "place_checkin_expired") {
     return preferences.nearbyEnabled;
+  }
+
+  if (type === "mutual_feed_post") {
+    return preferences.mutualFeedEnabled;
   }
 
   if (type === "subscription_expiring") {
@@ -253,6 +260,13 @@ function genericPushCopy(type: AppNotificationType) {
     };
   }
 
+  if (type === "mutual_feed_post") {
+    return {
+      title: "New Feed post",
+      body: "Open Feed to see it."
+    };
+  }
+
   if (type === "reward") {
     return {
       title: "cruush+ reward earned",
@@ -291,7 +305,7 @@ export function getVapidPublicKey(config: AppConfig) {
 
 export async function getNotificationPreferences(app: PushApp, userId: string) {
   const result = await app.db.query<NotificationPreferencesRow>(
-    `select email_enabled, push_enabled, cruush_enabled, messages_enabled, groups_enabled, nearby_enabled, rewards_enabled, site_reminders_enabled, sound_enabled, quiet_hours_enabled, quiet_hours_start_minute, quiet_hours_end_minute, quiet_hours_timezone, pulse_enabled
+    `select email_enabled, push_enabled, cruush_enabled, messages_enabled, groups_enabled, nearby_enabled, mutual_feed_enabled, rewards_enabled, site_reminders_enabled, sound_enabled, quiet_hours_enabled, quiet_hours_start_minute, quiet_hours_end_minute, quiet_hours_timezone, pulse_enabled
      from notification_preferences
      where user_id = $1
      limit 1`,
@@ -321,6 +335,7 @@ export async function updateNotificationPreferences(
        messages_enabled,
        groups_enabled,
        nearby_enabled,
+       mutual_feed_enabled,
        rewards_enabled,
        site_reminders_enabled,
        sound_enabled,
@@ -330,7 +345,7 @@ export async function updateNotificationPreferences(
        quiet_hours_timezone,
        pulse_enabled
      )
-     values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
+     values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
      on conflict (user_id) do update
        set email_enabled = excluded.email_enabled,
            push_enabled = excluded.push_enabled,
@@ -338,6 +353,7 @@ export async function updateNotificationPreferences(
            messages_enabled = excluded.messages_enabled,
            groups_enabled = excluded.groups_enabled,
            nearby_enabled = excluded.nearby_enabled,
+           mutual_feed_enabled = excluded.mutual_feed_enabled,
            rewards_enabled = excluded.rewards_enabled,
            site_reminders_enabled = excluded.site_reminders_enabled,
            sound_enabled = excluded.sound_enabled,
@@ -347,7 +363,7 @@ export async function updateNotificationPreferences(
            quiet_hours_timezone = excluded.quiet_hours_timezone,
            pulse_enabled = excluded.pulse_enabled,
            updated_at = now()
-     returning email_enabled, push_enabled, cruush_enabled, messages_enabled, groups_enabled, nearby_enabled, rewards_enabled, site_reminders_enabled, sound_enabled, quiet_hours_enabled, quiet_hours_start_minute, quiet_hours_end_minute, quiet_hours_timezone, pulse_enabled`,
+     returning email_enabled, push_enabled, cruush_enabled, messages_enabled, groups_enabled, nearby_enabled, mutual_feed_enabled, rewards_enabled, site_reminders_enabled, sound_enabled, quiet_hours_enabled, quiet_hours_start_minute, quiet_hours_end_minute, quiet_hours_timezone, pulse_enabled`,
     [
       userId,
       next.emailEnabled,
@@ -356,6 +372,7 @@ export async function updateNotificationPreferences(
       next.messagesEnabled,
       next.groupsEnabled,
       next.nearbyEnabled,
+      next.mutualFeedEnabled,
       next.rewardsEnabled,
       next.siteRemindersEnabled,
       next.soundEnabled,
@@ -401,9 +418,9 @@ export async function upsertPushSubscription(
        on conflict (user_id) do update
          set push_enabled = true,
              updated_at = now()
-       returning push_enabled, cruush_enabled, messages_enabled, groups_enabled, nearby_enabled, rewards_enabled, site_reminders_enabled, sound_enabled, quiet_hours_enabled, quiet_hours_start_minute, quiet_hours_end_minute, quiet_hours_timezone, pulse_enabled
+       returning push_enabled, cruush_enabled, messages_enabled, groups_enabled, nearby_enabled, mutual_feed_enabled, rewards_enabled, site_reminders_enabled, sound_enabled, quiet_hours_enabled, quiet_hours_start_minute, quiet_hours_end_minute, quiet_hours_timezone, pulse_enabled
      )
-     select push_enabled, cruush_enabled, messages_enabled, groups_enabled, nearby_enabled, rewards_enabled, site_reminders_enabled, sound_enabled, quiet_hours_enabled, quiet_hours_start_minute, quiet_hours_end_minute, quiet_hours_timezone, pulse_enabled
+     select push_enabled, cruush_enabled, messages_enabled, groups_enabled, nearby_enabled, mutual_feed_enabled, rewards_enabled, site_reminders_enabled, sound_enabled, quiet_hours_enabled, quiet_hours_start_minute, quiet_hours_end_minute, quiet_hours_timezone, pulse_enabled
      from preferences_upsert`,
     [
       userId,

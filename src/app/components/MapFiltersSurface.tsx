@@ -87,6 +87,8 @@ export const DEFAULT_FILTER_STATE: FilterState = {
 
 interface MapFiltersSurfaceProps {
   mutualCruushesOnly?: boolean;
+  excludeMileHighClub?: boolean;
+  onExcludeMileHighClubChange?: (exclude: boolean) => void;
   mode?: 'sheet';
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -149,6 +151,8 @@ function FieldGroup({
 
 export default function MapFiltersSurface({
   mutualCruushesOnly = false,
+  excludeMileHighClub = false,
+  onExcludeMileHighClubChange,
   open,
   onOpenChange,
   title = 'Seeking Filter',
@@ -169,7 +173,7 @@ export default function MapFiltersSurface({
       <SheetContent
         closeSide="left"
         side="right"
-        overlayClassName="cruush-map-filter-sheet-overlay z-[1090]"
+        overlayClassName="cruush-map-filter-sheet-overlay z-[1090] sm:bg-transparent"
         className="cruush-map-filter-sheet z-[1100] w-full flex h-full max-h-[100dvh] flex-col gap-0 overflow-hidden border-white/10 bg-background/95 p-0 sm:max-w-xl"
       >
         <SheetHeader className="shrink-0 border-b border-white/10 py-4 pl-14 pr-4">
@@ -288,9 +292,27 @@ export default function MapFiltersSurface({
                 <Switch
                   id="seeking-mile-high-club"
                   checked={value.mileHighClub}
-                  onCheckedChange={(mileHighClub) => onChange({ ...value, mileHighClub })}
+                  onCheckedChange={(mileHighClub) => {
+                    if (mileHighClub) onExcludeMileHighClubChange?.(false);
+                    onChange({ ...value, mileHighClub });
+                  }}
                 />
               </div>
+              {onExcludeMileHighClubChange ? (
+                <div className="flex items-start justify-between gap-4 rounded-2xl border border-white/10 bg-white/[0.035] p-4">
+                  <div className="space-y-0.5">
+                    <Label htmlFor="seeking-exclude-mile-high-club">Hide posts from Mile High Club members</Label>
+                  </div>
+                  <Switch
+                    id="seeking-exclude-mile-high-club"
+                    checked={excludeMileHighClub}
+                    onCheckedChange={(exclude) => {
+                      if (exclude && value.mileHighClub) onChange({ ...value, mileHighClub: false });
+                      onExcludeMileHighClubChange(exclude);
+                    }}
+                  />
+                </div>
+              ) : null}
               <FieldGroup label="Looking For" options={LOOKING_FOR} stateKey="lookingFor" value={value} onChange={onChange} />
               <FieldGroup label="Timing" options={AVAILABILITY} stateKey="timing" value={value} onChange={onChange} />
               <FieldGroup label="Hosting/Travel" options={HOSTING} stateKey="hosting" value={value} onChange={onChange} />

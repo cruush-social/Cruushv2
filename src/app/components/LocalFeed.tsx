@@ -23,17 +23,11 @@ import MapFiltersSurface, { DEFAULT_FILTER_STATE, type FilterState } from './Map
 import { ProfilePhotoCropper, readProfilePhotoPreviewUrl } from './ProfileEdit';
 import { Slider } from './ui/slider';
 import { Switch } from './ui/switch';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from './ui/dialog';
 import { Textarea } from './ui/textarea';
 import AppPageHeader from './AppPageHeader';
 import TagInput from './TagInput';
+import { useMapServiceArea } from './MapServiceAreaContext';
+import { ghostSettingsBodyClassName, ghostSettingsCardClassName } from './ghostSettingsStyles';
 import { useDlMode, shouldMaskPhoto, getDlModeShowOnlyException, getNsfwPhotoRestriction } from '../lib/dlMode';
 import { buildCruushPlusStorePath } from '../lib/cruushPlusConversion';
 import {
@@ -103,11 +97,14 @@ const FEED_LOCATION_PIN_OPTIONS: Array<{ value: FeedLocationPinVisibility; label
 ];
 
 const FEED_WINDOW_OPTIONS: Array<{ value: FeedPostWindow; label: string }> = [
-  { value: '7d', label: '7d' },
-  { value: '24h', label: '24h' },
-  { value: '6h', label: '6h' },
-  { value: '3h', label: '3h' },
   { value: '1h', label: '1h' },
+  { value: '3h', label: '3h' },
+  { value: '6h', label: '6h' },
+  { value: '24h', label: '24h' },
+  ...Array.from({ length: 24 }, (_, index) => {
+    const label = `${index + 7}d`;
+    return { value: label as FeedPostWindow, label };
+  }),
 ];
 const FEED_EXPIRY_OPTIONS: Array<{ value: FeedPostExpiry; label: string }> = [
   { value: '30m', label: '30m' },
@@ -120,6 +117,29 @@ const FEED_EXPIRY_OPTIONS: Array<{ value: FeedPostExpiry; label: string }> = [
   { value: '3d', label: '3d' },
   { value: '5d', label: '5d' },
   { value: '7d', label: '7d' },
+  { value: '8d', label: '8d' },
+  { value: '9d', label: '9d' },
+  { value: '10d', label: '10d' },
+  { value: '11d', label: '11d' },
+  { value: '12d', label: '12d' },
+  { value: '13d', label: '13d' },
+  { value: '14d', label: '14d' },
+  { value: '15d', label: '15d' },
+  { value: '16d', label: '16d' },
+  { value: '17d', label: '17d' },
+  { value: '18d', label: '18d' },
+  { value: '19d', label: '19d' },
+  { value: '20d', label: '20d' },
+  { value: '21d', label: '21d' },
+  { value: '22d', label: '22d' },
+  { value: '23d', label: '23d' },
+  { value: '24d', label: '24d' },
+  { value: '25d', label: '25d' },
+  { value: '26d', label: '26d' },
+  { value: '27d', label: '27d' },
+  { value: '28d', label: '28d' },
+  { value: '29d', label: '29d' },
+  { value: '30d', label: '30d' },
   { value: 'never', label: 'Never' },
 ];
 const FEED_PAGE_SIZE = 30;
@@ -156,6 +176,7 @@ function profileFeedCoordinates(profile: ProfileRecord): FeedCoordinates | null 
 const MAX_FEED_POST_TAGS = 10;
 
 export default function LocalFeed({ embedded = false, onClose }: { embedded?: boolean; onClose?: () => void; onOpenSettings?: () => void } = {}) {
+  const { profilePinsAllowed } = useMapServiceArea();
   const trust = useTrustRestrictions();
   const distancePreferences = useDistancePreferences();
   const navigate = useNavigate();
@@ -171,7 +192,9 @@ export default function LocalFeed({ embedded = false, onClose }: { embedded?: bo
   const postsRef = useRef<FeedPost[]>([]);
   const [expiresIn, setExpiresIn] = useState<FeedPostExpiry>('never');
   const [postAudience, setPostAudience] = useState<FeedPostAudience>('public');
+  const [showDistanceOnPost, setShowDistanceOnPost] = useState(true);
   const [hasCruushPlus, setHasCruushPlus] = useState<boolean | null>(null);
+  const [billingStatusConfirmed, setBillingStatusConfirmed] = useState(false);
   const [plusCardOpen, setPlusCardOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [posting, setPosting] = useState(false);
@@ -190,13 +213,14 @@ export default function LocalFeed({ embedded = false, onClose }: { embedded?: bo
   const [selectedCrowdTargets, setSelectedCrowdTargets] = useState<string[]>([]);
   const [feedSettings, setFeedSettings] = useState<FeedSettings>(DEFAULT_FEED_SETTINGS);
   const [feedWindow, setFeedWindow] = useState<FeedPostWindow>('7d');
-  const [feedDistanceMiles, setFeedDistanceMiles] = useState(DEFAULT_FEED_RADIUS_MILES);
   const [feedCoordinates, setFeedCoordinates] = useState<FeedCoordinates | null>(null);
   const [hasMorePosts, setHasMorePosts] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
   const [seekingOpen, setSeekingOpen] = useState(false);
   const [feedSeekingDraft, setFeedSeekingDraft] = useState<FilterState>(DEFAULT_FEED_SEEKING_FILTERS);
   const [feedSeekingFilters, setFeedSeekingFilters] = useState<FilterState>(DEFAULT_FEED_SEEKING_FILTERS);
+  const [excludeMileHighClubDraft, setExcludeMileHighClubDraft] = useState(false);
+  const [excludeMileHighClub, setExcludeMileHighClub] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [settingsSaving, setSettingsSaving] = useState(false);
   const [feedSettingsLoaded, setFeedSettingsLoaded] = useState(false);
@@ -205,11 +229,13 @@ export default function LocalFeed({ embedded = false, onClose }: { embedded?: bo
   const dlModeException = getDlModeShowOnlyException();
   const loadMoreRef = useRef<HTMLDivElement | null>(null);
   const loadingMoreRequestRef = useRef(false);
+  const feedRequestIdRef = useRef(0);
   const postsScrollRef = useRef<HTMLDivElement | null>(null);
   const composerInputRef = useRef<HTMLTextAreaElement | null>(null);
   const feedPhotoInputRef = useRef<HTMLInputElement | null>(null);
   const hasCruushPlusRef = useRef<boolean | null>(null);
   const feedSettingsRef = useRef<FeedSettings>(DEFAULT_FEED_SETTINGS);
+  const initialFeedSettingsRef = useRef<Promise<void>>(Promise.resolve());
   const feedSettingsSaveChainRef = useRef<Promise<void>>(Promise.resolve());
   const applyFeedSettings = (nextSettings: FeedSettings) => {
     feedSettingsRef.current = nextSettings;
@@ -254,8 +280,14 @@ export default function LocalFeed({ embedded = false, onClose }: { embedded?: bo
     distanceMiles?: number;
     within?: FeedPostWindow;
     seekingFilters?: FilterState;
+    excludeMileHighClub?: boolean;
   } = {}) => {
     const append = options.append === true;
+    const requestId = ++feedRequestIdRef.current;
+    // Keep the current list in place while a replacement request is pending.
+    // Filter/window changes used to clear the list behind a loading skeleton,
+    // which made the Feed visibly flash even when it already had posts.
+    const hasRenderedPosts = postsRef.current.length > 0;
     const remainingPostCapacity = FEED_MAX_LOADED_POSTS - postsRef.current.length;
     if (append && remainingPostCapacity <= 0) {
       setHasMorePosts(false);
@@ -267,9 +299,9 @@ export default function LocalFeed({ embedded = false, onClose }: { embedded?: bo
     const nextCoordinates = options.coordinates === undefined ? feedCoordinates : options.coordinates;
     const nextWindow = options.within ?? feedWindow;
     const nextSeekingFilters = options.seekingFilters ?? feedSeekingFilters;
+    const nextExcludeMileHighClub = options.excludeMileHighClub ?? excludeMileHighClub;
     const nextDistanceMiles = Math.min(
-      options.distanceMiles ?? feedDistanceMiles,
-      nextSeekingFilters.distance,
+      options.distanceMiles ?? nextSeekingFilters.distance,
       DEFAULT_FEED_RADIUS_MILES,
     );
 
@@ -277,7 +309,9 @@ export default function LocalFeed({ embedded = false, onClose }: { embedded?: bo
       loadingMoreRequestRef.current = true;
       setLoadingMore(true);
     } else {
-      setLoading(true);
+      loadingMoreRequestRef.current = false;
+      setLoadingMore(false);
+      setLoading(!hasRenderedPosts);
     }
 
     setError(null);
@@ -288,8 +322,14 @@ export default function LocalFeed({ embedded = false, onClose }: { embedded?: bo
         distanceMiles: nextDistanceMiles,
         limit: requestLimit,
         within: nextWindow,
-        seeking: nextSeekingFilters,
+        seeking: nextExcludeMileHighClub
+          ? { ...nextSeekingFilters, excludeMileHighClub: true }
+          : nextSeekingFilters,
       });
+
+      if (requestId !== feedRequestIdRef.current) {
+        return;
+      }
 
       const currentPosts = append ? postsRef.current : [];
       const knownPostIds = new Set(currentPosts.map((post) => post.id));
@@ -303,14 +343,20 @@ export default function LocalFeed({ embedded = false, onClose }: { embedded?: bo
         mergedPosts.length < FEED_MAX_LOADED_POSTS && nextPosts.length >= requestLimit,
       );
     } catch (error) {
+      if (requestId !== feedRequestIdRef.current) {
+        return;
+      }
       console.error('Error fetching posts:', error);
       setError(error instanceof Error ? error.message : 'Failed to load the local feed.');
-      if (!append) {
+      if (!append && !hasRenderedPosts) {
         postsRef.current = [];
         setPosts([]);
         setHasMorePosts(false);
       }
     } finally {
+      if (requestId !== feedRequestIdRef.current) {
+        return;
+      }
       if (append) {
         loadingMoreRequestRef.current = false;
         setLoadingMore(false);
@@ -318,7 +364,7 @@ export default function LocalFeed({ embedded = false, onClose }: { embedded?: bo
         setLoading(false);
       }
     }
-  }, [feedCoordinates, feedDistanceMiles, feedSeekingFilters, feedWindow]);
+  }, [excludeMileHighClub, feedCoordinates, feedSeekingFilters, feedWindow]);
 
   useEffect(() => {
     if (!photoViewer) {
@@ -344,17 +390,20 @@ export default function LocalFeed({ embedded = false, onClose }: { embedded?: bo
     let active = true;
 
     const loadBillingStatus = () => {
+      setBillingStatusConfirmed(false);
       void getMyBillingStatus()
         .then((status) => {
           if (active) {
             hasCruushPlusRef.current = status.cruushPlus === true;
             setHasCruushPlus(hasCruushPlusRef.current);
+            setBillingStatusConfirmed(true);
           }
         })
         .catch(() => {
           if (active) {
             hasCruushPlusRef.current = false;
             setHasCruushPlus(false);
+            setBillingStatusConfirmed(false);
           }
         });
     };
@@ -386,9 +435,11 @@ export default function LocalFeed({ embedded = false, onClose }: { embedded?: bo
   }, [hasCruushPlus, stagedPhotos]);
 
   useEffect(() => {
-    void getFeedSettings()
+    initialFeedSettingsRef.current = getFeedSettings()
       .then((settings) => {
         const nextSettings = { ...DEFAULT_FEED_SETTINGS, ...settings };
+        // Older clients saved an unbounded filter; use the largest remaining window.
+        if (String(nextSettings.feedWindow) === 'never') nextSettings.feedWindow = '30d';
         if (hasCruushPlusRef.current === false) {
           nextSettings.postExpiryDefault = 'never';
         }
@@ -423,7 +474,7 @@ export default function LocalFeed({ embedded = false, onClose }: { embedded?: bo
         setValidPinUserIds(new Set());
       });
     void getMyProfile()
-      .then((profile) => {
+      .then(async (profile) => {
         const normalizedCrowds = normalizeCrowdValues(profile.crowds ?? []);
         const allowedCrowds = CROWDS.filter((crowd) => (
           normalizedCrowds.includes(crowd) && (crowd !== 'T4T' || profile.is_trans === true)
@@ -432,13 +483,15 @@ export default function LocalFeed({ embedded = false, onClose }: { embedded?: bo
         setAvailableCrowdTargets(allowedCrowds);
         setSelectedCrowdTargets((currentTargets) => currentTargets.filter((crowd) => allowedCrowds.includes(crowd)));
         setFeedCoordinates(coordinates);
-        void fetchPosts({ coordinates });
+        await initialFeedSettingsRef.current;
+        void fetchPosts({ coordinates, within: feedSettingsRef.current.feedWindow });
       })
-      .catch(() => {
+      .catch(async () => {
         setAvailableCrowdTargets([]);
         setSelectedCrowdTargets([]);
         setFeedCoordinates(null);
-        void fetchPosts({ coordinates: null });
+        await initialFeedSettingsRef.current;
+        void fetchPosts({ coordinates: null, within: feedSettingsRef.current.feedWindow });
       });
 
   }, []);
@@ -497,6 +550,7 @@ export default function LocalFeed({ embedded = false, onClose }: { embedded?: bo
         content: newPost.trim(),
         expiresIn,
         audience: postAudience,
+        showDistance: showDistanceOnPost,
         crowdTargets: postAudience === 'crowd' ? selectedCrowdTargets : [],
         photoMediaIds: stagedPhotos.map((photo) => photo.id),
         tags: postTags,
@@ -506,6 +560,7 @@ export default function LocalFeed({ embedded = false, onClose }: { embedded?: bo
       setStagedPhotos([]);
       setPostAudience('public');
       setExpiresIn('never');
+      setShowDistanceOnPost(true);
       setSelectedCrowdTargets([]);
       setPosts((prev) => {
         const nextPosts = [createdPost, ...prev].slice(0, FEED_MAX_LOADED_POSTS);
@@ -636,22 +691,6 @@ export default function LocalFeed({ embedded = false, onClose }: { embedded?: bo
     }
   };
 
-  const handleDistanceLabelVisibilityChange = async (showDistanceLabels: boolean) => {
-    setSettingsSaving(true);
-    setError(null);
-
-    try {
-      await enqueueFeedSettingsUpdate({
-        showDistanceLabels,
-      });
-    } catch (error) {
-      console.error('Error saving feed settings:', error);
-      setError(error instanceof Error ? error.message : 'Failed to save feed settings.');
-    } finally {
-      setSettingsSaving(false);
-    }
-  };
-
   const handleFeedWindowChange = async (nextWindow: FeedPostWindow) => {
     setFeedWindow(nextWindow);
     try {
@@ -662,10 +701,10 @@ export default function LocalFeed({ embedded = false, onClose }: { embedded?: bo
     }
   };
 
-  const handleFeedDistanceChange = (nextDistanceMiles: number) => {
-    setFeedDistanceMiles(nextDistanceMiles);
-    void fetchPosts({ before: null, distanceMiles: nextDistanceMiles });
-  };
+  const feedWindowIndex = Math.max(
+    0,
+    FEED_WINDOW_OPTIONS.findIndex((option) => option.value === feedWindow),
+  );
 
   const handleFeedCruush = async (post: FeedPost) => {
     const userId = post.user.id;
@@ -736,9 +775,9 @@ export default function LocalFeed({ embedded = false, onClose }: { embedded?: bo
       <AppPageHeader
         className="z-40"
         testId="local-feed-header"
-        title={embedded && settingsOpen ? 'Feed settings' : 'Feed'}
+        title={settingsOpen ? 'Feed settings' : 'Feed'}
         onBack={() => {
-            if (embedded && settingsOpen) {
+            if (settingsOpen) {
               setSettingsOpen(false);
               return;
             }
@@ -751,7 +790,7 @@ export default function LocalFeed({ embedded = false, onClose }: { embedded?: bo
         onClose={embedded ? onClose : undefined}
         closeLabel="Close Feed"
         bugButtonTestId="local-feed-bug-button-slot"
-        actions={!(embedded && settingsOpen) ? <>
+        actions={!settingsOpen ? <>
         <Button
           variant="ghost"
           size="icon"
@@ -760,7 +799,7 @@ export default function LocalFeed({ embedded = false, onClose }: { embedded?: bo
           title="Feed seeking"
           aria-pressed={seekingOpen}
           onClick={() => setSeekingOpen((open) => !open)}
-          style={seekingOpen || JSON.stringify(feedSeekingFilters) !== JSON.stringify(DEFAULT_FEED_SEEKING_FILTERS)
+          style={seekingOpen || excludeMileHighClub || JSON.stringify(feedSeekingFilters) !== JSON.stringify(DEFAULT_FEED_SEEKING_FILTERS)
             ? { background: 'var(--cruush-gradient-soft-28)' }
             : undefined}
         >
@@ -777,174 +816,59 @@ export default function LocalFeed({ embedded = false, onClose }: { embedded?: bo
           >
             <CruushIcon name="settings" className="h-5 w-5" />
           </Button>
-        ) : <Dialog open={settingsOpen} onOpenChange={setSettingsOpen}>
-          <DialogTrigger asChild>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="rounded-full border border-white/10 bg-background/55 text-white backdrop-blur-md hover:bg-white/10"
-              aria-label="Feed settings"
-              title="Feed settings"
-            >
-              <CruushIcon name="settings" className="h-5 w-5" />
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="scrollbar-hide top-[calc(0.75rem+env(safe-area-inset-top))] max-h-[calc(100dvh-1.5rem-env(safe-area-inset-top))] max-w-md translate-y-0 overflow-y-auto overscroll-contain rounded-lg border-white/10 bg-background pb-[calc(1.5rem+env(safe-area-inset-bottom))] [&_[data-slot=dialog-close-x]]:right-14 [&_[data-slot=dialog-close-x]]:top-2.5">
-            <DialogHeader>
-              <DialogTitle>Feed settings</DialogTitle>
-              <DialogDescription>
-                Control which nearby posts load and how your feed location appears.
-              </DialogDescription>
-            </DialogHeader>
-            <div className="space-y-4">
-              <section className="rounded-lg border border-white/10 bg-black/42 p-3">
-                <p className="mb-2 text-sm font-semibold text-white">Posted within</p>
-                <div className="grid grid-cols-6 gap-1.5">
-                  {FEED_WINDOW_OPTIONS.map((option) => (
-                    <button
-                      key={option.value}
-                      type="button"
-                      className={[
-                        'h-10 rounded-full border text-sm font-semibold transition',
-                        feedWindow === option.value
-                          ? 'border-white/15 text-white'
-                          : 'border-white/10 bg-black/40 text-white/72 hover:bg-white/8',
-                      ].join(' ')}
-                      style={feedWindow === option.value ? { background: 'var(--cruush-gradient)' } : undefined}
-                      aria-pressed={feedWindow === option.value}
-                      onClick={() => void handleFeedWindowChange(option.value)}
-                    >
-                      {option.label}
-                    </button>
-                  ))}
-                </div>
-              </section>
-
-              <section className="rounded-lg border border-white/10 bg-black/42 p-3">
-                <div className="mb-2 flex items-center justify-between gap-3">
-                  <p className="text-sm font-semibold text-white">Distance</p>
-                  <span className="rounded-full border border-white/10 bg-black/55 px-2.5 py-1 text-xs text-white/70">
-                    {feedDistanceMiles} mi
-                  </span>
-                </div>
-                <input
-                  aria-label="Feed distance radius"
-                  className="cruush-range"
-                  max={50}
-                  min={1}
-                  step={1}
-                  type="range"
-                  value={feedDistanceMiles}
-                  onChange={(event) => handleFeedDistanceChange(Number(event.target.value))}
-                />
-              </section>
-
-              <section className="flex items-center justify-between gap-3 rounded-lg border border-white/10 bg-black/42 p-3">
-                <div>
-                  <p className="text-sm font-semibold text-white">Distances on posts</p>
-                  <p className="mt-1 text-xs text-white/58">Show how far away each post is when you read your feed. Ghost Mode posts always read Nearby.</p>
-                </div>
-                <Switch
-                  checked={feedSettings.showDistanceLabels !== false}
-                  disabled={settingsSaving || !feedSettingsLoaded}
-                  onCheckedChange={(checked) => void handleDistanceLabelVisibilityChange(checked)}
-                />
-              </section>
-
-              <section className="space-y-2 rounded-lg border border-white/10 bg-black/42 p-3">
-                <p className="text-sm font-semibold text-white">Feed map pin</p>
-                {FEED_LOCATION_PIN_OPTIONS.map((option) => {
-                  const active = feedSettings.locationPinVisibility === option.value;
-                  return (
-                    <button
-                      key={option.value}
-                      type="button"
-                      className={[
-                        'w-full rounded-lg border p-3 text-left transition',
-                        active
-                          ? 'border-primary/45 text-white'
-                          : 'border-white/10 bg-black/40 text-white/72 hover:bg-white/8',
-                      ].join(' ')}
-                      style={active ? { background: 'var(--cruush-gradient-soft-18)' } : undefined}
-                      aria-pressed={active}
-                      disabled={settingsSaving || !feedSettingsLoaded}
-                      onClick={() => void handleFeedPinVisibilityChange(option.value)}
-                    >
-                      <span className="flex items-center justify-between gap-3">
-                        <span className="font-semibold">{option.label}</span>
-                        {active ? <span className="text-xs uppercase tracking-[0.16em] text-primary">active</span> : null}
-                      </span>
-                      <span className="mt-1 block text-xs text-white/58">{option.description}</span>
-                    </button>
-                  );
-                })}
-              </section>
-            </div>
-          </DialogContent>
-        </Dialog>}
+        ) : <Button
+          variant="ghost"
+          size="icon"
+          className="rounded-full border border-white/10 bg-background/55 text-white backdrop-blur-md hover:bg-white/10"
+          aria-label="Feed settings"
+          title="Feed settings"
+          onClick={() => setSettingsOpen(true)}
+        >
+          <CruushIcon name="settings" className="h-5 w-5" />
+        </Button>}
         </> : null}
       />
 
-      {embedded && settingsOpen ? (
-        <div className="scrollbar-hide min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pb-[calc(1rem+env(safe-area-inset-bottom))] pt-4" data-testid="embedded-feed-settings">
-          <div className="mx-auto w-full max-w-2xl space-y-4">
+      {settingsOpen ? (
+        <div className="scrollbar-hide min-h-0 flex-1 overflow-y-auto overscroll-contain pb-[calc(1rem+env(safe-area-inset-bottom))]" data-testid="feed-settings-page">
+          <div className={ghostSettingsBodyClassName}>
             {error ? (
               <div className="rounded-md border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">
                 {error}
               </div>
             ) : null}
 
-            <section className="rounded-lg border border-white/10 bg-black/42 p-3">
-              <p className="mb-2 text-sm font-semibold text-white">Posted within</p>
-              <div className="grid grid-cols-6 gap-1.5">
-                {FEED_WINDOW_OPTIONS.map((option) => (
-                  <button
-                    key={option.value}
-                    type="button"
-                    className={[
-                      'h-10 rounded-full border text-sm font-semibold transition',
-                      feedWindow === option.value
-                        ? 'border-white/15 text-white'
-                        : 'border-white/10 bg-black/40 text-white/72 hover:bg-white/8',
-                    ].join(' ')}
-                    style={feedWindow === option.value ? { background: 'var(--cruush-gradient)' } : undefined}
-                    aria-pressed={feedWindow === option.value}
-                    onClick={() => void handleFeedWindowChange(option.value)}
-                  >
-                    {option.label}
-                  </button>
-                ))}
+            <div className={`${ghostSettingsCardClassName} !space-y-4`}>
+            <section className="space-y-3 rounded-lg border border-white/10 bg-white/[0.025] p-4">
+              <div className="flex items-center justify-between gap-3">
+                <p className="text-sm font-semibold text-white">Posted within</p>
+                <span className="rounded-full border border-white/10 bg-white/[0.025] px-2.5 py-1 text-xs text-white/70">
+                  {FEED_WINDOW_OPTIONS[feedWindowIndex]?.label ?? '7d'}
+                </span>
               </div>
-            </section>
-
-            <section className="rounded-lg border border-white/10 bg-black/42 p-3">
-              <div className="mb-2 flex items-center justify-between gap-3">
-                <p className="text-sm font-semibold text-white">Distance</p>
-                <span className="rounded-full border border-white/10 bg-black/55 px-2.5 py-1 text-xs text-white/70">{feedDistanceMiles} mi</span>
-              </div>
-              <input
-                aria-label="Feed distance radius"
-                className="cruush-range"
-                max={50}
-                min={1}
+              <Slider
+                aria-label="Posted within"
+                className="mt-3"
+                max={FEED_WINDOW_OPTIONS.length - 1}
+                min={0}
                 step={1}
-                type="range"
-                value={feedDistanceMiles}
-                onChange={(event) => handleFeedDistanceChange(Number(event.target.value))}
+                value={[feedWindowIndex]}
+                onValueChange={([index]) => {
+                  const option = FEED_WINDOW_OPTIONS[index];
+                  if (option) void handleFeedWindowChange(option.value);
+                }}
               />
+              <div className="mt-2 flex justify-between text-[11px] text-muted-foreground">
+                <span>{FEED_WINDOW_OPTIONS[0].label}</span>
+                <span>{FEED_WINDOW_OPTIONS[FEED_WINDOW_OPTIONS.length - 1].label}</span>
+              </div>
             </section>
 
-            <section className="flex items-center justify-between gap-3 rounded-lg border border-white/10 bg-black/42 p-3">
-              <p className="text-sm font-semibold text-white">Distances on posts</p>
-              <Switch
-                checked={feedSettings.showDistanceLabels !== false}
-                disabled={settingsSaving || !feedSettingsLoaded}
-                onCheckedChange={(checked) => void handleDistanceLabelVisibilityChange(checked)}
-              />
-            </section>
-
-            <section className="space-y-2 rounded-lg border border-white/10 bg-black/42 p-3">
-              <p className="text-sm font-semibold text-white">Feed map pin</p>
+            <section
+              aria-disabled={!profilePinsAllowed}
+              className={`space-y-2 rounded-lg border border-white/10 bg-white/[0.025] p-4 ${!profilePinsAllowed ? 'grayscale opacity-40' : ''}`}
+            >
+              <p className="text-sm font-semibold text-white">Who can open my map location from Feed posts</p>
               {FEED_LOCATION_PIN_OPTIONS.map((option) => {
                 const active = feedSettings.locationPinVisibility === option.value;
                 return (
@@ -959,22 +883,24 @@ export default function LocalFeed({ embedded = false, onClose }: { embedded?: bo
                     ].join(' ')}
                     style={active ? { background: 'var(--cruush-gradient-soft-18)' } : undefined}
                     aria-pressed={active}
-                    disabled={settingsSaving || !feedSettingsLoaded}
+                    disabled={!profilePinsAllowed || settingsSaving || !feedSettingsLoaded}
                     onClick={() => void handleFeedPinVisibilityChange(option.value)}
                   >
                     <span className="flex items-center justify-between gap-3">
                       <span className="font-semibold">{option.label}</span>
                       {active ? <span className="text-xs uppercase tracking-[0.16em] text-primary">active</span> : null}
                     </span>
+                    {!embedded ? <span className="mt-1 block text-xs text-white/58">{option.description}</span> : null}
                   </button>
                 );
               })}
             </section>
+            </div>
           </div>
         </div>
       ) : null}
 
-      <div className={`${embedded && settingsOpen ? 'hidden ' : ''}mx-auto flex min-h-0 w-full max-w-2xl flex-1 flex-col overflow-hidden px-3 pt-4`} data-testid="local-feed-content">
+      <div className={`${settingsOpen ? 'hidden ' : ''}mx-auto flex min-h-0 w-full max-w-2xl flex-1 flex-col overflow-hidden px-3 pt-4`} data-testid="local-feed-content">
         <div className="flex max-h-full min-h-0 shrink-0 flex-col rounded-2xl border border-white/10 bg-black/82 p-3 shadow-[0_18px_50px_rgba(0,0,0,0.35)] backdrop-blur" data-testid="local-feed-composer">
           {error ? (
             <div className="mb-3 rounded-md border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">
@@ -1047,23 +973,6 @@ export default function LocalFeed({ embedded = false, onClose }: { embedded?: bo
                 ref={feedPhotoInputRef}
                 type="file"
               />
-              <Button
-                aria-label={hasCruushPlus === true ? 'Add Feed photo' : 'Feed photos require cruush+'}
-                className="border-transparent text-white"
-                disabled={uploadingFeedPhoto || stagedPhotos.length >= 3 || trust.restricted('feed_posting') || trust.restricted('photo_uploads')}
-                onClick={() => {
-                  if (hasCruushPlus !== true) {
-                    setPlusCardOpen(true);
-                    return;
-                  }
-                  feedPhotoInputRef.current?.click();
-                }}
-                style={{ background: 'var(--cruush-gradient)' }}
-                type="button"
-              >
-                {uploadingFeedPhoto ? <PhotoUploadSpinner className="mr-2 h-4 w-4" /> : null}
-                {`Photo${hasCruushPlus === true ? ` ${stagedPhotos.length}/3` : ' +'}`}
-              </Button>
               <TrustRestrictionNotice message={!trust.restricted('feed_posting') ? trust.message('photo_uploads', 'Photo uploading') : null} />
             </div>
             {/* Expiry belongs to the post being written, not to a setting
@@ -1083,12 +992,13 @@ export default function LocalFeed({ embedded = false, onClose }: { embedded?: bo
                 step={1}
                 value={[Math.max(0, FEED_EXPIRY_OPTIONS.findIndex((option) => option.value === expiresIn))]}
                 onValueChange={([index]) => {
-                  const option = FEED_EXPIRY_OPTIONS[index] ?? FEED_EXPIRY_OPTIONS[FEED_EXPIRY_OPTIONS.length - 1];
-                  if (option.value !== 'never' && hasCruushPlus !== true) {
-                    setPlusCardOpen(true);
+                  if (billingStatusConfirmed && hasCruushPlus === false) {
+                    navigate(buildCruushPlusStorePath('feed_plus', 'feed_plus'));
                     return;
                   }
-                  setExpiresIn(option.value);
+                  if (!billingStatusConfirmed) return;
+                  const option = FEED_EXPIRY_OPTIONS[index];
+                  if (option) setExpiresIn(option.value);
                 }}
               />
               <div className="mt-2 flex items-center justify-between text-xs text-white/58">
@@ -1102,55 +1012,44 @@ export default function LocalFeed({ embedded = false, onClose }: { embedded?: bo
             </section>
             <section className="rounded-lg border border-white/10 bg-black/42 p-2">
               <p className="text-sm font-semibold text-white">Who can see this post</p>
-              <p className="mb-2 mt-1 text-xs text-white/58">Public and Cruushes are free. A specific Crowd is part of cruush+.</p>
-              <div className="grid grid-cols-3 gap-2">
-                {([
-                  { value: 'public', label: 'Public' },
-                  { value: 'mutuals', label: 'Cruushes' },
-                  { value: 'crowd', label: 'Specific Crowd +' },
-                ] as const).map((option) => {
-                  const selected = postAudience === option.value;
-                  return (
-                    <button
-                      key={option.value}
-                      type="button"
-                      className={[
-                        'min-h-10 rounded-full border px-2 text-sm font-semibold transition',
-                        selected
-                          ? 'border-primary/45 text-white'
-                          : 'border-white/10 bg-black/40 text-white/72 hover:bg-white/8',
-                      ].join(' ')}
-                      style={selected ? { background: 'var(--cruush-gradient-soft-18)' } : undefined}
-                      aria-pressed={selected}
-                      onClick={() => {
-                        if (option.value === 'crowd' && hasCruushPlus !== true) {
-                          setPlusCardOpen(true);
-                          return;
-                        }
+              <p className="mb-2 mt-1 text-xs text-white/58">Public and Cruushes are free. Crowd mode is part of cruush+.</p>
+              <MultiSelect
+                ariaLabel="Who can see this post"
+                menuPortal
+                options={hasCruushPlus === true ? ['Public', 'Cruushes', ...availableCrowdTargets] : ['Public', 'Cruushes', 'Crowd mode']}
+                value={postAudience === 'crowd'
+                  ? selectedCrowdTargets
+                  : [postAudience === 'mutuals' ? 'Cruushes' : 'Public']}
+                onChange={(values) => {
+                  const selected = values[values.length - 1];
+                  const crowdTargets = values.filter((value) => availableCrowdTargets.includes(value));
 
-                        setPostAudience(option.value);
-                        if (option.value !== 'crowd') {
-                          setSelectedCrowdTargets([]);
-                        }
-                      }}
-                    >
-                      {option.label}
-                    </button>
-                  );
-                })}
-              </div>
+                  if (selected === 'Crowd mode') {
+                    navigate(buildCruushPlusStorePath('feed_plus', 'feed_plus'));
+                    return;
+                  }
 
-              {postAudience === 'crowd' && availableCrowdTargets.length > 0 ? (
-                <div className="mt-3">
-                  <MultiSelect
-                    menuPortal
-                    ariaLabel="Crowds"
-                    options={availableCrowdTargets}
-                    value={selectedCrowdTargets}
-                    onChange={setSelectedCrowdTargets}
-                  />
-                </div>
-              ) : null}
+                  if (selected && crowdTargets.includes(selected)) {
+                    if (hasCruushPlus !== true) {
+                      navigate(buildCruushPlusStorePath('feed_plus', 'feed_plus'));
+                      return;
+                    }
+
+                    setPostAudience('crowd');
+                    setSelectedCrowdTargets(crowdTargets);
+                    return;
+                  }
+
+                  if (selected === 'Cruushes') {
+                    setPostAudience('mutuals');
+                    setSelectedCrowdTargets([]);
+                    return;
+                  }
+
+                  setPostAudience('public');
+                  setSelectedCrowdTargets([]);
+                }}
+              />
             </section>
           </div>
           {stagedPhotos.length > 0 ? (
@@ -1177,22 +1076,57 @@ export default function LocalFeed({ embedded = false, onClose }: { embedded?: bo
               </div>
             </div>
           ) : null}
-          {/* Expiry and crowd targeting live in the feed settings menu now, so
-              the composer is the textarea and the Post button. */}
-          <div className="sticky bottom-0 flex items-center justify-end gap-2 bg-black/82 pt-2">
-            <Button
-              className={trust.restricted('feed_posting') ? 'grayscale' : undefined}
-              onClick={handlePost}
-              disabled={!newPost.trim() || posting || uploadingFeedPhoto || trust.restricted('feed_posting')}
-              style={{
-                background: newPost.trim()
-                  ? 'var(--cruush-gradient)'
-                  : undefined,
-              }}
-            >
-              <CruushIcon name="send" className="mr-2 h-4 w-4" />
-              {posting ? 'Posting...' : 'Post'}
-            </Button>
+          <div className="sticky bottom-0 flex flex-wrap items-center justify-between gap-3 bg-black/82 pt-2">
+            <label className="flex min-w-0 items-center gap-2 text-xs text-white/72">
+              <Switch
+                aria-label="Show distance on feed post"
+                checked={showDistanceOnPost}
+                disabled={posting || trust.restricted('feed_posting')}
+                onCheckedChange={setShowDistanceOnPost}
+              />
+              <span>Show distance on feed post</span>
+            </label>
+            <div className="flex min-w-0 flex-1 items-center justify-end gap-2">
+              <div className="flex min-w-0 items-center gap-2">
+                <Button
+                  aria-label={hasCruushPlus === true ? 'Add Feed photo' : 'Feed photos require cruush+'}
+                  className={[
+                    'relative overflow-hidden transition before:pointer-events-none before:absolute before:inset-0 before:bg-[linear-gradient(105deg,transparent_30%,rgba(255,255,255,0.28)_50%,transparent_70%)] before:opacity-0 hover:before:opacity-100',
+                    hasCruushPlus === true
+                      ? 'border-transparent text-white'
+                      : 'border-white/12 text-white/60 hover:text-white/80',
+                  ].join(' ')}
+                  disabled={uploadingFeedPhoto || stagedPhotos.length >= 3 || trust.restricted('feed_posting') || trust.restricted('photo_uploads')}
+                  onClick={() => {
+                    if (hasCruushPlus !== true) {
+                      navigate(buildCruushPlusStorePath('feed_plus', 'feed_plus'));
+                      return;
+                    }
+                    feedPhotoInputRef.current?.click();
+                  }}
+                  style={{ background: 'var(--cruush-gradient-soft-28)' }}
+                  type="button"
+                >
+                  {uploadingFeedPhoto ? <PhotoUploadSpinner className="mr-2 h-4 w-4" /> : null}
+                  {`Photo${hasCruushPlus === true ? ` ${stagedPhotos.length}/3` : ' +'}`}
+                </Button>
+                {hasCruushPlus !== true ? (
+                  <p className="min-w-0 text-xs text-white/58">cruush+ users can post up to 3 photos to the Feed.</p>
+                ) : null}
+              </div>
+              <Button
+                className={[
+                  'relative overflow-hidden text-white transition before:pointer-events-none before:absolute before:inset-0 before:bg-[linear-gradient(105deg,transparent_30%,rgba(255,255,255,0.28)_50%,transparent_70%)] before:opacity-0 hover:before:opacity-100 disabled:text-white disabled:opacity-100',
+                  trust.restricted('feed_posting') ? 'grayscale' : '',
+                ].join(' ')}
+                onClick={handlePost}
+                disabled={!newPost.trim() || posting || uploadingFeedPhoto || trust.restricted('feed_posting')}
+                style={{ background: 'var(--cruush-gradient-soft-28)' }}
+              >
+                <CruushIcon name="send" className="mr-2 h-4 w-4" />
+                {posting ? 'Posting...' : 'Post'}
+              </Button>
+            </div>
           </div>
           </div>
         </div>
@@ -1232,11 +1166,11 @@ export default function LocalFeed({ embedded = false, onClose }: { embedded?: bo
                         masked={shouldMaskPhoto(dlModeActive, post.user.photoExplicit, { ...post.user.photoRelationship, isMutualCruush: mutualAuthor, sharesCrowd: post.user.sharesCrowd })}
                         restriction={getNsfwPhotoRestriction(post.user.photoExplicit, post.user.photoRelationship)}
                         photo={post.user?.photo}
+                        outOfSight={post.user.outOfSight === true}
                         staticMileHigh={post.user.id === currentUserId && post.user.travelling === true}
                         theme={currentUserId && post.user.id === currentUserId ? 'current' : mutualAuthor ? 'mutual' : 'nearby'}
                         userId={post.user.id}
                         onClick={() => navigate(`/profile/${post.user.id}`, { state: { distance: post.distance } })}
-                        fallback={<CruushIcon name="cruush" className="h-5 w-5 opacity-20" />}
                       />
                     </div>
                   )}
@@ -1251,7 +1185,7 @@ export default function LocalFeed({ embedded = false, onClose }: { embedded?: bo
                       {post.user.name}
                     </button>
                   )}
-                  pronouns={post.user.pronouns || 'Ask me'}
+                  pronouns={post.user.pronouns || 'ask me'}
                   sideBadges={post.user.sideBadges}
                   sideBadgeTone={borderTone}
                   identityAdornment={(
@@ -1276,7 +1210,7 @@ export default function LocalFeed({ embedded = false, onClose }: { embedded?: bo
                   metadata={(
                     <button type="button" className="flex h-11 min-w-0 flex-col justify-center gap-0.5 text-left text-xs leading-snug text-white/62 sm:text-sm" onClick={() => navigate(`/profile/${post.user.id}`, { state: { distance: post.distance } })} data-testid={`feed-post-meta-${post.id}`}>
                       <span className="truncate">{formatRelativeTime(post.createdAt)}</span>
-                      {feedSettings.showDistanceLabels !== false ? <span className="truncate">{formatDistanceLabel(post.distance, distancePreferences.mode)}</span> : null}
+                      <span className="truncate">{formatDistanceLabel(post.distance, distancePreferences.mode)}</span>
                     </button>
                   )}
                   actions={(
@@ -1313,7 +1247,7 @@ export default function LocalFeed({ embedded = false, onClose }: { embedded?: bo
                   wrapVibes
                   content={(
                     <div className="space-y-1.5">
-                      <p className="text-base">{post.content}</p>
+                      <p className="text-[13px] sm:text-[15px]">{post.content}</p>
 
                       <FeedAttachmentPreview
                         dlModeActive={dlModeActive}
@@ -1340,14 +1274,14 @@ export default function LocalFeed({ embedded = false, onClose }: { embedded?: bo
                           // size-9 from the icon variant wins over a plain
                           // h-7/w-7, so the button kept a hit area wider than
                           // the flag and pushed into the metadata beside it.
-                          className="size-7 shrink-0 p-0 text-muted-foreground hover:text-white"
+                          className="!size-7 shrink-0 p-0 text-muted-foreground hover:text-white"
                         />
                       ) : null}
                       {currentUserId && post.user.id === currentUserId ? (
                         <Button
                           variant="ghost"
                           size="icon"
-                          className="size-8 text-muted-foreground hover:text-white"
+                          className="size-7 text-muted-foreground hover:text-white"
                           aria-label={`Delete feed post: ${post.content.slice(0, 48)}`}
                           title="Delete post"
                           disabled={deletingPostId === post.id}
@@ -1384,6 +1318,7 @@ export default function LocalFeed({ embedded = false, onClose }: { embedded?: bo
     </div>
     <MapFiltersSurface
       description={null}
+      excludeMileHighClub={excludeMileHighClubDraft}
       hasCruushPlus={hasCruushPlus === true}
       onApply={() => {
         const nextFilters = {
@@ -1392,15 +1327,21 @@ export default function LocalFeed({ embedded = false, onClose }: { embedded?: bo
         };
         setFeedSeekingDraft(nextFilters);
         setFeedSeekingFilters(nextFilters);
+        setExcludeMileHighClub(excludeMileHighClubDraft);
         setSeekingOpen(false);
         void fetchPosts({
           before: null,
           distanceMiles: nextFilters.distance,
           seekingFilters: nextFilters,
+          excludeMileHighClub: excludeMileHighClubDraft,
         });
       }}
       onChange={setFeedSeekingDraft}
-      onClear={() => setFeedSeekingDraft(DEFAULT_FEED_SEEKING_FILTERS)}
+      onClear={() => {
+        setFeedSeekingDraft(DEFAULT_FEED_SEEKING_FILTERS);
+        setExcludeMileHighClubDraft(false);
+      }}
+      onExcludeMileHighClubChange={setExcludeMileHighClubDraft}
       onOpenChange={setSeekingOpen}
       onUpgrade={() => setPlusCardOpen(true)}
       conversionSurface="feed_plus"

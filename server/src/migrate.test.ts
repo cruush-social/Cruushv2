@@ -1,15 +1,88 @@
 import { readdir, readFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { randomUUID } from "node:crypto";
+import { userInfo } from "node:os";
+import { execFile } from "node:child_process";
+import { promisify } from "node:util";
+import pg from "pg";
 import { describe, expect, it } from "vitest";
+import { migrateLegacyServiceAreaEmailOutboxes, runMigration, shouldSkipLegacyServiceAreaQueue } from "./migrate.js";
+import { decryptOosState } from "./oos-state-crypto.js";
+import {
+  decryptServiceAreaEmailPayload, encryptServiceAreaEmailPayload, queueServiceAreaEmail,
+  serviceAreaEmailDedupeToken, type ServiceAreaEmailOutboxRow, type ServiceAreaEmailPayload
+} from "./service-area-email-outbox.js";
 
 const currentDir = path.dirname(fileURLToPath(import.meta.url));
 const serverRoot = path.resolve(currentDir, "..");
 
 describe("migration runner", () => {
-  it("lists every numbered SQL migration in order", async () => {
+  it("still invokes the CLI while helper imports need no DATABASE_URL", async () => {
+    await expect(promisify(execFile)(process.execPath, ["--import", "tsx", path.join(currentDir, "migrate.ts")], {
+      cwd: serverRoot, env: { PATH: process.env.PATH, DATABASE_URL: "" }
+    })).rejects.toMatchObject({ code: 1, stderr: expect.stringContaining("DATABASE_URL is required to run migrations.") });
+  });
+
+  it("registers 219 with only authenticated payload and operational columns", async () => {
+    const sql = await readFile(path.join(serverRoot, "sql", "219_encrypted_service_area_email_outbox.sql"), "utf8");
+    const source = await readFile(path.join(currentDir, "migrate.ts"), "utf8");
+    expect(source).toMatch(/"218_encrypted_oos_service_area_state\.sql",\s*"219_encrypted_service_area_email_outbox\.sql"/);
+    expect(sql).toContain("user_id uuid not null references app_users(id) on delete cascade");
+    expect(sql).toContain("dedupe_token text not null unique check (dedupe_token ~ '^[0-9a-f]{64}$')");
+    for (const field of ["payload_ciphertext", "payload_nonce", "payload_auth_tag", "wrapped_payload_dek", "payload_dek_nonce", "payload_dek_auth_tag", "payload_key_version"]) {
+      expect(sql).toContain(`${field} text not null`);
+    }
+    expect(sql).not.toMatch(/\b(event_kind|email_to|provider_message_id|prior_outside_event_id|idempotency_key|latitude|longitude)\b/);
+    expect(sql).not.toMatch(/\b(insert into|update|delete from|drop table)\b/i);
+  });
+
+  it.each(["215_oos_welcome_email.sql", "217_sinners_welcome_email.sql"])("guards %s only after plaintext contraction", async (file) => {
+    for (const encrypted of [false, true]) for (const legacy of [false, true]) {
+      const client = { query: async (_sql: string, values: unknown[]) => ({
+        rows: [{ present: values[0] === "service_area_email_outbox" ? encrypted : legacy }]
+      }) } as unknown as Pick<pg.PoolClient, "query">;
+      expect(await shouldSkipLegacyServiceAreaQueue(client, file)).toBe(encrypted && !legacy);
+      expect(await shouldSkipLegacyServiceAreaQueue(client, "208_bug_report_email_retention.sql")).toBe(false);
+    }
+  });
+
+  it("encrypts current OOS state transactionally before removing legacy plaintext and survives replay", async () => {
+    const sql = await readFile(path.join(serverRoot, "sql", "218_encrypted_oos_service_area_state.sql"), "utf8");
+    const source = await readFile(path.join(currentDir, "migrate.ts"), "utf8");
+    const prior = await readFile(path.join(serverRoot, "sql", "215_oos_welcome_email.sql"), "utf8");
+    expect(source).toContain('"218_encrypted_oos_service_area_state.sql"');
+    expect(source).toContain('if (file === "218_encrypted_oos_service_area_state.sql")');
+    expect(source.indexOf("encryptOosState(config, row.user_id, state)"))
+      .toBeLessThan(source.indexOf("drop column is_outside, drop column current_event_id"));
+    expect(source).toContain("await client.query(\"commit\")");
+    expect(sql).toContain("state_ciphertext text");
+    expect(sql).not.toMatch(/\b(insert into|drop column|is_outside boolean|current_event_id uuid)\b/i);
+    expect(prior).toContain("column_name = 'is_outside'");
+  });
+
+  it("registers the additive Sinners event outbox without historical enrollment", async () => {
+    const sql = await readFile(path.join(serverRoot, "sql", "217_sinners_welcome_email.sql"), "utf8");
+    const source = await readFile(path.join(currentDir, "migrate.ts"), "utf8");
+    expect(source).toMatch(/"215_oos_welcome_email\.sql",\s*"217_sinners_welcome_email\.sql"/);
+    expect(sql).toContain("user_id uuid not null references app_users(id) on delete cascade");
+    expect(sql).toContain("on sinners_welcome_emails (user_id) where event_kind = 'first_coc'");
+    expect(sql).toContain("on sinners_welcome_emails (prior_outside_event_id) where event_kind = 'service_return'");
+    expect(sql).toContain("idempotency_key text not null unique");
+    expect(sql).not.toMatch(/\b(insert into|update|delete from|drop|truncate|latitude|longitude|lat|lng|city|ip)\b/i);
+  });
+
+  it("does not retain a first-location snapshot for service-area state", async () => {
+    const source = await readFile(path.join(currentDir, "migrate.ts"), "utf8");
+    expect(source).not.toContain("216_encrypted_first_entry_locations.sql");
+  });
+
+  it("lists every active numbered SQL migration in order", async () => {
     const sqlFiles = (await readdir(path.join(serverRoot, "sql")))
       .filter((file) => /^\d+_.+\.sql$/.test(file))
+      // This legacy fake-checkout coupon seed was never registered. Adding it
+      // now would reactivate promotions unrelated to the production release.
+      .filter((file) => file !== "065_new_member_coupon.sql")
       .sort();
     const migrateSource = await readFile(path.join(currentDir, "migrate.ts"), "utf8");
     const listStart = migrateSource.indexOf("const migrationFiles = [");
@@ -21,6 +94,7 @@ describe("migration runner", () => {
     );
 
     expect(listedFiles).toEqual(sqlFiles);
+    expect(listedFiles).not.toContain("065_new_member_coupon.sql");
   });
 
   it("starts production crypto allocation after the reconciled address history", async () => {
@@ -243,6 +317,15 @@ describe("migration runner", () => {
     expect(migrateSource).toContain("migrationFiles.slice(productionBaselineIndex + 1)");
     expect(migrateSource).toContain(": migrationFiles;");
     expect(migrateSource).toContain("for (const file of pendingMigrationFiles)");
+  });
+
+  it("keeps every replayed v2 Feed-window constraint compatible with saved thirty-day settings", async () => {
+    const allowedWindows = ["1h", "3h", "6h", "24h", ...Array.from({ length: 24 }, (_, i) => `${i + 7}d`), "never"];
+    for (const file of ["207_feed_window_never.sql", "213_feed_window_thirty_days.sql"]) {
+      const sql = await readFile(path.join(serverRoot, "sql", file), "utf8");
+      for (const window of allowedWindows) expect(sql).toContain(`'${window}'`);
+      expect(sql).not.toMatch(/\b(delete|truncate|update)\b/i);
+    }
   });
 
   it("deduplicates active survey responses before installing replay-safe uniqueness guards", async () => {
@@ -615,4 +698,264 @@ describe("migration runner", () => {
     expect(capSql).not.toContain("delete from");
     expect(capSql).not.toContain("reward_grants");
   });
+});
+
+// Explicit opt-in, private Unix socket only. Never use DATABASE_URL or a shared DB.
+// Initialize a disposable PostgreSQL 16 cluster under mktemp -d
+// /private/tmp/cruush-outbox219-proof.XXXXXX; listen_addresses='', socket there,
+// port 55439. Run MIGRATION_219_TEST_SOCKET=<directory> vitest run src/migrate.test.ts.
+const proofSocket = process.env.MIGRATION_219_TEST_SOCKET;
+if (proofSocket && !/^\/(?:private\/)?tmp\/cruush-outbox219-proof\.[A-Za-z0-9]+$/.test(proofSocket)) {
+  throw new Error("Migration proof requires its own disposable local Unix socket.");
+}
+const proofConfig = {
+  SESSION_SECRET: "synthetic-migration-219-session-only", LOCATION_ENCRYPTION_KEY: "synthetic-migration-219-key-only",
+  LOCATION_ENCRYPTION_KEY_PREVIOUS: "", LOCATION_ENCRYPTION_KEY_VERSION: "v1"
+};
+const encryptedQueueSql = () => readFile(path.join(serverRoot, "sql", "219_encrypted_service_area_email_outbox.sql"), "utf8");
+const operational = ["queued_at", "claim_token", "claimed_until", "email_started_at", "email_sent_at", "cancelled_at", "reconciliation_required_at"] as const;
+type ProofLegacyRow = Record<typeof operational[number], string | null> & {
+  event_id: string; user_id: string; event_kind: ServiceAreaEmailPayload["kind"];
+  prior_outside_event_id: string | null; idempotency_key: string;
+  email_to: string | null; provider_message_id: string | null;
+};
+const payloadFor = (row: ProofLegacyRow): ServiceAreaEmailPayload => ({
+  kind: row.event_kind, priorOutsideEventId: row.prior_outside_event_id,
+  providerIdempotencyKey: row.idempotency_key, emailTo: row.email_to, providerMessageId: row.provider_message_id
+});
+async function withProofSchema(fn: (pool: pg.Pool) => Promise<void>) {
+  const schema = `outbox219_${randomUUID().replaceAll("-", "")}`;
+  const pool = new pg.Pool({ host: proofSocket, port: 55439, database: "postgres", user: userInfo().username,
+    max: 3, options: `-c search_path=${schema},pg_catalog` });
+  try {
+    await pool.query(`create schema ${schema}`);
+    await pool.query("create table app_users (id uuid primary key)");
+    await fn(pool);
+  } finally {
+    // Only this test's freshly generated schema. No shared schemas or database deletion.
+    await pool.query(`drop schema if exists ${schema} cascade`);
+    await pool.end();
+  }
+}
+const runProofMigration = async (pool: pg.Pool, file = "219_encrypted_service_area_email_outbox.sql") =>
+  runMigration(await pool.connect(), file, "synthetic isolated proof", proofConfig);
+
+async function legacySnapshot(pool: pg.Pool) {
+  const rows: ProofLegacyRow[] = [];
+  for (const table of ["oos_welcome_emails", "sinners_welcome_emails"]) {
+    const outside = table === "oos_welcome_emails";
+    const selected = operational.map((field) => field === "cancelled_at" && !outside
+      ? "null::text as cancelled_at" : `${field}::text as ${field}`).join(", ");
+    const result = await pool.query<ProofLegacyRow>(`select event_id::text, user_id::text,
+      ${outside ? "'outside_entry'::text as event_kind, null::text as prior_outside_event_id" : "event_kind, prior_outside_event_id::text"},
+      idempotency_key, email_to, provider_message_id, ${selected} from ${table} order by event_id`);
+    rows.push(...result.rows);
+  }
+  return rows;
+}
+
+async function seedLegacy(pool: pg.Pool, outsideCount = 6) {
+  const users = [randomUUID(), randomUUID(), randomUUID()];
+  for (const user of users) await pool.query("insert into app_users(id) values ($1)", [user]);
+  await runProofMigration(pool, "215_oos_welcome_email.sql");
+  await runProofMigration(pool, "217_sinners_welcome_email.sql");
+  const outsideIds: string[] = [];
+  for (let i = 0; i < outsideCount + 9; i++) {
+    const outside = i < outsideCount;
+    const kind = outside ? "outside_entry" : i < outsideCount + 3 ? "first_coc" : "service_return";
+    const user = kind === "first_coc" ? users[i - outsideCount] : users[0];
+    const event = randomUUID();
+    const prior = kind === "service_return" ? outsideIds[i - outsideCount - 3] : null;
+    if (outside) outsideIds.push(event);
+    const state = i % 6; // queued, claimed, started, sent, cancelled, reconciliation
+    const stamp = "2026-10-09 12:34:56.123456+00";
+    const fields = ["event_id", "user_id", "idempotency_key", "queued_at", "claim_token", "claimed_until",
+      "email_started_at", "email_to", "email_sent_at", "provider_message_id", "reconciliation_required_at"];
+    const values: unknown[] = [event, user, i === 0 ? `oos-welcome/${user}` : `legacy-provider/${kind}/${event}`,
+      stamp, state >= 1 ? randomUUID() : null, state >= 1 ? stamp : null,
+      state >= 2 ? stamp : null, state >= 2 ? `frozen-${i}@example.invalid` : null,
+      state === 3 ? stamp : null, state === 3 ? `preserved-provider-${i}` : null, state === 5 ? stamp : null];
+    if (outside) { fields.push("cancelled_at"); values.push(state === 4 ? stamp : null); }
+    else { fields.push("event_kind", "prior_outside_event_id"); values.push(kind, prior); }
+    await pool.query(`insert into ${outside ? "oos_welcome_emails" : "sinners_welcome_emails"}
+      (${fields.join(",")}) values (${values.map((_, index) => `$${index + 1}`).join(",")})`, values);
+  }
+  await pool.query("insert into oos_service_area_state(user_id,is_outside,current_event_id) values($1,true,$2)", [users[0], outsideIds.at(-1)]);
+  await runProofMigration(pool, "218_encrypted_oos_service_area_state.sql");
+  return { users, outsideIds, expected: await legacySnapshot(pool) };
+}
+
+async function encryptedSnapshot(pool: pg.Pool) {
+  return (await pool.query("select to_jsonb(t) as data from service_area_email_outbox t order by event_id")).rows;
+}
+async function expectLegacyAbsent(pool: pg.Pool) {
+  expect((await pool.query("select to_regclass('oos_welcome_emails') as outside, to_regclass('sinners_welcome_emails') as sinners")).rows)
+    .toEqual([{ outside: null, sinners: null }]);
+}
+
+describe.skipIf(!proofSocket)("219 isolated PostgreSQL preservation proof", () => {
+  it("preserves every payload/claim/history field across batches, supports runtime dedupe, and cascades account deletion", async () => withProofSchema(async (pool) => {
+    const { users, outsideIds, expected } = await seedLegacy(pool, 205);
+    expect(expected).toHaveLength(214);
+    await runProofMigration(pool);
+    await expectLegacyAbsent(pool);
+    const result = await pool.query<ServiceAreaEmailOutboxRow & ProofLegacyRow & { dedupe_token: string }>(
+      `select t.*, ${operational.map((field) => `${field}::text as ${field}`).join(", ")} from service_area_email_outbox t`);
+    expect(result.rows).toHaveLength(expected.length);
+    for (const legacy of expected) {
+      const row = result.rows.find((item) => item.event_id === legacy.event_id)!;
+      expect(row.user_id).toBe(legacy.user_id);
+      expect(decryptServiceAreaEmailPayload(proofConfig, row)).toEqual(payloadFor(legacy));
+      expect(Buffer.from(row.payload_ciphertext, "base64")).toHaveLength(2048);
+      expect(row.dedupe_token).toMatch(/^[0-9a-f]{64}$/);
+      for (const field of operational) expect(row[field]).toBe(legacy[field]);
+      for (const field of ["email_to", "event_kind", "provider_message_id", "idempotency_key", "prior_outside_event_id"]) {
+        expect(row).not.toHaveProperty(field);
+      }
+    }
+    const state = (await pool.query("select * from oos_service_area_state where user_id=$1", [users[0]])).rows[0];
+    expect(decryptOosState(proofConfig, users[0], state)).toEqual({ is_outside: true, current_event_id: outsideIds.at(-1) });
+    const before = await encryptedSnapshot(pool);
+    // Exercise the landed queue API without invoking delivery or any provider.
+    const db = { query: pool.query.bind(pool), end: async () => {} };
+    for (const kind of ["outside_entry", "first_coc", "service_return"] as const) {
+      await queueServiceAreaEmail(db, proofConfig, {
+        userId: users[0], eventId: kind === "outside_entry" ? outsideIds[0] : randomUUID(), kind,
+        priorOutsideEventId: kind === "service_return" ? outsideIds[0] : null, providerIdempotencyKey: "must-not-replace-legacy-key"
+      });
+    }
+    expect(await encryptedSnapshot(pool)).toEqual(before);
+    await pool.query("delete from app_users where id=$1", [users[0]]);
+    expect((await pool.query("select count(*)::int as count from service_area_email_outbox where user_id=$1", [users[0]])).rows[0].count).toBe(0);
+    expect((await pool.query("select count(*)::int as count from oos_service_area_state where user_id=$1", [users[0]])).rows[0].count).toBe(0);
+    expect((await pool.query("select count(*)::int as count from service_area_email_outbox")).rows[0].count).toBe(2);
+  }));
+
+  it("replays 215/217/218/219 without recreating plaintext, changing ciphers or re-enrolling members", async () => withProofSchema(async (pool) => {
+    await seedLegacy(pool);
+    await runProofMigration(pool);
+    const before = await encryptedSnapshot(pool);
+    for (let replay = 0; replay < 2; replay++) {
+      for (const file of ["215_oos_welcome_email.sql", "217_sinners_welcome_email.sql", "218_encrypted_oos_service_area_state.sql", "219_encrypted_service_area_email_outbox.sql"]) {
+        await runProofMigration(pool, file);
+      }
+      await expectLegacyAbsent(pool);
+      expect(await encryptedSnapshot(pool)).toEqual(before);
+    }
+  }));
+
+  it("rolls back both queues and all inserted ciphertext if a later table cannot contract", async () => withProofSchema(async (pool) => {
+    await seedLegacy(pool);
+    const before = await legacySnapshot(pool);
+    await pool.query("create view keep_legacy_dependency as select event_id from sinners_welcome_emails");
+    await expect(runProofMigration(pool)).rejects.toThrow("transaction must roll back");
+    expect(await legacySnapshot(pool)).toEqual(before);
+    expect((await pool.query("select to_regclass('service_area_email_outbox') as encrypted")).rows[0].encrypted).toBeNull();
+    await pool.query("drop view keep_legacy_dependency");
+    await runProofMigration(pool);
+    await expectLegacyAbsent(pool);
+  }));
+
+  it("authenticates persisted ciphertext before contraction and preserves legacy data on tampering", async () => withProofSchema(async (pool) => {
+    await seedLegacy(pool);
+    const before = await legacySnapshot(pool);
+    await pool.query(await encryptedQueueSql());
+    await pool.query(`create function corrupt_test_cipher() returns trigger language plpgsql as $$
+      begin new.payload_auth_tag := 'AAAAAAAAAAAAAAAAAAAAAA=='; return new; end $$;
+      create trigger corrupt_test_cipher before insert on service_area_email_outbox
+      for each row execute function corrupt_test_cipher()`);
+    await expect(runProofMigration(pool)).rejects.toThrow("transaction must roll back");
+    expect(await legacySnapshot(pool)).toEqual(before);
+    expect(await encryptedSnapshot(pool)).toEqual([]);
+    await pool.query("drop trigger corrupt_test_cipher on service_area_email_outbox");
+    await runProofMigration(pool);
+    await expectLegacyAbsent(pool);
+  }));
+
+  it("refuses conflicting existing event payloads instead of overwriting frozen recipients", async () => withProofSchema(async (pool) => {
+    const { expected } = await seedLegacy(pool);
+    const row = expected[0];
+    await pool.query(await encryptedQueueSql());
+    const cipher = encryptServiceAreaEmailPayload(proofConfig, row.user_id, row.event_id, {
+      ...payloadFor(row), emailTo: "different-frozen@example.invalid"
+    });
+    await pool.query(`insert into service_area_email_outbox(event_id,user_id,dedupe_token,${Object.keys(cipher).join(",")})
+      values($1,$2,$3,${Object.keys(cipher).map((_, index) => `$${index + 4}`).join(",")})`,
+    [row.event_id, row.user_id, serviceAreaEmailDedupeToken(proofConfig, row.user_id, "outside_entry", row.event_id), ...Object.values(cipher)]);
+    const before = await encryptedSnapshot(pool);
+    await expect(runProofMigration(pool)).rejects.toThrow("transaction must roll back");
+    expect(await legacySnapshot(pool)).toEqual(expected);
+    expect(await encryptedSnapshot(pool)).toEqual(before);
+  }));
+
+  it("fails closed on a legacy payload too large for the authenticated fixed-size contract", async () => withProofSchema(async (pool) => {
+    await seedLegacy(pool);
+    await pool.query("update sinners_welcome_emails set email_to=$1", ["x".repeat(321)]);
+    const before = await legacySnapshot(pool);
+    await expect(runProofMigration(pool)).rejects.toThrow("transaction must roll back");
+    expect(await legacySnapshot(pool)).toEqual(before);
+    expect((await pool.query("select to_regclass('service_area_email_outbox') as encrypted")).rows[0].encrypted).toBeNull();
+  }));
+
+  it("refuses to discard an unrecognized legacy column", async () => withProofSchema(async (pool) => {
+    await seedLegacy(pool);
+    await pool.query("alter table sinners_welcome_emails add column future_delivery_history text default 'preserve-me'");
+    await expect(runProofMigration(pool)).rejects.toThrow("transaction must roll back");
+    expect((await pool.query("select distinct future_delivery_history from sinners_welcome_emails")).rows)
+      .toEqual([{ future_delivery_history: "preserve-me" }]);
+  }));
+
+  it("blocks concurrent legacy writers and can roll the complete transition back", async () => withProofSchema(async (pool) => {
+    await seedLegacy(pool);
+    const before = await legacySnapshot(pool);
+    const migration = await pool.connect();
+    const writer = await pool.connect();
+    try {
+      await migration.query("begin");
+      await migration.query(await encryptedQueueSql());
+      await migrateLegacyServiceAreaEmailOutboxes(migration, proofConfig);
+      await writer.query("set lock_timeout='100ms'");
+      await expect(writer.query("update oos_welcome_emails set claimed_until=now()"))
+        .rejects.toMatchObject({ code: "55P03" });
+      await migration.query("rollback");
+      expect(await legacySnapshot(pool)).toEqual(before);
+      expect((await pool.query("select to_regclass('service_area_email_outbox') as encrypted")).rows[0].encrypted).toBeNull();
+    } finally {
+      await migration.query("rollback");
+      migration.release(); writer.release();
+    }
+  }));
+
+  it("handles an empty legacy baseline without inventing events", async () => withProofSchema(async (pool) => {
+    await runProofMigration(pool, "215_oos_welcome_email.sql");
+    await runProofMigration(pool, "217_sinners_welcome_email.sql");
+    await runProofMigration(pool, "218_encrypted_oos_service_area_state.sql");
+    await runProofMigration(pool);
+    expect(await encryptedSnapshot(pool)).toEqual([]);
+    await expectLegacyAbsent(pool);
+  }));
+
+  it("serializes an old-migration replay with contraction so it cannot recreate plaintext", async () => withProofSchema(async (pool) => {
+    await seedLegacy(pool);
+    const migration = await pool.connect();
+    try {
+      await migration.query("begin");
+      await migration.query("select pg_advisory_xact_lock(219, 20261009)");
+      await migration.query(await encryptedQueueSql());
+      await migrateLegacyServiceAreaEmailOutboxes(migration, proofConfig);
+      const replay = await pool.connect();
+      await replay.query("set lock_timeout='100ms'");
+      await expect(runMigration(replay, "215_oos_welcome_email.sql", "synthetic concurrent replay", proofConfig))
+        .rejects.toMatchObject({ code: "55P03" });
+      await migration.query("commit");
+    } finally {
+      await migration.query("rollback");
+      migration.release();
+    }
+    const before = await encryptedSnapshot(pool);
+    await runProofMigration(pool, "215_oos_welcome_email.sql");
+    await runProofMigration(pool, "217_sinners_welcome_email.sql");
+    await expectLegacyAbsent(pool);
+    expect(await encryptedSnapshot(pool)).toEqual(before);
+  }));
 });

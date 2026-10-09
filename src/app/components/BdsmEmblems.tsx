@@ -131,7 +131,7 @@ function Emblem({
 /* Dominant */
 
 export function DominantTakenEmblem(props: EmblemProps) {
-  return <Emblem {...props} frame="dominant" solid />;
+  return <Emblem {...props} className={`${props.className ?? ''} origin-center scale-[0.84]`} frame="dominant" solid />;
 }
 
 export function DomEmblem(props: EmblemProps) {

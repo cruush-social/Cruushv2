@@ -55,7 +55,7 @@ const localDevEnv = loadEnv('development', __dirname, '')
 const useHttpsValue = process.env.VITE_DEV_HTTPS ?? localDevEnv.VITE_DEV_HTTPS
 const useHttps = useHttpsValue !== '0' && useHttpsValue !== 'false'
 const configuredDevPort = Number(process.env.VITE_DEV_PORT ?? localDevEnv.VITE_DEV_PORT ?? 5173)
-const configuredApiProxyTarget = process.env.VITE_API_PROXY_TARGET ?? localDevEnv.VITE_API_PROXY_TARGET ?? 'http://127.0.0.1:3001'
+const configuredApiProxyTarget = process.env.VITE_API_PROXY_TARGET ?? localDevEnv.VITE_API_PROXY_TARGET ?? 'http://127.0.0.1:3002'
 
 const httpsConfig =
   useHttps && fs.existsSync(devKeyPath) && fs.existsSync(devCertPath)

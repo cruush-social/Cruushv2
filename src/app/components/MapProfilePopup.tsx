@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, type CSSProperties } from 'react';
 import { useNavigate } from 'react-router';
 import { formatDistanceLabel, useDistancePreferences } from '../lib/distancePreferences';
 import { X } from 'lucide-react';
@@ -31,6 +31,8 @@ import DarkRoomMark from './DarkRoomMark';
 import LoadingCardSkeletons from './LoadingCardSkeletons';
 import BugButtonSlot from './BugButtonSlot';
 import { resolveUserBorderTone } from '../lib/userBorderTone';
+import { useMapServiceArea } from './MapServiceAreaContext';
+import PurgatoryMemberBadge from './PurgatoryMemberBadge';
 
 interface MapProfilePopupProps {
   user: any;
@@ -54,6 +56,7 @@ export default function MapProfilePopup({
 }: MapProfilePopupProps) {
   const distancePreferences = useDistancePreferences();
   const navigate = useNavigate();
+  const { profilePinsAllowed } = useMapServiceArea();
   const [cruushed, setCruushed] = useState(false);
   const [cruushBecameMutual, setCruushBecameMutual] = useState(false);
   const [sendingCruush, setSendingCruush] = useState(false);
@@ -143,6 +146,9 @@ export default function MapProfilePopup({
   const displayName = profileView?.name ?? user.name;
   const displayAge = profileView?.age ?? user.age;
   const displayTravelling = profileView?.travelling ?? user.travelling === true;
+  const displayOutOfSight = profileView?.id === user.id
+    ? profileView.outOfSight
+    : user.outOfSight === true;
   const displayTravelLabel = profileView?.travelLabel ?? user.travelLabel ?? '';
   const displayPronouns = profileView?.pronouns ?? user.pronouns;
   const displayPhoto = profileView?.photos[0] ?? user.photo;
@@ -164,7 +170,7 @@ export default function MapProfilePopup({
   const canMessage = isMutualCruush
     || (profileView?.relationship ? profileView.relationship.can_message : user.relationship?.canMessage);
   const cruushDisabled = isDemo || sendingCruush || revokingCruush;
-  const pinActionable = canRevealPreciseLocation && !targetInDarkRoom;
+  const pinActionable = profilePinsAllowed && canRevealPreciseLocation && !targetInDarkRoom;
 
 
   const handleCruush = async () => {
@@ -260,7 +266,6 @@ export default function MapProfilePopup({
 
               setFullProfile(nextProfile);
               onProfileSaved?.(nextProfile);
-              setOwnProfileMode('view');
             }}
           />
         </div>
@@ -274,6 +279,7 @@ export default function MapProfilePopup({
         <div className="relative overflow-hidden">
           <ProfilePhotoGallery
             borderTone={resolveUserBorderTone({ current: isOwnProfile, mileHigh: displayTravelling, mutual: isAlreadyMutual })}
+            outOfSight={displayOutOfSight}
             name={displayName}
             photoMetadata={displayPhotoMetadata}
             photos={displayPhotos}
@@ -338,6 +344,7 @@ export default function MapProfilePopup({
                       title={displayTravelLabel ? `Mile High Club: ${displayTravelLabel}` : 'Mile High Club'}
                     />
                   ) : null}
+                  {displayOutOfSight ? <PurgatoryMemberBadge key={user.id} size="map" /> : null}
                 </h3>
                 <div className="mt-1">
                   <CruushBadge badges={displayBadges} compact />
@@ -425,31 +432,49 @@ export default function MapProfilePopup({
 
             <Button
               type="button"
-              className="h-12 w-12 rounded-2xl border-0 px-0 text-white disabled:opacity-100"
-              style={{ background: pinActionable ? 'var(--cruush-gradient)' : 'var(--cruush-gradient-soft-28), #0A0A12' }}
-              aria-label={pinActionable
+              className="profile-center-pin-match-action h-12 w-12 rounded-2xl border-0 px-0 text-white disabled:opacity-100"
+              style={{
+                background: pinActionable ? 'var(--cruush-gradient)' : 'var(--cruush-gradient-soft-28), #0A0A12',
+                '--profile-center-pin-mobile-background': !profilePinsAllowed
+                  ? 'var(--cruush-gradient-soft-28), #0A0A12'
+                  : hasRevocableCruush
+                  ? 'var(--cruush-gradient-soft-28)'
+                  : cruushDisabled
+                    ? 'rgba(255,255,255,0.16)'
+                    : 'var(--cruush-gradient)',
+              } as CSSProperties}
+              aria-label={!profilePinsAllowed
+                ? 'Map location unavailable'
+                : pinActionable
                 ? `Center the map on ${displayName}`
                 : targetInDarkRoom
                   ? `${displayName} is in Dark Room`
                   : `${displayName} does not share their precise location`}
-              title={pinActionable
+              title={!profilePinsAllowed
+                ? 'Map location unavailable'
+                : pinActionable
                 ? `Center the map on ${displayName}`
                 : targetInDarkRoom
                   ? 'Dark Room'
                   : 'Precise location unavailable'}
               disabled={!pinActionable}
-              onClick={() => navigate('/map', { state: { focusUserId: user.id } })}
+              onClick={pinActionable ? () => navigate('/map', { state: { focusUserId: user.id } }) : undefined}
             >
               {targetInDarkRoom
                 ? <DarkRoomMark active className="h-5 w-5 opacity-55" />
-                : <CruushIconImage src={mapIconWhite} className={`h-5 w-5 ${pinActionable ? '' : 'opacity-45'}`} />}
+                : <CruushIconImage src={mapIconWhite} className={`h-5 w-5 sm:h-6 sm:w-6 ${pinActionable ? '' : 'opacity-45'}`} />}
             </Button>
 
             <Button
-              className="h-12 min-w-0 flex-1 justify-center rounded-2xl border-0 text-base text-white"
+              className="desktop-profile-message-action h-12 min-w-0 flex-1 justify-center rounded-2xl border-0 text-base text-white"
               style={{
                 background: isDemo ? 'rgba(255,255,255,0.16)' : 'var(--cruush-gradient)',
-              }}
+                '--desktop-profile-message-background': isDemo
+                  ? 'rgba(255,255,255,0.16)'
+                  : canMessage === false
+                    ? 'var(--cruush-gradient-soft-28), #0A0A12'
+                    : 'var(--cruush-gradient)',
+              } as CSSProperties}
               disabled={isDemo || openingMessage}
               aria-label={isDemo ? 'Demo message unavailable' : openingMessage ? 'Opening conversation' : 'Message now'}
               onClick={() => {

@@ -27,6 +27,8 @@ export const ICON_ATTRIBUTIONS: IconAttribution[] = [
   { label: 'Strip Tease: Gan Khoon Lay / Noun Project', source: 'https://thenounproject.com/icon/strip-tease-970491/' },
   { label: 'Dating App: Silviu Ojog / Noun Project', source: 'https://thenounproject.com/icon/dating-app-3817923/' },
   { label: 'Machine / Flaticon', source: 'https://www.flaticon.com/free-icon/machine_4648539' },
+  { label: 'Carousel: Eucalyp / Flaticon', source: 'https://www.flaticon.com/free-icon/carousel_7058256?term=carousel&page=2&position=93&origin=search&related_id=7058256' },
+  { label: 'Merry Go Round: Aranagraphics / Flaticon', source: 'https://www.flaticon.com/free-icon/merry-go-round_9198043' },
   { label: 'Gay: Guilherme Furtado / Noun Project', source: 'https://thenounproject.com/icon/gay-7284797/' },
   { label: 'Gem: Gregor Cresnar / Noun Project', source: 'https://thenounproject.com/icon/gem-485475/' },
   { label: 'Labrys: SAM Designs / Noun Project', source: 'https://thenounproject.com/icon/labrys-5692573/' },

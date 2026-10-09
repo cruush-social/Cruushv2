@@ -32,6 +32,7 @@ export type DiscoveryUser = {
   travelling?: boolean;
   travelLabel?: string;
   photo: string | null;
+  outOfSight?: boolean;
   photoExplicit?: boolean;
   photoRelationship?: DlModePhotoRelationship;
   badges?: CruushBadge[];
@@ -119,6 +120,7 @@ type TokenizedDiscoveryProfile = {
   travelling?: boolean;
   travelLabel?: string;
   photo: string | null;
+  outOfSight?: boolean;
   photoExplicit?: boolean;
   photoRelationship?: DlModePhotoRelationship;
   badges?: CruushBadge[];
@@ -225,6 +227,7 @@ export async function getNearbyUsers(
   if (Array.isArray(response)) {
     return response.map((user) => ({
       ...user,
+      ...(typeof user.outOfSight === 'boolean' ? { outOfSight: user.outOfSight } : {}),
       photoExplicit: user.photoExplicit === true,
     }));
   }
@@ -264,6 +267,7 @@ export async function getNearbyUsers(
       travelling: profile.travelling === true,
       travelLabel: profile.travelLabel ?? '',
       photo: profile.photo,
+      ...(typeof profile.outOfSight === 'boolean' ? { outOfSight: profile.outOfSight } : {}),
       photoExplicit: profile.photoExplicit === true,
       photoRelationship: profile.photoRelationship,
       badges: profile.badges,

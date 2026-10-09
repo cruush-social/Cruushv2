@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router';
-import { RotateCcw } from 'lucide-react';
+import { ArrowLeft, RotateCcw } from 'lucide-react';
 import { Button } from './ui/button';
 import ProfileOnboarding from './ProfileOnboarding';
 import AppPageHeader from './AppPageHeader';

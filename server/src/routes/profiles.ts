@@ -63,6 +63,15 @@ import { formatLastActiveFromDate } from "../discovery-users.js";
 import { getTravelPin, locationPayloadAtTravelPin } from "../travel-pins.js";
 import { isTombstonedProfileName } from "../profile-tombstone.js";
 import {
+  classifyCurrentOutOfSightLocation,
+  loadOutOfSightStatuses,
+  resolveOutOfSightLocationLabel
+} from "../out-of-sight-location.js";
+import { deliverOutOfSightWelcomeEmail, loadStoredOutOfSightStatuses, queueOutOfSightWelcomeEmail } from "../oos-welcome-email.js";
+import { deliverPendingSinnersWelcomeEmailsForUser } from "../sinners-welcome-email.js";
+import { getViewerOutsideServiceArea, loadOosHiddenProfileIds } from "../profile-oos-visibility.js";
+import { loadCurrentTownLabels } from "../current-town-labels.js";
+import {
   DEFAULT_GHOST_RADIUS_METERS,
   GHOST_RADIUS_OPTIONS,
   GHOST_ROTATION_MINUTES,
@@ -119,6 +128,7 @@ const privacySettingsPayloadSchema = z.object({
   ghostModeEnabled: z.boolean().optional(),
   ghostRadiusMeters: z.number().int().optional(),
   ghostRotationMinutes: z.number().int().refine((value) => GHOST_ROTATION_MINUTES.includes(value), "Ghost rotation interval is unsupported.").optional(),
+  ghostLeashVisible: z.boolean().optional(),
   ghostRadiusLabel: z.string().optional(),
   preciseToMutualCruushes: z.boolean().optional(),
   preciseToMutualCrowds: z.array(crowdPrecisionPolicySchema).max(3).optional(),
@@ -149,6 +159,7 @@ type ProfileRow = {
   pronouns: string[] | null;
   custom_pronouns: string | null;
   year_of_birth: number | null;
+  show_age: boolean | null;
   ethnicity: string[] | null;
   identities: string[] | null;
   presentation: string[] | null;
@@ -352,6 +363,7 @@ const PROFILE_COLUMNS = [
   "pronouns",
   "custom_pronouns",
   "year_of_birth",
+  "show_age",
   "ethnicity",
   "identities",
   "presentation",
@@ -572,7 +584,8 @@ function mapProfileRow(
     ...(row.attending_launch_party === true ? { attendingLaunchParty: true } : {}),
     pronouns: row.pronouns ?? [],
     custom_pronouns: row.custom_pronouns ?? "",
-    year_of_birth: row.year_of_birth,
+    year_of_birth: includePrivateSensitive || row.show_age !== false ? row.year_of_birth : null,
+    show_age: row.show_age !== false,
     ethnicity: row.ethnicity?.[0] ?? "",
     identities: row.identities ?? [],
     presentation: row.presentation ?? [],
@@ -688,6 +701,7 @@ function profilePayloadFromRow(
     pronouns: row.pronouns ?? [],
     custom_pronouns: row.custom_pronouns ?? "",
     year_of_birth: row.year_of_birth,
+    show_age: row.show_age !== false,
     ethnicity: row.ethnicity?.[0] ?? "",
     identities: row.identities ?? [],
     presentation: row.presentation ?? [],
@@ -1432,9 +1446,12 @@ async function loadProfileData(
     ? relationship?.isMutualCruush === true
     : false;
   const visibilityRules = decryptProfileVisibility(app.config, row);
+  const viewerOutsideServiceArea = !options.includePrivateSensitive && options.viewerUserId && options.viewerUserId !== userId
+    ? await getViewerOutsideServiceArea(app, options.viewerUserId)
+    : false;
 
   if (!options.includePrivateSensitive) {
-    await assertProfileRowVisibleToViewer(app, row, options.viewerUserId, visibilityRules);
+    await assertProfileRowVisibleToViewer(app, row, options.viewerUserId, visibilityRules, viewerOutsideServiceArea);
   }
 
   if (relationship && options.viewerUserId) {
@@ -1465,6 +1482,9 @@ async function loadProfileData(
     visibleCrowds,
     canMessage
   });
+  if (viewerOutsideServiceArea && mappedProfile.viewer_relationship) {
+    mappedProfile.viewer_relationship.can_reveal_precise_location = false;
+  }
 
   if (!options.includePrivateSensitive && options.viewerUserId) {
     mappedProfile.photo_relationship = (await loadPhotoViewerRelationships(app, options.viewerUserId, [userId])).get(userId);
@@ -1481,9 +1501,12 @@ async function loadProfileData(
   // Mile High Club is worth reading before you cross a city for someone, so it is
   // stated on the profile itself.
   const travelPin = await getTravelPin(app, userId).catch(() => null);
+  const savedStatus = (await loadStoredOutOfSightStatuses(app, [userId])).get(userId);
+  const membership = savedStatus === "out_of_sight" ? { outOfSight: true }
+    : savedStatus === "in_area" ? { outOfSight: false } : {};
   const withTravel = travelPin
-    ? { ...mappedProfile, travelling: true, travelLabel: travelPin.label }
-    : mappedProfile;
+    ? { ...mappedProfile, travelling: true, travelLabel: travelPin.label, ...membership }
+    : { ...mappedProfile, ...membership };
 
   // Discovery carried these two lines and the profile did not, so a profile
   // opened from anywhere other than the map showed neither. They are read from
@@ -1552,10 +1575,6 @@ async function loadViewerDistanceLabel(
   const viewerLat = viewerCoordinates?.lat ?? viewer?.fuzzy_lat ?? viewer?.lat;
   const viewerLng = viewerCoordinates?.lng ?? viewer?.fuzzy_lng ?? viewer?.lng;
 
-  if (targetLat == null || targetLng == null || viewerLat == null || viewerLng == null) {
-    return null;
-  }
-
   const policy = await getEffectiveVisibilityPolicy(app, targetUserId).catch((error: unknown) => {
     if (isSchemaCompatibilityError(error)) {
       return null;
@@ -1572,6 +1591,24 @@ async function loadViewerDistanceLabel(
     ? "PRECISE" as const
     : policy?.baseMode === "GHOST" ? "GHOST" as const : "PRECISE" as const;
 
+  const viewerStatus = classifyCurrentOutOfSightLocation(viewerEnvelope);
+  const savedStatuses = await loadOutOfSightStatuses(app, [viewerUserId, targetUserId]);
+  const subjectCityLabel = savedStatuses.get(targetUserId) === "out_of_sight"
+    && relationship?.distanceLabelMode === "precise"
+    ? (await loadCurrentTownLabels(app, [targetUserId])).get(targetUserId)
+    : undefined;
+  const outOfSightLabel = resolveOutOfSightLocationLabel({
+    viewerStatus: savedStatuses.get(viewerUserId) ?? "unknown",
+    subjectStatus: savedStatuses.get(targetUserId) ?? "unknown",
+    sharedMode: relationship?.distanceLabelMode ?? "approximate",
+    subjectCityLabel
+  });
+  if (outOfSightLabel) return outOfSightLabel;
+  if (targetLat == null || targetLng == null || viewerLat == null || viewerLng == null) {
+    return null;
+  }
+  if (viewerStatus !== "in_area") return "Nearby";
+
   return formatDistanceLabel({
     displayMode,
     distanceLabelMode: relationship?.distanceLabelMode,
@@ -1586,10 +1623,19 @@ async function assertProfileRowVisibleToViewer(
   app: FastifyInstance,
   row: ProfileRow,
   viewerUserId: string | undefined,
-  visibilityRules: ProfileVisibilityRules | null
+  visibilityRules: ProfileVisibilityRules | null,
+  viewerOutsideServiceArea?: boolean
 ) {
   if (viewerUserId === row.id) {
     return;
+  }
+
+  if (viewerUserId && (await loadOosHiddenProfileIds(app, viewerUserId, [row.id], viewerOutsideServiceArea)).has(row.id)) {
+    throw new ApiError(404, "NOT_FOUND", "Profile not found");
+  }
+
+  if (!visibilityRules && (row.profile_visibility_ciphertext || row.profile_visibility_nonce || row.profile_visibility_auth_tag)) {
+    throw new ApiError(404, "NOT_FOUND", "Profile not found");
   }
 
   if (visibilityRulesArePublic(visibilityRules)) {
@@ -1608,9 +1654,16 @@ async function assertProfileRowVisibleToViewer(
     ? await loadVisibilityCoordinates(app, viewerUserId, row)
     : { viewer: null, target: getProfileCoordinates(row) };
 
-  const viewerSubject = viewerProfile && coordinates.viewer
-    ? { ...viewerProfile, coordinates: coordinates.viewer }
-    : viewerProfile;
+  const viewerSubject = viewerProfile
+    ? {
+        ...viewerProfile,
+        ...(coordinates.viewer ? { coordinates: coordinates.viewer } : {}),
+        ...(visibilityRules?.outside_service_area_members ? {
+          outside_service_area: viewerOutsideServiceArea
+            ?? (viewerUserId ? await getViewerOutsideServiceArea(app, viewerUserId) : true)
+        } : {})
+      }
+    : null;
 
   if (!viewerSubject || !canSubjectViewProfile(visibilityRules, viewerSubject, coordinates.target)) {
     throw new ApiError(404, "NOT_FOUND", "Profile not found");
@@ -1772,6 +1825,7 @@ export async function registerProfileRoutes(app: FastifyInstance) {
       ghostModeEnabled: baseMode === "GHOST",
       ghostRadiusMeters: payload.ghostRadiusMeters ?? radiusMetersForLabel(payload.ghostRadiusLabel),
       ghostRotationMinutes: payload.ghostRotationMinutes,
+      ghostLeashVisible: payload.ghostLeashVisible,
       preciseToMutualCruushes,
       preciseToMutualCrowds,
       darkRoomDistanceLabel: payload.darkRoomDistanceLabel === true,
@@ -2041,7 +2095,9 @@ export async function registerProfileRoutes(app: FastifyInstance) {
     const placeholders = PROFILE_COLUMNS.map((_, index) => `$${index + 1}`);
     const updates = PROFILE_COLUMNS
       .filter((column) => column !== "id")
-      .map((column) => column === "trans_crowds_changed_at"
+      .map((column) => column === "year_of_birth"
+        ? `${column} = coalesce(profiles.${column}, excluded.${column})`
+        : column === "trans_crowds_changed_at"
         ? `${column} = coalesce(excluded.${column}, profiles.${column})`
         : `${column} = excluded.${column}`);
 
@@ -2052,11 +2108,20 @@ export async function registerProfileRoutes(app: FastifyInstance) {
         await lockMapPingSenderInTransaction(db, userId);
         const transactionApp = appWithDatabase(app, db);
         const currentIdentityState = await loadExistingIdentityState(transactionApp, userId);
+        // A concurrent first save or age verification may have established the
+        // year while this request was being moderated. Re-read under the account lock.
+        const currentBirthYear = currentIdentityState.yearOfBirth
+          ?? await loadSignupBirthYear(transactionApp, userId)
+          ?? verifiedBirthYear;
         const hasIdentityChange = hasIdentityGateChange(currentIdentityState, payload, sensitiveProfile);
         assertIdentityGateChangeAllowed(currentIdentityState, hasIdentityChange);
         const values = PROFILE_COLUMNS.map((column) => {
           if (column === "id") {
             return userId;
+          }
+
+          if (column === "year_of_birth") {
+            return currentBirthYear;
           }
 
           if (column === "ethnicity") {
@@ -2165,12 +2230,21 @@ export async function registerProfileRoutes(app: FastifyInstance) {
           accuracyM: payload.fuzz_radius_meters,
           source: "GPS"
         });
+        await queueOutOfSightWelcomeEmail(db, userId, { lat: payload.lat, lng: payload.lng }, app.config);
         await revokeActiveMapPingsInTransaction(db, userId);
 
         return {
           location: savedLocation,
           isNewMapAppearance
         };
+      });
+      // Start delivery after location commit; mail failures do not fail this save.
+      // A pending row also survives provider outages and is retried by the sweep.
+      void deliverOutOfSightWelcomeEmail(app, userId).catch(() => {
+        app.log.warn("Out of Sight welcome email delivery deferred");
+      });
+      void deliverPendingSinnersWelcomeEmailsForUser(app, userId).catch(() => {
+        app.log.warn("Sinners welcome email delivery deferred");
       });
       const policy = await getEffectiveVisibilityPolicy(app, userId);
       const travelPin = await getTravelPin(app, userId).catch(() => null);

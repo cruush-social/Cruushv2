@@ -48,8 +48,8 @@ type CruiseCarouselSlotProps = {
 
 const DEFAULT_BROWSE_DURATION_MS = 2400;
 const FEATURED_ITEM_INDEX = 2;
-const PROFILE_CYCLE_START_INTERVAL_MS = 70;
-const PROFILE_CYCLE_END_INTERVAL_MS = 280;
+const PROFILE_CYCLE_START_INTERVAL_MS = 52;
+const PROFILE_CYCLE_END_INTERVAL_MS = 240;
 
 const CAROUSEL_ICONS: CarouselItem[] = [
   { kind: 'icon', icon: 'cruush', label: 'cruush' },
@@ -229,7 +229,7 @@ function CarouselTile({ item, featured, itemIndex, spinning, activePhotoIndex, o
   // A profile card is already much larger than its neighbours, and scaling it
   // up on top of that pushed its own overlay past the row, which clips: the
   // signal was cut in half and the vibe tags disappeared entirely.
-  const featuredScaleClass = item.kind === 'profile' ? 'scale-100' : 'scale-110';
+  const featuredScaleClass = item.kind === 'profile' || item.kind === 'plus-ad' ? 'scale-100' : 'scale-110';
   const positionClass = featured
     ? `${featuredScaleClass} rotate-0 opacity-100 z-20`
     : 'scale-90 rotate-0 opacity-85 hover:opacity-100 z-10';
@@ -243,9 +243,6 @@ function CarouselTile({ item, featured, itemIndex, spinning, activePhotoIndex, o
         style={{ background: 'var(--cruush-gradient)' }}
       >
         <CruushIcon name="cruush" className="h-8 w-8" variant="white" />
-        <p className="text-sm font-semibold text-white">
-          <CruushPlusWord /> unlocks this
-        </p>
         <p className="text-[11px] leading-tight text-white/85">See who the carousel finds nearby.</p>
       </div>
     );
@@ -401,6 +398,7 @@ export default function CruiseCarouselSlot({
   const prefersReducedMotion = usePrefersReducedMotion();
   const [settled, setSettled] = useState(false);
   const [cycleStep, setCycleStep] = useState(0);
+  const [nearMiss, setNearMiss] = useState(false);
   const [activePhotoIndex, setActivePhotoIndex] = useState(0);
   const onCompleteRef = useRef(onComplete);
   const profileCandidates = useMemo(
@@ -420,6 +418,7 @@ export default function CruiseCarouselSlot({
   useEffect(() => {
     setSettled(false);
     setCycleStep(0);
+    setNearMiss(false);
 
     const duration = prefersReducedMotion ? 140 : browseDurationMs;
     const hasCyclingItems = mode === 'profile' ? profileCandidates.length > 1 : true;
@@ -427,6 +426,7 @@ export default function CruiseCarouselSlot({
     let cycleTimer: number | null = null;
     const advanceReel = () => {
       setCycleStep((currentStep) => currentStep + 1);
+      setNearMiss(Math.random() < 0.32);
       const progress = Math.min(1, (window.performance.now() - cycleStartedAt) / duration);
       const nextDelay = PROFILE_CYCLE_START_INTERVAL_MS
         + Math.round((PROFILE_CYCLE_END_INTERVAL_MS - PROFILE_CYCLE_START_INTERVAL_MS) * progress ** 3);
@@ -497,13 +497,17 @@ export default function CruiseCarouselSlot({
         <div className="relative overflow-hidden rounded-[24px] border border-white/10 bg-black/55 p-4 shadow-[0_24px_70px_rgba(0,0,0,0.4)]">
           <div className="pointer-events-none absolute inset-y-4 left-0 z-10 w-14 bg-gradient-to-r from-black/75 to-transparent" />
           <div className="pointer-events-none absolute inset-y-4 right-0 z-10 w-14 bg-gradient-to-l from-black/75 to-transparent" />
-          <div data-testid="cruise-carousel-featured-frame" className={`pointer-events-none absolute left-1/2 top-1/2 z-10 ${featuredFrameClass} -translate-x-1/2 -translate-y-1/2 rounded-[1.65rem] border border-white/18 bg-white/[0.035] shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] ${settled ? '' : 'cruise-carousel-frame-spinning'}`} />
+          <div data-testid="cruise-carousel-featured-frame" className={`pointer-events-none absolute left-1/2 top-1/2 z-30 ${featuredFrameClass} -translate-x-1/2 -translate-y-1/2 rounded-[1.65rem] border border-white/18 bg-white/[0.035] shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] ${settled ? '' : 'cruise-carousel-frame-spinning'}`}>
+            {mode === 'locked' ? (
+              <p className="absolute inset-x-3 top-3 text-center text-sm font-semibold text-white"><CruushPlusWord /> unlocks this</p>
+            ) : null}
+          </div>
           <span aria-hidden="true" className="pointer-events-none absolute left-1/2 top-2 z-20 h-2.5 w-2.5 -translate-x-1/2 rotate-45 bg-primary shadow-[0_0_14px_rgba(255,0,114,0.9)]" />
           <span aria-hidden="true" className="pointer-events-none absolute bottom-2 left-1/2 z-20 h-2.5 w-2.5 -translate-x-1/2 rotate-45 bg-primary shadow-[0_0_14px_rgba(255,0,114,0.9)]" />
           <div className="relative flex h-[19rem] sm:h-[22rem] items-center justify-center overflow-hidden" aria-hidden="true">
             <div
               key={settled ? 'settled' : `reel-${cycleStep}`}
-              className={`flex items-center gap-3 sm:gap-5 ${settled ? 'cruise-carousel-reel-lock' : 'cruise-carousel-reel-step'}`}
+              className={`flex items-center gap-3 sm:gap-5 ${settled ? 'cruise-carousel-reel-lock' : nearMiss ? 'cruise-carousel-reel-near-miss' : 'cruise-carousel-reel-step'}`}
             >
               {browseItems.map((item, itemIndex) => (
                 <CarouselTile
@@ -573,7 +577,7 @@ export default function CruiseCarouselSlot({
     return (
       <aside
         aria-label="cruise carousel"
-        className="fixed inset-0 z-50 flex items-center justify-center bg-black/88 p-0 backdrop-blur-xl sm:p-6"
+        className="fixed inset-0 z-[140] flex items-center justify-center bg-black/88 p-0 backdrop-blur-xl sm:p-6"
       >
         <div className="scrollbar-hide h-full max-h-[46rem] w-full max-w-3xl overflow-y-auto border-y border-white/10 bg-black/84 shadow-[0_24px_80px_rgba(0,0,0,0.48)] sm:rounded-[28px] sm:border">
           {content}

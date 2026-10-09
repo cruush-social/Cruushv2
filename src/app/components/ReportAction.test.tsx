@@ -21,6 +21,14 @@ vi.mock('sonner', () => ({
 }));
 
 describe('ReportAction', () => {
+  async function chooseReason(label: string) {
+    fireEvent.click(screen.getByRole('combobox', { name: 'Reason' }));
+    const option = await screen.findByRole('option', { name: label });
+    fireEvent.pointerDown(option, { button: 0, pointerType: 'touch' });
+    fireEvent.pointerUp(option, { button: 0, pointerType: 'touch' });
+    fireEvent.click(option);
+  }
+
   beforeEach(() => {
     createReport.mockReset();
     toastSuccess.mockReset();
@@ -51,7 +59,7 @@ describe('ReportAction', () => {
     render(<ReportAction targetType="post" targetId="post-1" targetLabel="post by River" />);
 
     fireEvent.click(screen.getByRole('button', { name: 'Report post by River' }));
-    fireEvent.change(screen.getByLabelText('Reason'), { target: { value: 'spam_scam' } });
+    await chooseReason('Spam or scam');
     fireEvent.change(screen.getByLabelText('Additional details (optional)'), {
       target: { value: 'Repeated link spam.' },
     });
@@ -76,11 +84,22 @@ describe('ReportAction', () => {
     render(<ReportAction targetType="conversation" targetId="conversation-1" targetLabel="conversation with River" />);
 
     fireEvent.click(screen.getByRole('button', { name: 'Report conversation with River' }));
-    fireEvent.change(screen.getByLabelText('Reason'), { target: { value: 'harassment' } });
+    await chooseReason('Harassment or bullying');
     fireEvent.click(screen.getByRole('button', { name: 'Submit report' }));
 
     await waitFor(() => expect(toastError).toHaveBeenCalledWith('Unable to submit this report right now.'));
     expect(screen.getByRole('dialog')).toBeInTheDocument();
     expect(screen.queryByText('private backend detail')).not.toBeInTheDocument();
+  });
+
+  it('offers location spoofing when reporting a post', async () => {
+    render(<ReportAction targetType="post" targetId="post-1" targetLabel="post by River" />);
+    fireEvent.click(screen.getByRole('button', { name: 'Report post by River' }));
+    await chooseReason('Location spoofing');
+    fireEvent.click(screen.getByRole('button', { name: 'Submit report' }));
+    await waitFor(() => expect(createReport).toHaveBeenCalledWith(expect.objectContaining({
+      targetType: 'post',
+      reason: 'location_spoofing',
+    })));
   });
 });

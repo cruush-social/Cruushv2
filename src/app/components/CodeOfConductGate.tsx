@@ -29,8 +29,8 @@ export default function CodeOfConductGate({ version, onAccepted }: CodeOfConduct
   };
 
   return (
-    <main className="min-h-screen bg-background px-5 py-10 text-foreground">
-      <section className="mx-auto flex min-h-[70vh] max-w-xl flex-col justify-center gap-6">
+    <main className="min-h-[100dvh] overflow-y-auto bg-background px-5 py-6 text-foreground sm:min-h-screen sm:py-10">
+      <section className="mx-auto flex w-full max-w-xl flex-col gap-6 sm:min-h-[70vh] sm:justify-center">
         <div className="flex h-12 w-12 items-center justify-center rounded-full border border-primary/35 bg-primary/10 text-primary">
           <ShieldCheck className="h-6 w-6" />
         </div>

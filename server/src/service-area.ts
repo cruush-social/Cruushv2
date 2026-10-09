@@ -5,6 +5,16 @@ export const NYC_SERVICE_AREA = {
   radiusMiles: 100
 } as const;
 
+export const SERVICE_AREAS = [NYC_SERVICE_AREA] as const;
+
+export const SERVICE_AREA_SQL = SERVICE_AREAS.map(({ center, radiusMiles }) => `
+  3958.7613 * 2 * asin(sqrt(
+    power(sin(radians((p.latitude - ${center.lat}::double precision) / 2)), 2)
+    + cos(radians(${center.lat}::double precision)) * cos(radians(p.latitude))
+      * power(sin(radians((p.longitude - ${center.lng}::double precision) / 2)), 2)
+  )) <= ${radiusMiles}
+`).join(" or ");
+
 function toRadians(degrees: number) {
   return degrees * Math.PI / 180;
 }
@@ -24,5 +34,5 @@ export function distanceMiles(
 }
 
 export function isWithinServiceArea(location: { lat: number; lng: number }) {
-  return distanceMiles(location, NYC_SERVICE_AREA.center) <= NYC_SERVICE_AREA.radiusMiles;
+  return SERVICE_AREAS.some((area) => distanceMiles(location, area.center) <= area.radiusMiles);
 }

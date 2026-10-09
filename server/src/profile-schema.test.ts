@@ -7,6 +7,22 @@ import {
 } from "./profile-schema.js";
 
 describe("profile schema", () => {
+  it("defaults the Out of Sight visibility rule off", () => {
+    const { outside_service_area_members: _omitted, ...legacyRules } = emptyProfile.visibility_rules;
+    const parsed = profilePayloadSchema.parse({
+      ...emptyProfile,
+      display_name: "Member",
+      visibility_rules: legacyRules
+    });
+
+    expect(parsed.visibility_rules.outside_service_area_members).toBe(false);
+    expect(profilePayloadSchema.parse({
+      ...emptyProfile,
+      display_name: "Member",
+      visibility_rules: { ...legacyRules, outside_service_area_members: true }
+    }).visibility_rules.outside_service_area_members).toBe(true);
+  });
+
   it("accepts only the approved health preferences", () => {
     expect(profilePayloadSchema.parse({
       ...emptyProfile,
@@ -21,6 +37,17 @@ describe("profile schema", () => {
       year_of_birth: 1994,
       health_preferences: ["Unapproved"]
     })).toThrow();
+  });
+
+  it("defaults to showing age and accepts opting out of age display", () => {
+    const baseProfile = {
+      ...emptyProfile,
+      display_name: "Cruusher",
+      year_of_birth: 1994
+    };
+
+    expect(profilePayloadSchema.parse(baseProfile).show_age).toBe(true);
+    expect(profilePayloadSchema.parse({ ...baseProfile, show_age: false }).show_age).toBe(false);
   });
 
   it("accepts up to three sexualities and trims older selections", () => {

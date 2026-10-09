@@ -43,7 +43,11 @@ describe('ReportPage', () => {
     );
 
     expect(await screen.findByText('Jordan')).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('radio', { name: /Underage user concern/i }));
+    fireEvent.click(screen.getByRole('combobox', { name: 'Reason' }));
+    const reason = await screen.findByRole('option', { name: 'Underage user concern' });
+    fireEvent.pointerDown(reason, { button: 0, pointerType: 'touch' });
+    fireEvent.pointerUp(reason, { button: 0, pointerType: 'touch' });
+    fireEvent.click(reason);
     fireEvent.change(screen.getByLabelText('Details'), {
       target: {
         value: 'Profile claims the person is underage.',

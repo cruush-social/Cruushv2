@@ -30,6 +30,7 @@ describe('privacyApi', () => {
       ghostModeEnabled: true,
       ghostRadiusMeters: 1609,
       ghostRadiusLabel: '1 mi',
+      ghostLeashVisible: false,
       preciseToMutualCruushes: false,
       preciseToMutualCrowds: [],
       preciseLocationVisibility: 'none',
@@ -43,6 +44,7 @@ describe('privacyApi', () => {
         baseMode: 'GHOST',
         ghostModeEnabled: true,
         ghostRadiusMeters: 1609,
+        ghostLeashVisible: false,
         preciseToMutualCruushes: false,
         preciseToMutualCrowds: [],
         preciseLocationVisibility: 'none',
@@ -55,6 +57,10 @@ describe('privacyApi', () => {
       baseMode: 'GHOST',
       ghostRotationExpiresAtMs: 1786316460000,
     }));
+  });
+
+  it('shows the Ghost leash unless a saved policy opts out', () => {
+    expect(privacyApi.DEFAULT_PRIVACY_SETTINGS.ghostLeashVisible).toBe(true);
   });
 
   it('exposes the ghost pin countdown as its own opt-out setting', () => {

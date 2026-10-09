@@ -2,6 +2,8 @@ import type { FastifyInstance } from "fastify";
 import type { AppConfig } from "./config.js";
 import type { DbClient } from "./db.js";
 import { getVapidPublicKey, sendPushForNotification } from "./push-service.js";
+import { filterOosHiddenNotifications, PROFILE_ACTIVITY_NOTIFICATION_TYPES } from "./oos-notification-visibility.js";
+import { getViewerOutsideServiceArea } from "./profile-oos-visibility.js";
 
 export type AppNotificationType =
   | "incoming_cruush"
@@ -11,6 +13,7 @@ export type AppNotificationType =
   | "group_membership"
   | "nearby_activity"
   | "nearby_feed_post"
+  | "mutual_feed_post"
   | "reward"
   | "announcement"
   | "nearby_user"
@@ -114,6 +117,14 @@ export async function createAppNotification(
     return null;
   }
 
+  const visible = await filterOosHiddenNotifications(app, input.userId, [{
+    type: input.type,
+    actor_user_id: input.actorUserId ?? null,
+    conversation_id: input.conversationId ?? null,
+    metadata: input.metadata ?? null
+  }]);
+  if (!visible.length) return null;
+
   const result = await app.db.query<AppNotificationRow>(
     `insert into app_notifications (
        user_id,
@@ -169,6 +180,13 @@ export async function createAppNotificationAndPush(
 
   const deliver = async () => {
     try {
+      const visible = await filterOosHiddenNotifications(app, notification.userId, [{
+        type: input.type,
+        actor_user_id: input.actorUserId ?? null,
+        conversation_id: input.conversationId ?? null,
+        metadata: input.metadata ?? null
+      }]);
+      if (!visible.length) return;
       await sendPushForNotification(app, notification);
     } catch (error) {
       app.log.warn({ err: error, notificationId: notification.id }, "notification push dispatch failed");
@@ -214,7 +232,7 @@ export async function sendPushForPersistedNotification(
     );
     const row = result.rows[0];
 
-    if (!row) {
+    if (!row || !(await filterOosHiddenNotifications(app, input.userId, [row])).length) {
       return false;
     }
 
@@ -235,7 +253,16 @@ export async function getNotificationSummary(app: NotificationApp, userId: strin
     [userId]
   );
 
-  return {
-    unreadCount: result.rows[0]?.unread_count ?? 0
-  };
+  const unreadCount = result.rows[0]?.unread_count ?? 0;
+  if (!unreadCount) return { unreadCount };
+  const viewerOos = await getViewerOutsideServiceArea(app, userId);
+  const activity = await app.db.query<AppNotificationRow>(
+    `select type, actor_user_id::text as actor_user_id, conversation_id::text as conversation_id, metadata
+       from app_notifications notification
+      where notification.user_id = $1 and notification.read_at is null
+        and notification.type = any($2::text[])`,
+    [userId, PROFILE_ACTIVITY_NOTIFICATION_TYPES]
+  );
+  const visible = await filterOosHiddenNotifications(app, userId, activity.rows, viewerOos);
+  return { unreadCount: Math.max(0, unreadCount - (activity.rows.length - visible.length)) };
 }

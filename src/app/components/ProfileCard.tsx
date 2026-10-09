@@ -27,6 +27,9 @@ import { resolveVibeTone, vibeCapsuleStyle } from '../lib/vibeTone';
 import { formatDistanceWithAway, useDistancePreferences } from '../lib/distancePreferences';
 import { getProfileById } from '../lib/profileApi';
 import { resolveUserBorderTone } from '../lib/userBorderTone';
+import { Tooltip, TooltipContent, TooltipTrigger } from './ui/tooltip';
+import PurgatoryMemberBadge from './PurgatoryMemberBadge';
+import { useMapServiceArea } from './MapServiceAreaContext';
 
 interface ProfileCardProps {
   user: any;
@@ -71,6 +74,7 @@ export default function ProfileCard({
   onBrowseAgain,
 }: ProfileCardProps) {
   const navigate = useNavigate();
+  const { profilePinsAllowed } = useMapServiceArea();
   const distancePreferences = useDistancePreferences();
   const [cruushed, setCruushed] = useState(false);
   const [cruushBecameMutual, setCruushBecameMutual] = useState(false);
@@ -86,6 +90,10 @@ export default function ProfileCard({
   );
   const [carouselPhotoRelationship, setCarouselPhotoRelationship] = useState<DlModePhotoRelationship | undefined>(user.photoRelationship ?? user.photo_relationship);
   const [activeCarouselPhotoIndex, setActiveCarouselPhotoIndex] = useState(0);
+  const [membership, setMembership] = useState<{ id: string; outOfSight: boolean } | null>(null);
+  const outOfSight = typeof user.outOfSight === 'boolean'
+    ? user.outOfSight
+    : membership?.id === user.id && membership.outOfSight;
   const isAlreadyMutual = !mutualRevoked && (cruushBecameMutual || user.relationship?.mutualCruush === true);
   const hasSentCruush = !isAlreadyMutual && !outgoingRevoked && (cruushed || user.relationship?.outgoingCruush === true);
   const hasRevocableCruush = isAlreadyMutual || hasSentCruush;
@@ -118,17 +126,18 @@ export default function ProfileCard({
     : 'absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-4';
 
   useEffect(() => {
-    if (!carouselPresentation) {
-      return undefined;
+    if (carouselPresentation) {
+      const suppliedPhotos = getCarouselPhotos(user);
+      setCarouselPhotos(suppliedPhotos);
+      setCarouselPhotoExplicit(getPhotoExplicitMap(user.photo_metadata));
+      setCarouselPhotoRelationship(user.photoRelationship ?? user.photo_relationship);
+      setActiveCarouselPhotoIndex(0);
     }
 
-    const suppliedPhotos = getCarouselPhotos(user);
-    setCarouselPhotos(suppliedPhotos);
-    setCarouselPhotoExplicit(getPhotoExplicitMap(user.photo_metadata));
-    setCarouselPhotoRelationship(user.photoRelationship ?? user.photo_relationship);
-    setActiveCarouselPhotoIndex(0);
-
-    if (Array.isArray(user.photos) || !user.id) {
+    setMembership(null);
+    const needsGallery = carouselPresentation && !Array.isArray(user.photos);
+    const needsMembership = typeof user.outOfSight !== 'boolean';
+    if (!user.id || (!needsGallery && !needsMembership)) {
       return undefined;
     }
 
@@ -136,6 +145,11 @@ export default function ProfileCard({
     void getProfileById(user.id)
       .then((profile) => {
         if (cancelled) {
+          return;
+        }
+
+        setMembership({ id: user.id, outOfSight: profile.outOfSight === true });
+        if (!needsGallery) {
           return;
         }
 
@@ -149,14 +163,14 @@ export default function ProfileCard({
         setActiveCarouselPhotoIndex(0);
       })
       .catch(() => {
-        // Discovery already supplied the primary photo. Keep that usable when
-        // optional gallery details are unavailable.
+        // Keep discovery's primary photo usable. Unknown membership must not
+        // be inferred from distance, display labels or Mile High Club status.
       });
 
     return () => {
       cancelled = true;
     };
-  }, [carouselPresentation, user.id, user.photo]);
+  }, [carouselPresentation, user.id, user.photo, user.outOfSight]);
 
   const handleCruush = async () => {
     if (sendingCruush || revokingCruush || hasSentCruush || isAlreadyMutual) {
@@ -247,8 +261,8 @@ export default function ProfileCard({
     };
     // Their privacy decides this: discovery only reports precise display when
     // the viewer is allowed to see their real pin.
-    const canCenterCarouselPin = user.relationship?.precision === 'precise'
-      || user.displayMode === 'PRECISE';
+    const canCenterCarouselPin = profilePinsAllowed && (user.relationship?.precision === 'precise'
+      || user.displayMode === 'PRECISE');
     const activeCarouselPhoto = carouselPhotos[activeCarouselPhotoIndex] ?? user.photo ?? null;
     const activeCarouselPhotoMasked = Boolean(activeCarouselPhoto && shouldMaskPhoto(
       dlModeActive,
@@ -318,6 +332,7 @@ export default function ProfileCard({
             {previewCarouselPhotos.map(({ photo, index }) => (
               <HeartPhoto
                 borderTone={resolveUserBorderTone({ mileHigh: user.travelling, mutual: isAlreadyMutual })}
+                outOfSight={outOfSight === true}
                 key={photo}
                 className="pointer-events-auto h-[clamp(2.75rem,8dvh,3.6rem)] w-[clamp(2.75rem,8dvh,3.6rem)] shrink-0 drop-shadow-[0_8px_18px_rgba(0,0,0,0.55)] transition hover:scale-[1.04] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/80"
                 label={`Show profile photo ${index + 1}`}
@@ -353,13 +368,21 @@ export default function ProfileCard({
               <h3 className="flex min-w-0 items-center overflow-visible pb-1 text-3xl leading-tight sm:text-4xl" style={carouselTextOutlineStyle}>
                 <span className="min-w-0 truncate">{user.name}, {user.age}</span>
                 {user.travelling === true ? (
-                  <img
-                    alt="Mile High Club"
-                    className="ml-2 h-5 w-5 shrink-0"
-                    src={mileHighClubWhite}
-                    title={user.travelLabel ? `Mile High Club: ${user.travelLabel}` : 'Mile High Club'}
-                  />
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <button
+                        aria-label="This is a Mile High Club member."
+                        className="ml-2 shrink-0 touch-manipulation"
+                        onClick={() => navigate('/settings/travel')}
+                        type="button"
+                      >
+                        <img alt="Mile High Club" className="h-10 w-10" src={mileHighClubWhite} />
+                      </button>
+                    </TooltipTrigger>
+                    <TooltipContent side="top" sideOffset={6}>This is a Mile High Club member.</TooltipContent>
+                  </Tooltip>
                 ) : null}
+                {outOfSight ? <PurgatoryMemberBadge key={user.id} size="card" /> : null}
               </h3>
               <div className="mt-1">
                 <CruushBadge badges={user.badges} compact />
@@ -422,7 +445,7 @@ export default function ProfileCard({
                 disabled={cruushDisabled}
                 aria-label={revokingCruush ? (isAlreadyMutual ? 'uncruushing' : 'unsending cruush') : isAlreadyMutual ? 'uncruush' : hasSentCruush ? 'unsend cruush' : sendingCruush ? 'sending cruush' : 'send cruush'}
               >
-                <CruushIcon name="mutual" className={`mr-2 h-4 w-4 ${cruushDisabled ? 'opacity-45 grayscale' : ''}`} variant="white" />
+                <CruushIcon name="mutual" className={`mr-2 h-7 w-7 sm:h-4 sm:w-4 ${cruushDisabled ? 'opacity-45 grayscale' : ''}`} variant="white" />
                 {revokingCruush ? (isAlreadyMutual ? 'uncruushing...' : 'unsending...') : isAlreadyMutual ? 'uncruush' : hasSentCruush ? 'unsend' : sendingCruush ? 'sending...' : 'cruush'}
               </Button>
               <Button
@@ -430,23 +453,23 @@ export default function ProfileCard({
                 size="icon"
                 className="size-11 shrink-0 rounded-xl border-0 text-white transition hover:brightness-110"
                 style={{ background: canCenterCarouselPin ? 'var(--cruush-gradient)' : 'var(--cruush-gradient-soft-28), #0A0A12' }}
-                aria-label={canCenterCarouselPin ? `Center the map on ${user.name}` : `${user.name} does not share a precise location with you`}
+                aria-label={!profilePinsAllowed ? 'Map location unavailable' : canCenterCarouselPin ? `Center the map on ${user.name}` : `${user.name} does not share a precise location with you`}
                 disabled={!canCenterCarouselPin}
-                onClick={() => navigate('/map', { state: { focusUserId: user.id } })}
+                onClick={canCenterCarouselPin ? () => navigate('/map', { state: { focusUserId: user.id } }) : undefined}
               >
                 <CruushIconImage src={mapIconWhite} className={`h-7 w-7 ${canCenterCarouselPin ? '' : 'opacity-45'}`} />
               </Button>
               <Button
                 type="button"
-                className={`cruush-action-sheen flex-1 rounded-xl border border-[#6F00FF] disabled:opacity-100 ${canMessage ? 'text-white' : 'text-white/55'}`}
-                style={{ background: canMessage ? 'var(--cruush-gradient)' : '#151021' }}
+                className={`cruush-action-sheen flex-1 rounded-xl disabled:opacity-100 ${canMessage ? 'border border-[#6F00FF] text-white' : 'border-0 text-white/55'}`}
+                style={{ background: canMessage ? 'var(--cruush-gradient)' : 'var(--cruush-gradient-soft-28)' }}
                 disabled={openingMessage}
                 onClick={() => {
                   void handleMessage();
                 }}
                 aria-label="Message"
               >
-                <CruushIcon name="send" className="mr-2 h-4 w-4" variant="white" />
+                <CruushIcon name="send" className="mr-2 h-7 w-7 sm:h-4 sm:w-4" variant="white" />
                 {openingMessage ? 'Opening...' : 'Message'}
               </Button>
             </div>
@@ -513,13 +536,21 @@ export default function ProfileCard({
           <h3 className={`flex min-w-0 items-center ${titleClassName}`}>
             <span className="min-w-0 truncate">{user.name}, {user.age}</span>
             {user.travelling === true ? (
-              <img
-                alt="Mile High Club"
-                className="ml-2 h-5 w-5 shrink-0"
-                src={mileHighClubWhite}
-                title={user.travelLabel ? `Mile High Club: ${user.travelLabel}` : 'Mile High Club'}
-              />
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button
+                    aria-label="This is a Mile High Club member."
+                    className="ml-2 shrink-0 touch-manipulation"
+                    onClick={() => navigate('/settings/travel')}
+                    type="button"
+                  >
+                    <img alt="Mile High Club" className="h-10 w-10" src={mileHighClubWhite} />
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent side="top" sideOffset={6}>This is a Mile High Club member.</TooltipContent>
+              </Tooltip>
             ) : null}
+            {outOfSight ? <PurgatoryMemberBadge key={user.id} size="card" /> : null}
           </h3>
           <CruushBadge badges={user.badges} compact />
           <p className="text-sm text-white/80">{user.pronouns}</p>
@@ -590,17 +621,19 @@ export default function ProfileCard({
                   : 'var(--cruush-gradient)',
             }}
           >
-            <CruushIcon name="mutual" className={`mr-2 h-4 w-4 ${cruushDisabled ? 'opacity-45 grayscale' : ''}`} variant="white" />
+            <CruushIcon name="mutual" className={`mr-2 h-7 w-7 sm:h-4 sm:w-4 ${cruushDisabled ? 'opacity-45 grayscale' : ''}`} variant="white" />
             {revokingCruush ? (isAlreadyMutual ? 'uncruushing...' : 'unsending...') : isAlreadyMutual ? 'uncruush' : hasSentCruush ? 'unsend' : sendingCruush ? 'sending...' : 'cruush'}
           </Button>
           <Button
-            className={`${actionButtonClassName} rounded-xl border border-[#6F00FF]/55 bg-[var(--cruush-gradient-soft-18)] text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] hover:bg-[var(--cruush-gradient-soft-28)]`}
+            className={`${actionButtonClassName} rounded-xl text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] hover:bg-[var(--cruush-gradient-soft-28)] ${canMessage
+              ? 'border border-[#6F00FF]/55 bg-[var(--cruush-gradient-soft-18)]'
+              : 'border-0 bg-[var(--cruush-gradient-soft-28)] text-white/55'}`}
             disabled={openingMessage}
             onClick={() => {
               void handleMessage();
             }}
           >
-            <CruushIcon name="send" className="mr-2 h-4 w-4" variant="white" />
+            <CruushIcon name="send" className="mr-2 h-7 w-7 sm:h-4 sm:w-4" variant="white" />
             {openingMessage ? 'Opening...' : 'Message'}
           </Button>
         </div>

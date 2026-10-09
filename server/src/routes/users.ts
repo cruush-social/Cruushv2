@@ -35,6 +35,8 @@ import { DEFAULT_MAP_PRESENCE_HOURS } from "../map-presence.js";
 import { DEVELOPMENT_ADMIN_EMAIL } from "../development-admin.js";
 import { distanceMiles, isWithinBetaLaunchArea } from "../beta-access.js";
 import { isWithinServiceArea, NYC_SERVICE_AREA } from "../service-area.js";
+import { loadOosHiddenProfileIds } from "../profile-oos-visibility.js";
+import { loadOutOfSightStatuses, type OutOfSightStatus } from "../out-of-sight-location.js";
 
 /**
  * How far from your own location you may look. Mile High Club moves that location,
@@ -67,6 +69,7 @@ type DiscoveryProfileRow = {
   tags: string[] | null;
   signal: string | null;
   year_of_birth: number | null;
+  show_age: boolean | null;
   pronouns: string[] | null;
   looking_for: string[] | null;
   vibes: string[] | null;
@@ -523,6 +526,7 @@ async function loadDiscoveryViewer(app: FastifyInstance, currentUserId: string) 
          tags,
          photos,
          year_of_birth,
+         profiles.show_age,
          pronouns,
          looking_for,
          vibes,
@@ -615,10 +619,15 @@ function discoveryRowIsVisibleToViewer(
   app: FastifyInstance,
   row: DiscoveryProfileRow,
   viewer: { subject: VisibilitySubjectProfile | null; activeCrowdModes: string[] },
-  targetCoordinates: VisibilityCoordinates = getCoordinates(row)
+  targetCoordinates: VisibilityCoordinates = getCoordinates(row),
+  viewerOutsideServiceArea = true
 ) {
+  const targetVisibilityRules = decryptProfileVisibility(app.config, row);
+  if (!targetVisibilityRules && (row.profile_visibility_ciphertext || row.profile_visibility_nonce || row.profile_visibility_auth_tag)) {
+    return false;
+  }
   if (!viewer.subject) {
-    return true;
+    return !targetVisibilityRules?.outside_service_area_members || !viewerOutsideServiceArea;
   }
 
   const targetSubject = toVisibilitySubject(app, row);
@@ -627,8 +636,6 @@ function discoveryRowIsVisibleToViewer(
   if (!hasAnyCrowd(viewer.activeCrowdModes, targetSubject)) {
     return false;
   }
-
-  const targetVisibilityRules = decryptProfileVisibility(app.config, row);
 
   return canSubjectViewProfile(targetVisibilityRules, viewer.subject, targetCoordinates);
 }
@@ -754,6 +761,7 @@ async function loadDiscoveryRows(app: FastifyInstance, currentUserId: string, fi
          profiles.tags,
          profiles.signal,
          year_of_birth,
+         profiles.show_age,
          pronouns,
          looking_for,
          vibes,
@@ -1055,7 +1063,7 @@ async function mapModernDiscoveryRow(
     display_name: coerceDisplayName(row.display_name),
     signal: row.signal ?? "",
     latestFeedPostPreview,
-    age: row.year_of_birth ? new Date().getFullYear() - row.year_of_birth : null,
+    age: row.show_age !== false && row.year_of_birth ? new Date().getFullYear() - row.year_of_birth : null,
     pronouns: coerceStringArray(row.pronouns).join(", "),
     lastActive: formatLastActiveFromDate(row.location_updated_at ?? row.updated_at),
     distanceLabel: options.targetTravelling && relationship?.canRevealPreciseLocation !== true
@@ -1203,6 +1211,14 @@ async function loadActiveDiscoveryMapPings(app: FastifyInstance, profileIds: str
   ]));
 }
 
+function effectiveViewerCoordinates(
+  location: LocationPayload | undefined,
+  travelPin: TravelPin | undefined
+) {
+  if (!location) return null;
+  return locationPayloadToCoordinates(travelPin ? locationPayloadAtTravelPin(location, travelPin) : location);
+}
+
 // Reuse the map's actual visibility and displayed-location pipeline for nearby navigation.
 async function loadDiscoveryState(
   app: FastifyInstance,
@@ -1221,18 +1237,18 @@ async function loadDiscoveryState(
   const viewerGhostRadiusMeters = npcGhostDemoEnabled
     ? (await loadPolicyOrDefault(app, currentUserId)).ghostRadiusMeters ?? DEFAULT_GHOST_RADIUS_METERS
     : DEFAULT_GHOST_RADIUS_METERS;
-  const encryptedLocations = discoveryRows.mode === "modern"
-    ? await loadLocationEnvelopes(app, [
-        currentUserId,
-        ...discoveryRows.rows.map((row) => row.id)
-      ]).catch((error) => {
-        if (isSchemaCompatibilityError(error)) {
-          return new Map<string, LocationPayload>();
-        }
+  // Legacy target rows still require the viewer's authoritative location. Their
+  // non-UUID IDs stay on the existing legacy mapping path, not in this batch.
+  const encryptedLocations = await loadLocationEnvelopes(app, [
+    currentUserId,
+    ...(discoveryRows.mode === "modern" ? discoveryRows.rows.map((row) => row.id) : [])
+  ]).catch((error) => {
+    if (isSchemaCompatibilityError(error)) {
+      return new Map<string, LocationPayload>();
+    }
 
-        throw error;
-      })
-    : new Map<string, LocationPayload>();
+    throw error;
+  });
   // The viewer's own position comes from the envelope too, the way the
   // profile route reads it. Measured from the profile row, which most
   // accounts leave empty, discovery and the profile route disagreed about
@@ -1265,26 +1281,34 @@ async function loadDiscoveryState(
     }
   });
 
-  const viewerLocation = encryptedLocations.get(currentUserId);
-  const viewerCoordinates = viewerLocation ? locationPayloadToCoordinates(viewerLocation) : null;
-  if (viewerLocation && discoveryViewer.subject) {
+  const viewerCoordinates = effectiveViewerCoordinates(viewerEnvelope, travelPins.get(currentUserId));
+  const viewerOutsideServiceArea = !viewerCoordinates || !isWithinServiceArea(viewerCoordinates);
+  if (discoveryViewer.subject) {
+    discoveryViewer.subject.outside_service_area = viewerOutsideServiceArea;
+  }
+  if (viewerCoordinates && discoveryViewer.subject) {
     discoveryViewer.subject.coordinates = viewerCoordinates;
   }
 
-  if (viewerCoordinates && !isWithinServiceArea(viewerCoordinates)) {
+  if (viewerOutsideServiceArea) {
     return { visibleProfiles: [], viewerCoordinates, travelPins,
       outsideServiceArea: true, outsideBrowseRadius: false };
   }
 
+  const hiddenProfileIds = discoveryRows.mode === "modern"
+    ? await loadOosHiddenProfileIds(app, currentUserId, discoveryRows.rows.map((row) => row.id), viewerOutsideServiceArea)
+    : new Set<string>();
   const realUsers = discoveryRows.mode === "modern"
     ? (await Promise.all(discoveryRows.rows
         .filter((row) => {
+          if (hiddenProfileIds.has(row.id)) return false;
           const targetLocation = encryptedLocations.get(row.id);
           return discoveryRowIsVisibleToViewer(
             app,
             row,
             discoveryViewer,
-            targetLocation ? locationPayloadToCoordinates(targetLocation) : getCoordinates(row)
+            targetLocation ? locationPayloadToCoordinates(targetLocation) : getCoordinates(row),
+            viewerOutsideServiceArea
           );
         })
         .map(async (row) => {
@@ -1405,6 +1429,33 @@ async function loadDiscoveryState(
 }
 
 export async function registerUserRoutes(app: FastifyInstance) {
+  app.get("/api/users/map-access", async (request, reply) => {
+    const currentUserId = await getAuthenticatedUserId(request);
+    z.object({}).strict().parse(request.query);
+    reply.header("Cache-Control", "no-store");
+    const [locations, travelPins] = await Promise.all([
+      loadLocationEnvelopes(app, [currentUserId]),
+      loadTravelPins(app, [currentUserId])
+    ]);
+    const location = locations.get(currentUserId);
+    const travelPin = travelPins.get(currentUserId);
+    const coordinates = effectiveViewerCoordinates(location, travelPin);
+    const physicalCoordinates = effectiveViewerCoordinates(location, undefined);
+    const profilePinsAllowed = coordinates !== null && isWithinServiceArea(coordinates);
+    const dependsOnTravelPin = profilePinsAllowed && travelPin && physicalCoordinates
+      && !isWithinServiceArea(physicalCoordinates);
+
+    // Geographic access only: this never grants visibility of any target profile.
+    return { data: {
+      profilePinsAllowed,
+      accessExpiresAtMs: profilePinsAllowed && location
+        ? dependsOnTravelPin
+          ? Math.min(location.expiresAtMs, travelPin.expiresAtMs)
+          : location.expiresAtMs
+        : null
+    } };
+  });
+
   app.get("/api/notifications/:notificationId/area", async (request, reply) => {
     const currentUserId = await getAuthenticatedUserId(request);
     const { notificationId } = z.object({ notificationId: z.uuid() }).parse(request.params);
@@ -1424,7 +1475,7 @@ export async function registerUserRoutes(app: FastifyInstance) {
       windowMs: 60 * 1000, message: "Too many discovery refreshes. Try again later." });
     const state = await loadDiscoveryState(app, request, currentUserId,
       discoveryQuerySchema.parse({}), sourceUserId);
-    if (state.outsideServiceArea || state.outsideBrowseRadius) return { data: { area: null } };
+    if (!state.viewerCoordinates || state.outsideServiceArea || state.outsideBrowseRadius) return { data: { area: null } };
     const profile = state.visibleProfiles.find((candidate) => candidate.profileToken === sourceUserId);
     if (!profile || !Number.isFinite(profile.__pulseLat) || !Number.isFinite(profile.__pulseLng)) {
       return { data: { area: null } };
@@ -1472,11 +1523,16 @@ export async function registerUserRoutes(app: FastifyInstance) {
       visibleProfiles.map((profile) => profile.profileToken)
     );
     const photoRelationships = await loadPhotoViewerRelationships(app, currentUserId, visibleProfiles.map((profile) => profile.profileToken));
+    // Display metadata uses encrypted last-known state, never MHC-adjusted coordinates.
+    const physicalStatuses = await loadOutOfSightStatuses(app,
+      visibleProfiles.map((profile) => profile.profileToken).filter((id) => z.uuid().safeParse(id).success)
+    ).catch(() => new Map<string, OutOfSightStatus>());
 
     return reply.send({
       data: {
         mapEpochMs: Date.now(),
         profiles: visibleProfiles.map((profile) => {
+          const physicalStatus = physicalStatuses.get(profile.profileToken);
           const ping = activePings.get(profile.profileToken) ?? null;
           const { __pulseLat, __pulseLng, ...visibleProfile } = profile as typeof profile & {
             __pulseLat?: number;
@@ -1495,6 +1551,8 @@ export async function registerUserRoutes(app: FastifyInstance) {
 
           return {
             ...visibleProfile,
+            ...(physicalStatus === "in_area" || physicalStatus === "out_of_sight"
+              ? { outOfSight: physicalStatus === "out_of_sight" } : {}),
             photoRelationship: photoRelationships.get(profile.profileToken),
             travelling: travelPins.has(profile.profileToken),
             travelLabel: travelPins.get(profile.profileToken)?.label ?? "",

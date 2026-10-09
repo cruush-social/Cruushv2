@@ -253,6 +253,6 @@ export function resolveSavedBadgeGlyph(badgeId: string) {
   return {
     icon,
     label: null,
-    fillsFrame: badgeId.trim().toLowerCase().replace(/[-_]+/g, ' ').startsWith('flag '),
+    fillsFrame: false,
   };
 }

@@ -2,7 +2,7 @@ import { fireEvent, render, screen, waitFor, within } from '@testing-library/rea
 import { MemoryRouter } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ApiClientError } from '../lib/apiClient';
-import ProfileEdit, { getPhotoUploadRejectedMessage, readProfilePhotoPreviewUrl } from './ProfileEdit';
+import ProfileEdit, { getPhotoUploadRejectedMessage, ProfilePhotoCropper, readProfilePhotoPreviewUrl } from './ProfileEdit';
 
 const { getAppMeta, getMyBillingStatus, getMyProfile, saveMyProfile, uploadProfilePhoto } = vi.hoisted(() => ({
   getAppMeta: vi.fn(),
@@ -66,6 +66,70 @@ async function selectProfileEditTab(name: 'Photos' | 'Badges' | 'Basics' | 'Inti
 }
 
 describe('ProfileEdit', () => {
+  it('exports the same translation shown in a responsive crop preview', async () => {
+    const translate = vi.fn();
+    const drawImage = vi.fn();
+    const onConfirm = vi.fn().mockResolvedValue(undefined);
+    HTMLCanvasElement.prototype.getContext = vi.fn(() => ({
+      clearRect: vi.fn(),
+      drawImage,
+      fillRect: vi.fn(),
+      save: vi.fn(),
+      restore: vi.fn(),
+      translate,
+      rotate: vi.fn(),
+      scale: vi.fn(),
+    })) as unknown as HTMLCanvasElement['getContext'];
+
+    render(
+      <ProfilePhotoCropper
+        onCancel={vi.fn()}
+        onConfirm={onConfirm}
+        processing={false}
+        sourceUrl="data:image/png;base64,AQID"
+      />,
+    );
+
+    const preview = screen.getByAltText('Profile crop preview');
+    const cropViewport = preview.parentElement as HTMLDivElement;
+    Object.defineProperty(cropViewport, 'getBoundingClientRect', {
+      configurable: true,
+      value: () => ({
+        bottom: 400,
+        height: 400,
+        left: 0,
+        right: 320,
+        top: 0,
+        width: 320,
+        x: 0,
+        y: 0,
+        toJSON: () => ({}),
+      }),
+    });
+
+    const dispatchPointer = (type: string, clientX: number, clientY: number) => {
+      const event = new Event(type, { bubbles: true });
+      Object.defineProperties(event, {
+        clientX: { value: clientX },
+        clientY: { value: clientY },
+        pointerId: { value: 1 },
+      });
+      fireEvent(cropViewport, event);
+    };
+
+    fireEvent.load(preview);
+    dispatchPointer('pointerdown', 100, 100);
+    dispatchPointer('pointermove', 132, 140);
+    dispatchPointer('pointerup', 132, 140);
+
+    expect(preview).toHaveStyle({ transform: 'translate(32px, 40px) rotate(0deg) scale(1)' });
+    fireEvent.click(screen.getByRole('button', { name: 'Use cropped photo' }));
+
+    await waitFor(() => expect(onConfirm).toHaveBeenCalledTimes(1));
+    expect(translate).toHaveBeenCalledWith(960, 1200);
+    expect(drawImage).toHaveBeenCalledWith(preview, -800, -1000, 1600, 2000);
+  });
+
   it('crops native-decodable camera originals before applying final-upload limits', async () => {
     const fetchPreview = vi.fn();
     vi.stubGlobal('fetch', fetchPreview);
@@ -253,6 +317,73 @@ describe('ProfileEdit', () => {
     expect(await screen.findByText('Pick up to 10 with cruush+')).toBeInTheDocument();
   });
 
+  it('keeps and saves three sexuality selections', async () => {
+    render(
+      <MemoryRouter initialEntries={['/profile/edit']}>
+        <ProfileEdit />
+      </MemoryRouter>,
+    );
+
+    await selectProfileEditTab('Basics');
+    const sexualityField = screen.getByText('Sexuality').parentElement;
+    const trigger = sexualityField?.querySelector<HTMLButtonElement>('button[aria-haspopup="listbox"]');
+    expect(trigger).toBeTruthy();
+    fireEvent.click(trigger as HTMLButtonElement);
+
+    for (const option of ['bisexual', 'gay', 'queer']) {
+      fireEvent.click(screen.getByRole('option', { name: option }));
+    }
+
+    await waitFor(() => expect(trigger).toHaveTextContent('3 selected'));
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+
+    await waitFor(() => expect(saveMyProfile).toHaveBeenCalledWith(expect.objectContaining({
+      sexuality: ['bisexual', 'gay', 'queer'],
+    })));
+  });
+
+  it('saves the age visibility choice beneath Year of Birth', async () => {
+    render(
+      <MemoryRouter initialEntries={['/profile/edit']}>
+        <ProfileEdit />
+      </MemoryRouter>,
+    );
+
+    await selectProfileEditTab('Basics');
+    const showAge = screen.getByRole('checkbox', { name: 'Show my age' });
+    expect(showAge).toBeChecked();
+    fireEvent.click(showAge);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+
+    await waitFor(() => expect(saveMyProfile).toHaveBeenCalledWith(expect.objectContaining({ show_age: false })));
+  });
+
+  it('keeps the saved birth year read-only while allowing the age visibility toggle', async () => {
+    render(
+      <MemoryRouter initialEntries={['/profile/edit']}>
+        <ProfileEdit />
+      </MemoryRouter>,
+    );
+
+    await selectProfileEditTab('Basics');
+    const birthYear = screen.getByRole('spinbutton', { name: 'Year of Birth' });
+    expect(birthYear).toHaveAttribute('readonly');
+    expect(birthYear).toHaveValue(1998);
+    fireEvent.change(birthYear, { target: { value: '2001' } });
+
+    const showAge = screen.getByRole('checkbox', { name: 'Show my age' });
+    fireEvent.click(showAge);
+    expect(showAge).not.toBeChecked();
+    expect(birthYear).toHaveValue(1998);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+    await waitFor(() => expect(saveMyProfile).toHaveBeenCalledWith(expect.objectContaining({
+      year_of_birth: 1998,
+      show_age: false,
+    })));
+  });
+
   it('lets users set master position, master role, and field-level kink visibility', async () => {
     render(
       <MemoryRouter>
@@ -328,6 +459,44 @@ describe('ProfileEdit', () => {
 
     expect(await screen.findByText('Nothing was saved because we could not check this text for harmful content.')).toBeInTheDocument();
     expect(displayName).toHaveValue('Still here');
+  });
+
+  it('keeps the editor open and shows Saved until the next ordinary profile edit', async () => {
+    render(
+      <MemoryRouter>
+        <ProfileEdit />
+      </MemoryRouter>
+    );
+
+    const displayName = await screen.findByPlaceholderText('Your display name');
+    fireEvent.change(displayName, { target: { value: 'Jordan Updated' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+
+    await waitFor(() => expect(saveMyProfile).toHaveBeenCalledTimes(1));
+    expect(screen.getByRole('button', { name: 'Saved' })).toBeInTheDocument();
+    expect(displayName).toHaveValue('Jordan');
+
+    fireEvent.change(displayName, { target: { value: 'Jordan Again' } });
+    expect(screen.getByRole('button', { name: 'Save' })).toBeInTheDocument();
+  });
+
+  it('offers to save ordinary profile changes before leaving', async () => {
+    const confirm = vi.fn(() => true);
+    vi.stubGlobal('confirm', confirm);
+
+    render(
+      <MemoryRouter>
+        <ProfileEdit />
+      </MemoryRouter>
+    );
+
+    fireEvent.change(await screen.findByPlaceholderText('Your display name'), {
+      target: { value: 'Jordan Updated' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Back' }));
+
+    await waitFor(() => expect(confirm).toHaveBeenCalledWith('Save profile changes before leaving?'));
+    await waitFor(() => expect(saveMyProfile).toHaveBeenCalledTimes(1));
   });
 
   it('crops, uploads, promotes, removes, and saves profile photos', async () => {

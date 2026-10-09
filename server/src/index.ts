@@ -53,6 +53,9 @@ import { sendBitcoinMonitoringCapacityAlertEmail } from "./mailer.js";
 import { startSubscriptionExpiryScheduler } from "./subscription-expiry.js";
 import { startWeeklyOrderReportScheduler } from "./weekly-order-report.js";
 import { startSiteReminderScheduler } from "./site-reminders.js";
+import { startOutOfSightWelcomeEmailScheduler } from "./oos-welcome-email.js";
+import { startSinnersWelcomeEmailScheduler } from "./sinners-welcome-email.js";
+import { startBugReportEmailRetentionScheduler } from "./bug-report-email-retention.js";
 
 const config = loadConfig();
 let cryptoWatcherHandle: ReturnType<typeof startCryptoWatcher> = null;
@@ -94,11 +97,17 @@ let stopPlaceCheckinExpiryScheduler: (() => void) | null = null;
 let stopSubscriptionExpiryScheduler: (() => void) | null = null;
 let stopWeeklyOrderReportScheduler: (() => void) | null = null;
 let stopSiteReminderScheduler: (() => void) | null = null;
+let stopOutOfSightWelcomeEmailScheduler: (() => void) | null = null;
+let stopSinnersWelcomeEmailScheduler: (() => void) | null = null;
+let stopBugReportEmailRetentionScheduler: (() => void) | null = null;
 
 const shutdown = async () => {
   stopSubscriptionExpiryScheduler?.();
   stopWeeklyOrderReportScheduler?.();
   stopSiteReminderScheduler?.();
+  stopOutOfSightWelcomeEmailScheduler?.();
+  stopSinnersWelcomeEmailScheduler?.();
+  stopBugReportEmailRetentionScheduler?.();
   stopReferralScheduler?.();
   stopMessageExpiryScheduler?.();
   stopAccountDeletionMediaCleanupScheduler?.();
@@ -137,6 +146,9 @@ stopPlaceCheckinExpiryScheduler = startPlaceCheckinExpiryScheduler(app);
 stopSubscriptionExpiryScheduler = startSubscriptionExpiryScheduler(app);
 stopWeeklyOrderReportScheduler = startWeeklyOrderReportScheduler(app);
 stopSiteReminderScheduler = startSiteReminderScheduler(app);
+stopOutOfSightWelcomeEmailScheduler = startOutOfSightWelcomeEmailScheduler(app);
+stopSinnersWelcomeEmailScheduler = startSinnersWelcomeEmailScheduler(app);
+stopBugReportEmailRetentionScheduler = startBugReportEmailRetentionScheduler(app);
 // Side Quest nudges are off for now at Julien's request: no prompt, and no
 // notification standing in for one. The sweep is left in place, so turning
 // them back on is this one line.

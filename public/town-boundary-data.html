@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="Sources, licenses and download status for cruush town boundary data." />
+    <link rel="canonical" href="https://cruush.app/town-boundary-data.html" />
+    <meta name="theme-color" content="#ff006e" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/icons/cruush-favicon-32.png" />
+    <link rel="apple-touch-icon" href="/icons/cruush-apple-touch.png" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=UnifrakturMaguntia&amp;family=Spectral:ital,wght@0,300;0,400;0,600;1,400&amp;display=swap" />
+    <link rel="stylesheet" href="/pages.css" />
+    <title>Town boundary data | cruush</title>
+  </head>
+  <body>
+    <header class="site">
+      <a class="wordmark" href="/">cruush</a>
+      <p class="eyebrow">map attribution</p>
+      <nav class="site">
+        <a href="/">Home</a>
+        <a href="/about">About</a>
+        <a href="/help">Help</a>
+        <a href="/blog">Blog</a>
+      </nav>
+    </header>
+    <main>
+      <h1>Town boundary data</h1>
+      <section class="card">
+        <h2>Source and database license</h2>
+        <p>
+          Source: <a href="https://docs.overturemaps.org/guides/divisions/">Overture Maps Foundation Divisions</a>,
+          release <code>2026-09-23.1</code>, <code>division_area</code>.
+          The source database and cruush town-boundary derivative are licensed under the
+          <a href="https://opendatacommons.org/licenses/odbl/1-0/">Open Data Commons Open Database License 1.0 (ODbL)</a>.
+        </p>
+        <p>
+          This notice concerns public boundary data, not member data.
+          See <a href="https://docs.overturemaps.org/attribution/#divisions">Overture's Divisions attribution and licensing notice</a>
+          for the upstream contributors and licenses.
+        </p>
+      </section>
+      <section class="card">
+        <h2>Contributors</h2>
+        <ul>
+          <li>
+            &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap contributors</a>.
+            Licensed under <a href="https://opendatacommons.org/licenses/odbl/1-0/">ODbL 1.0</a>.
+          </li>
+          <li>
+            <a href="https://www.geoboundaries.org/">geoBoundaries</a>, William &amp; Mary geoLab and community contributors.
+            Licensed under <a href="https://creativecommons.org/licenses/by/4.0/">CC BY 4.0</a>.
+          </li>
+          <li>
+            <a href="https://communitymaps.arcgis.com/home/">Esri Community Maps contributors</a>.
+            Licensed under <a href="https://creativecommons.org/licenses/by/4.0/">CC BY 4.0</a>.
+          </li>
+          <li>
+            <a href="https://www.linz.govt.nz/">Land Information New Zealand (LINZ)</a>.
+            Licensed under <a href="https://creativecommons.org/licenses/by/4.0/">CC BY 4.0</a>.
+          </li>
+        </ul>
+        <p>
+          These are the contributors listed by Overture for the Divisions theme.
+          Attribution does not imply endorsement. Source licenses include warranty
+          disclaimers and liability terms; see the
+          <a href="https://opendatacommons.org/licenses/odbl/1-0/">ODbL legal text</a> and
+          <a href="https://creativecommons.org/licenses/by/4.0/legalcode.en">CC BY 4.0 legal text</a>.
+        </p>
+      </section>
+      <section class="card" id="downloads">
+        <h2>Database and reproduction files</h2>
+        <p>
+          The cruush derivative database is not published for download here.
+          The complete transformation method, source files and matching release
+          manifest are provided below so the derivative can be rebuilt from the
+          pinned public source data.
+        </p>
+        <p>
+          The derivative selects territorial <code>locality</code> and
+          <code>localadmin</code> areas, preserves source names, country/region
+          codes and full 2D boundary geometry, compresses geometry losslessly
+          with zlib and adds a SQLite R-tree index. Boundaries are not simplified.
+          The release includes 576,368 records across 229 source country codes;
+          this is not a guarantee of coverage for every real-world town.
+          No member locations, saved member states or account data are included.
+        </p>
+        <ul>
+          <li><a href="/town-boundaries/2026-09-23.1/REPRODUCE.md">Reproduction instructions and exact commands</a></li>
+          <li><a href="/town-boundaries/2026-09-23.1/extract.py">Public source extraction script</a></li>
+          <li><a href="/town-boundaries/2026-09-23.1/build_dataset.py">Offline database build script</a></li>
+          <li><a href="/town-boundaries/2026-09-23.1/source-manifest.json">Pinned eight-object source list</a></li>
+          <li><a href="/town-boundaries/2026-09-23.1/schema.sql">Database schema</a></li>
+          <li><a href="/town-boundaries/2026-09-23.1/towns.sqlite.manifest.json">Release manifest, source checksums and build versions</a></li>
+          <li><a href="/town-boundaries/2026-09-23.1/NOTICE.txt">Source and license notices</a></li>
+        </ul>
+        <p>
+          The original source release is also described in
+          <a href="https://docs.overturemaps.org/guides/divisions/#how-to-access-divisions-data">Overture's public data access instructions</a>.
+          Select release <code>2026-09-23.1</code>, theme <code>divisions</code>, type <code>division_area</code>.
+          Follow the reproduction instructions for the required dependencies,
+          exact filter, resource limits and validation checks. A cold rebuild
+          downloads approximately 4.54 GB of public source data; the resulting
+          database is 2,817,638,400 bytes for this recorded build.
+        </p>
+      </section>
+    </main>
+    <footer class="site">
+      <p>
+        <a href="/">cruush</a> &middot;
+        <a href="/about">About</a> &middot;
+        <a href="/help">Help</a> &middot;
+        <a href="/blog">Blog</a>
+      </p>
+      <p>Adults only. An account requires age verification.</p>
+    </footer>
+  </body>
+</html>

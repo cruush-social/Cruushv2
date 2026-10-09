@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import MapView, {
   MAP_BROWSE_MASK_LAYER_ID,
   MAP_BROWSE_MASK_SOURCE_ID,
+  MAP_MARKER_VIEWPORT_OVERSCAN,
   MAP_PIN_UNIT_SCALE,
   MAP_SERVICE_MASK_LAYER_ID,
   MAP_SERVICE_MASK_SOURCE_ID,
@@ -17,6 +18,7 @@ import MapView, {
   createCruushVectorStyle,
   createMapMarkerBadge,
   getMapStyle,
+  isMarkerWithinViewportOverscan,
   separateOverlappingMarkers,
 } from './MapView';
 import {
@@ -27,6 +29,7 @@ import {
 } from '../lib/mapServiceArea';
 import { DARK_ROOM_EYE_PATH, DARK_ROOM_KEYHOLE_PATH } from './DarkRoomMark';
 import type { MapMarker } from '../lib/mapMarkers';
+import purgatoryHeartOverlay from '../assets/ui-icons/purgatory-heart-pin-overlay.svg';
 
 const { MockMap, MockMarker, mapInstances, markerInstances } = vi.hoisted(() => {
   const mapInstances: MockMapInstance[] = [];
@@ -43,6 +46,12 @@ const { MockMap, MockMarker, mapInstances, markerInstances } = vi.hoisted(() => 
     setZoom = vi.fn();
     setMaxBounds = vi.fn();
     getZoom = vi.fn(() => 12);
+    getBounds = vi.fn(() => ({
+      getNorth: () => 90,
+      getSouth: () => -90,
+      getEast: () => 180,
+      getWest: () => -180,
+    }));
     fitBounds = vi.fn();
     cameraForBounds?: ReturnType<typeof vi.fn>;
     easeTo?: ReturnType<typeof vi.fn>;
@@ -155,6 +164,31 @@ describe('MapView', () => {
     vi.unstubAllEnvs();
     vi.unstubAllGlobals();
     vi.useRealTimers();
+  });
+
+  it('lays the approved external overlay over only confirmed Purgatory person hearts', () => {
+    const marker: MapMarker = {
+      id: 'subject', displayName: 'Subject', approximateLatitude: 40.73, approximateLongitude: -73.99,
+    };
+    const { rerender } = render(<MapMarkerPin marker={marker} />);
+    expect(screen.queryByTestId('marker-purgatory-heart-overlay-subject')).not.toBeInTheDocument();
+
+    rerender(<MapMarkerPin marker={{ ...marker, outOfSight: false }} />);
+    expect(screen.queryByTestId('marker-purgatory-heart-overlay-subject')).not.toBeInTheDocument();
+
+    rerender(<MapMarkerPin marker={{ ...marker, outOfSight: true }} />);
+    const heart = screen.getByTestId('marker-heart-subject');
+    const overlay = screen.getByTestId('marker-purgatory-heart-overlay-subject');
+    expect(heart).toHaveClass('overflow-visible');
+    expect(overlay).toHaveAttribute('x', '0');
+    expect(overlay).toHaveAttribute('y', '-8');
+    expect(overlay).toHaveAttribute('width', '64');
+    expect(overlay).toHaveAttribute('height', '72');
+    expect(overlay).toHaveAttribute('href', purgatoryHeartOverlay);
+    expect(overlay).toHaveAttribute('pointer-events', 'none');
+
+    rerender(<MapMarkerPin marker={{ ...marker, outOfSight: true, npcGhostDemo: true }} />);
+    expect(screen.queryByTestId('marker-purgatory-heart-overlay-subject')).not.toBeInTheDocument();
   });
 
   it('initializes MapLibre and wires map and marker interactions', async () => {
@@ -282,6 +316,54 @@ describe('MapView', () => {
 
     expect(mapInstances[0].getSource('cruush-user-heatmap')).toBeUndefined();
     expect(mapInstances[0].getLayer('cruush-user-heatmap-layer')).toBeUndefined();
+  });
+
+  it('keeps only map markers inside the viewport plus its 15% overscan mounted after panning', async () => {
+    const inside = {
+      id: 'inside-viewport',
+      displayName: 'Inside viewport',
+      approximateLatitude: 40.71,
+      approximateLongitude: -73.95,
+    };
+    const buffered = {
+      id: 'inside-overscan',
+      displayName: 'Inside overscan',
+      approximateLatitude: 40.71,
+      approximateLongitude: -73.889,
+    };
+    const outside = {
+      id: 'outside-overscan',
+      displayName: 'Outside overscan',
+      approximateLatitude: 40.71,
+      approximateLongitude: -73.88,
+    };
+    render(<MapView onPinClick={vi.fn()} markers={[inside, buffered, outside]} />);
+
+    await screen.findByRole('button', { name: 'Open Outside overscan on map' });
+    mapInstances[0].getBounds.mockReturnValue({
+      getNorth: () => 40.72,
+      getSouth: () => 40.7,
+      getEast: () => -73.9,
+      getWest: () => -74,
+    });
+    act(() => mapInstances[0].trigger('moveend'));
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'Open Inside viewport on map' })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Open Inside overscan on map' })).toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: 'Open Outside overscan on map' })).not.toBeInTheDocument();
+    });
+  });
+
+  it('uses exactly a 15% viewport buffer for marker virtualization', () => {
+    const bounds = { north: 40.72, south: 40.7, east: -73.9, west: -74 };
+    expect(MAP_MARKER_VIEWPORT_OVERSCAN).toBe(0.15);
+    expect(isMarkerWithinViewportOverscan({
+      id: 'within-buffer', displayName: 'Within buffer', approximateLatitude: 40.71, approximateLongitude: -73.885,
+    }, bounds)).toBe(true);
+    expect(isMarkerWithinViewportOverscan({
+      id: 'outside-buffer', displayName: 'Outside buffer', approximateLatitude: 40.71, approximateLongitude: -73.884,
+    }, bounds)).toBe(false);
   });
 
   it('uses the Dark Room palette and shows the owner photo through the keyhole', () => {
@@ -1390,7 +1472,14 @@ describe('MapView', () => {
     expect(markerButton).toHaveAttribute('aria-pressed', 'true');
     expect(markerInstances[0].element.style.zIndex).toBe('110');
     expect(screen.getByTestId('marker-heart-layer-user-hover')).toHaveClass('scale-[1.38]');
-    expect(screen.getByTestId('marker-signal-stack-user-hover')).toHaveClass('opacity-100');
+    const signalStack = screen.getByTestId('marker-signal-stack-user-hover');
+    expect(signalStack).toHaveClass(
+      'scale-[0.7246376812]',
+      'opacity-100',
+      'delay-150',
+      'max-w-none',
+    );
+    expect(signalStack.querySelector('.cruush-ghost-rotation-signal-symbol')).toHaveClass('whitespace-nowrap');
 
     const pointerLeave = new Event('pointerleave', { bubbles: true });
     Object.defineProperty(pointerLeave, 'pointerType', { value: 'mouse' });
@@ -2548,6 +2637,84 @@ describe('spiderfy clusters', () => {
     // Keep the fan compact: each heart stays within one heart-width of the
     // shared coordinate instead of using the older extra-wide clearance.
     expect(Math.max(...offsets.map((offset: number[]) => Math.hypot(...offset)))).toBeLessThanOrEqual(95);
+  });
+
+  it('keeps an open fan fixed when a same-zoom viewport refresh changes its marker input', async () => {
+    const initialMarkers = [
+      { id: 'a', displayName: 'A', approximateLatitude: 40.7128, approximateLongitude: -73.99 },
+      { id: 'b', displayName: 'B', approximateLatitude: 40.7128, approximateLongitude: -73.99 },
+    ];
+    const { rerender } = render(<MapView onPinClick={vi.fn()} markers={initialMarkers} />);
+    await waitFor(() => expect(MockMap.calls.length).toBeGreaterThan(0));
+    act(() => mapInstances.at(-1)!.trigger('load'));
+
+    await act(async () => {
+      fireEvent.click(await screen.findByRole('button', { name: /sharing this map spot/ }));
+      await Promise.resolve();
+    });
+
+    const activeFan = () => markerInstances
+      .filter((instance: any) => instance.element.isConnected && ['a', 'b'].includes(instance.element.dataset.mapMarkerId))
+      .map((instance: any) => ({
+        id: instance.element.dataset.mapMarkerId,
+        coordinates: instance.coordinates,
+        offset: instance.offset,
+      }))
+      .sort((first: { id: string }, second: { id: string }) => first.id.localeCompare(second.id));
+    const beforePan = activeFan();
+
+    // A panned viewport can return the same people in a different order and
+    // with freshly computed approximate coordinates. At unchanged zoom, the
+    // expanded arrangement must remain the one that was opened.
+    rerender(
+      <MapView
+        onPinClick={vi.fn()}
+        markers={[
+          { id: 'b', displayName: 'B updated', approximateLatitude: 40.7001, approximateLongitude: -73.9001 },
+          { id: 'a', displayName: 'A updated', approximateLatitude: 40.7001, approximateLongitude: -73.9001 },
+        ]}
+      />,
+    );
+    await act(async () => Promise.resolve());
+
+    expect(activeFan()).toEqual(beforePan);
+  });
+
+  it('keeps an unpinned hover fan fixed when same-zoom movement refreshes its cluster', async () => {
+    const initialMarkers = [
+      { id: 'a', displayName: 'A', approximateLatitude: 40.7128, approximateLongitude: -73.99 },
+      { id: 'b', displayName: 'B', approximateLatitude: 40.7128, approximateLongitude: -73.99 },
+    ];
+    const { rerender } = render(<MapView onPinClick={vi.fn()} markers={initialMarkers} />);
+    await waitFor(() => expect(MockMap.calls.length).toBeGreaterThan(0));
+    act(() => mapInstances.at(-1)!.trigger('load'));
+
+    const cluster = await screen.findByRole('button', { name: /sharing this map spot/ });
+    fireEvent.pointerEnter(cluster, { pointerType: 'mouse' });
+    await screen.findByRole('button', { name: 'Open A on map' });
+
+    const activeFan = () => markerInstances
+      .filter((instance: any) => instance.element.isConnected && ['a', 'b'].includes(instance.element.dataset.mapMarkerId))
+      .map((instance: any) => ({
+        id: instance.element.dataset.mapMarkerId,
+        coordinates: instance.coordinates,
+        offset: instance.offset,
+      }))
+      .sort((first: { id: string }, second: { id: string }) => first.id.localeCompare(second.id));
+    const beforePan = activeFan();
+
+    rerender(
+      <MapView
+        onPinClick={vi.fn()}
+        markers={[
+          { id: 'b', displayName: 'B updated', approximateLatitude: 40.7001, approximateLongitude: -73.9001 },
+          { id: 'a', displayName: 'A updated', approximateLatitude: 40.7001, approximateLongitude: -73.9001 },
+        ]}
+      />,
+    );
+    await act(async () => Promise.resolve());
+
+    expect(activeFan()).toEqual(beforePan);
   });
 
   it('uses the earlier Spot cluster marker while keeping Spot numbers for checked-in users', async () => {

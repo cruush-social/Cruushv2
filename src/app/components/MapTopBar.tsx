@@ -22,12 +22,13 @@ type MapTopBarProps = {
   setSidePanelView: (view: MapSidePanelView | null) => void;
   notificationUnreadCount: number;
   outsideServiceArea?: boolean;
+  centerInViewport?: boolean;
 };
 
-export default function MapTopBar({ setMapControlsHovered, handleFeelingLucky, navigate, privacySettings, dlModeActive, usesFullPageProfile, sidePanelView, setSidePanelReturnView, setSidePanelView, notificationUnreadCount, outsideServiceArea = false }: MapTopBarProps) {
+export default function MapTopBar({ setMapControlsHovered, handleFeelingLucky, navigate, privacySettings, dlModeActive, usesFullPageProfile, sidePanelView, setSidePanelReturnView, setSidePanelView, notificationUnreadCount, outsideServiceArea = false, centerInViewport = false }: MapTopBarProps) {
   const availableWidthRef = useRef<HTMLDivElement>(null);
   const [scale, setScale] = useState(1);
-  const capsuleWidth = outsideServiceArea ? 128 : 298;
+  const capsuleWidth = 298;
 
   useLayoutEffect(() => {
     const frame = availableWidthRef.current;
@@ -40,7 +41,7 @@ export default function MapTopBar({ setMapControlsHovered, handleFeelingLucky, n
   }, [capsuleWidth]);
 
   return (
-          <div ref={availableWidthRef} className="relative min-w-0 flex-1" style={{ height: 70 * scale }}>
+          <div ref={availableWidthRef} className={centerInViewport ? 'pointer-events-none absolute inset-x-14 top-0 flex justify-center' : 'relative min-w-0 flex-1'} style={{ height: 70 * scale }}>
             <div
               className="cruush-map-top-actions pointer-events-auto absolute left-1/2 top-0 flex h-[70px] w-[298px] shrink-0 items-center justify-center gap-1 rounded-full border border-white/10 bg-[color:var(--cruush-black-glass)] px-2.5 py-2 backdrop-blur-[var(--cruush-black-glass-blur)]"
               data-capsule-width={capsuleWidth}
@@ -50,7 +51,7 @@ export default function MapTopBar({ setMapControlsHovered, handleFeelingLucky, n
               onPointerEnter={() => setMapControlsHovered(true)}
               onPointerLeave={() => setMapControlsHovered(false)}
             >
-            {!outsideServiceArea ? <>
+            <>
             <Button
               variant="ghost"
               size="icon"
@@ -65,18 +66,18 @@ export default function MapTopBar({ setMapControlsHovered, handleFeelingLucky, n
             <Button
               variant="ghost"
               size="icon"
-              onClick={() => navigate('/privacy/ghost-mode')}
+              onClick={() => navigate(outsideServiceArea ? '/settings/travel' : '/privacy/ghost-mode')}
               data-tutorial-target="ghost"
-              aria-label="Ghost Mode Settings"
-              title="Ghost Mode Settings"
-              className="size-[3.25rem] rounded-full bg-transparent text-white/90 hover:bg-transparent focus:bg-transparent focus-visible:bg-transparent"
+              aria-label={outsideServiceArea ? 'Mile High Club' : 'Ghost Mode Settings'}
+              title={outsideServiceArea ? 'Mile High Club' : 'Ghost Mode Settings'}
+              className={`size-[3.25rem] rounded-full bg-transparent text-white/90 hover:bg-transparent focus:bg-transparent focus-visible:bg-transparent${outsideServiceArea ? ' opacity-45' : ''}`}
             >
-              {privacySettings.baseMode === 'STEALTH' ? (
+              {!outsideServiceArea && privacySettings.baseMode === 'STEALTH' ? (
                 <DarkRoomMark active className="!h-11 !w-11 text-white" />
               ) : (
                 <CruushIcon
                   name="ghost"
-                  variant={privacySettings.ghostModeEnabled ? 'colored' : 'white'}
+                  variant={outsideServiceArea ? 'white' : privacySettings.ghostModeEnabled ? 'colored' : 'white'}
                   className="h-11 w-11 scale-[1.22] object-contain"
                 />
               )}
@@ -93,7 +94,7 @@ export default function MapTopBar({ setMapControlsHovered, handleFeelingLucky, n
               {/* The gradient mark is the active state. Hover does not add a circle around it. */}
               <DlModeMark active={dlModeActive} className="!h-11 !w-11 scale-[1.18] overflow-visible" />
             </Button>
-            </> : null}
+            </>
             <Button
                 variant="ghost"
                 size="icon"

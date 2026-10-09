@@ -12,7 +12,7 @@ import {
 import {
   MAP_SERVICE_CENTER,
   MAP_SERVICE_MAX_BOUNDS,
-  MAP_SERVICE_RADIUS_MILES,
+  isWithinMapServiceArea,
   mapServiceMinZoomForViewport,
 } from '../lib/mapServiceArea';
 import { MAX_DISCOVERY_ZOOM, MIN_DISCOVERY_ZOOM, getMapStyle } from './MapView';
@@ -33,7 +33,6 @@ const TRAVEL_MODE_TERMS = [
   'Dark Room is off while you are travelling. A borrowed location and an unseen viewer is the one pair we do not allow.',
 ];
 
-const EARTH_RADIUS_MILES = 3958.7613;
 const PICKER_ZOOM_OFFSET = 0.75;
 
 type PickedPoint = {
@@ -41,19 +40,8 @@ type PickedPoint = {
   longitude: number;
 };
 
-function milesFromServiceCenter(point: PickedPoint) {
-  const latitudeDelta = (point.latitude - MAP_SERVICE_CENTER.latitude) * Math.PI / 180;
-  const longitudeDelta = (point.longitude - MAP_SERVICE_CENTER.longitude) * Math.PI / 180;
-  const haversine = Math.sin(latitudeDelta / 2) ** 2
-    + Math.cos(MAP_SERVICE_CENTER.latitude * Math.PI / 180)
-    * Math.cos(point.latitude * Math.PI / 180)
-    * Math.sin(longitudeDelta / 2) ** 2;
-
-  return 2 * EARTH_RADIUS_MILES * Math.asin(Math.min(1, Math.sqrt(haversine)));
-}
-
 function isInsideServiceArea(point: PickedPoint) {
-  return milesFromServiceCenter(point) <= MAP_SERVICE_RADIUS_MILES;
+  return isWithinMapServiceArea(point);
 }
 
 function parseCoordinates(raw: string): PickedPoint | null {
@@ -194,7 +182,7 @@ function TravelPinPicker({
           };
 
           if (!isInsideServiceArea(picked)) {
-            setMapError(`That is outside the ${MAP_SERVICE_RADIUS_MILES} mile area cruush covers.`);
+            setMapError('That is outside the cruush service area.');
             return;
           }
 
@@ -244,7 +232,7 @@ function TravelPinPicker({
     const parsed = parseCoordinates(query);
     if (parsed) {
       if (!isInsideServiceArea(parsed)) {
-        setMapError(`That is outside the ${MAP_SERVICE_RADIUS_MILES} mile area cruush covers.`);
+        setMapError('That is outside the cruush service area.');
         return;
       }
       setMapError('');
@@ -376,7 +364,7 @@ function TravelModeSection({ onTravelPinChange }: { onTravelPinChange?: (pin: Tr
         };
 
         if (!isInsideServiceArea(picked)) {
-          setError(`You are outside the ${MAP_SERVICE_RADIUS_MILES} mile area cruush covers. Pick a spot on the map instead.`);
+        setError('You are outside the cruush service area. Pick a spot on the map instead.');
           return;
         }
 
@@ -458,26 +446,20 @@ function TravelModeSection({ onTravelPinChange }: { onTravelPinChange?: (pin: Tr
           >
             Turn off
           </Button>
-        ) : (
+        ) : hasCruushPlus === true ? (
           <Button
             className="rounded-full"
             disabled={loading || saving}
             onClick={() => {
-              if (hasCruushPlus !== true) {
-                setPlusCardOpen(true);
-                return;
-              }
               setShowTerms((open) => !open);
             }}
             size="sm"
             type="button"
             variant="outline"
           >
-            {/* Basic accounts need cruush+ for this, so the button says so
-                rather than opening a panel that cannot be used. */}
-            {hasCruushPlus !== true ? 'Get cruush+' : showTerms ? 'Close' : 'Turn on'}
+            {showTerms ? 'Close' : 'Turn on'}
           </Button>
-        )}
+        ) : null}
       </div>
 
       {pin ? (
@@ -516,8 +498,12 @@ function TravelModeSection({ onTravelPinChange }: { onTravelPinChange?: (pin: Tr
           <TravelPinPicker
             actions={(
               <div className="cruush-travel-mode-actions grid grid-cols-2 gap-2">
-                <Button className="rounded-full" onClick={useCurrentLocation} type="button" variant="outline">Use my current location</Button>
-                <Button className="rounded-full text-white" disabled={saving || !point} onClick={savePin} style={{ background: 'var(--cruush-gradient)' }} type="button">{saving ? 'Dropping your pin...' : 'Drop my pin here'}</Button>
+                <Button className="rounded-full text-[0.7rem] leading-tight sm:text-sm" onClick={useCurrentLocation} type="button" variant="outline">Use my current location</Button>
+                {hasCruushPlus !== true ? (
+                  <Button className="rounded-full text-[0.7rem] leading-tight text-white sm:text-sm" disabled={loading} onClick={() => setPlusCardOpen(true)} style={{ background: 'var(--cruush-gradient)' }} type="button">Get cruush+</Button>
+                ) : (
+                  <Button className="rounded-full text-[0.7rem] leading-tight text-white sm:text-sm" disabled={saving || !point} onClick={savePin} style={{ background: 'var(--cruush-gradient)' }} type="button">{saving ? 'Dropping your pin...' : 'Drop my pin here'}</Button>
+                )}
               </div>
             )}
             onLabelChange={setLabel}
@@ -544,8 +530,8 @@ function TravelModeSection({ onTravelPinChange }: { onTravelPinChange?: (pin: Tr
           <TravelPinPicker
             actions={(
               <div className="cruush-travel-mode-actions grid grid-cols-2 gap-2">
-                <Button className="rounded-full" onClick={useCurrentLocation} type="button" variant="outline">Use my current location</Button>
-                <Button className="rounded-full text-white" disabled={saving || !point} onClick={savePin} style={{ background: 'var(--cruush-gradient)' }} type="button">{saving ? 'Moving your pin...' : 'Move my pin here'}</Button>
+                <Button className="rounded-full text-[0.7rem] leading-tight sm:text-sm" onClick={useCurrentLocation} type="button" variant="outline">Use my current location</Button>
+                <Button className="rounded-full text-[0.7rem] leading-tight text-white sm:text-sm" disabled={saving || !point} onClick={savePin} style={{ background: 'var(--cruush-gradient)' }} type="button">{saving ? 'Moving your pin...' : 'Move my pin here'}</Button>
               </div>
             )}
             onLabelChange={setLabel}
@@ -591,7 +577,6 @@ export default function TravelModeSettings({ embedded = false, onBack, onClose, 
       />
 
       <main className="cruush-travel-mode-main mx-auto flex min-h-0 w-full max-w-2xl flex-1 flex-col px-4 py-4 lg:overflow-y-auto">
-        <p className="cruush-travel-mode-intro mb-3 text-sm text-muted-foreground">Drop your pin anywhere in the current map area to explore and connect with people there.</p>
         <TravelModeSection onTravelPinChange={onTravelPinChange} />
       </main>
     </div>

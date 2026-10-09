@@ -120,6 +120,13 @@ export default function PlacesDrawer({ open, onOpenChange, coordinates, onFilter
   }, [amenities, coordinates?.latitude, coordinates?.longitude, excludedFacilityTypes, onPlacesChange, open, query, radiusMiles, sort, tags, vibes]);
 
   const filterCount = excludedFacilityTypes.length + tags.length + vibes.length + amenities.length + (query.trim() ? 1 : 0) + (radiusMiles < 100 ? 1 : 0);
+  const hasOtherSpotFilter = query.trim().length > 0
+    || tags.length > 0
+    || vibes.length > 0
+    || amenities.length > 0
+    || radiusMiles < 100
+    || excludedFacilityTypes.length !== DEFAULT_EXCLUDED_PLACE_FACILITY_TYPES.length
+    || excludedFacilityTypes.some((type) => !DEFAULT_EXCLUDED_PLACE_FACILITY_TYPES.includes(type));
   useEffect(() => {
     onFiltersActiveChange?.(filterCount > 0);
     onMapFiltersChange?.({ query: query.trim(), excludedFacilityTypes, tags, vibes, amenities, radiusMiles });
@@ -415,29 +422,34 @@ export default function PlacesDrawer({ open, onOpenChange, coordinates, onFilter
       <SheetContent
         closeSide="left"
         side="right"
-        overlayClassName="z-[1690]"
-        className="z-[1700] flex h-full max-h-[100dvh] w-full flex-col gap-0 overflow-hidden border-white/10 bg-background/95 p-0 sm:max-w-xl"
+        overlayClassName="z-[1690] sm:bg-transparent"
+        className="cruush-map-filter-sheet z-[1700] flex h-full max-h-[100dvh] w-full flex-col gap-0 overflow-hidden border-white/10 bg-background/95 p-0 sm:max-w-xl"
         data-testid="places-drawer"
       >
-        <SheetHeader className="shrink-0 border-b border-white/10 py-4 pl-14 pr-4">
+        <SheetHeader className="shrink-0 border-b border-white/10 py-3 pl-14 pr-4">
           <div className="flex items-center justify-between gap-3">
-            <div className="min-w-0">
-              <SheetTitle className="text-xl text-white">Spots</SheetTitle>
+            <div className="flex min-w-0 items-center gap-3">
+              <SheetTitle className="shrink-0 text-xl text-white">Spots</SheetTitle>
+              {onSpotsVisibleChange ? (
+                <div
+                  className={`flex w-fit items-center gap-2 rounded-full border px-3 py-1.5 ${spotsVisible || hasOtherSpotFilter ? 'border-transparent' : 'border-white/10 bg-white/[0.04]'}`}
+                  style={spotsVisible || hasOtherSpotFilter
+                    ? { background: 'var(--cruush-gradient)' }
+                    : undefined}
+                >
+                  <span className="text-sm text-white">Show Spots on the map</span>
+                  <Switch
+                    aria-label="Show Spots on the map"
+                    checked={spotsVisible}
+                    data-testid="places-visible-toggle"
+                    onCheckedChange={onSpotsVisibleChange}
+                  />
+                </div>
+              ) : null}
             </div>
             {/* The drawer covers the map, and its own bug button with it. */}
             <div className="h-9 w-9 shrink-0" data-testid="places-bug-button-slot" ref={registerBugButtonSlot} />
           </div>
-          {onSpotsVisibleChange ? (
-            <div className="mt-3 flex w-fit items-center gap-3 self-start rounded-full border border-white/10 bg-white/[0.04] px-3 py-2">
-              <span className="text-sm text-white">Show Spots on the map</span>
-              <Switch
-                aria-label="Show Spots on the map"
-                checked={spotsVisible}
-                data-testid="places-visible-toggle"
-                onCheckedChange={onSpotsVisibleChange}
-              />
-            </div>
-          ) : null}
         </SheetHeader>
         {drawerBody}
         {!showSubmit ? (

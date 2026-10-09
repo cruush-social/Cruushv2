@@ -1,0 +1,27 @@
+services:
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    env_file:
+      - .env
+    environment:
+      TOWN_BOUNDARY_DATABASE_PATH: /opt/cruush/town-boundaries/release-2026-09-23.1/towns.sqlite
+    expose:
+      - "3001"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O- http://127.0.0.1:3001/health >/dev/null || exit 1"]
+      interval: 15s
+      timeout: 10s
+      retries: 40
+      start_period: 60s
+    networks:
+      - coolify
+    volumes:
+      - town-data:/opt/cruush/town-boundaries:ro
+networks:
+  coolify:
+    external: true
+    name: coolify
+volumes:
+  town-data: {}

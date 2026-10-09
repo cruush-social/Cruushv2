@@ -6,6 +6,7 @@ import { runTransaction } from "../db.js";
 import { ApiError } from "../errors.js";
 import { listEncryptedRelationshipRecordsByParticipant } from "../encrypted-relationships.js";
 import { loadPhotoViewerRelationships } from "../nsfw-photo-audience.js";
+import { loadOutOfSightStatuses, type OutOfSightStatus } from "../out-of-sight-location.js";
 import { databaseUuidSchema, uuidSchema } from "../input-schema.js";
 import { getModeratorUser } from "../moderator-auth.js";
 import { approvedContentReviewCte, moderateTextOrReject } from "../moderation-service.js";
@@ -27,7 +28,7 @@ import {
   submitPlaceSchema
 } from "../places.js";
 import { getActiveAccountUserId, getAuthenticatedUserId } from "../request-auth.js";
-import { distanceMiles, isWithinServiceArea, NYC_SERVICE_AREA } from "../service-area.js";
+import { distanceMiles, isWithinServiceArea, NYC_SERVICE_AREA, SERVICE_AREA_SQL } from "../service-area.js";
 
 const placeParamsSchema = z.object({ placeId: databaseUuidSchema });
 const messageParamsSchema = z.object({ placeId: databaseUuidSchema, messageId: uuidSchema });
@@ -335,7 +336,7 @@ export async function registerPlaceRoutes(app: FastifyInstance) {
     const query = listPlacesQuerySchema.parse(request.query);
     const lat = query.lat ?? NYC_SERVICE_AREA.center.lat;
     const lng = query.lng ?? NYC_SERVICE_AREA.center.lng;
-    if (!isWithinServiceArea({ lat, lng })) throw new ApiError(400, "OUTSIDE_SERVICE_AREA", "Search from within the NYC service area.");
+    if (!isWithinServiceArea({ lat, lng })) throw new ApiError(400, "OUTSIDE_SERVICE_AREA", "Search from within the cruush service area.");
     const facilityTypes = query.facilityTypes.split(",").map((value) => value.trim()).filter(Boolean);
     const excludedFacilityTypes = query.excludedFacilityTypes.split(",").map((value) => value.trim()).filter(Boolean);
     // Existing legacy records use the same visible category as their replacement.
@@ -351,7 +352,7 @@ export async function registerPlaceRoutes(app: FastifyInstance) {
          where p.status = 'published'
            and ($4::text = '' or p.name ilike '%' || $4 || '%' or p.description ilike '%' || $4 || '%')
            and (cardinality($5::text[]) = 0 or p.facility_type = any($5::text[]))
-           and not (p.facility_type = any($16::text[]))
+           and not (p.facility_type = any($13::text[]))
            and (cardinality($6::text[]) = 0 or exists (select 1 from place_tags filter_tag where filter_tag.place_id = p.id and filter_tag.tag = any($6::text[])))
            and (cardinality($8::text[]) = 0
              or exists (select 1 from place_amenities filter_amenity where filter_amenity.place_id = p.id and filter_amenity.amenity = any($8::text[]))
@@ -362,17 +363,13 @@ export async function registerPlaceRoutes(app: FastifyInstance) {
              + cos(radians($2::double precision)) * cos(radians(p.latitude))
                * power(sin(radians((p.longitude - $3::double precision) / 2)), 2)
            )) <= $9
-           -- Keep the independent NYC service-area boundary in force.
-           and 3958.7613 * 2 * asin(sqrt(
-             power(sin(radians((p.latitude - $12::double precision) / 2)), 2)
-             + cos(radians($12::double precision)) * cos(radians(p.latitude))
-               * power(sin(radians((p.longitude - $13::double precision) / 2)), 2)
-           )) <= $14
+           -- Keep the independent service-area boundaries in force.
+           and (${SERVICE_AREA_SQL})
        ) listed
        where (cardinality($7::text[]) = 0 or vibes && $7::text[])
-         and ($15::text = 'any'
-         or ($15::text = 'active' and active_checkins > 0)
-         or ($15::text = 'recent' and recent_activity_at is not null))
+         and ($12::text = 'any'
+         or ($12::text = 'active' and active_checkins > 0)
+         or ($12::text = 'recent' and recent_activity_at is not null))
        order by ${placeOrder(query.sort)}
        limit $10 offset $11`,
       [
@@ -387,9 +384,6 @@ export async function registerPlaceRoutes(app: FastifyInstance) {
         query.radiusMiles,
         query.limit,
         query.offset,
-        NYC_SERVICE_AREA.center.lat,
-        NYC_SERVICE_AREA.center.lng,
-        NYC_SERVICE_AREA.radiusMiles,
         query.activity,
         excludedFacilityTypes
       ]
@@ -499,12 +493,16 @@ export async function registerPlaceRoutes(app: FastifyInstance) {
       loadActiveMutualUserIds(app, userId)
     ]);
     const photoRelationships = await loadPhotoViewerRelationships(app, userId, visiblePeople.rows.map((person) => person.id));
+    const physicalStatuses = await loadOutOfSightStatuses(app, visiblePeople.rows.map((person) => person.id))
+      .catch(() => new Map<string, OutOfSightStatus>());
     return reply.send({
       data: {
         ...mapPlace(place),
         popularTimes: popularTimes.rows.map((row) => ({ weekday: Number(row.weekday), hour: Number(row.hour), count: Number(row.count) })),
         visiblePeople: visiblePeople.rows.map((person) => ({
           id: person.id,
+          ...(physicalStatuses.get(person.id) === "in_area" || physicalStatuses.get(person.id) === "out_of_sight"
+            ? { outOfSight: physicalStatuses.get(person.id) === "out_of_sight" } : {}),
           name: person.name,
           photo: person.photo,
           photoExplicit: person.photo_explicit !== false,
@@ -542,7 +540,7 @@ export async function registerPlaceRoutes(app: FastifyInstance) {
       message: "Too many place submissions. Try again later."
     });
     if (!isWithinServiceArea({ lat: payload.latitude, lng: payload.longitude })) {
-      throw new ApiError(400, "OUTSIDE_SERVICE_AREA", "Spots must be within 100 miles of NYC.");
+      throw new ApiError(400, "OUTSIDE_SERVICE_AREA", "Spots must be within the cruush service area.");
     }
     await moderateTextOrReject(app, { userId, surface: "feed", text: `${payload.name}\n${payload.description}\n${payload.accessInstructions}` });
     const submittedName = normalizedPlaceName(payload.name);
@@ -663,6 +661,8 @@ export async function registerPlaceRoutes(app: FastifyInstance) {
       loadActiveMutualUserIds(app, userId)
     ]);
     const photoRelationships = await loadPhotoViewerRelationships(app, userId, result.rows.map((row) => row.user_id));
+    const physicalStatuses = await loadOutOfSightStatuses(app, result.rows.map((row) => row.user_id))
+      .catch(() => new Map<string, OutOfSightStatus>());
     return reply.send({
       data: result.rows.map((row) => ({
         id: row.id,
@@ -675,6 +675,8 @@ export async function registerPlaceRoutes(app: FastifyInstance) {
         canDelete: row.user_id === userId,
         user: {
           id: row.user_id,
+          ...(physicalStatuses.get(row.user_id) === "in_area" || physicalStatuses.get(row.user_id) === "out_of_sight"
+            ? { outOfSight: physicalStatuses.get(row.user_id) === "out_of_sight" } : {}),
           name: row.display_name ?? "cruush user",
           pronouns: row.pronouns?.join(", ") ?? "",
           photo: row.photo,
@@ -1066,7 +1068,7 @@ export async function registerPlaceRoutes(app: FastifyInstance) {
     if (payload.status === "published" && place.suggestion_ciphertext) {
       const suggestion = readEncryptedSuggestion(app, place);
       if (!isWithinServiceArea({ lat: suggestion.latitude, lng: suggestion.longitude })) {
-        throw new ApiError(400, "OUTSIDE_SERVICE_AREA", "Spots must be within 100 miles of NYC.");
+        throw new ApiError(400, "OUTSIDE_SERVICE_AREA", "Spots must be within the cruush service area.");
       }
       await runTransaction(app.db, async (db) => {
         await db.query(

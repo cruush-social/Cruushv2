@@ -1,10 +1,16 @@
 import { render, screen } from '@testing-library/react';
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it } from 'vitest';
 import HeartPhoto from './HeartPhoto';
 import { HEART_PIN_THEMES } from '../lib/heartPin';
 import { getProfileGradientStops } from '../lib/profileGradient';
+import { ACCESSIBILITY_PREFERENCES_STORAGE_KEY } from '../lib/accessibilityPreferences';
+import purgatoryHeartOverlay from '../assets/ui-icons/purgatory-heart-pin-overlay.svg';
 
 describe('HeartPhoto', () => {
+  afterEach(() => {
+    window.localStorage.removeItem(ACCESSIBILITY_PREFERENCES_STORAGE_KEY);
+  });
+
   it('renders without glow by default', () => {
     render(<HeartPhoto label="Default preview" masked />);
 
@@ -62,5 +68,37 @@ describe('HeartPhoto', () => {
     expect([...heart.querySelectorAll('image')].map((node) => node.getAttribute('href') ?? ''))
       .not.toContain('https://example.com/private.jpg');
     expect(heart.querySelector('image[href*="dl-mode"]')).toBeInTheDocument();
+  });
+
+  it('places the approved external overlay only over a confirmed Purgatory subject', () => {
+    const { rerender } = render(<HeartPhoto label="Unknown member" masked />);
+    expect(screen.queryByTestId('purgatory-heart-overlay')).not.toBeInTheDocument();
+
+    rerender(<HeartPhoto label="Sinner member" masked outOfSight={false} />);
+    expect(screen.queryByTestId('purgatory-heart-overlay')).not.toBeInTheDocument();
+
+    rerender(<HeartPhoto label="Purgatory member" masked outOfSight borderTone="mile-high" />);
+    const overlay = screen.getByTestId('purgatory-heart-overlay');
+    expect(overlay).toHaveClass('left-0', '-top-[12.5%]', 'h-[112.5%]', 'w-full', 'pointer-events-none');
+    expect(overlay).toHaveAttribute('alt', '');
+    expect(overlay).toHaveAttribute('aria-hidden', 'true');
+    expect(overlay).toHaveAttribute('src', purgatoryHeartOverlay);
+    expect(screen.getByRole('img', { name: 'Purgatory member' }).querySelector('[data-contrail-style]')).toBeInTheDocument();
+  });
+
+  it('uses the existing animated Mile High plane and contrail for a Mile High heart', () => {
+    render(<HeartPhoto borderTone="mile-high" label="Travelling member" masked />);
+
+    expect(screen.getByRole('img', { name: 'Travelling member' }).querySelector('[data-contrail-style]'))
+      .toHaveAttribute('data-contrail-style', 'cluster');
+  });
+
+  it('keeps the Mile High plane and contrail static when reduce motion is enabled', () => {
+    window.localStorage.setItem(ACCESSIBILITY_PREFERENCES_STORAGE_KEY, JSON.stringify({ reduceMotion: true }));
+
+    render(<HeartPhoto borderTone="mile-high" label="Travelling member" masked />);
+
+    expect(screen.getByRole('img', { name: 'Travelling member' }).querySelector('[data-contrail-style]'))
+      .toHaveAttribute('data-contrail-style', 'reduced-motion');
   });
 });

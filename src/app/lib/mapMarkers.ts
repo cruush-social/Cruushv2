@@ -24,6 +24,7 @@ export type MapMarker = {
   approximateLongitude: number;
   lastActiveLabel?: string;
   photo?: string | null;
+  outOfSight?: boolean;
   photoExplicit?: boolean;
   photoRelationship?: DlModePhotoRelationship;
   travelling?: boolean;

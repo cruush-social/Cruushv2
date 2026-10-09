@@ -2,12 +2,13 @@ import type { NsfwPhotoRestriction } from '../lib/dlMode';
 import type { KeyboardEvent, MouseEvent, ReactNode } from 'react';
 import DlModePhotoPlaceholder from './DlModePhotoPlaceholder';
 import { useId } from 'react';
-import cruushMarkWhite from '../assets/ui-icons/cruush-white.png';
+import profileEditIconWhite from '../assets/ui-icons/humanity-profile-selected-winged-heart-symmetric.png';
 import { resolveMediaUrl } from '../lib/apiClient';
 import { HEART_PIN_PATH, HEART_PIN_THEMES, type HeartPinTheme } from '../lib/heartPin';
 import { getProfileGradientStops } from '../lib/profileGradient';
 import MileHighContrail from './MileHighContrail';
 import { USER_BORDER_COLORS, type UserBorderTone } from '../lib/userBorderTone';
+import purgatoryHeartOverlay from '../assets/ui-icons/purgatory-heart-pin-overlay.svg';
 
 interface HeartPhotoProps {
   borderColor?: string;
@@ -20,6 +21,7 @@ interface HeartPhotoProps {
   masked: boolean;
   restriction?: NsfwPhotoRestriction;
   photo?: string | null;
+  outOfSight?: boolean;
   theme?: HeartPinTheme;
   userId?: string | null;
   onClick?: () => void;
@@ -36,6 +38,7 @@ export default function HeartPhoto({
   masked: dlMasked,
   restriction,
   photo = null,
+  outOfSight = false,
   theme = 'nearby',
   userId = null,
   onClick,
@@ -45,6 +48,7 @@ export default function HeartPhoto({
   const patternId = `heart-photo-${id}`;
   const gradientId = `heart-gradient-${id}`;
   const resolvedTheme = HEART_PIN_THEMES[theme];
+  const showMileHighContrail = staticMileHigh || borderTone === 'mile-high';
   const showPhoto = Boolean(photo && !masked);
   const gradientStops = userId && !showPhoto && theme !== 'current' ? getProfileGradientStops(userId) : resolvedTheme.stops;
   const resolvedBorderColor = borderColor
@@ -72,7 +76,7 @@ export default function HeartPhoto({
   return (
     <div
       className={`relative aspect-square ${onClick ? 'cursor-pointer' : ''} ${className}`.trim()}
-      data-border-tone={staticMileHigh ? 'mile-high' : borderTone}
+      data-border-tone={showMileHighContrail ? 'mile-high' : borderTone}
       data-heart-theme={theme}
       onClick={handleClick}
       onKeyDown={handleKeyDown}
@@ -117,7 +121,7 @@ export default function HeartPhoto({
             </foreignObject>
           ) : hideDefaultMark ? null : (
             <image
-              href={cruushMarkWhite}
+              href={profileEditIconWhite}
               width="26"
               height="26"
               x="19"
@@ -127,9 +131,8 @@ export default function HeartPhoto({
             />
           )
         ) : null}
-        {staticMileHigh ? (
+        {showMileHighContrail ? (
           <MileHighContrail
-            forceReducedMotion
             gradientId={`${gradientId}-mile-high`}
             marker={{ id: patternId }}
           />
@@ -140,6 +143,15 @@ export default function HeartPhoto({
         <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
           {fallback}
         </div>
+      ) : null}
+      {outOfSight === true ? (
+        <img
+          alt=""
+          aria-hidden="true"
+          className="pointer-events-none absolute left-0 -top-[12.5%] h-[112.5%] w-full"
+          data-testid="purgatory-heart-overlay"
+          src={purgatoryHeartOverlay}
+        />
       ) : null}
     </div>
   );

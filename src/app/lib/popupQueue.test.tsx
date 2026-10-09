@@ -16,13 +16,55 @@ describe('useExclusivePopup', () => {
     render(
       <>
         <Prompt id="first-feed-post" wants />
+        <Prompt id="push-permission" wants />
         <Prompt id="dl-mode-default" wants />
         <Prompt id="mobile-install" wants />
         <Prompt id="pulse-gesture" wants />
       </>,
     );
 
-    expect(screen.getByTestId('dl-mode-default')).toBeInTheDocument();
+    expect(screen.getByTestId('push-permission')).toBeInTheDocument();
+    expect(screen.queryByTestId('dl-mode-default')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('first-feed-post')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('mobile-install')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('pulse-gesture')).not.toBeInTheDocument();
+  });
+
+  it('shows push permission after the map tutorial releases the slot', () => {
+    render(
+      <>
+        <Prompt id="push-permission" wants />
+        <Prompt id="map-tutorial" wants />
+      </>,
+    );
+
+    expect(screen.getByTestId('map-tutorial')).toBeInTheDocument();
+    expect(screen.queryByTestId('push-permission')).not.toBeInTheDocument();
+  });
+
+  it('keeps the existing first-entry order after push permission', () => {
+    render(
+      <>
+        <Prompt id="push-permission" wants />
+        <Prompt id="dl-mode-default" wants />
+      </>,
+    );
+
+    expect(screen.getByTestId('push-permission')).toBeInTheDocument();
+    expect(screen.queryByTestId('dl-mode-default')).not.toBeInTheDocument();
+  });
+
+  it('keeps lower-priority prompts queued behind the restored prompt', () => {
+    render(
+      <>
+        <Prompt id="push-permission" wants />
+        <Prompt id="first-feed-post" wants />
+        <Prompt id="mobile-install" wants />
+        <Prompt id="pulse-gesture" wants />
+      </>,
+    );
+
+    expect(screen.getByTestId('push-permission')).toBeInTheDocument();
     expect(screen.queryByTestId('first-feed-post')).not.toBeInTheDocument();
     expect(screen.queryByTestId('mobile-install')).not.toBeInTheDocument();
     expect(screen.queryByTestId('pulse-gesture')).not.toBeInTheDocument();
@@ -49,7 +91,7 @@ describe('useExclusivePopup', () => {
     expect(screen.getByTestId('first-feed-post')).toBeInTheDocument();
   });
 
-  it('shows install before push and hands the slot to push', () => {
+  it('shows push before install and hands the slot to install', () => {
     const view = render(
       <>
         <Prompt id="mobile-install" wants />
@@ -57,18 +99,18 @@ describe('useExclusivePopup', () => {
       </>,
     );
 
-    expect(screen.getByTestId('mobile-install')).toBeInTheDocument();
-    expect(screen.queryByTestId('push-permission')).not.toBeInTheDocument();
+    expect(screen.getByTestId('push-permission')).toBeInTheDocument();
+    expect(screen.queryByTestId('mobile-install')).not.toBeInTheDocument();
 
     view.rerender(
       <>
-        <Prompt id="mobile-install" wants={false} />
-        <Prompt id="push-permission" wants />
+        <Prompt id="mobile-install" wants />
+        <Prompt id="push-permission" wants={false} />
       </>,
     );
 
-    expect(screen.queryByTestId('mobile-install')).not.toBeInTheDocument();
-    expect(screen.getByTestId('push-permission')).toBeInTheDocument();
+    expect(screen.queryByTestId('push-permission')).not.toBeInTheDocument();
+    expect(screen.getByTestId('mobile-install')).toBeInTheDocument();
   });
 
   it('keeps the map tutorial and a dialog prompt from running together', () => {

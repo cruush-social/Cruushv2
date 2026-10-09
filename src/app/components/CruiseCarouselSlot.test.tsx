@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import CruiseCarouselSlot from './CruiseCarouselSlot';
 
@@ -127,6 +127,62 @@ describe('CruiseCarouselSlot', () => {
       .find((tile) => tile.className.includes('w-[15rem]'));
     const placeholder = featuredTile?.querySelector('[data-testid="dl-mode-photo-placeholder"]');
     expect(placeholder).toHaveClass('w-28');
-    expect(placeholder?.querySelector('text')).toHaveTextContent('cruushes only');
+    expect(placeholder?.querySelector('text')).toHaveTextContent('DL MODE ON');
+  });
+
+  it('varies an in-flight near miss without changing the settled profile result', async () => {
+    vi.useFakeTimers();
+    Object.defineProperty(window, 'matchMedia', {
+      configurable: true,
+      value: vi.fn().mockImplementation(() => ({
+        matches: false,
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+      })),
+    });
+    vi.spyOn(Math, 'random').mockReturnValue(0.1);
+
+    const targetUser = {
+      id: 'target-user',
+      name: 'Target user',
+      display_name: 'Target user',
+      age: 30,
+      pronouns: 'they/them',
+      lat: 40.73,
+      lng: -73.97,
+      lastActive: '2m ago',
+      distance: '1 mi',
+      lookingFor: [],
+      vibes: [],
+      position: [],
+      role: [],
+      hostingTravel: [],
+      photo: null,
+    };
+
+    render(
+      <CruiseCarouselSlot
+        mode="profile"
+        variant="page"
+        candidateUsers={[targetUser, { ...targetUser, id: 'other-user', name: 'Other user', display_name: 'Other user' }]}
+        targetUser={targetUser}
+        browseDurationMs={120}
+      />,
+    );
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(52);
+    });
+    expect(document.querySelector('.cruise-carousel-reel-near-miss')).toBeInTheDocument();
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(68);
+    });
+    const featuredTarget = screen.getAllByTestId('cruise-carousel-profile-tile')
+      .find((tile) => tile.className.includes('w-[15rem]'));
+    expect(featuredTarget).toHaveAttribute('data-carousel-profile-id', 'target-user');
+
+    vi.useRealTimers();
+    vi.restoreAllMocks();
   });
 });

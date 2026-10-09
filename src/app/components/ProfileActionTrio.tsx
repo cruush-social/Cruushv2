@@ -1,6 +1,7 @@
 import CruushIconImage, { CruushIcon } from './CruushIconImage';
 import { Button } from './ui/button';
 import mapIconWhite from '../assets/ui-icons/map-white.png';
+import { useMapServiceArea } from './MapServiceAreaContext';
 
 export type ProfileCruushState = 'available' | 'sending' | 'sent' | 'mutual';
 
@@ -10,7 +11,7 @@ export type ProfileActionTrioProps = {
   onCruush: () => void;
   /** Incoming mutual rows show the state without offering a repeat cruush. */
   cruushDisabled?: boolean;
-  /** Their privacy settings decide whether a message can be opened from here. */
+  /** Their privacy settings decide whether sending is available in the opened conversation. */
   canMessage?: boolean;
   onMessage?: () => void;
   /** Their privacy settings decide whether their pin can be centred on the map. */
@@ -30,8 +31,8 @@ const SIZE_CLASSES: Record<'sm' | 'md', string> = {
 };
 
 /**
- * The three controls every profile surface offers, each shown only when the
- * viewed person's privacy settings allow it: cruush, centre their pin, message.
+ * The three controls every profile surface offers: cruush, centre their pin,
+ * and open a message conversation. Sending permission belongs to the composer.
  */
 export default function ProfileActionTrio({
   userName,
@@ -46,6 +47,8 @@ export default function ProfileActionTrio({
   size = 'md',
   className,
 }: ProfileActionTrioProps) {
+  const { profilePinsAllowed } = useMapServiceArea();
+  const pinActionable = profilePinsAllowed && canCenterPin;
   const sizeClass = SIZE_CLASSES[size];
   const cruushLabel = cruushState === 'mutual'
     ? cruushDisabled ? `Mutual with ${userName}` : `Uncruush ${userName}`
@@ -63,7 +66,9 @@ export default function ProfileActionTrio({
         variant="secondary"
         className={`cruush-action-sheen ${sizeClass} shrink-0 rounded-full border-0 text-white disabled:opacity-100`}
         style={{
-          background: cruushState === 'available' || cruushTone === 'bright'
+          background: cruushTone === 'dark'
+            ? 'var(--cruush-gradient-soft-28)'
+            : (cruushState === 'available' && !cruushDisabled) || cruushTone === 'bright'
             ? 'var(--cruush-gradient)'
             : 'var(--cruush-gradient-soft-28)',
         }}
@@ -82,17 +87,21 @@ export default function ProfileActionTrio({
           size="icon"
           variant="secondary"
           className={`cruush-action-sheen ${sizeClass} shrink-0 rounded-full border-0 text-white disabled:opacity-100`}
-          style={{ background: canCenterPin ? 'var(--cruush-gradient)' : 'var(--cruush-gradient-soft-28), #0A0A12' }}
-          aria-label={canCenterPin
+          style={{ background: pinActionable ? 'var(--cruush-gradient)' : 'var(--cruush-gradient-soft-28), #0A0A12' }}
+          aria-label={!profilePinsAllowed
+            ? 'Map location unavailable'
+            : pinActionable
             ? `Center the map on ${userName}`
             : `${userName} does not share their precise location`}
-          title={canCenterPin
+          title={!profilePinsAllowed
+            ? 'Map location unavailable'
+            : pinActionable
             ? `Center the map on ${userName}`
             : `${userName} does not share their precise location`}
-          disabled={!canCenterPin}
-          onClick={onCenterPin}
+          disabled={!pinActionable}
+          onClick={pinActionable ? onCenterPin : undefined}
         >
-          <CruushIconImage src={mapIconWhite} className={`h-7 w-7 ${canCenterPin ? '' : 'opacity-45'}`} />
+          <CruushIconImage src={mapIconWhite} className={`h-7 w-7 ${pinActionable ? '' : 'opacity-45'}`} />
         </Button>
       ) : null}
 
@@ -105,7 +114,6 @@ export default function ProfileActionTrio({
           style={{ background: canMessage ? 'var(--cruush-gradient)' : 'var(--cruush-gradient-soft-28), #0A0A12' }}
           aria-label={canMessage ? `Message ${userName}` : `${userName} is not accepting messages from you`}
           title={canMessage ? `Message ${userName}` : `${userName} is not accepting messages from you`}
-          disabled={!canMessage}
           onClick={onMessage}
         >
           <CruushIcon name="send" className={`h-6 w-6 ${canMessage ? '' : 'opacity-45'}`} variant="white" />

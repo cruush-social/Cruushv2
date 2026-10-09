@@ -16,6 +16,7 @@ const publicProfileRules: ProfileVisibilityRules = {
   active_crowd_modes: [],
   mile_high_club_members: false,
       members_without_photos: false,
+  outside_service_area_members: false,
   age_range: null,
   distance: null,
   identities: [],

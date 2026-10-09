@@ -1,4 +1,5 @@
 import { requestApi } from './apiClient';
+import { notifyMapServiceAreaAccessChanged } from './mapServiceAreaAccess';
 import type { DisplayLocationToken } from './displayLocationTokens';
 
 export type ProfileLocationPayload = {
@@ -25,8 +26,10 @@ export type ProfileLocationRecord = {
 };
 
 export async function syncMyLocation(location: ProfileLocationPayload) {
-  return requestApi<ProfileLocationRecord>('/api/profiles/me/location', {
+  const result = await requestApi<ProfileLocationRecord>('/api/profiles/me/location', {
     method: 'PUT',
     body: JSON.stringify(location),
   });
+  notifyMapServiceAreaAccessChanged();
+  return result;
 }

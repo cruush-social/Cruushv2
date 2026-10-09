@@ -6,6 +6,8 @@ import { decryptProfileVisibility, decryptSensitiveProfile } from "./profile-sen
 import { canSubjectViewProfile, type VisibilityCoordinates, type VisibilitySubjectProfile } from "./profile-visibility.js";
 import { getNotificationPreferences, isWithinQuietHours, sendPushForNotification } from "./push-service.js";
 import { loadTravelPins } from "./travel-pins.js";
+import { getViewerOutsideServiceArea } from "./profile-oos-visibility.js";
+import { filterOosHiddenNotifications, isGroupPulseEligible } from "./oos-notification-visibility.js";
 
 /**
  * Who hears about a Pulse.
@@ -122,16 +124,25 @@ function toPulseVisibilitySubject(
   };
 }
 
-function profilesAreMutuallyVisible(
+async function profilesAreMutuallyVisible(
   app: FastifyInstance,
-  sender: { profile: PulseProfileRow; subject: VisibilitySubjectProfile; coordinates: VisibilityCoordinates },
-  candidate: { profile: PulseProfileRow; subject: VisibilitySubjectProfile; coordinates: VisibilityCoordinates }
+  sender: { userId: string; profile: PulseProfileRow; subject: VisibilitySubjectProfile; coordinates: VisibilityCoordinates },
+  candidate: { userId: string; profile: PulseProfileRow; subject: VisibilitySubjectProfile; coordinates: VisibilityCoordinates },
+  outsideServiceArea: (userId: string) => Promise<boolean>
 ) {
   const senderRules = decryptProfileVisibility(app.config, sender.profile);
   const candidateRules = decryptProfileVisibility(app.config, candidate.profile);
+  if ((!senderRules && (sender.profile.profile_visibility_ciphertext || sender.profile.profile_visibility_nonce || sender.profile.profile_visibility_auth_tag)) ||
+      (!candidateRules && (candidate.profile.profile_visibility_ciphertext || candidate.profile.profile_visibility_nonce || candidate.profile.profile_visibility_auth_tag))) {
+    return false;
+  }
+  const [senderOos, candidateOos] = await Promise.all([
+    candidateRules?.outside_service_area_members ? outsideServiceArea(sender.userId) : undefined,
+    senderRules?.outside_service_area_members ? outsideServiceArea(candidate.userId) : undefined
+  ]);
 
-  return canSubjectViewProfile(candidateRules, sender.subject, candidate.coordinates) &&
-    canSubjectViewProfile(senderRules, candidate.subject, sender.coordinates);
+  return canSubjectViewProfile(candidateRules, { ...sender.subject, outside_service_area: senderOos }, candidate.coordinates) &&
+    canSubjectViewProfile(senderRules, { ...candidate.subject, outside_service_area: candidateOos }, sender.coordinates);
 }
 
 /**
@@ -327,11 +338,6 @@ export async function notifyPulseRecipients(
       };
     })
     .filter((row) => row.miles <= input.radiusMiles)
-    .filter((row) => profilesAreMutuallyVisible(
-      app,
-      { profile: sender.profile, subject: senderSubject, coordinates: senderCoordinates },
-      row
-    ))
     .sort((a, b) => a.miles - b.miles);
 
   if (withinRadius.length === 0) {
@@ -346,6 +352,15 @@ export async function notifyPulseRecipients(
   );
 
   const eligible: string[] = [];
+  const oosByUserId = new Map<string, Promise<boolean>>();
+  const outsideServiceArea = (userId: string) => {
+    let result = oosByUserId.get(userId);
+    if (!result) {
+      result = getViewerOutsideServiceArea(app, userId);
+      oosByUserId.set(userId, result);
+    }
+    return result;
+  };
 
   for (const candidate of withinRadius) {
     if (eligible.length >= PULSE_NOTIFICATION_RECIPIENT_LIMIT) {
@@ -353,6 +368,15 @@ export async function notifyPulseRecipients(
     }
 
     if (alreadyReached.has(candidate.userId) || recentlyInterrupted.has(candidate.userId)) {
+      continue;
+    }
+
+    if (!await profilesAreMutuallyVisible(
+      app,
+      { userId: input.senderUserId, profile: sender.profile, subject: senderSubject, coordinates: senderCoordinates },
+      candidate,
+      outsideServiceArea
+    )) {
       continue;
     }
 
@@ -414,7 +438,15 @@ export async function notifyPulseRecipients(
       continue;
     }
 
-    void sendPushForNotification(app, notification).catch(() => undefined);
+    void (async () => {
+      const visible = await filterOosHiddenNotifications(app, recipientUserId, [{
+        type: "pulse",
+        actor_user_id: input.senderUserId,
+        conversation_id: null,
+        metadata: { pingId: input.pingId }
+      }]);
+      if (visible.length) await sendPushForNotification(app, notification);
+    })().catch(() => undefined);
   }
 
   return { notified };
@@ -453,6 +485,10 @@ export async function notifyGroupPulseRecipients(
 
     const preferences = await getNotificationPreferences(app, recipient.user_id).catch(() => null);
     if (preferences && preferences.pulseEnabled === false) {
+      continue;
+    }
+
+    if (!await isGroupPulseEligible(app, recipient.user_id)) {
       continue;
     }
 
@@ -495,6 +531,10 @@ export async function notifyGroupPulseRecipients(
     notified += 1;
 
     if (recipient.muted || (preferences && isWithinQuietHours(preferences, nowMs))) {
+      continue;
+    }
+
+    if (!await isGroupPulseEligible(app, recipient.user_id)) {
       continue;
     }
 

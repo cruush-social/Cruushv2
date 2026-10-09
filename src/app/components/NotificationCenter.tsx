@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Bell, CheckCheck, Trash2 } from 'lucide-react';
+import { CheckCheck, Trash2 } from 'lucide-react';
 import { useNavigate } from 'react-router';
 import {
   clearNotifications,
@@ -145,7 +145,7 @@ export default function NotificationCenter() {
   };
 
   return (
-    <div className="min-h-screen bg-background pb-28 text-foreground">
+    <div className="min-h-screen overflow-hidden rounded-2xl border border-white/25 bg-black/48 pb-28 text-foreground backdrop-blur-xl backdrop-saturate-150">
       <AppPageHeader
         title="Notifications"
         onBack={() => navigate(-1)}
@@ -203,7 +203,7 @@ export default function NotificationCenter() {
               <div
                 key={index}
                 aria-hidden="true"
-                className="flex animate-pulse items-start gap-3 rounded-lg border border-border bg-card p-4"
+                className="flex animate-pulse items-start gap-3 rounded-2xl border border-white/25 bg-black/48 p-4 backdrop-blur-xl backdrop-saturate-150"
               >
                 <div className="h-9 w-9 shrink-0 rounded-full bg-white/10" />
                 <div className="min-w-0 flex-1 space-y-2 py-1">
@@ -217,8 +217,8 @@ export default function NotificationCenter() {
         ) : null}
 
         {!isLoading && notifications.length === 0 && !error ? (
-          <div className="flex min-h-[16rem] flex-col items-center justify-center rounded-lg border border-dashed border-border bg-card/70 p-8 text-center">
-            <Bell className="h-8 w-8 text-muted-foreground" />
+          <div className="flex min-h-[16rem] flex-col items-center justify-center rounded-2xl border border-dashed border-white/25 bg-black/48 p-8 text-center backdrop-blur-xl backdrop-saturate-150">
+            <CruushIcon name="notifications" variant="white" className="h-8 w-8 opacity-55" />
             <p className="mt-4 text-lg text-white">No notifications yet.</p>
           </div>
         ) : null}
@@ -231,10 +231,10 @@ export default function NotificationCenter() {
               return (
                 <article
                   key={notification.id}
-                  className={`relative flex w-full items-start gap-3 rounded-lg border p-4 pr-14 text-left transition-colors ${
+                  className={`relative flex w-full items-start gap-3 rounded-2xl border p-4 pr-14 text-left backdrop-blur-xl backdrop-saturate-150 transition-colors ${
                     unread
                       ? 'border-primary/30 bg-primary/10 hover:bg-primary/14'
-                      : 'border-border bg-card hover:bg-muted/45'
+                      : 'border-white/25 bg-black/48 hover:bg-black/58'
                   }`}
                 >
                   <span
@@ -246,7 +246,7 @@ export default function NotificationCenter() {
                     {notification.type === 'mutual_cruush' ? (
                       <CruushIcon name="mutual" variant="white" className="h-5 w-5" />
                     ) : (
-                      <Bell className="h-4 w-4" />
+                      <CruushIcon name="notifications" variant="white" className="h-5 w-5" />
                     )}
                   </span>
                   <button

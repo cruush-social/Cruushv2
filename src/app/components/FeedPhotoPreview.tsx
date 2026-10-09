@@ -86,7 +86,6 @@ function PostChrome({ post, children, heartSize }: {
             photo={null}
             theme={post.theme}
             userId={`preview-${post.id}`}
-            fallback={<CruushIcon name="cruush" className="h-5 w-5 opacity-20" />}
           />
         </div>
       )}

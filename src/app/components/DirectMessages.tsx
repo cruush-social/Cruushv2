@@ -4,7 +4,7 @@ import TrustRestrictionNotice from './TrustRestrictionNotice';
 import { useDeferredValue, useEffect, useMemo, useState } from 'react';
 import { DROPDOWN_TRIGGER_CLASS } from '../lib/controlStyles';
 import { useNavigate, useSearchParams } from 'react-router';
-import { ChevronLeft, ChevronRight, Clock3, MapPin, Pin, Plus, Search, Settings2, Trash2, X, ArrowLeft } from 'lucide-react';
+import { ChevronLeft, Clock3, MapPin, Pin, Plus, Search, Settings2, Trash2, X, ArrowLeft } from 'lucide-react';
 import CruushIconImage, { CruushIcon } from './CruushIconImage';
 import mapIconWhite from '../assets/ui-icons/map-white.png';
 import seekingIcon from '../assets/ui-icons/seeking-magnifying-glass-8149381.svg';
@@ -21,6 +21,7 @@ import {
   createGroupConversation,
   deleteConversationForEveryone,
   getConversations,
+  parseInAppShareMessage,
   type ConversationThread,
   type ConversationTimer,
 } from '../lib/messagesApi';
@@ -34,10 +35,10 @@ import { visibilityRulesToState, visibilityStateToRules } from '../lib/visibilit
 import { openConversationOrInbox } from '../lib/openConversation';
 import ProfileActionTrio from './ProfileActionTrio';
 import CruushesProfileCard from './CruushesProfileCard';
-import UserActivityCapsule from './UserActivityCapsule';
 import ClubDirectoryPanel from './ClubDirectoryPanel';
 import TagInput from './TagInput';
 import { createClub } from '../lib/clubsApi';
+import { createFeedPost } from '../lib/postApi';
 import LoadingCardSkeletons from './LoadingCardSkeletons';
 import CruushMatchSettings from './CruushMatchSettings';
 import AppPageHeader from './AppPageHeader';
@@ -101,6 +102,7 @@ function normalizeConversation(raw: any): ConversationThread {
       name: raw?.user?.name ?? 'cruush user',
       pronouns: raw?.user?.pronouns ?? '',
       photo: raw?.user?.photo ?? null,
+      ...(raw?.kind === 'dm' && typeof raw?.user?.outOfSight === 'boolean' ? { outOfSight: raw.user.outOfSight } : {}),
       photoExplicit: raw?.user?.photoExplicit,
       sideBadges: raw?.user?.sideBadges,
       // Rebuilt field by field, so anything not named here is dropped: the
@@ -112,6 +114,7 @@ function normalizeConversation(raw: any): ConversationThread {
     distance: raw?.distance ?? 'Nearby',
     updatedAt: raw?.updatedAt ?? raw?.timestamp ?? new Date().toISOString(),
     lastMessage: raw?.lastMessage ?? '',
+    lastMessageAuthorName: typeof raw?.lastMessageAuthorName === 'string' ? raw.lastMessageAuthorName : undefined,
     unreadCount: typeof raw?.unreadCount === 'number' ? raw.unreadCount : raw?.unread ? 1 : 0,
     pinned: typeof raw?.pinned === 'boolean' ? raw.pinned : false,
     muted: typeof raw?.muted === 'boolean' ? raw.muted : false,
@@ -125,6 +128,23 @@ function normalizeConversation(raw: any): ConversationThread {
     tags: Array.isArray(raw?.tags) ? raw.tags : [],
     clubId: typeof raw?.clubId === 'string' ? raw.clubId : undefined,
   };
+}
+
+export function resolveConversationDistance(serverDistance: string, mutualDistance?: string) {
+  return serverDistance === 'Nearby' ? mutualDistance ?? serverDistance : serverDistance;
+}
+
+function formatConversationPreview(conversation: ConversationThread) {
+  const share = parseInAppShareMessage(conversation.lastMessage);
+  if (!share || share.kind === 'club') return conversation.lastMessage;
+
+  const subject = share.kind === 'profile'
+    ? 'profile'
+    : 'Spot';
+  const sharer = conversation.lastMessageAuthorName
+    ?? (conversation.kind === 'dm' ? conversation.user.name : 'Someone');
+
+  return `${sharer} shared a ${subject}.`;
 }
 
 function canDeleteConversation(conversation: ConversationThread) {
@@ -381,7 +401,7 @@ export default function DirectMessages({
         setConversations(normalized.map((conversation) => conversation.kind === 'dm'
           ? {
               ...conversation,
-              distance: distanceByUserId.get(conversation.user.id) ?? conversation.distance,
+              distance: resolveConversationDistance(conversation.distance, distanceByUserId.get(conversation.user.id)),
             }
           : conversation));
         setRequestedCruushIds((activity?.sent ?? [])
@@ -530,7 +550,7 @@ export default function DirectMessages({
         setComposerLoading: setClubLoading,
       }),
       getMyProfile()
-        .then((profile) => setClubVisibility(visibilityRulesToState(profile.visibility_rules)))
+        .then((profile) => setClubVisibility({ ...visibilityRulesToState(profile.visibility_rules), outsideServiceAreaMembers: false }))
         .catch(() => setClubVisibility(DEFAULT_VISIBILITY_STATE)),
     ]);
   };
@@ -631,7 +651,7 @@ export default function DirectMessages({
   };
 
   const handleCreateClub = async () => {
-    if (!clubName.trim() || !clubSummary.trim() || clubTags.length === 0 || clubCreating) return;
+    if (!clubName.trim() || clubTags.length === 0 || clubCreating) return;
     setClubCreating(true);
     setClubError(null);
     try {
@@ -640,8 +660,17 @@ export default function DirectMessages({
         summary: clubSummary.trim(),
         tags: clubTags,
         memberIds: selectedClubMemberIds,
-        visibilityRules: visibilityStateToRules(clubVisibility),
+        visibilityRules: { ...visibilityStateToRules(clubVisibility), outside_service_area_members: false },
       });
+      try {
+        await createFeedPost({
+          content: `New Club: ${created.title}`,
+          expiresIn: 'never',
+          audience: 'public',
+        });
+      } catch (feedPostError) {
+        console.error('Error creating Club Feed post:', feedPostError);
+      }
       resetClubComposer();
       openConversation(created.conversationId);
     } catch (createError) {
@@ -1004,10 +1033,13 @@ export default function DirectMessages({
                     key={value}
                     type="button"
                     size="sm"
-                    variant={groupSortMode === value ? 'default' : 'ghost'}
+                    variant="ghost"
                     aria-label={`Sort cruushes by ${label}`}
                     aria-pressed={groupSortMode === value}
-                    className="min-h-11 min-w-0 rounded-xl px-2 text-xs"
+                    className={[
+                      'min-h-11 min-w-0 rounded-xl px-2 text-xs text-white/72 hover:bg-white/[0.06] hover:text-white',
+                      groupSortMode === value ? 'bg-white/[0.12] text-white shadow-none hover:bg-white/[0.16]' : '',
+                    ].join(' ')}
                     onClick={() => setGroupSortMode(value)}
                   >
                     <Icon className="mr-1.5 size-3.5" />
@@ -1036,10 +1068,33 @@ export default function DirectMessages({
                       key={item.user.id}
                       testId={`group-mutual-${item.user.id}`}
                       user={{ ...item.user, vibes: item.user.vibes ?? item.vibes }}
+                      onOpenProfile={() => navigate(`/profile/${item.user.id}`)}
                       metadata={(
-                        <span className="flex min-w-0 flex-col gap-0.5 text-left text-xs leading-snug text-white/62">
+                        <button
+                          type="button"
+                          className="flex min-w-0 flex-col gap-0.5 text-left text-xs leading-snug text-white/62"
+                          onClick={() => navigate(`/profile/${item.user.id}`)}
+                        >
                           <span className="truncate">{item.lastActive}</span>
-                        </span>
+                          <span className="truncate">{item.distance}</span>
+                        </button>
+                      )}
+                      actions={(
+                        <ProfileActionTrio
+                          className={messageCardActionClassName}
+                          size="sm"
+                          userName={item.user.name}
+                          cruushState="mutual"
+                          cruushTone="dark"
+                          cruushDisabled
+                          onCruush={() => undefined}
+                          canMessage={item.canMessage !== false}
+                          onMessage={() => handleStartDirectChat(item.user.id)}
+                          canCenterPin={item.canRevealPreciseLocation === true
+                            && item.coordinates?.precision === 'precise'
+                            && (item.displayExpiresAtMs == null || item.displayExpiresAtMs > Date.now())}
+                          onCenterPin={() => navigate(`/map?mode=mutuals&focusUserId=${encodeURIComponent(item.user.id)}`)}
+                        />
                       )}
                       mutual
                       sharesCrowd={(item.mutualCrowds?.length ?? 0) > 0}
@@ -1111,7 +1166,7 @@ export default function DirectMessages({
             <Button
               type="button"
               className="w-full"
-              disabled={!clubName.trim() || !clubSummary.trim() || clubTags.length === 0 || clubCreating || trust.restricted('group_creation')}
+              disabled={!clubName.trim() || clubTags.length === 0 || clubCreating || trust.restricted('group_creation')}
               onClick={() => void handleCreateClub()}
               style={{ background: 'var(--cruush-gradient)' }}
             >
@@ -1149,11 +1204,33 @@ export default function DirectMessages({
                       key={item.user.id}
                       testId={`club-mutual-${item.user.id}`}
                       user={{ ...item.user, vibes: item.user.vibes ?? item.vibes }}
+                      onOpenProfile={() => navigate(`/profile/${item.user.id}`)}
                       metadata={(
-                        <span className="flex min-w-0 flex-col gap-0.5 text-left text-xs leading-snug text-white/62">
+                        <button
+                          type="button"
+                          className="flex min-w-0 flex-col gap-0.5 text-left text-xs leading-snug text-white/62"
+                          onClick={() => navigate(`/profile/${item.user.id}`)}
+                        >
                           <span className="truncate">{item.lastActive}</span>
                           <span className="truncate">{formatDistanceLabel(item.distance, distancePreferences.mode) ?? item.distance}</span>
-                        </span>
+                        </button>
+                      )}
+                      actions={(
+                        <ProfileActionTrio
+                          className={messageCardActionClassName}
+                          size="sm"
+                          userName={item.user.name}
+                          cruushState="mutual"
+                          cruushTone="dark"
+                          cruushDisabled
+                          onCruush={() => undefined}
+                          canMessage={item.canMessage !== false}
+                          onMessage={() => handleStartDirectChat(item.user.id)}
+                          canCenterPin={item.canRevealPreciseLocation === true
+                            && item.coordinates?.precision === 'precise'
+                            && (item.displayExpiresAtMs == null || item.displayExpiresAtMs > Date.now())}
+                          onCenterPin={() => navigate(`/map?mode=mutuals&focusUserId=${encodeURIComponent(item.user.id)}`)}
+                        />
                       )}
                       mutual
                       sharesCrowd={(item.mutualCrowds?.length ?? 0) > 0}
@@ -1172,6 +1249,7 @@ export default function DirectMessages({
       <MapVisibilitySurface
         description="Choose who can discover this Club."
         searchPlaceholder="Hide this Club from matching names, bios, or #tags"
+        showOutsideServiceAreaControl={false}
         open={clubVisibilityOpen}
         onOpenChange={setClubVisibilityOpen}
         value={clubVisibility}
@@ -1219,6 +1297,7 @@ export default function DirectMessages({
                       restriction={getNsfwPhotoRestriction(conversation.user.photoExplicit, { ...conversation.user.photoRelationship, isMutualCruush: conversation.mutual === true })}
                       masked={shouldMaskPhoto(dlModeActive, conversation.user.photoExplicit, { ...conversation.user.photoRelationship, isMutualCruush: conversation.mutual === true })}
                       photo={conversation.user.photo}
+                      outOfSight={conversation.kind === 'dm' && conversation.user.outOfSight === true}
                       userId={conversation.user.id}
                       theme={getConversationHeartTheme(conversation)}
                       onClick={conversation.kind === 'dm' ? () => navigate(`/profile/${conversation.user.id}`) : undefined}
@@ -1275,45 +1354,30 @@ export default function DirectMessages({
             );
 
             return (
-              <UserActivityCapsule
+              <CruushesProfileCard
                 key={conversation.id}
                 testId="conversation-preview-row"
-                heart={(
-                  <HeartPhoto
-                    borderTone={resolveUserBorderTone({
-                      mileHigh: conversation.user.travelling,
-                      mutual: conversation.kind === 'group' || conversation.mutual,
-                    })}
-                    className="w-20 shrink-0"
-                    label={`${conversation.user.name} avatar`}
-                    restriction={getNsfwPhotoRestriction(conversation.user.photoExplicit, { ...conversation.user.photoRelationship, isMutualCruush: conversation.mutual === true })}
-                    masked={shouldMaskPhoto(dlModeActive, conversation.user.photoExplicit, { ...conversation.user.photoRelationship, isMutualCruush: conversation.mutual === true })}
-                    photo={conversation.user.photo}
-                    userId={conversation.user.id}
-                    theme={getConversationHeartTheme(conversation)}
-                    onClick={openIdentity}
-                    fallback={conversation.kind === 'group'
-                      ? <CruushIcon name="profile" className="size-7 opacity-80" />
-                      : <div className="text-lg text-white/80">{getConversationInitials(conversation.user.name)}</div>}
-                  />
-                )}
-                name={conversation.user.name}
-                pronouns={conversation.user.pronouns || conversation.membersLabel}
-                vibes={conversation.user.vibes}
-                vibeTone={conversation.mutual ? 'mutual' : 'nearby'}
-                sideBadges={conversation.user.sideBadges}
-                sideBadgeTone={resolveUserBorderTone({
-                  mileHigh: conversation.user.travelling,
-                  mutual: conversation.kind === 'group' || conversation.mutual,
-                })}
+                user={{
+                  ...conversation.user,
+                  outOfSight: conversation.kind === 'dm' && conversation.user.outOfSight === true,
+                  pronouns: conversation.user.pronouns || conversation.membersLabel,
+                  isCurrentUser: false,
+                }}
+                heartFallback={conversation.kind === 'group'
+                  ? <CruushIcon name="profile" className="size-7 opacity-80" />
+                  : <div className="text-lg text-white/80">{getConversationInitials(conversation.user.name)}</div>}
                 identityAdornment={identityAdornment}
-                onOpenIdentity={openIdentity}
+                onOpenProfile={openIdentity}
                 metadata={(
                   <button type="button" className="flex h-11 min-w-0 flex-col justify-center gap-0.5 text-left text-xs leading-snug text-white/62 sm:text-sm" onClick={() => openConversation(conversation.id)}>
-                    <span className="truncate">{formatRelativeTime(conversation.updatedAt)}</span>
-                    <span className="truncate">
-                      {conversation.kind === 'dm' ? conversation.user.lastActive ?? 'Active recently' : conversation.membersLabel}
-                    </span>
+                    {conversation.kind === 'dm' ? (
+                      <span className="truncate">{conversation.user.lastActive ?? 'Active recently'}</span>
+                    ) : (
+                      <>
+                        <span className="truncate">{formatRelativeTime(conversation.updatedAt)}</span>
+                        <span className="truncate">{conversation.membersLabel}</span>
+                      </>
+                    )}
                   </button>
                 )}
                 actions={conversation.kind === 'dm' ? (
@@ -1335,7 +1399,20 @@ export default function DirectMessages({
                     canCenterPin={validPinUserIds.has(conversation.user.id)}
                     onCenterPin={() => navigate(`/map?mode=mutuals&focusUserId=${encodeURIComponent(conversation.user.id)}`)}
                   />
-                ) : undefined}
+                ) : (
+                  <Button
+                    type="button"
+                    size="icon"
+                    variant="secondary"
+                    className="cruush-action-sheen size-9 shrink-0 rounded-full border-0 text-white"
+                    style={{ background: 'var(--cruush-gradient)' }}
+                    aria-label={`Open ${conversation.user.name} group messages`}
+                    title={`Open ${conversation.user.name} group messages`}
+                    onClick={() => openConversation(conversation.id)}
+                  >
+                    <CruushIcon name="send" className="size-5" variant="white" />
+                  </Button>
+                )}
                 cornerBadge={canDeleteConversation(conversation) ? (
                   <Button
                     type="button"
@@ -1359,7 +1436,7 @@ export default function DirectMessages({
                         className={`line-clamp-1 min-w-0 break-words text-left text-base ${conversation.unreadCount > 0 ? 'text-white' : 'text-white/62'}`}
                         onClick={() => openConversation(conversation.id)}
                       >
-                        {conversation.lastMessage}
+                        {formatConversationPreview(conversation)}
                       </button>
                     ) : null}
                     {(conversation.disappearingTimer && conversation.disappearingTimer !== 'off') || conversation.closed ? (
@@ -1370,7 +1447,9 @@ export default function DirectMessages({
                     ) : null}
                   </div>
                 )}
-                cornerAction={canDeleteConversation(conversation) ? undefined : <ChevronRight className="m-2 size-4 text-white/40" />}
+                cornerAction={conversation.kind === 'group' || canDeleteConversation(conversation)
+                  ? undefined
+                  : <ChevronRight className="m-2 size-4 text-white/40" />}
               />
             );
           })}
@@ -1628,7 +1707,7 @@ function DirectUserOverlay({
                       variant={sortMode === value ? 'default' : 'ghost'}
                       aria-label={`Sort by ${label}`}
                       aria-pressed={sortMode === value}
-                      className="min-h-12 min-w-0 flex-col gap-0.5 rounded-xl px-2 py-1.5 text-base"
+                      className="min-h-12 min-w-0 flex-col gap-0.5 rounded-xl px-2 py-1.5 text-sm sm:text-base"
                       onClick={() => setSortMode(value)}
                     >
                       <span className="flex items-center gap-1.5">
@@ -1676,7 +1755,8 @@ function DirectUserOverlay({
                 onOpenProfile={() => onOpenProfile(user.id)}
                 metadata={(
                   <button type="button" className="flex min-w-0 flex-col gap-0.5 text-left text-xs leading-snug text-white/62" onClick={() => onOpenProfile(user.id)}>
-                    {describeDiscoveryUser(user) ? <span className="truncate">{describeDiscoveryUser(user)}</span> : null}
+                    <span className="truncate">{user.lastActive}</span>
+                    <span className="truncate">{user.distance}</span>
                   </button>
                 )}
                 actions={<ProfileActionTrio
@@ -1684,13 +1764,14 @@ function DirectUserOverlay({
                     size="sm"
                     userName={user.name}
                     cruushState={requestingUserId === user.id ? 'sending' : requested ? 'sent' : 'available'}
+                    cruushTone={requested ? 'dark' : undefined}
                     onCruush={() => { void togglePublicCruush(user); }}
                     canMessage={canMessageNow}
                     onMessage={() => onMessage(user.id)}
                     canCenterPin={false}
                     onCenterPin={() => onOpenMap(user.id, false)}
                   />}
-                mutual={user.relationship?.mutualCruush === true}
+                mutual
                 sharesCrowd={user.hasSharedCrowd === true || user.relationshipContext === 'MUTUAL_CROWD'}
               />
             );

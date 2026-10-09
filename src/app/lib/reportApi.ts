@@ -14,6 +14,7 @@ export type ReportReason =
   | 'hate'
   | 'violence_threat'
   | 'privacy_location'
+  | 'location_spoofing'
   | 'other';
 
 export const REPORT_REASON_OPTIONS = [
@@ -28,6 +29,7 @@ export const REPORT_REASON_OPTIONS = [
   { value: 'violence_threat', label: 'Threats or safety concern' },
   { value: 'minor_safety', label: 'Underage user concern' },
   { value: 'privacy_location', label: 'Privacy or location exposure' },
+  { value: 'location_spoofing', label: 'Location spoofing' },
   { value: 'other', label: 'Other' },
 ] as const satisfies ReadonlyArray<{ value: ReportReason; label: string }>;
 

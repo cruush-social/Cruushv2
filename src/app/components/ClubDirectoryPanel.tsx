@@ -1,5 +1,5 @@
-import { useDeferredValue, useEffect, useMemo, useState } from 'react';
-import { ChevronRight, Search, Trash2 } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
+import { ChevronRight, Trash2 } from 'lucide-react';
 import { useNavigate } from 'react-router';
 import type { ConversationThread } from '../lib/messagesApi';
 import { deleteClub, getClubs, type ClubDirectoryRecord } from '../lib/clubsApi';
@@ -10,7 +10,6 @@ import HeartPhoto from './HeartPhoto';
 import { CruushIcon } from './CruushIconImage';
 import UserActivityCapsule from './UserActivityCapsule';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
-import { Input } from './ui/input';
 
 function formatRelativeTime(isoTimestamp: string) {
   const diffMinutes = Math.max(0, Math.floor((Date.now() - new Date(isoTimestamp).getTime()) / 60000));
@@ -40,8 +39,6 @@ export default function ClubDirectoryPanel({
   const [clubs, setClubs] = useState<ClubDirectoryRecord[]>([]);
   const [view, setView] = useState<ClubView>('mine');
   const [browseSort, setBrowseSort] = useState<'recent' | 'nearby'>('recent');
-  const [browseQuery, setBrowseQuery] = useState('');
-  const deferredBrowseQuery = useDeferredValue(browseQuery);
   const [loading, setLoading] = useState(false);
   const [deletingClubId, setDeletingClubId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -51,8 +48,7 @@ export default function ClubDirectoryPanel({
 
     setLoading(true);
     setError(null);
-    const activeQuery = view === 'browse' ? deferredBrowseQuery : query;
-    void getClubs(activeQuery, view === 'browse' ? browseSort : 'recent')
+    void getClubs(query, view === 'browse' ? browseSort : 'recent')
       .then((items) => {
         if (active) setClubs(items);
       })
@@ -67,7 +63,7 @@ export default function ClubDirectoryPanel({
       });
 
     return () => { active = false; };
-  }, [browseSort, deferredBrowseQuery, query, view]);
+  }, [browseSort, query, view]);
 
   const conversationsById = useMemo(() => new Map(
     conversations
@@ -130,16 +126,6 @@ export default function ClubDirectoryPanel({
 
       {view === 'browse' ? (
         <div className="space-y-3">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-white/46" />
-            <Input
-              aria-label="Search Browse Clubs"
-              className="h-11 rounded-lg border-white/10 bg-background/25 pl-10 text-white placeholder:text-white/46"
-              onChange={(event) => setBrowseQuery(event.target.value)}
-              placeholder="Search Clubs by name, description, or tag"
-              value={browseQuery}
-            />
-          </div>
           <Select value={browseSort} onValueChange={(value) => setBrowseSort(value as 'recent' | 'nearby')}>
             <SelectTrigger aria-label="Sort Browse Clubs" className="h-11 w-full rounded-2xl border-white/12 bg-card/82 px-4 text-sm text-foreground">
               <SelectValue />
@@ -185,7 +171,6 @@ export default function ClubDirectoryPanel({
               />
             )}
             name={club.title}
-            pronouns="Club"
             onOpenIdentity={() => openClub(club)}
             identityAdornment={pendingRequests > 0 ? (
               <Badge variant="outline" className="border-primary/45 bg-primary/10 text-primary">

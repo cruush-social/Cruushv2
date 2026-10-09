@@ -201,7 +201,6 @@ export default function ProfileOnboarding({
     const saved = restoredDraft.profile;
     if (!(typeof saved.name === 'string' && saved.name.trim().length > 1)) return 0;
     if (savedStep > 1 && (!saved.identities?.length || !saved.sexuality?.length)) return 1;
-    if (savedStep > 2 && !saved.crowds?.length) return 2;
     return savedStep;
   });
   const scrollContainerRef = useRef<HTMLDivElement>(null);
@@ -469,7 +468,7 @@ export default function ProfileOnboarding({
       case 'identities':
         return profile.identities.length > 0 && profile.sexuality.length > 0;
       case 'crowds':
-        return profile.crowds.length > 0;
+        return true;
       case 'lookingFor':
         return profile.lookingFor.length > 0;
       case 'vibes':
@@ -748,7 +747,7 @@ export default function ProfileOnboarding({
   return (
     <div
       ref={scrollContainerRef}
-      className={`${constrainedViewport ? 'h-full' : 'h-[100dvh]'} relative isolate flex max-w-full flex-col items-center ${signedCodeOfConductAt ? 'justify-start' : 'justify-center'} overflow-y-auto bg-black/20 px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-[calc(max(0.75rem,env(safe-area-inset-top))+var(--onboarding-pan-offset,0px))] text-foreground sm:px-4`}
+      className={`${constrainedViewport ? 'h-full' : 'h-[100dvh]'} relative isolate flex max-w-full flex-col items-center ${currentStep === 'oath' ? 'justify-start' : 'justify-center'} overflow-y-auto bg-black/20 px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-[calc(max(0.75rem,env(safe-area-inset-top))+var(--onboarding-pan-offset,0px))] text-foreground sm:px-4`}
     >
       <div className="onboarding-map-teaser-layer pointer-events-none absolute inset-0 opacity-95">
         <LaunchLoginMapTeaser fasterPulses pulseStep={step} showVideo={false} />
@@ -872,7 +871,7 @@ export default function ProfileOnboarding({
                 <div>
                   <p className="mb-2 text-base text-white/82">Crowds</p>
                   <p className="mb-3 text-base leading-6 text-white/72">
-                    Crowds are shared social spaces, like gay or dyke bars, not identity labels. Choose 1 to 3. Change who can see you in Map Controls &gt; Visibility.
+                    Crowds are shared social spaces, like gay or dyke bars, not identity labels. Change who can see you in Map Controls &gt; Visibility.
                   </p>
                   <div aria-label="Crowds" className="grid grid-cols-2 gap-2 sm:grid-cols-3" role="group">
                     {availableCrowds.map((crowd, index) => {

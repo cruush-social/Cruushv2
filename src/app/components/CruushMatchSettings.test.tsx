@@ -74,7 +74,7 @@ describe('CruushMatchSettings', () => {
 
     expect(await screen.findByRole('heading', { name: 'Message settings' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Back to cruush' })).toBeInTheDocument();
-    expect(screen.getByText('Who can message me').closest('[data-slot="card"]')).toBeInTheDocument();
+    expect(screen.getByText('Who can message me').closest('section')).toHaveClass('rounded-2xl', 'bg-card');
     expect(screen.queryByText(/Switch to Public or Crowd/)).not.toBeInTheDocument();
     expect(screen.getByText('Cruushes')).toBeInTheDocument();
     expect(screen.getByText('Only cruushes can start a chat. This is the default.')).toBeInTheDocument();

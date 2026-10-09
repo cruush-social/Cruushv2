@@ -36,6 +36,7 @@ const reportReasonCategory: Record<ReportReason, string> = {
   hate: "hate_speech",
   violence_threat: "threat",
   privacy_location: "location_privacy",
+  location_spoofing: "location_privacy",
   other: "other"
 };
 

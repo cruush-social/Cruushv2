@@ -4,6 +4,7 @@ export type BlockedUser = {
   userId: string;
   displayName: string;
   photo: string | null;
+  outOfSight?: boolean;
   photoExplicit?: boolean;
   createdAt: string;
 };

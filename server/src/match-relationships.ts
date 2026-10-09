@@ -209,11 +209,15 @@ async function getRelationshipPrivacySettings(app: FastifyInstance, userId: stri
   }
 }
 
-export async function getSharedDistanceLabelMode(app: FastifyInstance, viewerUserId: string, targetUserId: string) {
+export async function getSharedDistanceLabelMode(app: FastifyInstance, viewerUserId: string, targetUserId: string, options?: { forTown?: boolean }) {
   const [viewer, subject] = await Promise.all([
     getRelationshipPrivacySettings(app, viewerUserId),
     getRelationshipPrivacySettings(app, targetUserId)
   ]);
+  // The new actual-town label must never reveal a Dark Room member's location.
+  // Keep existing callers unchanged; town-aware surfaces conservatively use
+  // their existing approximate label when the subject is hidden.
+  if (options?.forTown && subject.baseMode === "STEALTH") return "approximate";
   return resolveSharedDistanceLabelMode(viewer.distanceLabelMode, subject.distanceLabelMode);
 }
 

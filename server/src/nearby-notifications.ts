@@ -2,6 +2,7 @@ import type { FastifyInstance } from "fastify";
 import { canSubjectViewProfile, type VisibilityCoordinates, type VisibilitySubjectProfile } from "./profile-visibility.js";
 import { decryptProfileVisibility, decryptSensitiveProfile, type ProfileVisibilityRules } from "./profile-sensitive.js";
 import { createAppNotificationAndPush } from "./notification-service.js";
+import { getViewerOutsideServiceArea, loadOosHiddenProfileIds } from "./profile-oos-visibility.js";
 import {
   distanceMiles,
   loadLocationEnvelopes,
@@ -267,6 +268,7 @@ export async function notifyNearbyUsersForLocationUpdate(app: FastifyInstance, i
   const recipientWindowBucket = Math.floor(input.location.collectedAtMs / NEARBY_NOTIFICATION_RECIPIENT_WINDOW_MS);
   const recipients = await loadNearbyNotificationRecipients(app, input.sourceUserId);
   const recipientLocationEnvelopes = await loadLocationEnvelopes(app, recipients.map((row) => row.id));
+  let sourceOutsideServiceArea: Promise<boolean> | undefined;
   let sent = 0;
 
   for (const recipient of recipients) {
@@ -291,7 +293,16 @@ export async function notifyNearbyUsersForLocationUpdate(app: FastifyInstance, i
     }
 
     const rules = recipientRules(app, recipient);
+    if (rules?.outside_service_area_members) {
+      sourceOutsideServiceArea ??= getViewerOutsideServiceArea(app, input.sourceUserId);
+      sourceSubject.outside_service_area = await sourceOutsideServiceArea;
+    }
     if (rules && !canSubjectViewProfile(rules, sourceSubject, recipientCoordinates)) {
+      continue;
+    }
+
+    const hiddenProfiles = await loadOosHiddenProfileIds(app, recipient.id, [input.sourceUserId]);
+    if (hiddenProfiles.has(input.sourceUserId)) {
       continue;
     }
 

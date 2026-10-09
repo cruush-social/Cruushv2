@@ -1,5 +1,7 @@
 import type { FastifyInstance, FastifyRequest } from "fastify";
 import { loadPhotoViewerRelationships } from "../nsfw-photo-audience.js";
+import { loadOosHiddenProfileIds } from "../profile-oos-visibility.js";
+import { loadOutOfSightStatuses, type OutOfSightStatus } from "../out-of-sight-location.js";
 import { z } from "zod";
 import { ApiError } from "../errors.js";
 import {
@@ -892,7 +894,12 @@ async function loadMutualCruushRows(app: FastifyInstance, userId: string) {
     type: "mutual_cruush"
   });
   const blockedUserIds = await loadBlockedRelationshipUserIds(app, userId);
-  const visibleRecords = records.filter((record) => !blockedUserIds.has(otherUserIdForRecord(record, userId)));
+  const oosHiddenUserIds = await loadOosHiddenProfileIds(app, userId,
+    records.map((record) => otherUserIdForRecord(record, userId)));
+  const visibleRecords = records.filter((record) => {
+    const otherUserId = otherUserIdForRecord(record, userId);
+    return !blockedUserIds.has(otherUserId) && !oosHiddenUserIds.has(otherUserId);
+  });
   const otherUserIds = visibleRecords.map((record) => otherUserIdForRecord(record, userId));
   const profilesById = await loadActivityProfiles(app, otherUserIds);
   const rows = await Promise.all(visibleRecords.map(async (record): Promise<MutualCruushRow | null> => {
@@ -1228,12 +1235,14 @@ async function loadCruushActivityRecords(
     ...visibleSentRecords.map((record) => record.payload.targetUserId),
     ...visibleViewRecords.map((record) => record.payload.actorUserId)
   ];
-  const profilesById = await loadActivityProfiles(app, profileIds);
+  const oosHiddenUserIds = await loadOosHiddenProfileIds(app, userId, profileIds);
+  const profilesById = await loadActivityProfiles(app, profileIds.filter((id) => !oosHiddenUserIds.has(id)));
 
   return {
-    incomingRecords: visibleIncomingRecords,
-    sentRecords: visibleSentRecords,
-    viewRecords: visibleViewRecords,
+    incomingRecords: visibleIncomingRecords.filter((record) => !oosHiddenUserIds.has(record.payload.actorUserId)),
+    sentRecords: visibleSentRecords.filter((record) => !oosHiddenUserIds.has(record.payload.targetUserId)),
+    viewRecords: visibleViewRecords.filter((record) => !oosHiddenUserIds.has(record.payload.actorUserId)),
+    // OOS filtering must not promote an older Basic history item to unlocked.
     basicVisibleIncomingRecordId: newestRelationshipRecordId([
       ...visibleIncomingRecords,
       ...visibleDismissedIncomingRecords
@@ -1398,7 +1407,6 @@ export async function registerCruushRoutes(app: FastifyInstance) {
       incomingRecords,
       sentRecords,
       viewRecords,
-      basicVisibleIncomingRecordId,
       basicVisibleViewRecordId,
       profilesById
     }, mutualRows] = await Promise.all([
@@ -1421,9 +1429,18 @@ export async function registerCruushRoutes(app: FastifyInstance) {
     const views = lockable(viewRows, isCruushPlus, basicVisibleViewRecordId);
     const photoRelationships = await loadPhotoViewerRelationships(app, authenticatedUserId,
       [...incoming, ...sent, ...mutual, ...views].flatMap((item) => item.user ? [item.user.id] : []));
+    // Locked activity identities are excluded from this metadata-only batch.
+    const physicalStatuses = await loadOutOfSightStatuses(app,
+      [...incoming, ...sent, ...mutual, ...views].flatMap((item) => item.user ? [item.user.id] : [])
+    ).catch(() => new Map<string, OutOfSightStatus>());
     const withPhotoRelationship = <T extends { user: { id: string } | null }>(item: T) => ({
       ...item,
-      user: item.user ? { ...item.user, photoRelationship: photoRelationships.get(item.user.id) } : null
+      user: item.user ? {
+        ...item.user,
+        photoRelationship: photoRelationships.get(item.user.id),
+        ...(physicalStatuses.get(item.user.id) === "in_area" || physicalStatuses.get(item.user.id) === "out_of_sight"
+          ? { outOfSight: physicalStatuses.get(item.user.id) === "out_of_sight" } : {})
+      } : null
     });
 
     return reply.send({
@@ -1483,6 +1500,7 @@ export async function registerCruushRoutes(app: FastifyInstance) {
     if (viewerSubject) {
       viewerSubject.mile_high_club_member = travelPins.has(authenticatedUserId);
       viewerSubject.coordinates = currentCoordinates;
+      viewerSubject.outside_service_area = !currentCoordinates || !isWithinServiceArea(currentCoordinates);
     }
     if (currentCoordinates && !isWithinServiceArea(currentCoordinates)) {
       return reply.send({
@@ -1504,10 +1522,17 @@ export async function registerCruushRoutes(app: FastifyInstance) {
 
     const visibleItems = items.filter((item): item is NonNullable<typeof item> => item !== null);
     const photoRelationships = await loadPhotoViewerRelationships(app, authenticatedUserId, visibleItems.map((item) => item.user.id));
+    const physicalStatuses = await loadOutOfSightStatuses(app, visibleItems.map((item) => item.user.id))
+      .catch(() => new Map<string, OutOfSightStatus>());
     return reply.send({
       data: {
         mapEpochMs: Date.now(),
-        profiles: visibleItems.map((item) => ({ ...item, user: { ...item.user, photoRelationship: photoRelationships.get(item.user.id) } }))
+        profiles: visibleItems.map((item) => ({ ...item, user: {
+          ...item.user,
+          photoRelationship: photoRelationships.get(item.user.id),
+          ...(physicalStatuses.get(item.user.id) === "in_area" || physicalStatuses.get(item.user.id) === "out_of_sight"
+            ? { outOfSight: physicalStatuses.get(item.user.id) === "out_of_sight" } : {})
+        } }))
       }
     });
   });
@@ -1588,6 +1613,14 @@ export async function registerCruushRoutes(app: FastifyInstance) {
       mapIncomingCruushRecords(app, authenticatedUserId, incomingRecords, profilesById),
       mapSentCruushRecords(app, authenticatedUserId, sentRecords, profilesById)
     ]);
+    const physicalStatuses = await loadOutOfSightStatuses(app,
+      [...receivedRows, ...sentRows].map((row) => row.user.id)
+    ).catch(() => new Map<string, OutOfSightStatus>());
+    const withPhysicalStatus = <T extends { id: string }>(user: T) => ({
+      ...user,
+      ...(physicalStatuses.get(user.id) === "in_area" || physicalStatuses.get(user.id) === "out_of_sight"
+        ? { outOfSight: physicalStatuses.get(user.id) === "out_of_sight" } : {})
+    });
 
     return reply.send({
       data: {
@@ -1597,7 +1630,7 @@ export async function registerCruushRoutes(app: FastifyInstance) {
           toUserId: authenticatedUserId,
           createdAt: row.createdAt,
           mutual: row.mutual,
-          user: row.user
+          user: withPhysicalStatus(row.user)
         })),
         sent: sentRows.map((row) => ({
           id: row.id,
@@ -1605,7 +1638,7 @@ export async function registerCruushRoutes(app: FastifyInstance) {
           toUserId: row.user.id,
           createdAt: row.createdAt,
           mutual: row.mutual,
-          user: row.user
+          user: withPhysicalStatus(row.user)
         }))
       }
     });
@@ -1630,6 +1663,11 @@ export async function registerCruushRoutes(app: FastifyInstance) {
       code: "NOT_FOUND",
       message: "User not found."
     });
+
+    const oosHiddenUserIds = await loadOosHiddenProfileIds(app, authenticatedUserId, [payload.toUserId]);
+    if (oosHiddenUserIds.has(payload.toUserId)) {
+      throw new ApiError(404, "NOT_FOUND", "User not found.");
+    }
 
     if (existingMutual) {
       const existingCruush = await findEncryptedRelationshipRecord(app, {

@@ -74,6 +74,7 @@ export default function GhostModeSettings() {
     ghostRadiusMeters: settings.ghostRadiusMeters ?? DEFAULT_PRIVACY_SETTINGS.ghostRadiusMeters,
     ghostRadiusLabel: settings.ghostRadiusLabel ?? DEFAULT_PRIVACY_SETTINGS.ghostRadiusLabel,
     ghostRotationMinutes: settings.ghostRotationMinutes ?? 15,
+    ghostLeashVisible: settings.ghostLeashVisible !== false,
     preciseToMutualCruushes: settings.preciseToMutualCruushes ?? settings.preciseLocationVisibility === 'mutual_cruushes',
     preciseLocationVisibility: settings.preciseLocationVisibility ?? (settings.preciseToMutualCruushes ? 'mutual_cruushes' : 'none'),
     preciseToMutualCrowds: settings.preciseToMutualCrowds ?? [],
@@ -294,6 +295,18 @@ export default function GhostModeSettings() {
             />
           </div>
 
+          <div className="mt-4 flex items-center justify-between gap-4 border-t border-white/10 pt-4">
+            <p>Show leash between your real and decoy pins</p>
+            <Switch
+              aria-label="Show leash between your real and decoy pins"
+              checked={privacySettings.ghostLeashVisible}
+              disabled={privacyStatus === 'loading' || privacyStatus === 'saving'}
+              onCheckedChange={(ghostLeashVisible) => {
+                void persistPrivacySettings({ ...privacySettings, ghostLeashVisible });
+              }}
+            />
+          </div>
+
           <div className="rounded-xl border border-white/10 bg-white/[0.025] p-4">
             <div className="flex items-center justify-between gap-4">
               <div className="flex items-start gap-3">
@@ -322,6 +335,7 @@ export default function GhostModeSettings() {
                   variant="outline"
                   className="shrink-0"
                   aria-label="Unlock Dark Room with cruush+"
+                  style={{ background: 'var(--cruush-gradient)' }}
                   onClick={() => {
                     trackCruushPlusConversion('cruush_plus_upgrade_clicked', {
                       surface: 'dark_room',

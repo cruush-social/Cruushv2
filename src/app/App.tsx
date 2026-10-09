@@ -50,6 +50,7 @@ const ModeratorReview = lazyRoute(() => import('./components/ModeratorReview'));
 const CruushActivity = lazyRoute(() => import('./components/CruushActivity'));
 const CruushMatchSettings = lazyRoute(() => import('./components/CruushMatchSettings'));
 const Settings = lazyRoute(() => import('./components/Settings'));
+const ChangeEmailSettings = lazyRoute(() => import('./components/ChangeEmailSettings'));
 const OrderHistory = lazyRoute(() => import('./components/OrderHistory'));
 const BlockedUsersPage = lazyRoute(() => import('./components/BlockedUsersPage'));
 const DlModeSettings = lazyRoute(() => import('./components/DlModeSettings'));
@@ -435,9 +436,6 @@ export default function App({
         <Routes>
           <Route path="*" element={<VerifyEmail />} />
         </Routes>
-        <Suspense fallback={null}>
-          {alphaBugControl}
-        </Suspense>
         {accessibilityQuickAccess}
       </BrowserRouter>
     );
@@ -450,9 +448,6 @@ export default function App({
         <Routes>
           <Route path="*" element={<ConfirmEmailChange />} />
         </Routes>
-        <Suspense fallback={null}>
-          {alphaBugControl}
-        </Suspense>
         {accessibilityQuickAccess}
       </BrowserRouter>
     );
@@ -465,9 +460,6 @@ export default function App({
         <Routes>
           <Route path="*" element={<ResetPassword />} />
         </Routes>
-        <Suspense fallback={null}>
-          {alphaBugControl}
-        </Suspense>
         {accessibilityQuickAccess}
       </BrowserRouter>
     );
@@ -638,6 +630,9 @@ export default function App({
             <Routes>
               <Route path="/" element={<Navigate to="/map" replace />} />
               <Route path="/map" element={<MapHome developerToolsEnabled={canUseDeveloperMapToolsEmail(session?.user.email)} />} />
+              <Route path="/settings/outside-service-area-test" element={canUseDeveloperMapToolsEmail(session?.user.email)
+                ? <MapHome forceOutsideServiceArea />
+                : <Navigate to="/settings" replace />} />
               <Route path="/feed" element={<LocalFeed />} />
               <Route path="/feed/photo-preview" element={<FeedPhotoPreview />} />
               <Route path="/settings/badges" element={<BadgePickerPreview />} />
@@ -667,6 +662,7 @@ export default function App({
               <Route path="/cruush" element={<CruushActivity />} />
               <Route path="/cruush/settings" element={<CruushMatchSettings />} />
               <Route path="/settings" element={<Settings />} />
+              <Route path="/settings/email" element={<ChangeEmailSettings />} />
               <Route path="/settings/code-of-conduct" element={<CodeOfConductPage />} />
               <Route path="/settings/orders" element={<OrderHistory />} />
               <Route path="/settings/blocked-users" element={<BlockedUsersPage />} />

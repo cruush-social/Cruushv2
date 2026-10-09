@@ -100,6 +100,7 @@ describe("profile-sensitive encryption", () => {
       active_crowd_modes: ["T4T"],
       mile_high_club_members: false,
       members_without_photos: false,
+      outside_service_area_members: true,
       age_range: [25, 45] as [number, number],
       distance: 25,
       identities: ["nonbinary"],
@@ -177,6 +178,7 @@ describe("profile-sensitive encryption", () => {
       active_crowd_modes: ["Dyke"],
       mile_high_club_members: false,
       members_without_photos: false,
+      outside_service_area_members: false,
       crowds: ["Dyke"]
     });
 

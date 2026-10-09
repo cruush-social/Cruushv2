@@ -9,6 +9,7 @@ import { Card, CardContent } from './ui/card';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from './ui/accordion';
 import AppPageHeader from './AppPageHeader';
 import CruushPlusWord from './CruushPlusWord';
+import { CRUUSH_PLUS_FEATURES } from '../lib/cruushPlusFeatures';
 import { getBillingPlans, type CruushPlusPlan, type CruushPlusPlanId } from '../lib/billingApi';
 import {
   getPulsePacks, createPulsePaymentIntent, getCurrentPulsePaymentIntent,
@@ -26,12 +27,11 @@ import {
   type CryptoPaymentRailId,
   type CryptoProcessorStatus,
 } from '../lib/cryptoCheckoutApi';
-import { CRUUSH_PLUS_FEATURES } from '../lib/cruushPlusFeatures';
 import { trackBitcoinCheckoutMilestone } from '../lib/posthog';
 import { trackCruushPlusConversion } from '../lib/posthog';
 import { readCruushPlusConversionContext, type CruushPlusConversionBenefit } from '../lib/cruushPlusConversion';
-import CruushPlusBenefitsAccordion from './CruushPlusBenefitsAccordion';
-import CruushPlusSectionTabs from './CruushPlusSectionTabs';
+import CruushPlusSectionControls from './CruushPlusSectionControls';
+import CruushPlusSectionTitle from './CruushPlusSectionTitle';
 import {
   CRYPTO_NETWORK_LABELS,
   CRYPTO_PAYMENT_SOURCES,
@@ -49,8 +49,6 @@ const CHECKOUT_PLUS_FEATURES = CRUUSH_PLUS_FEATURES.map((benefit) =>
     : benefit,
 );
 
-// Keep the mobile catalogue readable in two columns; the final odd benefit
-// spans both columns instead of squeezing the whole list into three.
 const BALANCED_CHECKOUT_PLUS_FEATURES = [
   CHECKOUT_PLUS_FEATURES[0],
   CHECKOUT_PLUS_FEATURES[5],
@@ -88,6 +86,13 @@ const PAYMENT_STATUS_COPY: Record<CryptoPaymentIntent['status'], string> = {
 
 function formatPrice(amountCents: number, currency = 'USD') {
   return new Intl.NumberFormat('en-US', { style: 'currency', currency }).format(amountCents / 100);
+}
+
+function formatPaymentTimeRemaining(expiresAt: string, nowMs: number) {
+  const remainingSeconds = Math.max(0, Math.ceil((Date.parse(expiresAt) - nowMs) / 1000));
+  const minutes = Math.floor(remainingSeconds / 60);
+  const seconds = remainingSeconds % 60;
+  return `${minutes}:${seconds.toString().padStart(2, '0')}`;
 }
 
 function termLabel(plan: StorePlan) {
@@ -165,18 +170,13 @@ function formatUsdcAtomic(value: string | null, asset?: string) {
   return fraction ? `${whole}.${fraction}` : whole.toString();
 }
 
-function formatPaymentTimeRemaining(expiresAt: string, nowMs: number) {
-  const remainingSeconds = Math.max(0, Math.ceil((Date.parse(expiresAt) - nowMs) / 1000));
-  const minutes = Math.floor(remainingSeconds / 60);
-  const seconds = remainingSeconds % 60;
-  return `${minutes}:${seconds.toString().padStart(2, '0')}`;
-}
-
 const BITCOIN_APP_LINKS = {
   cash_app: 'https://cash.app/launch/',
   paypal: 'https://www.paypal.com/myaccount/crypto/BTC',
   venmo: 'https://venmo.com/about/crypto',
 } as const;
+
+const BITCOIN_PAYMENT_SOURCES = CRYPTO_PAYMENT_SOURCES.filter((source) => source.rail === 'btc_bitcoin');
 
 export default function CruushPlusStore({ product = 'cruush_plus' }: { product?: 'cruush_plus' | 'ping_pack' }) {
   const isPulse = product === 'ping_pack';
@@ -193,7 +193,7 @@ export default function CruushPlusStore({ product = 'cruush_plus' }: { product?:
   const [bitcoinEligibility, setBitcoinEligibility] = useState<BitcoinSendingEligibility | null | undefined>(undefined);
   const [selectedPlanId, setSelectedPlanId] = useState<string | null>(null);
   const [intent, setIntent] = useState<CryptoPaymentIntent | null>(null);
-  const [selectedSourceId, setSelectedSourceId] = useState<string>(CRYPTO_PAYMENT_SOURCES[0].id);
+  const [selectedSourceId, setSelectedSourceId] = useState<string>(BITCOIN_PAYMENT_SOURCES[0].id);
   const [hasChosenSource, setHasChosenSource] = useState(false);
   const [copied, setCopied] = useState(false);
   const [amountCopied, setAmountCopied] = useState(false);
@@ -434,7 +434,7 @@ export default function CruushPlusStore({ product = 'cruush_plus' }: { product?:
   );
 
   const selectedPaymentSource = useMemo(
-    () => CRYPTO_PAYMENT_SOURCES.find((source) => source.id === selectedSourceId) ?? CRYPTO_PAYMENT_SOURCES[0],
+    () => BITCOIN_PAYMENT_SOURCES.find((source) => source.id === selectedSourceId) ?? BITCOIN_PAYMENT_SOURCES[0],
     [selectedSourceId],
   );
   const selectedRail: CryptoPaymentRailId = selectedPaymentSource.rail;
@@ -472,10 +472,7 @@ export default function CruushPlusStore({ product = 'cruush_plus' }: { product?:
     const preferredTitle = conversionContext.benefit
       ? BENEFIT_TITLE_BY_CONTEXT[conversionContext.benefit]
       : undefined;
-    if (!preferredTitle) {
-      return BALANCED_CHECKOUT_PLUS_FEATURES;
-    }
-
+    if (!preferredTitle) return BALANCED_CHECKOUT_PLUS_FEATURES;
     const preferred = BALANCED_CHECKOUT_PLUS_FEATURES.find((benefit) => benefit.title === preferredTitle);
     return preferred
       ? [preferred, ...BALANCED_CHECKOUT_PLUS_FEATURES.filter((benefit) => benefit !== preferred)]
@@ -487,7 +484,7 @@ export default function CruushPlusStore({ product = 'cruush_plus' }: { product?:
     [processor],
   );
   const readyVisibleSources = useMemo(
-    () => CRYPTO_PAYMENT_SOURCES.filter((source) => readyRailIds.has(source.rail)),
+    () => BITCOIN_PAYMENT_SOURCES.filter((source) => readyRailIds.has(source.rail)),
     [readyRailIds],
   );
   const selectedRailReady = readyRailIds.has(selectedRail);
@@ -512,13 +509,15 @@ export default function CruushPlusStore({ product = 'cruush_plus' }: { product?:
       setCouponApplying(false);
     }
   }, [checkoutSelectionLocked, couponApplying, couponCode]);
-  // A source whose rail is not ready is not offered at all. The one exception
-  // is the source an open or paid order was started from, which stays shown
-  // so the checkout keeps presenting the order's own method.
+  // An active or paid order keeps its own source visible. When no rail is
+  // ready, keep the normal picker visible in its existing disabled state.
   const pickerSources = useMemo(
-    () => CRYPTO_PAYMENT_SOURCES.filter((source) =>
-      readyRailIds.has(source.rail)
-      || (source.id === selectedSourceId && (paymentOpen || paymentPaid))),
+    () => {
+      const availableSources = BITCOIN_PAYMENT_SOURCES.filter((source) =>
+        readyRailIds.has(source.rail)
+        || (source.id === selectedSourceId && (paymentOpen || paymentPaid)));
+      return availableSources.length > 0 ? availableSources : BITCOIN_PAYMENT_SOURCES;
+    },
     [paymentOpen, paymentPaid, readyRailIds, selectedSourceId],
   );
 
@@ -798,18 +797,55 @@ export default function CruushPlusStore({ product = 'cruush_plus' }: { product?:
     );
   };
 
+  const whyCruushCryptoCard = (
+    <Card>
+      <Accordion collapsible type="single">
+        <AccordionItem className="rounded-none border-x-0 border-b-0 border-t" value="why-crypto">
+          <AccordionTrigger className="px-4 py-3 text-base hover:no-underline">
+            <span className="flex items-center gap-2">
+              <Shield className="h-5 w-5 text-primary" />
+              <span>Why cruush takes crypto</span>
+            </span>
+          </AccordionTrigger>
+          <AccordionContent className="space-y-3 px-6 pb-6 text-sm leading-6 text-muted-foreground">
+            <p>
+              Crypto lets cruush offer one-time payments while keeping the app built for the whole
+              queer community.
+            </p>
+            <p className="bg-[linear-gradient(90deg,rgba(255,255,255,0.62),rgba(164,164,174,0.74),rgba(255,255,255,0.5))] bg-clip-text text-transparent">
+              It also lets us offer NSFW content from adult users.
+            </p>
+            <p>
+              Pay with Bitcoin from Cash App, PayPal, Venmo or a compatible wallet.
+              {isPulse ? 'You pay once for the Pulse pack you choose.' : 'You pay once for the cruush+ time you choose.'} Nothing renews automatically.
+            </p>
+            <p>
+              Each checkout gives you a fresh payment address and clear payment status.
+            </p>
+            <p>cruush never asks for your wallet private key or seed phrase.</p>
+            <a
+              className="inline-flex font-semibold text-primary underline underline-offset-4"
+              href="/blog/crypto-first.html"
+            >
+              Crypto first. On our terms.
+            </a>
+          </AccordionContent>
+        </AccordionItem>
+      </Accordion>
+    </Card>
+  );
+
   return (
     <div className="min-h-screen bg-background pb-24 text-foreground">
       <AppPageHeader
-        title={isPulse ? 'Get Pulses' : <>Get <CruushPlusWord /></>}
+        title={isPulse ? 'Get Pulses' : <CruushPlusSectionTitle />}
         onBack={() => navigate(-1)}
         bugButtonTestId="cruush-plus-store-bug-button-slot"
-        titleClassName="font-semibold"
       />
 
-      <main className="mx-auto flex max-w-3xl flex-col gap-3 px-3 py-2 sm:px-4">
-        {!isPulse ? <CruushPlusSectionTabs active="checkout" /> : null}
-        {!isPulse ? <CruushPlusBenefitsAccordion features={contextualPlusFeatures} /> : null}
+      <main className="mx-auto flex max-w-2xl flex-col gap-3 px-3 py-2 sm:px-4">
+        {!isPulse ? <CruushPlusSectionControls active="checkout" features={contextualPlusFeatures} /> : null}
+        {!isPulse ? whyCruushCryptoCard : null}
 
         {isPulse ? <Button variant="outline" onClick={() => navigate('/store')}>cruush+ checkout</Button> : null}
         {error ? (
@@ -918,22 +954,19 @@ export default function CruushPlusStore({ product = 'cruush_plus' }: { product?:
                 })}
               </div>
               {retryAt > clockMs ? <p role="status" className="text-sm text-muted-foreground sm:text-xs">Try again in {Math.ceil((retryAt - clockMs) / 1000)}s</p> : null}
-              {selectedPaymentSource.availabilityNote ? (
-                <p className="px-0 py-1 text-sm leading-5 text-muted-foreground sm:text-xs sm:leading-4">
-                  {selectedPaymentSource.availabilityNote}
-                </p>
-              ) : null}
               {!intent ? (
-                <Accordion collapsible type="single">
-                  <AccordionItem className="rounded-none border-x-0 border-b-0 border-t" value="payment-instructions">
-                    <AccordionTrigger className="px-3 py-2 text-base hover:no-underline">
-                      How to send this payment
-                    </AccordionTrigger>
-                    <AccordionContent className="pb-1">
-                      <CryptoPaymentMethodInstructions rail={selectedRail} sendingApp={selectedPaymentSource.sendingApp} />
-                    </AccordionContent>
-                  </AccordionItem>
-                </Accordion>
+                <Card className="gap-0">
+                  <Accordion collapsible type="single">
+                    <AccordionItem className="border-0" value="payment-instructions">
+                      <AccordionTrigger className="px-3 py-2 text-sm hover:no-underline">
+                        How to send this payment
+                      </AccordionTrigger>
+                      <AccordionContent className="pb-1">
+                        <CryptoPaymentMethodInstructions rail={selectedRail} sendingApp={selectedPaymentSource.sendingApp} />
+                      </AccordionContent>
+                    </AccordionItem>
+                  </Accordion>
+                </Card>
               ) : null}
               {/* Same gradient as the app's other primary actions. */}
               {starting || intent ? <Button
@@ -963,11 +996,9 @@ export default function CruushPlusStore({ product = 'cruush_plus' }: { product?:
 
               {intent ? (
                 <div aria-live="polite" className="space-y-3 py-2">
-                  {!(intent.asset === 'BTC' && ['awaiting_payment', 'confirming', 'paid'].includes(intent.status)) ? (
-                    <p className="text-sm font-medium">
-                      {locallyExpired ? statusCopy.expired : statusCopy[intent.status]}
-                    </p>
-                  ) : null}
+                  <p className="text-sm font-medium">
+                    {locallyExpired ? statusCopy.expired : statusCopy[intent.status]}
+                  </p>
                   {intent.asset !== 'BTC' && Number.isInteger(intent.confirmations) && Number.isInteger(intent.confirmationTarget) && intent.confirmationTarget! > 0 ? (
                     <p className="text-sm text-muted-foreground">
                       {intent.confirmations}/{intent.confirmationTarget} confirmations
@@ -1001,8 +1032,6 @@ export default function CruushPlusStore({ product = 'cruush_plus' }: { product?:
                               <p key={estimate.app}>
                                 {estimate.meetsSendingMinimum === false ? (
                                   <>{estimate.app}: this order is below its {formatUsdcAtomic(estimate.minimumSendAtomic!, intent.asset)} {intent.asset} sending minimum. Choose another method before buying.</>
-                                ) : intent.rail === 'usdc_arbitrum' ? (
-                                  <>Cash App: have about {formatPrice(estimate.availableUsdCents)} available, including a {formatPrice(estimate.allowanceUsdCents)} sending-fee allowance. Cash App converts your dollar payment to USDC.</>
                                 ) : (
                                   <>{estimate.app}: have about {formatUsdcAtomic(estimate.availableAtomic, intent.asset)} {intent.asset} available ({formatPrice(estimate.availableUsdCents)}), including a {formatPrice(estimate.allowanceUsdCents)} sending-fee allowance. Buy only what you still need.</>
                                 )}
@@ -1053,17 +1082,30 @@ export default function CruushPlusStore({ product = 'cruush_plus' }: { product?:
                       {intent.paymentUri ? (
                         <Button className="w-full" variant="outline" asChild>
                           <a href={selectedPaymentSource.sendingApp === 'wallet' ? intent.paymentUri : BITCOIN_APP_LINKS[selectedPaymentSource.sendingApp]} target={selectedPaymentSource.sendingApp === 'wallet' ? undefined : '_blank'} rel="noopener noreferrer">
-                            {selectedPaymentSource.sendingApp === 'wallet' ? 'Open wallet' : `Open ${selectedPaymentSource.label}`}
+                            {selectedPaymentSource.sendingApp === 'wallet' ? 'Open app' : `Open ${selectedPaymentSource.label}`}
                           </a>
                         </Button>
+                      ) : null}
+                      {selectedPaymentSource.sendingApp === 'wallet' ? (
+                        <p className="text-sm leading-5 text-muted-foreground sm:text-xs">
+                          Make sure your wallet also has enough crypto to cover its network fee.
+                        </p>
                       ) : null}
                       <p className="text-sm leading-5 text-muted-foreground sm:text-xs">
                         Send only {intent.asset} on {CRYPTO_NETWORK_LABELS[intent.network]} to this address. Another asset or network may be lost.
                       </p>
-                      <div>
-                        <p className="mb-2 text-sm font-semibold">How to send it</p>
-                        <CryptoPaymentMethodInstructions rail={selectedRail} sendingApp={selectedPaymentSource.sendingApp} />
-                      </div>
+                      <Card className="gap-0">
+                        <Accordion collapsible type="single">
+                          <AccordionItem className="border-0" value="payment-instructions">
+                            <AccordionTrigger className="px-3 py-2 text-sm hover:no-underline">
+                              How to send this payment
+                            </AccordionTrigger>
+                            <AccordionContent className="pb-1">
+                              <CryptoPaymentMethodInstructions rail={selectedRail} sendingApp={selectedPaymentSource.sendingApp} />
+                            </AccordionContent>
+                          </AccordionItem>
+                        </Accordion>
+                      </Card>
                     </div>
                   ) : null}
                   {!locallyExpired ? (
@@ -1117,42 +1159,14 @@ export default function CruushPlusStore({ product = 'cruush_plus' }: { product?:
             </CardContent>
           </Card>
         ) : null}
+        {isPulse ? whyCruushCryptoCard : null}
 
-
-        <Card>
-          <Accordion collapsible type="single">
-            <AccordionItem value="why-crypto">
-              <AccordionTrigger className="px-4 py-3 text-base hover:no-underline">
-                <span className="flex items-center gap-2">
-                  <Shield className="h-5 w-5 text-primary" />
-                  <span>Why cruush takes crypto</span>
-                </span>
-              </AccordionTrigger>
-              <AccordionContent className="space-y-3 px-6 pb-6 text-sm leading-6 text-muted-foreground">
-                <p>
-                  Crypto lets cruush offer one-time payments while keeping the app built for the whole
-                  queer community.
-                </p>
-                <p>
-                  {selectedRail === 'btc_bitcoin'
-                    ? 'Pay with Bitcoin from Cash App, PayPal, Venmo or a compatible wallet. '
-                    : selectedRailReady ? 'Cash App pays with USDC on Arbitrum. PayPal pays with PYUSD on Arbitrum. ' : ''}
-                  {isPulse ? 'You pay once for the Pulse pack you choose.' : 'You pay once for the cruush+ time you choose.'} Nothing renews automatically.
-                </p>
-                <p>
-                  Each checkout gives you a fresh payment address and clear payment status.
-                </p>
-                <p>cruush never asks for your wallet private key or seed phrase.</p>
-                <a
-                  className="inline-flex font-semibold text-primary underline underline-offset-4"
-                  href="/blog/crypto-first.html"
-                >
-                  Crypto first. On our terms.
-                </a>
-              </AccordionContent>
-            </AccordionItem>
-          </Accordion>
-        </Card>
+        <a
+          className="block w-full rounded-xl border border-primary bg-primary/10 px-4 py-3 text-center text-sm font-semibold text-white"
+          href="/settings/orders"
+        >
+          Order history
+        </a>
 
         <Card>
           <CardContent className="space-y-2 p-4 text-sm leading-6 text-muted-foreground">

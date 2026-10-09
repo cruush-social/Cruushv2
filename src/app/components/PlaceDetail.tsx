@@ -5,6 +5,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useParams, useNavigate } from 'react-router';
 import { ArrowLeft, Clock, Copy, ExternalLink, Flag, MapPin, Share2, Star, Trash2, Users } from 'lucide-react';
 import { Button } from './ui/button';
+import { Card } from './ui/card';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from './ui/accordion';
 import { Slider } from './ui/slider';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from './ui/dialog';
@@ -375,7 +376,7 @@ export default function PlaceDetail({ embedded = false, onBack, onClose, placeId
         <p className="text-2xl text-white">{combinedRating.average?.toFixed(1) ?? 'New'}</p>
         <p className="text-xs text-muted-foreground">All category ratings · {combinedRating.count} total</p>
       </div>
-      <div className="space-y-4">{place.ratingBreakdown.map((rating) => (
+      <div className="grid grid-cols-2 gap-4">{place.ratingBreakdown.map((rating) => (
         <div key={rating.category} className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
           <div><p className="text-sm text-white">{RATING_LABELS[rating.category]}</p><p className="text-xs text-muted-foreground">{rating.average?.toFixed(1) ?? 'New'}{rating.count ? ` from ${rating.count}` : ''}</p></div>
           <div className="flex">{[1, 2, 3, 4, 5].map((stars) => <button key={stars} type="button" aria-label={`Rate ${RATING_LABELS[rating.category]} ${stars} stars`} disabled={mutating || postingCheckin} className="p-1 disabled:opacity-50" onClick={() => void mutatePlace((id) => ratePlace(id, rating.category, stars), 'Rating could not be saved.')}><Star className={`h-5 w-5 ${stars <= (rating.viewerRating ?? 0) ? 'fill-primary text-primary' : 'text-white/35'}`} /></button>)}</div>
@@ -440,7 +441,7 @@ export default function PlaceDetail({ embedded = false, onBack, onClose, placeId
           <button type="button" className="flex min-h-12 items-center justify-center gap-2 rounded-lg border border-border bg-card px-3 py-2 text-center transition hover:border-primary/35 hover:bg-white/[0.055] sm:block sm:p-4" aria-label={`Rate this spot. ${place.ratingAverage?.toFixed(1) ?? 'New'} from ${place.ratingCount} ratings`} onClick={() => setRatingOpen(true)}>
             <Star className="h-5 w-5 shrink-0 text-primary sm:mx-auto sm:mb-2 sm:h-6 sm:w-6" />
             <p className="text-lg leading-none sm:text-2xl sm:leading-normal">{place.ratingAverage?.toFixed(1) ?? 'New'}</p>
-            <p className="text-xs leading-tight text-muted-foreground sm:text-sm sm:leading-normal">{place.ratingCount} ratings · Rate this spot</p>
+            <p className="text-xs leading-tight text-muted-foreground sm:text-sm sm:leading-normal">{place.ratingCount === 0 ? 'Rate this spot' : `${place.ratingCount} ratings · Rate this spot`}</p>
           </button>
         </div>
 
@@ -518,10 +519,13 @@ export default function PlaceDetail({ embedded = false, onBack, onClose, placeId
 
           <TabsContent value="feed" className="space-y-4 mt-4">
             <TrustRestrictionNotice message={trust.message('pink_book', 'Pink Book posting')} />
-            <Accordion type="single" collapsible key={place.id}>
-              <AccordionItem value="pink-book-composer">
-                <AccordionTrigger>{place.viewerCheckin ? 'Post to Pink Book' : 'Check in'}</AccordionTrigger>
-                <AccordionContent className="pb-0">
+            <Card className="gap-0">
+              <Accordion type="single" collapsible key={place.id}>
+                <AccordionItem className="border-0" value="pink-book-composer">
+                  <AccordionTrigger className="px-6 py-5 text-base hover:no-underline">
+                    {place.viewerCheckin ? 'Post to Pink Book' : 'Check in'}
+                  </AccordionTrigger>
+                  <AccordionContent className="px-6 pb-6">
             {place.viewerCheckin ? (
               <div className="p-3">
                 <textarea disabled={trust.restricted('pink_book')} aria-label="Write a Pink Book post" className="min-h-20 w-full resize-none bg-transparent text-sm text-white outline-none disabled:opacity-50" placeholder="Write a Pink Book post" value={message} onChange={(event) => setMessage(event.target.value)} maxLength={1000} />
@@ -535,10 +539,10 @@ export default function PlaceDetail({ embedded = false, onBack, onClose, placeId
               </div>
             ) : (
               <div className="p-3">
-                <p className="mb-3 text-lg text-white/70">Check in to read other members' Pink Book posts. Your posts stay until you delete them.</p>
-                <textarea disabled={trust.restricted('pink_book')} aria-label="Pink Book post for check-in" className="mb-4 min-h-20 w-full resize-none rounded-md border border-white/10 bg-black/30 p-3 text-lg text-white outline-none focus:border-primary/45 disabled:opacity-50" placeholder="Write a Pink Book post (optional)" value={message} onChange={(event) => setMessage(event.target.value)} maxLength={1000} />
+                <p className="mb-3 text-base text-white/70">Check in to read other members' Pink Book posts. Your posts stay until you delete them.</p>
+                <textarea disabled={trust.restricted('pink_book')} aria-label="Pink Book post for check-in" className="mb-4 min-h-20 w-full resize-none rounded-md border border-white/10 bg-black/30 p-3 text-base text-white outline-none focus:border-primary/45 disabled:opacity-50" placeholder="Write a Pink Book post (optional)" value={message} onChange={(event) => setMessage(event.target.value)} maxLength={1000} />
                 <fieldset className="mb-4 space-y-2">
-                  <legend className="text-base text-white/60">Spot vibes</legend>
+                  <legend className="text-sm text-white/60">Spot vibes</legend>
                   <div className="flex flex-wrap gap-2">
                     {PLACE_VIBES.map((vibe) => {
                       const selected = checkinVibes.includes(vibe);
@@ -549,7 +553,7 @@ export default function PlaceDetail({ embedded = false, onBack, onClose, placeId
                           type="button"
                           aria-pressed={selected}
                           disabled={selectionFull}
-                          className={`rounded-full border px-3 py-1 text-base disabled:opacity-35 ${selected ? 'border-primary bg-primary/20 text-white' : 'border-white/10 text-white/65'}`}
+                          className={`rounded-full border px-3 py-1 text-sm disabled:opacity-35 ${selected ? 'border-primary bg-primary/20 text-white' : 'border-white/10 text-white/65'}`}
                           onClick={() => setCheckinVibes((current) => selected ? current.filter((item) => item !== vibe) : [...current, vibe])}
                         >
                           {PLACE_VIBE_LABELS[vibe]}
@@ -559,7 +563,7 @@ export default function PlaceDetail({ embedded = false, onBack, onClose, placeId
                   </div>
                 </fieldset>
                 <fieldset className="mb-4 space-y-2">
-                  <legend className="text-base text-white/60">Amenities (optional)</legend>
+                  <legend className="text-sm text-white/60">Amenities (optional)</legend>
                   <div className="flex flex-wrap gap-2">
                     {PLACE_AMENITIES.map((amenity) => {
                       const selected = checkinAmenities.includes(amenity);
@@ -568,7 +572,7 @@ export default function PlaceDetail({ embedded = false, onBack, onClose, placeId
                           key={amenity}
                           type="button"
                           aria-pressed={selected}
-                          className={`rounded-full border px-3 py-1 text-base ${selected ? 'border-primary bg-primary/20 text-white' : 'border-white/10 text-white/65'}`}
+                          className={`rounded-full border px-3 py-1 text-sm ${selected ? 'border-primary bg-primary/20 text-white' : 'border-white/10 text-white/65'}`}
                           onClick={() => setCheckinAmenities((current) => selected ? current.filter((item) => item !== amenity) : [...current, amenity])}
                         >
                           {PLACE_AMENITY_LABELS[amenity]}
@@ -580,7 +584,7 @@ export default function PlaceDetail({ embedded = false, onBack, onClose, placeId
                 {/* An ordered scale from one hour to a day, so it slides like
                     distance does rather than opening a menu of five items. */}
                 <div className="w-full">
-                  <div className="flex items-center justify-between text-base text-white/60">
+                  <div className="flex items-center justify-between text-sm text-white/60">
                     <span>Check-in expires in</span>
                     <span className="font-semibold text-white" data-testid="checkin-duration-value">
                       {CHECKIN_DURATION_OPTIONS.find((option) => option.value === checkinDurationHours)?.label ?? '1h'}
@@ -602,7 +606,7 @@ export default function PlaceDetail({ embedded = false, onBack, onClose, placeId
                 </div>
                 <div className="flex flex-wrap items-end justify-between gap-3">
                   <fieldset>
-                    <legend className="mb-2 text-base text-white/60">Who can see this check-in?</legend>
+                    <legend className="mb-2 text-sm text-white/60">Who can see this check-in?</legend>
                     <div className="flex flex-wrap gap-2" role="radiogroup" aria-label="Check-in visibility">
                       {([
                         ['hidden', 'Hidden'],
@@ -614,7 +618,7 @@ export default function PlaceDetail({ embedded = false, onBack, onClose, placeId
                           type="button"
                           role="radio"
                           aria-checked={checkinVisibility === value}
-                          className={`rounded-full border px-3 py-1.5 text-base ${checkinVisibility === value ? 'border-primary bg-primary/20 text-white' : 'border-white/10 text-white/65'}`}
+                          className={`rounded-full border px-3 py-1.5 text-sm ${checkinVisibility === value ? 'border-primary bg-primary/20 text-white' : 'border-white/10 text-white/65'}`}
                           onClick={() => setCheckinVisibility(value)}
                         >
                           {label}
@@ -622,13 +626,14 @@ export default function PlaceDetail({ embedded = false, onBack, onClose, placeId
                       ))}
                     </div>
                   </fieldset>
-                  <Button size="sm" className="text-lg" disabled={checkinVibes.length === 0 || (Boolean(message.trim()) && trust.restricted('pink_book')) || postingCheckin || postingBoard || mutating} onClick={handlePostCheckin}>{postingCheckin ? 'Checking in...' : 'Check in'}</Button>
+                  <Button size="sm" className="cruush-action-sheen text-base text-white" style={{ background: 'var(--cruush-gradient)' }} disabled={checkinVibes.length === 0 || (Boolean(message.trim()) && trust.restricted('pink_book')) || postingCheckin || postingBoard || mutating} onClick={handlePostCheckin}>{postingCheckin ? 'Checking in...' : 'Check in'}</Button>
                 </div>
               </div>
             )}
-                </AccordionContent>
-              </AccordionItem>
-            </Accordion>
+                  </AccordionContent>
+                </AccordionItem>
+              </Accordion>
+            </Card>
             {place.viewerCheckin && messages.length === 0 ? <p className="py-8 text-center text-sm text-muted-foreground">No Pink Book posts yet.</p> : null}
             {messages.map((post) => (
               <UserActivityCapsule
@@ -636,9 +641,9 @@ export default function PlaceDetail({ embedded = false, onBack, onClose, placeId
                 testId={`spot-board-post-${post.id}`}
                 className="bg-black/72 hover:bg-black/86"
                 heart={<HeartPhoto borderTone={resolveUserBorderTone({ current: currentUserId === post.user.id, mileHigh: post.user.travelling, mutual: post.user.mutual })} className="w-20" label={`${post.user.name} preview`} restriction={getNsfwPhotoRestriction(post.user.photoExplicit, { ...post.user.photoRelationship, isMutualCruush: post.user.mutual, sharesCrowd: post.user.sharesCrowd })}
-masked={shouldMaskPhoto(dlModeActive, post.user.photoExplicit, { ...post.user.photoRelationship, isMutualCruush: post.user.mutual, sharesCrowd: post.user.sharesCrowd })} photo={post.user.photo} theme={currentUserId === post.user.id ? 'current' : post.user.mutual ? 'mutual' : 'nearby'} userId={post.user.id} onClick={() => navigate(`/profile/${post.user.id}`)} />}
+masked={shouldMaskPhoto(dlModeActive, post.user.photoExplicit, { ...post.user.photoRelationship, isMutualCruush: post.user.mutual, sharesCrowd: post.user.sharesCrowd })} photo={post.user.photo} outOfSight={post.user.outOfSight === true} theme={currentUserId === post.user.id ? 'current' : post.user.mutual ? 'mutual' : 'nearby'} userId={post.user.id} onClick={() => navigate(`/profile/${post.user.id}`)} />}
                 name={post.user.name}
-                pronouns={post.user.pronouns || 'Ask me'}
+                pronouns={post.user.pronouns || 'ask me'}
                 identityAdornment={<CruushBadge badges={post.user.badges} compact />}
                 metadata={<span className="text-xs text-white/62">{relativeTime(post.createdAt)}</span>}
                 sideBadges={post.user.sideBadges}
@@ -677,12 +682,13 @@ masked={shouldMaskPhoto(dlModeActive, post.user.photoExplicit, { ...post.user.ph
                       restriction={getNsfwPhotoRestriction(person.photoExplicit, { ...person.photoRelationship, isMutualCruush: person.mutual, sharesCrowd: person.sharesCrowd })}
                       masked={shouldMaskPhoto(dlModeActive, person.photoExplicit, { ...person.photoRelationship, isMutualCruush: person.mutual, sharesCrowd: person.sharesCrowd })}
                       photo={person.photo}
+                      outOfSight={person.outOfSight === true}
                       theme={currentUserId === person.id ? 'current' : person.mutual ? 'mutual' : 'nearby'}
                       userId={person.id}
                     />
                   )}
                   name={person.name}
-                  pronouns={person.pronouns || 'Ask me'}
+                  pronouns={person.pronouns || 'ask me'}
                   identityAdornment={<CruushBadge badges={person.badges} compact />}
                   sideBadges={person.sideBadges}
                   sideBadgeTone={resolveUserBorderTone({ current: currentUserId === person.id, mileHigh: person.travelling, mutual: person.mutual })}

@@ -6,6 +6,9 @@ import { HEART_PIN_THEMES } from '../lib/heartPin';
 import type { FeedSettings } from '../lib/postApi';
 import { setDlModeShowOnlyException } from '../lib/dlMode';
 
+const { serviceArea } = vi.hoisted(() => ({ serviceArea: { outsideServiceArea: false, profilePinsAllowed: true } }));
+vi.mock('./MapServiceAreaContext', () => ({ useMapServiceArea: () => serviceArea }));
+
 const {
   createFeedPost,
   deleteFeedPost,
@@ -99,14 +102,12 @@ function LocationProbe() {
 
 
 async function openFeedSettings() {
-  const open = screen.queryAllByRole('dialog');
-  if (open.length === 0) {
+  if (!screen.queryByTestId('feed-settings-page')) {
     fireEvent.click(screen.getByRole('button', { name: 'Feed settings' }));
-    await screen.findByRole('dialog');
+    await screen.findByTestId('feed-settings-page');
   }
 
-  const dialogs = screen.getAllByRole('dialog');
-  return dialogs[dialogs.length - 1];
+  return screen.getByTestId('feed-settings-page');
 }
 
 function openComposer() {
@@ -127,7 +128,7 @@ function expirySection(dialog: HTMLElement) {
 function setExpiry(composer: HTMLElement, label: string) {
   const slider = within(composer).getByTestId('feed-expiry-slider').querySelector('[role="slider"]') as HTMLElement;
   slider.focus();
-  const order = ['30m', '1h', '3h', '6h', '12h', '24h', '2d', '3d', '5d', '7d', 'Never'];
+  const order = ['30m', '1h', '3h', '6h', '12h', '24h', '2d', '3d', '5d', ...Array.from({ length: 24 }, (_, index) => `${index + 7}d`), 'Never'];
   const target = order.indexOf(label);
   const current = order.indexOf(within(composer).getByTestId('feed-expiry-value').textContent ?? 'Never');
   const key = target > current ? 'ArrowRight' : 'ArrowLeft';
@@ -139,6 +140,8 @@ function setExpiry(composer: HTMLElement, label: string) {
 describe('LocalFeed', () => {
   beforeEach(() => {
     createFeedPost.mockReset();
+    serviceArea.outsideServiceArea = false;
+    serviceArea.profilePinsAllowed = true;
     deleteFeedPost.mockReset();
     getFeedPosts.mockReset();
     getFeedSettings.mockReset();
@@ -377,17 +380,184 @@ describe('LocalFeed', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Feed settings' }));
 
-    const dialog = await screen.findByRole('dialog', { name: 'Feed settings' });
-    expect(dialog).toHaveClass(
-      'max-h-[calc(100dvh-1.5rem-env(safe-area-inset-top))]',
-      'overflow-y-auto',
-      'overscroll-contain',
-      'pb-[calc(1.5rem+env(safe-area-inset-bottom))]',
-    );
-    // Anchored to the top rather than centred, so the close control lands on
-    // the bug button's line instead of drifting with the dialog's height.
-    expect(dialog).toHaveClass('top-[calc(0.75rem+env(safe-area-inset-top))]', 'translate-y-0');
-    expect(within(dialog).getByRole('button', { name: /off/i })).toBeEnabled();
+    const settingsPage = await screen.findByTestId('feed-settings-page');
+    expect(settingsPage).toHaveClass('overflow-y-auto', 'overscroll-contain');
+    expect(within(settingsPage).getByRole('button', { name: /off/i })).toBeEnabled();
+  });
+
+  it('mutes the Feed location controls outside the service area and restores them with access', async () => {
+    serviceArea.outsideServiceArea = true;
+    serviceArea.profilePinsAllowed = false;
+    getFeedPosts.mockResolvedValue([]);
+    const view = () => <MemoryRouter><LocalFeed /></MemoryRouter>;
+    const { rerender } = render(view());
+    fireEvent.click(screen.getByRole('button', { name: 'Feed settings' }));
+    const page = await screen.findByTestId('feed-settings-page');
+    const section = within(page).getByText('Who can open my map location from Feed posts').closest('section')!;
+    expect(section).toHaveAttribute('aria-disabled', 'true');
+    expect(section).toHaveClass('grayscale', 'opacity-40');
+    expect(within(section).getByRole('button', { name: /off/i })).toBeDisabled();
+    serviceArea.outsideServiceArea = false;
+    rerender(view());
+    expect(within(section).getByRole('button', { name: /off/i })).toBeDisabled();
+    serviceArea.profilePinsAllowed = true;
+    rerender(view());
+    await waitFor(() => expect(within(section).getByRole('button', { name: /off/i })).toBeEnabled());
+    expect(section).not.toHaveClass('grayscale');
+  });
+
+  it('keeps Feed location controls disabled until service-area access resolves', async () => {
+    serviceArea.profilePinsAllowed = false;
+    getFeedPosts.mockResolvedValue([]);
+    render(<MemoryRouter><LocalFeed /></MemoryRouter>);
+    fireEvent.click(screen.getByRole('button', { name: 'Feed settings' }));
+    const page = await screen.findByTestId('feed-settings-page');
+    const section = within(page).getByText('Who can open my map location from Feed posts').closest('section')!;
+    expect(section).toHaveAttribute('aria-disabled', 'true');
+    expect(section).toHaveClass('grayscale', 'opacity-40');
+    expect(within(section).getByRole('button', { name: /off/i })).toBeDisabled();
+  });
+
+  it('normalizes a saved Never filter to 30d without changing post expiry', async () => {
+    getFeedPosts.mockResolvedValue([]);
+    getFeedSettings.mockResolvedValue({ locationPinVisibility: 'mutuals', showDistanceLabels: true, postExpiryDefault: 'never', feedWindow: 'never' });
+    render(<MemoryRouter><LocalFeed /></MemoryRouter>);
+    await waitFor(() => expect(getFeedPosts).toHaveBeenLastCalledWith(expect.objectContaining({ within: '30d' })));
+    fireEvent.click(screen.getByRole('button', { name: 'Feed settings' }));
+    const page = await screen.findByTestId('feed-settings-page');
+    expect(within(page).getByRole('slider', { name: 'Posted within' })).toHaveAttribute('aria-valuenow', '27');
+    expect(within(page).queryByText('Never')).not.toBeInTheDocument();
+  });
+
+  it('filters Feed posts against active Mile High Club members', async () => {
+    getFeedPosts.mockResolvedValue([]);
+    render(<MemoryRouter><LocalFeed /></MemoryRouter>);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Feed seeking' }));
+    fireEvent.click(screen.getByRole('tab', { name: 'Intimacy' }));
+    const exclude = screen.getByRole('switch', { name: 'Hide posts from Mile High Club members' });
+    fireEvent.click(exclude);
+    expect(exclude).toBeChecked();
+    expect(screen.getByRole('switch', { name: 'Mile High Club members only' })).not.toBeChecked();
+    fireEvent.click(screen.getByRole('button', { name: 'Apply' }));
+
+    await waitFor(() => expect(getFeedPosts).toHaveBeenLastCalledWith(expect.objectContaining({
+      seeking: expect.objectContaining({ excludeMileHighClub: true, mileHighClub: false }),
+    })));
+  });
+
+  it('ends Posted within at 30d without offering Never', async () => {
+    getFeedPosts.mockResolvedValue([]);
+    render(<MemoryRouter><LocalFeed /></MemoryRouter>);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Feed settings' }));
+    const settingsPage = await screen.findByTestId('feed-settings-page');
+    const postedWithinSlider = within(settingsPage).getByRole('slider', { name: 'Posted within' });
+
+    fireEvent.keyDown(postedWithinSlider, { key: 'End' });
+
+    await waitFor(() => expect(updateFeedSettings).toHaveBeenCalledWith(expect.objectContaining({
+      feedWindow: '30d',
+    })));
+    await waitFor(() => expect(getFeedPosts).toHaveBeenLastCalledWith(expect.objectContaining({
+      within: '30d',
+    })));
+    expect(postedWithinSlider).toHaveAttribute('aria-valuenow', '27');
+    expect(within(settingsPage).queryByText('Never')).not.toBeInTheDocument();
+  });
+
+  it('offers 8d through 30d in Posted within and sends the selected window to the Feed API', async () => {
+    getFeedPosts.mockResolvedValue([]);
+    render(<MemoryRouter><LocalFeed /></MemoryRouter>);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Feed settings' }));
+    const slider = within(await screen.findByTestId('feed-settings-page')).getByRole('slider', { name: 'Posted within' });
+    fireEvent.keyDown(slider, { key: 'ArrowRight' });
+
+    await waitFor(() => expect(updateFeedSettings).toHaveBeenCalledWith(expect.objectContaining({ feedWindow: '8d' })));
+    await waitFor(() => expect(getFeedPosts).toHaveBeenLastCalledWith(expect.objectContaining({ within: '8d' })));
+
+    fireEvent.keyDown(slider, { key: 'End' });
+    await waitFor(() => expect(updateFeedSettings).toHaveBeenCalledWith(expect.objectContaining({ feedWindow: '30d' })));
+  });
+
+  it('keeps the newest Feed request when an older response arrives late', async () => {
+    let resolveInitialRequest: ((posts: any[]) => void) | undefined;
+    const initialRequest = new Promise<any[]>((resolve) => {
+      resolveInitialRequest = resolve;
+    });
+    getFeedPosts
+      .mockImplementationOnce(() => initialRequest)
+      .mockResolvedValueOnce([{
+        id: 'latest-window-post',
+        content: 'newest feed response',
+        expiresIn: 'never',
+        expiresAt: null,
+        createdAt: '2026-10-08T16:00:00.000Z',
+        distance: 'Nearby',
+        user: { id: 'user-2', name: 'river', pronouns: 'they/them', photo: null },
+      }]);
+
+    render(<MemoryRouter><LocalFeed /></MemoryRouter>);
+
+    await waitFor(() => expect(getFeedPosts).toHaveBeenCalledTimes(1));
+    fireEvent.click(screen.getByRole('button', { name: 'Feed settings' }));
+    const settingsPage = await screen.findByTestId('feed-settings-page');
+    fireEvent.keyDown(within(settingsPage).getByRole('slider', { name: 'Posted within' }), { key: 'End' });
+
+    await waitFor(() => expect(getFeedPosts).toHaveBeenCalledTimes(2));
+    expect(await screen.findByText('newest feed response')).toBeInTheDocument();
+
+    await act(async () => {
+      resolveInitialRequest?.([{
+        id: 'stale-window-post',
+        content: 'stale feed response',
+        expiresIn: 'never',
+        expiresAt: null,
+        createdAt: '2026-10-08T15:00:00.000Z',
+        distance: 'Nearby',
+        user: { id: 'user-3', name: 'cleo', pronouns: 'she/her', photo: null },
+      }]);
+    });
+
+    await waitFor(() => expect(screen.queryByText('stale feed response')).not.toBeInTheDocument());
+    expect(screen.getByText('newest feed response')).toBeInTheDocument();
+  });
+
+  it('keeps the rendered Feed in place while a replacement request is pending', async () => {
+    let resolveReplacementRequest: ((posts: any[]) => void) | undefined;
+    const replacementRequest = new Promise<any[]>((resolve) => {
+      resolveReplacementRequest = resolve;
+    });
+    const initialPost = {
+      id: 'existing-post',
+      content: 'existing feed post',
+      expiresIn: 'never',
+      expiresAt: null,
+      createdAt: '2026-10-08T16:00:00.000Z',
+      distance: 'Nearby',
+      user: { id: 'user-2', name: 'river', pronouns: 'they/them', photo: null },
+    };
+    getFeedPosts
+      .mockResolvedValueOnce([initialPost])
+      .mockImplementationOnce(() => replacementRequest);
+
+    render(<MemoryRouter><LocalFeed /></MemoryRouter>);
+    expect(await screen.findByText('existing feed post')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Feed settings' }));
+    const settingsPage = await screen.findByTestId('feed-settings-page');
+    fireEvent.keyDown(within(settingsPage).getByRole('slider', { name: 'Posted within' }), { key: 'End' });
+
+    await waitFor(() => expect(getFeedPosts).toHaveBeenCalledTimes(2));
+    expect(screen.getByText('existing feed post')).toBeInTheDocument();
+    expect(screen.queryByText('Loading nearby posts')).not.toBeInTheDocument();
+
+    await act(async () => {
+      resolveReplacementRequest?.([]);
+    });
+
+    await waitFor(() => expect(screen.queryByText('existing feed post')).not.toBeInTheDocument());
   });
 
   it('masks explicit author photos in the feed while DL Mode is on', async () => {
@@ -651,7 +821,11 @@ describe('LocalFeed', () => {
     );
 
     fireEvent.click(await screen.findByRole('button', { name: 'Report post by River' }));
-    fireEvent.change(screen.getByLabelText('Reason'), { target: { value: 'spam_scam' } });
+    fireEvent.click(screen.getByRole('combobox', { name: 'Reason' }));
+    const reason = await screen.findByRole('option', { name: 'Spam or scam' });
+    fireEvent.pointerDown(reason, { button: 0, pointerType: 'touch' });
+    fireEvent.pointerUp(reason, { button: 0, pointerType: 'touch' });
+    fireEvent.click(reason);
     fireEvent.click(screen.getByRole('button', { name: 'Submit report' }));
 
     await waitFor(() => expect(createReport).toHaveBeenCalledWith({
@@ -739,13 +913,14 @@ describe('LocalFeed', () => {
       content: 'first post as a free member',
       expiresIn: 'never',
       audience: 'public',
+      showDistance: true,
       crowdTargets: [],
       photoMediaIds: [],
       tags: [],
     }));
   });
 
-  it('lets free members post to Cruushes', async () => {
+  it('lets free members post to cruushes', async () => {
     getMyBillingStatus.mockResolvedValue({
       cruushPlus: false,
       expiresAt: null,
@@ -773,13 +948,15 @@ describe('LocalFeed', () => {
     });
     // 905b731 moved "Who can see this post" out of Feed settings and into the
     // composer, where the per-post state already lived.
-    fireEvent.click(await within(composer).findByRole('button', { name: 'Cruushes' }));
+    fireEvent.click(await within(composer).findByRole('button', { name: 'Who can see this post' }));
+    fireEvent.click(await screen.findByRole('option', { name: 'Cruushes', exact: true }));
     fireEvent.click(await within(composer).findByRole('button', { name: 'Post' }));
 
     await waitFor(() => expect(createFeedPost).toHaveBeenCalledWith({
       content: 'mutual post',
       expiresIn: 'never',
       audience: 'mutuals',
+      showDistance: true,
       crowdTargets: [],
       photoMediaIds: [],
       tags: [],
@@ -806,7 +983,7 @@ describe('LocalFeed', () => {
     expect(tagHelp.compareDocumentPosition(expiry) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 
-  it('opens the cruush+ card for a free custom timer or specific Crowd', async () => {
+  it('sends free members to Checkout when they pick Crowd mode', async () => {
     getMyBillingStatus.mockResolvedValue({
       cruushPlus: false,
       expiresAt: null,
@@ -816,21 +993,14 @@ describe('LocalFeed', () => {
     });
     getFeedPosts.mockResolvedValue([]);
 
-    render(<MemoryRouter><LocalFeed /></MemoryRouter>);
+    render(<MemoryRouter initialEntries={['/feed']}><LocalFeed /><LocationProbe /></MemoryRouter>);
     const composer = await screen.findByTestId('local-feed-composer');
     openComposer();
 
-    // Both gates now sit on the post being written, not in settings.
-    await waitFor(() => expect(within(composer).getByTestId('feed-expiry-slider')).toBeInTheDocument());
-    setExpiry(composer, '1h');
-
-    expect(await screen.findByTestId('cruush-plus-card')).toBeInTheDocument();
-    expect(updateFeedSettings).not.toHaveBeenCalled();
-    fireEvent.click(screen.getByRole('button', { name: 'Not now' }));
-
-    // 905b731 moved the audience picker into the composer beside the timer.
-    fireEvent.click(await within(composer).findByRole('button', { name: 'Specific Crowd +' }));
-    expect(await screen.findByTestId('cruush-plus-card')).toBeInTheDocument();
+    fireEvent.click(await within(composer).findByRole('button', { name: 'Who can see this post' }));
+    expect(screen.queryByRole('option', { name: 'Dyke', exact: true })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('option', { name: 'Crowd mode', exact: true }));
+    expect(screen.getByTestId('location-probe')).toHaveTextContent('/store');
   });
 
   it('lets Feed+ post to every selected allowed Crowd', async () => {
@@ -866,9 +1036,8 @@ describe('LocalFeed', () => {
       target: { value: 'hello crowd' },
     });
 
-    // The audience and Crowd picker live in the composer.
-    fireEvent.click(await screen.findByRole('button', { name: 'Specific Crowd +' }));
-    fireEvent.click(await screen.findByRole('button', { name: 'Crowds' }));
+    // cruush+ members pick each eligible Crowd directly in the audience picker.
+    fireEvent.click(await screen.findByRole('button', { name: 'Who can see this post' }));
     fireEvent.click(await screen.findByRole('option', { name: 'Dyke', exact: true }));
     fireEvent.click(await screen.findByRole('option', { name: 'Gay', exact: true }));
     expect(screen.queryByRole('option', { name: 'T4T', exact: true })).not.toBeInTheDocument();
@@ -879,6 +1048,7 @@ describe('LocalFeed', () => {
       content: 'hello crowd',
       expiresIn: 'never',
       audience: 'crowd',
+      showDistance: true,
       crowdTargets: ['Dyke', 'Gay'],
       photoMediaIds: [],
       tags: [],
@@ -927,6 +1097,7 @@ describe('LocalFeed', () => {
     openComposer();
     const input = within(composer).getByPlaceholderText('Share something with nearby people...');
     await waitFor(() => expect(within(composer).getByTestId('feed-expiry-slider')).toBeInTheDocument());
+    await within(composer).findByRole('button', { name: 'Add Feed photo' });
 
     fireEvent.change(input, { target: { value: 'seven day post' } });
     setExpiry(composer, '7d');
@@ -936,6 +1107,7 @@ describe('LocalFeed', () => {
       content: 'seven day post',
       expiresIn: '7d',
       audience: 'public',
+      showDistance: true,
       crowdTargets: [],
       photoMediaIds: [],
       tags: [],
@@ -950,6 +1122,7 @@ describe('LocalFeed', () => {
       content: 'never post',
       expiresIn: 'never',
       audience: 'public',
+      showDistance: true,
       crowdTargets: [],
       photoMediaIds: [],
       tags: [],
@@ -957,8 +1130,9 @@ describe('LocalFeed', () => {
     expect(await screen.findByText('never post')).toBeInTheDocument();
   });
 
-  it('starts every post at Never, whatever expiry a previous post used', async () => {
+  it('starts every basic post at Never and routes expiry changes to cruush+', async () => {
     getFeedPosts.mockResolvedValue([]);
+    getMyBillingStatus.mockResolvedValue({ cruushPlus: false, expiresAt: null, badges: [], processor: 'fake', testCheckout: true });
     // A stored default from before expiry became per-post must not preselect
     // anything: the choice belongs to the post being written.
     getFeedSettings.mockResolvedValue({
@@ -968,8 +1142,9 @@ describe('LocalFeed', () => {
     });
 
     render(
-      <MemoryRouter>
+      <MemoryRouter initialEntries={['/feed']}>
         <LocalFeed />
+        <LocationProbe />
       </MemoryRouter>,
     );
 
@@ -978,9 +1153,44 @@ describe('LocalFeed', () => {
 
     await waitFor(() => expect(within(composer).getByTestId('feed-expiry-value')).toHaveTextContent('Never'));
 
-    // Choosing a timer is no longer a saved setting.
-    setExpiry(composer, '7d');
+    // Basic members are offered the upgrade instead of changing this draft.
+    fireEvent.keyDown(within(composer).getByRole('slider', { name: 'This post expires' }), { key: 'ArrowLeft' });
+    await waitFor(() => expect(screen.getByTestId('location-probe')).not.toHaveTextContent('/feed'));
     expect(updateFeedSettings).not.toHaveBeenCalled();
+  });
+
+  it('lets cruush+ members choose an expiry without leaving the composer', async () => {
+    getFeedPosts.mockResolvedValue([]);
+    render(<MemoryRouter initialEntries={['/feed']}><LocalFeed /><LocationProbe /></MemoryRouter>);
+    const composer = await screen.findByTestId('local-feed-composer');
+    openComposer();
+    await within(composer).findByRole('button', { name: 'Add Feed photo' });
+    await waitFor(() => expect(within(composer).getByTestId('feed-expiry-value')).toHaveTextContent('Never'));
+
+    setExpiry(composer, '7d');
+
+    expect(within(composer).getByTestId('feed-expiry-value')).toHaveTextContent('7d');
+    expect(screen.getByTestId('location-probe')).toHaveTextContent('/feed');
+    expect(updateFeedSettings).not.toHaveBeenCalled();
+  });
+
+  it('does not treat an unresolved billing lookup as a basic expiry upgrade', async () => {
+    getFeedPosts.mockResolvedValue([]);
+    let resolveBilling: ((status: { cruushPlus: boolean; expiresAt: null; badges: never[]; processor: string; testCheckout: boolean }) => void) | undefined;
+    getMyBillingStatus.mockImplementation(() => new Promise((resolve) => { resolveBilling = resolve; }));
+
+    render(<MemoryRouter initialEntries={['/feed']}><LocalFeed /><LocationProbe /></MemoryRouter>);
+    const composer = await screen.findByTestId('local-feed-composer');
+    openComposer();
+    const slider = within(composer).getByRole('slider', { name: 'This post expires' });
+    fireEvent.keyDown(slider, { key: 'ArrowLeft' });
+    expect(screen.getByTestId('location-probe')).toHaveTextContent('/feed');
+    expect(within(composer).getByTestId('feed-expiry-value')).toHaveTextContent('Never');
+
+    await act(async () => resolveBilling?.({ cruushPlus: true, expiresAt: null, badges: [], processor: 'fake', testCheckout: true }));
+    fireEvent.keyDown(slider, { key: 'ArrowLeft' });
+    expect(screen.getByTestId('location-probe')).toHaveTextContent('/feed');
+    expect(within(composer).getByTestId('feed-expiry-value')).toHaveTextContent('30d');
   });
 
   it('shows the party hat beside party member names without a venue tag', async () => {

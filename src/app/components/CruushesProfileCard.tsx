@@ -19,6 +19,7 @@ export type CruushesProfileCardUser = {
   badges?: CruushBadgeKey[] | null;
   sideBadges?: SideBadges | null;
   travelling?: boolean;
+  outOfSight?: boolean;
   vibes?: string[];
   isCurrentUser?: boolean;
   activePing?: unknown;
@@ -26,12 +27,16 @@ export type CruushesProfileCardUser = {
 
 type CruushesProfileCardProps = {
   user: CruushesProfileCardUser;
+  heartFallback?: ReactNode;
   metadata?: ReactNode;
   actions?: ReactNode;
+  content?: ReactNode;
   identityAdornment?: ReactNode;
   cornerBadge?: ReactNode;
+  cornerAction?: ReactNode;
   mutual?: boolean;
   sharesCrowd?: boolean;
+  wrapVibes?: boolean;
   onOpenProfile?: () => void;
   onSelect?: () => void;
   selected?: boolean;
@@ -42,12 +47,16 @@ type CruushesProfileCardProps = {
 /** The actual compact profile card used for unlocked people on Cruushes. */
 export default function CruushesProfileCard({
   user,
+  heartFallback = <CruushIcon name="cruush" className="h-6 w-6 opacity-30" />,
   metadata,
   actions,
+  content,
   identityAdornment,
   cornerBadge,
+  cornerAction,
   mutual = false,
   sharesCrowd = false,
+  wrapVibes = false,
   onOpenProfile,
   onSelect,
   selected,
@@ -74,6 +83,7 @@ export default function CruushesProfileCard({
       heart={(
         <HeartPhoto
           borderTone={borderTone}
+          outOfSight={user.outOfSight === true}
           className="w-20 shrink-0"
           label={`${user.name} preview`}
           restriction={getNsfwPhotoRestriction(user.photoExplicit, photoRelationship)}
@@ -82,11 +92,11 @@ export default function CruushesProfileCard({
           userId={user.id}
           theme={mutual ? 'mutual' : 'nearby'}
           onClick={onOpenProfile}
-          fallback={<CruushIcon name="cruush" className="h-6 w-6 opacity-30" />}
+          fallback={heartFallback}
         />
       )}
       name={user.name}
-      pronouns={user.pronouns || 'Ask me'}
+      pronouns={user.pronouns || 'ask me'}
       sideBadges={user.sideBadges}
       sideBadgeTone={borderTone}
       identityAdornment={(
@@ -99,9 +109,12 @@ export default function CruushesProfileCard({
       metadata={metadata}
       actions={actions}
       cornerBadge={cornerBadge}
+      cornerAction={cornerAction}
+      content={content}
       mutual={mutual}
       vibes={user.vibes}
       vibeTone={mutual ? 'mutual' : user.isCurrentUser ? 'current' : 'nearby'}
+      wrapVibes={wrapVibes}
       onSelect={onSelect}
       selected={selected}
       selectLabel={selectLabel}

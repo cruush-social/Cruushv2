@@ -1,4 +1,5 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { MemoryRouter } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import DebugCruushPlusToggle from './DebugCruushPlusToggle';
 import { DEBUG_CRUUSH_PLUS_EVENT } from '../lib/debugApi';
@@ -41,12 +42,13 @@ describe('DebugCruushPlusToggle', () => {
     const eventHandler = vi.fn();
     window.addEventListener(DEBUG_CRUUSH_PLUS_EVENT, eventHandler);
 
-    render(<DebugCruushPlusToggle />);
+    render(<MemoryRouter><DebugCruushPlusToggle /></MemoryRouter>);
 
     const toggle = await screen.findByRole('button', { name: 'Debug cruush+ disabled' });
     expect(toggle).toHaveTextContent('DEV cruush+ OFF');
-    expect(toggle).toHaveClass('fixed', 'hidden', 'bottom-6', 'left-6', 'z-[45]', 'sm:inline-flex');
+    expect(toggle.parentElement).toHaveClass('fixed', 'hidden', 'bottom-6', 'left-6', 'z-[45]', 'sm:flex');
     expect(toggle).not.toHaveClass('right-3');
+    expect(screen.getByRole('button', { name: 'Test out-of-service area' })).toBeInTheDocument();
 
     fireEvent.click(toggle);
 
@@ -62,7 +64,7 @@ describe('DebugCruushPlusToggle', () => {
   it('does not request the debug entitlement outside dev mode', () => {
     vi.stubEnv('DEV', false);
 
-    const { container } = render(<DebugCruushPlusToggle />);
+    const { container } = render(<MemoryRouter><DebugCruushPlusToggle /></MemoryRouter>);
 
     expect(container).toBeEmptyDOMElement();
     expect(getDebugCruushPlus).not.toHaveBeenCalled();

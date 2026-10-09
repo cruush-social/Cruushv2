@@ -153,6 +153,26 @@ describe('GhostModeSettings', () => {
     expect(screen.getByTestId('location-probe')).toHaveTextContent('/privacy/audit');
   });
 
+  it('persists the owner Ghost leash visibility option and defaults it on', async () => {
+    render(
+      <MemoryRouter initialEntries={['/privacy/ghost-mode']}>
+        <Routes>
+          <Route path="/privacy/ghost-mode" element={<GhostModeSettings />} />
+        </Routes>
+      </MemoryRouter>
+    );
+
+    const leashSwitch = await screen.findByRole('switch', {
+      name: 'Show leash between your real and decoy pins',
+    });
+    await waitFor(() => expect(leashSwitch).toBeChecked());
+    fireEvent.click(leashSwitch);
+
+    await waitFor(() => expect(saveMyPrivacySettings).toHaveBeenCalledWith(expect.objectContaining({
+      ghostLeashVisible: false,
+    })));
+  });
+
   it('shows live Ghost radius save progress and only reports Saved after confirmation', async () => {
     let resolveSave: ((value: unknown) => void) | undefined;
     const setTimeoutSpy = vi.spyOn(globalThis, 'setTimeout');

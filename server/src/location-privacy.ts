@@ -36,6 +36,7 @@ export type VisibilityPolicyPayload = {
   ghostActivatedAtMs?: number | null;
   ghostSessionVersion?: number | null;
   ghostRotationMinutes?: number;
+  ghostLeashVisible?: boolean;
   ghostRotationSchedule?: { startsAtMs: number; firstEpoch: number } | null;
   ghostRadiusMeters: number | null;
   preciseToMutualCruushes: boolean;
@@ -61,6 +62,7 @@ export type LocationPayload = {
   expiresAtMs: number;
   keyVersion: string;
 };
+
 
 export type DisplayLocationPayload = {
   version: 1;
@@ -447,6 +449,7 @@ export function buildDefaultVisibilityPolicy(
     ghostActivatedAtMs: nowMs,
     ghostSessionVersion: 1,
     ghostRotationMinutes: 15,
+    ghostLeashVisible: true,
     ghostRadiusMeters: DEFAULT_GHOST_RADIUS_METERS,
     preciseToMutualCruushes: true,
     preciseToMutualCrowds: [],
@@ -545,6 +548,7 @@ export function normalizeVisibilityPolicy(
     ghostActivatedAtMs,
     ghostSessionVersion,
     ghostRotationMinutes,
+    ghostLeashVisible: input.ghostLeashVisible ?? previous.ghostLeashVisible !== false,
     ghostRotationSchedule,
     ghostRadiusMeters: input.ghostRadiusMeters ?? previous.ghostRadiusMeters ?? DEFAULT_GHOST_RADIUS_METERS,
     preciseToMutualCruushes,
@@ -567,6 +571,7 @@ export function publicPrivacySettings(policy: VisibilityPolicyPayload, nowMs = D
     baseMode: policy.baseMode,
     ghostModeEnabled: policy.baseMode === "GHOST",
     ghostRotationMinutes: normalizeGhostRotationMinutes(policy.ghostRotationMinutes),
+    ghostLeashVisible: policy.ghostLeashVisible !== false,
     ...(ghostRotationExpiresAtMs === null ? {} : { ghostRotationExpiresAtMs }),
     ghostRadiusMeters: policy.ghostRadiusMeters ?? DEFAULT_GHOST_RADIUS_METERS,
     ghostRadiusLabel: radiusLabelForMeters(policy.ghostRadiusMeters ?? DEFAULT_GHOST_RADIUS_METERS),
@@ -840,6 +845,7 @@ function storeCoarseIndexTokens(config: AppConfig, lat: number, lng: number, now
 
   return [...tokens];
 }
+
 
 export async function storeLocationEnvelope(context: LocationPrivacyContext, input: {
   subjectUserId: string;

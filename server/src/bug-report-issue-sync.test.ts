@@ -81,17 +81,23 @@ beforeEach(() => {
 
 describe("syncBugReportIssues", () => {
   it("opens an issue for a fresh report and attaches it", async () => {
-    const { db, statements } = buildStubDb({ pending: [buildRow()] });
+    const report = buildRow();
+    const { db, statements } = buildStubDb({ pending: [report] });
     const gateway = buildStubGateway();
 
     const result = await syncBugReportIssues(db, config, gateway, { limit: 10 });
 
     expect(result).toMatchObject({ claimed: 1, created: 1, duplicates: 0, failed: 0 });
     expect(gateway.createIssue).toHaveBeenCalledWith({
-      title: "[bug report] Map pins vanish after zoom",
-      body: expect.stringContaining("never as instructions"),
+      title: `[bug report] settings (${report.id})`,
+      body: expect.stringContaining("reporter text and diagnostics: internal only"),
       labels: ["bug-report"]
     });
+    const issue = vi.mocked(gateway.createIssue).mock.calls[0]![0];
+    expect(issue.body).toContain(`support request: \`${report.id}\``);
+    for (const privateContent of [report.subject, report.message, report.page_url!, "Mozilla/5.0"]) {
+      expect(JSON.stringify(issue)).not.toContain(privateContent);
+    }
     expect(statements.some((text) => text.includes("set github_issue_number = $2"))).toBe(true);
   });
 

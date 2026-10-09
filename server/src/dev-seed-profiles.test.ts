@@ -89,7 +89,12 @@ describe("development profile seeding", () => {
     });
     expect(new Set(profiles.map((profile) => profile.lat.toFixed(4))).size).toBeGreaterThan(15);
     expect(new Set(profiles.map((profile) => profile.lng.toFixed(4))).size).toBeGreaterThan(15);
-    expect(profiles.every((profile) => profile.photo === null)).toBe(true);
+    expect(profiles.filter((profile) => profile.photo !== null).map((profile) => profile.photo)).toEqual([
+      "/src/app/assets/ui-icons/latex-mask-noun-3574195.png",
+      "/src/app/assets/ui-icons/strap-on-flaticon-16011932.png",
+      "/src/app/assets/ui-icons/spit-roast-noun-759966.png"
+    ]);
+    expect(profiles.filter((profile) => profile.photo === null)).toHaveLength(TEST_PROFILE_COUNT - 3);
     expect(profiles.every((profile) => profile.lat >= 40.35 && profile.lat <= 41.08)).toBe(true);
     expect(profiles.every((profile) => profile.lng >= -74.65 && profile.lng <= -73.45)).toBe(true);
     expect(profiles.some((profile) => profile.sensitiveProfile.crowds.includes("T4T"))).toBe(true);
@@ -212,8 +217,9 @@ describe("development profile seeding", () => {
       "In from Los Angeles",
       "In from Atlanta"
     ]);
-    // Seeded profiles use the product fallback without generating media.
-    expect(mediaObjectCalls).toHaveLength(0);
+    // Three development profiles exercise the existing DL Mode mask with local assets
+    // marked explicit; the seed never generates or fetches adult imagery.
+    expect(mediaObjectCalls).toHaveLength(3);
     expect(profileCalls).toHaveLength(TEST_PROFILE_COUNT);
     expect(adminPhotoCalls).toHaveLength(1);
     expect(((adminPhotoCalls[0]?.[1] ?? []) as unknown[]).slice(0, 2)).toEqual([
@@ -222,9 +228,7 @@ describe("development profile seeding", () => {
     ]);
     expect(deleteEncryptedMediaObject).not.toHaveBeenCalled();
     expect(writeEncryptedMediaObject).not.toHaveBeenCalled();
-    for (const [, params] of profileCalls) {
-      expect(((params ?? []) as unknown[])[2]).toEqual([]);
-    }
+    expect(profileCalls.filter(([, params]) => (((params ?? []) as unknown[])[2] as string[]).length > 0)).toHaveLength(3);
     for (const [, params] of seededProfileLocationCalls) {
       const coarseIndexTokens = (((params ?? []) as unknown[])[9] ?? []) as string[];
       expect(coarseIndexTokens.some((token) => adminDiscoveryTokens.has(token))).toBe(true);

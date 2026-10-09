@@ -8,6 +8,7 @@ export type ProfileVisibilityRules = {
   search_query: string;
   active_crowd_modes: string[];
   mile_high_club_members: boolean;
+  outside_service_area_members: boolean;
   members_without_photos: boolean;
   age_range: [number, number] | null;
   distance: number | null;
@@ -71,6 +72,7 @@ export type ProfilePayload = {
   pronouns: string[];
   custom_pronouns: string;
   year_of_birth: number | null;
+  show_age: boolean;
   date_of_birth?: string;
   ethnicity: string;
   identities: string[];
@@ -129,6 +131,8 @@ export type ProfileRecord = ProfilePayload & {
   attendingLaunchParty?: boolean;
   travelling?: boolean;
   travelLabel?: string;
+  /** Server-owned current service-area classification, independent of Mile High Club map access. */
+  outOfSight?: boolean;
   /** Present on someone else's profile, so it reads the same wherever it is opened. */
   distance_label?: string | null;
   last_active?: string | null;
@@ -180,6 +184,7 @@ export const emptyProfilePayload: ProfilePayload = {
   pronouns: [],
   custom_pronouns: '',
   year_of_birth: null,
+  show_age: true,
   ethnicity: '',
   identities: [],
   presentation: [],
@@ -229,6 +234,7 @@ export const emptyProfilePayload: ProfilePayload = {
     search_query: '',
     active_crowd_modes: [],
     mile_high_club_members: false,
+    outside_service_area_members: false,
     members_without_photos: false,
     age_range: null,
     distance: null,

@@ -27,22 +27,16 @@ type DesktopDockPanelProps = {
 
 const EDGE_GAP = 10;
 function bottomFloatingControlsClearance() {
-  if (typeof window === 'undefined') {
-    return 146;
-  }
-
-  // Recently Active sits above the fixed bottom-navigation pill. Panels end
-  // 10px above that control at both desktop responsive breakpoints so neither
-  // centered map control can be hidden or intercept pointer input.
-  return window.innerWidth >= 1024 ? 146 : 138;
+  return 0;
 }
 // Panels share one stacking counter. Pressing anywhere on a panel raises it, so
 // an overlapped panel is never left unclickable behind another one.
-// Panels stack among themselves but always sit under the top chrome and page
-// dialogs. Transient map surfaces stay below these panels.
+// Panels stack among themselves, but always stay under the persistent map
+// chrome: the header, cruush+ and bug buttons, map controls, and bottom nav.
+// A popup may travel under those controls rather than obscuring them.
 const BASE_Z: Record<DesktopDockLayer, number> = {
   panel: 200,
-  modal: 1600,
+  modal: 300,
 };
 const topZ: Record<DesktopDockLayer, number> = { ...BASE_Z };
 const DEFAULT_WIDTH = 416;
@@ -54,19 +48,10 @@ function storageKey(slot: DesktopDockSlot) {
 }
 
 function topChromeClearance(slot: DesktopDockSlot) {
-  if (typeof window === 'undefined') {
-    return EDGE_GAP;
-  }
-
-  if (window.innerWidth >= 1024) {
-    return slot === 'right' ? 136 : 90;
-  }
-
-  if (window.innerWidth >= 640) {
-    return slot === 'right' ? 132 : 86;
-  }
-
-  return 74;
+  // Map chrome takes precedence by z-layer, not by blocking where a popup can
+  // be dragged. Keep only the map edge gap for the popup itself.
+  void slot;
+  return EDGE_GAP;
 }
 
 function clampGeometry(slot: DesktopDockSlot, geometry: DockGeometry, minWidth: number, minHeight: number, bottomClearance = bottomFloatingControlsClearance()): DockGeometry {

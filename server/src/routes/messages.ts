@@ -19,6 +19,7 @@ import { ApiError } from "../errors.js";
 import { assertCanSendNsfwMessagePhoto, assertCanStartDirectMessage, canStartDirectMessage } from "../cruush-match-settings.js";
 import { getRelationshipPermissions, type RelationshipPermissions } from "../match-relationships.js";
 import { hasUserBlockBetween } from "../user-blocks.js";
+import { loadOosHiddenProfileIds } from "../profile-oos-visibility.js";
 import { createGroupPulse } from "../map-pings.js";
 import { createAppNotificationAndPush } from "../notification-service.js";
 import {
@@ -38,6 +39,9 @@ import { approvedContentReviewCte, moderateMessageTextOrAllowByKeyword } from ".
 import { OWNER_FULL_ACCESS_EMAIL, userHasOwnerFullAccess } from "../owner-access.js";
 import { getActiveAccountUserId, getAuthenticatedUserId } from "../request-auth.js";
 import { formatLastActiveFromDate } from "../discovery-users.js";
+import { getSharedDistanceLabelMode } from "../match-relationships.js";
+import { loadOutOfSightStatuses, resolveOutOfSightLocationLabel, type OutOfSightStatus } from "../out-of-sight-location.js";
+import { loadCurrentTownLabels } from "../current-town-labels.js";
 import {
   buildClubEnrollmentPayload,
   createClubEnrollmentUserIndex,
@@ -103,6 +107,7 @@ type ConversationRow = {
   last_message_nonce: string | null;
   last_message_auth_tag: string | null;
   last_message_key_version: string | null;
+  last_message_author_name?: string | null;
   unread_count: number;
   pinned: boolean;
   muted: boolean;
@@ -406,6 +411,8 @@ export function mapConversationRow(app: FastifyInstance, row: ConversationRow, o
   mutual?: boolean;
   sharesCrowd?: boolean;
   nsfwPhotoRestriction?: PhotoViewerRelationship["nsfwPhotoRestriction"];
+  distanceLabel?: string;
+  outOfSight?: boolean;
 } = {}) {
   const isGroup = row.kind === "group";
   const lastMessage = decryptTextContentOrFallback(app.config, "message", {
@@ -430,11 +437,13 @@ export function mapConversationRow(app: FastifyInstance, row: ConversationRow, o
       ...(isGroup || !row.other_user_side_badges ? {} : { sideBadges: row.other_user_side_badges }),
       ...(isGroup || !row.other_user_vibes?.length ? {} : { vibes: row.other_user_vibes.slice(0, 3) }),
       ...(isGroup ? {} : { travelling: row.other_user_travelling === true }),
+      ...(isGroup || options.outOfSight === undefined ? {} : { outOfSight: options.outOfSight }),
       ...(isGroup || !row.other_user_last_active ? {} : { lastActive: formatLastActiveFromDate(row.other_user_last_active) })
     },
-    distance: "Nearby",
+    distance: options.distanceLabel ?? "Nearby",
     updatedAt: new Date(row.updated_at).toISOString(),
     lastMessage,
+    ...(row.last_message_author_name?.trim() ? { lastMessageAuthorName: row.last_message_author_name.trim() } : {}),
     unreadCount: row.unread_count ?? 0,
     pinned: row.pinned,
     muted: row.muted,
@@ -520,11 +529,52 @@ async function mapReadableConversationRow(
   app: FastifyInstance,
   userId: string,
   row: ConversationRow,
-  relationship?: RelationshipPermissions | null
+  relationship?: RelationshipPermissions | null,
+  statuses?: Map<string, OutOfSightStatus>,
+  townLabels?: Map<string, string>,
+  distanceModes?: Map<string, "approximate" | "precise">
 ) {
+  const resolvedStatuses = statuses ?? await loadOutOfSightStatuses(app, row.kind === "dm" && row.other_user_id ? [userId, row.other_user_id] : []);
+  const outOfSightLabel = await getConversationOutOfSightLabel(app, userId, row, resolvedStatuses, townLabels, distanceModes);
+  const subjectStatus = row.other_user_id ? resolvedStatuses.get(row.other_user_id) : undefined;
   return mapConversationRow(app, row, {
-    ...await getDirectConversationOptions(app, userId, row, relationship)
+    ...await getDirectConversationOptions(app, userId, row, relationship),
+    ...(subjectStatus === "out_of_sight" ? { outOfSight: true } : subjectStatus === "in_area" ? { outOfSight: false } : {}),
+    ...(outOfSightLabel ? { distanceLabel: outOfSightLabel } : {})
   });
+}
+
+async function getConversationOutOfSightLabel(
+  app: FastifyInstance,
+  userId: string,
+  row: ConversationRow,
+  statuses?: Map<string, OutOfSightStatus>,
+  townLabels?: Map<string, string>,
+  distanceModes?: Map<string, "approximate" | "precise">
+) {
+  if (row.kind !== "dm" || !row.other_user_id) return null;
+  const resolvedStatuses = statuses ?? await loadOutOfSightStatuses(app, [userId, row.other_user_id]);
+  const sharedMode = distanceModes?.get(row.other_user_id)
+    ?? await getSharedDistanceLabelMode(app, userId, row.other_user_id, { forTown: true });
+  const subjectCityLabel = sharedMode === "precise" && resolvedStatuses.get(row.other_user_id) === "out_of_sight"
+    ? (townLabels ?? await loadVisibleConversationTownLabels(app, userId, [row.other_user_id])).get(row.other_user_id)
+    : undefined;
+  return resolveOutOfSightLocationLabel({
+    viewerStatus: resolvedStatuses.get(userId) ?? "unknown",
+    subjectStatus: resolvedStatuses.get(row.other_user_id) ?? "unknown",
+    sharedMode,
+    subjectCityLabel
+  });
+}
+
+async function loadVisibleConversationTownLabels(app: FastifyInstance, userId: string, subjectIds: string[]) {
+  const ids = [...new Set(subjectIds)];
+  if (!ids.length) return new Map<string, string>();
+  // Keeping an existing chat open must not grant fresh location metadata from
+  // a profile hidden from this viewer. A failed privacy read hides only the
+  // optional town label, never the conversation or its existing history.
+  const hidden = await loadOosHiddenProfileIds(app, userId, ids).catch(() => new Set(ids));
+  return loadCurrentTownLabels(app, ids.filter((id) => !hidden.has(id)));
 }
 
 async function filterReadableConversationRows(
@@ -545,7 +595,7 @@ async function filterReadableConversationRows(
   return rows.filter((_, index) => readable[index]);
 }
 
-function mapMessageRow(app: FastifyInstance, row: MessageRow, relationships: Map<string, PhotoViewerRelationship>) {
+function mapMessageRow(app: FastifyInstance, row: MessageRow, relationships: Map<string, PhotoViewerRelationship>, statuses: Map<string, OutOfSightStatus>) {
   const attachments = normalizeMessageAttachments(row.attachments).map(({ ownerUserId, ...attachment }) => ({
     ...attachment,
     photoRelationship: ownerUserId ? relationships.get(ownerUserId) : undefined
@@ -573,6 +623,8 @@ function mapMessageRow(app: FastifyInstance, row: MessageRow, relationships: Map
         pronouns: row.sender_pronouns?.join(", ") ?? "",
         photo: row.sender_photo ?? null,
         photoExplicit: row.sender_photo_explicit === true,
+        ...(statuses.get(row.user_id) === "out_of_sight" ? { outOfSight: true }
+          : statuses.get(row.user_id) === "in_area" ? { outOfSight: false } : {}),
         photoRelationship: relationships.get(row.user_id)
       }
     } : {}),
@@ -583,7 +635,8 @@ function mapMessageRow(app: FastifyInstance, row: MessageRow, relationships: Map
 async function mapMessageRows(app: FastifyInstance, viewerUserId: string, rows: MessageRow[]) {
   const ownerIds = rows.flatMap((row) => [row.user_id, ...normalizeMessageAttachments(row.attachments).flatMap((attachment) => attachment.ownerUserId ? [attachment.ownerUserId] : [])]);
   const relationships = await loadPhotoViewerRelationships(app, viewerUserId, ownerIds);
-  return rows.map((row) => mapMessageRow(app, row, relationships));
+  const statuses = await loadOutOfSightStatuses(app, rows.filter(row => row.sender_name !== undefined || row.sender_pronouns !== undefined || row.sender_photo !== undefined).map(row => row.user_id));
+  return rows.map((row) => mapMessageRow(app, row, relationships, statuses));
 }
 
 function mapFavoriteMessageImage(row: FavoriteMessageImageRow) {
@@ -762,6 +815,7 @@ const CONVERSATION_SELECT = `
     last_message.content_nonce as last_message_nonce,
     last_message.content_auth_tag as last_message_auth_tag,
     last_message.content_key_version as last_message_key_version,
+    coalesce(nullif(last_message_profile.display_name, ''), nullif(last_message_user.display_name, '')) as last_message_author_name,
     coalesce(unread_counts.unread_count, 0) as unread_count,
     cm.pinned,
     (cm.muted or (cm.muted_until is not null and cm.muted_until > now())) as muted,
@@ -811,6 +865,7 @@ const CONVERSATION_SELECT = `
       m.content_nonce,
       m.content_auth_tag,
       m.content_key_version,
+      m.user_id,
       m.created_at
     from messages m
     where m.conversation_id = c.id
@@ -819,6 +874,8 @@ const CONVERSATION_SELECT = `
     order by m.created_at desc
     limit 1
   ) as last_message on true
+  left join app_users last_message_user on last_message_user.id = last_message.user_id
+  left join profiles last_message_profile on last_message_profile.id = last_message.user_id
   left join lateral (
     select count(*)::int as unread_count
     from messages m
@@ -915,12 +972,36 @@ async function setClubMemberRole(
   return true;
 }
 
-async function assertMutualGroupInvitees(app: FastifyInstance, userId: string, memberIds: string[]) {
+async function assertMutualGroupInvitees(app: FastifyInstance, userId: string, memberIds: string[], existingConversationId?: string) {
   for (const memberId of memberIds) {
     const relationship = await getRelationshipPermissions(app, userId, memberId);
     if (!relationship.canMessage || !relationship.isMutualCruush) {
       throw new ApiError(403, "MUTUAL_CRUUSH_REQUIRED", "Groups can only include mutual cruushes.");
     }
+  }
+
+  const hiddenIds = await loadOosHiddenProfileIds(app, userId, memberIds);
+  if (hiddenIds.size === 0) return;
+
+  // Re-adding a current member is not new contact, including encrypted Club
+  // memberships. OOS visibility never changes existing conversation access.
+  if (existingConversationId) {
+    const existing = await app.db.query<{ user_id: string | null; member_index: string | null }>(
+      `select user_id::text as user_id, member_index
+       from conversation_members
+       where conversation_id::text = $1
+         and (user_id = any($2::uuid[]) or member_index = any($3::text[]))`,
+      [existingConversationId, [...hiddenIds], [...hiddenIds].map((id) => createClubEnrollmentUserIndex(app.config, id))]
+    );
+    for (const id of hiddenIds) {
+      if (existing.rows.some((row) => row.user_id === id || row.member_index === createClubEnrollmentUserIndex(app.config, id))) {
+        hiddenIds.delete(id);
+      }
+    }
+  }
+
+  if (hiddenIds.size > 0) {
+    throw new ApiError(404, "NOT_FOUND", "User not found.");
   }
 }
 
@@ -986,6 +1067,11 @@ function expirationSql(timerParam: string) {
            end`;
 }
 
+function isMissingDmKeyConflictTarget(error: unknown) {
+  return typeof error === "object" && error !== null && "code" in error
+    && String((error as { code?: string }).code) === "42P10";
+}
+
 async function sendEncryptedMessageMedia(app: FastifyInstance, reply: FastifyReply, mediaObject: EncryptedMessageMediaRow) {
   const encryptedBytes = await readEncryptedMediaObject(app.config, mediaObject.object_key);
   const bytes = decryptMediaBytes(app.config, {
@@ -1030,8 +1116,21 @@ export async function registerMessageRoutes(app: FastifyInstance) {
     }
 
     const dmKey = getDirectMessageKey(userId, payload.otherUserId);
-    let conversationInsertResult: { rows: Array<{ id: string }> };
+    const existingConversation = await app.db.query<{ id: string }>(
+      `select id::text as id
+       from conversations
+       where kind = 'dm' and dm_key = $1
+       limit 1`,
+      [dmKey]
+    );
+    if (!existingConversation.rows[0]) {
+      const hiddenIds = await loadOosHiddenProfileIds(app, userId, [payload.otherUserId]);
+      if (hiddenIds.has(payload.otherUserId)) {
+        throw new ApiError(404, "NOT_FOUND", "User not found.");
+      }
+    }
 
+    let conversationInsertResult: { rows: Array<{ id: string }> };
     try {
       conversationInsertResult = await app.db.query<{ id: string }>(
         `insert into conversations (kind, dm_key, created_by)
@@ -1042,11 +1141,7 @@ export async function registerMessageRoutes(app: FastifyInstance) {
         [dmKey, userId]
       );
     } catch (error) {
-      const code = typeof error === "object" && error !== null && "code" in error
-        ? String((error as { code?: string }).code)
-        : "";
-
-      if (code !== "42P10") {
+      if (!isMissingDmKeyConflictTarget(error)) {
         throw error;
       }
 
@@ -1215,7 +1310,7 @@ export async function registerMessageRoutes(app: FastifyInstance) {
     const { conversationId } = conversationParamsSchema.parse(request.params);
     const payload = groupMemberPayloadSchema.parse(request.body);
     const access = await assertGroupAdmin(app, userId, conversationId);
-    await assertMutualGroupInvitees(app, userId, [payload.userId]);
+    await assertMutualGroupInvitees(app, userId, [payload.userId], conversationId);
 
     if (access.club_id) {
       const context = { config: app.config, db: app.db };
@@ -1703,13 +1798,23 @@ export async function registerMessageRoutes(app: FastifyInstance) {
     }))).filter((row): row is ConversationRow => row !== null);
     const relationshipsByConversationId = new Map<string, RelationshipPermissions>();
     const rows = await filterReadableConversationRows(app, userId, authorizedRows, relationshipsByConversationId);
+    const statuses = await loadOutOfSightStatuses(app, [userId, ...rows.flatMap((row) => row.other_user_id ? [row.other_user_id] : [])]);
+    const distanceModes = new Map(await Promise.all([...new Set(rows.flatMap((row) =>
+      row.kind === "dm" && row.other_user_id ? [row.other_user_id] : []
+    ))].map(async (id) => [id, await getSharedDistanceLabelMode(app, userId, id, { forTown: true })] as const)));
+    const townLabels = await loadVisibleConversationTownLabels(app, userId, [...distanceModes].filter(([id, mode]) =>
+      mode === "precise" && statuses.get(id) === "out_of_sight"
+    ).map(([id]) => id));
 
     return reply.send({
       data: await Promise.all(rows.map((row) => mapReadableConversationRow(
         app,
         userId,
         row,
-        relationshipsByConversationId.get(row.id)
+        relationshipsByConversationId.get(row.id),
+        statuses,
+        townLabels,
+        distanceModes
       )))
     });
   });
@@ -2384,6 +2489,10 @@ export async function registerMessageRoutes(app: FastifyInstance) {
       );
     }
 
+    const statuses = await loadOutOfSightStatuses(app, conversation.kind === "dm" && conversation.other_user_id ? [userId, conversation.other_user_id] : []);
+    const outOfSightLabel = await getConversationOutOfSightLabel(app, userId, conversation, statuses);
+    const subjectStatus = conversation.other_user_id ? statuses.get(conversation.other_user_id) : undefined;
+
     return reply.send({
       data: {
         conversation: mapConversationRow(app, {
@@ -2394,7 +2503,11 @@ export async function registerMessageRoutes(app: FastifyInstance) {
           last_message_auth_tag: null,
           last_message_key_version: null,
           unread_count: 0
-        }, await getDirectConversationOptions(app, userId, conversation, relationship)),
+        }, {
+          ...await getDirectConversationOptions(app, userId, conversation, relationship),
+          ...(subjectStatus === "out_of_sight" ? { outOfSight: true } : subjectStatus === "in_area" ? { outOfSight: false } : {}),
+          ...(outOfSightLabel ? { distanceLabel: outOfSightLabel } : {})
+        }),
         messages: await mapMessageRows(app, userId, messagesResult.rows)
       }
     });

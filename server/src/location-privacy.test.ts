@@ -38,6 +38,17 @@ it("supports a 50-mile Ghost radius without changing the default", () => {
   expect(radiusMetersForLabel(undefined)).toBe(1609);
 });
 
+it("persists Ghost leash visibility while defaulting legacy policies to visible", () => {
+  const current = normalizeVisibilityPolicy(config, "leash-owner", { baseMode: "GHOST" }, undefined, 100_000);
+  expect(publicPrivacySettings(current).ghostLeashVisible).toBe(true);
+
+  const hidden = normalizeVisibilityPolicy(config, "leash-owner", { ghostLeashVisible: false }, current, 120_000);
+  expect(hidden.ghostLeashVisible).toBe(false);
+  expect(publicPrivacySettings(hidden).ghostLeashVisible).toBe(false);
+
+  expect(publicPrivacySettings({ ...hidden, ghostLeashVisible: undefined }).ghostLeashVisible).toBe(true);
+});
+
 it('distance labels are reciprocal and fail closed without both precise preferences', () => {
   const original = normalizeVisibilityPolicy(config, 'distance-owner', {
     baseMode: 'GHOST', ghostRadiusMeters: 2500, ghostRotationMinutes: 15,

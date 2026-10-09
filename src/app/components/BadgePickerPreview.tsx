@@ -74,7 +74,6 @@ import {
   Bed,
   Bookmark,
   Cable,
-  Check,
   Droplets,
   Dumbbell,
   Footprints,
@@ -193,6 +192,15 @@ type BadgePoolManifest = {
     file: string;
   }>;
 };
+
+const HIDDEN_POOL_ICON_LABELS = new Set(['clamp', 'bodysuit / catsuit reference']);
+
+function poolIconLabel(group: BadgePoolGroup, label: string) {
+  if (group === 'Kinks' && label === 'Penis') return 'Cock';
+  if (group === 'Kinks' && label === 'Breast') return 'Boobs';
+  if (group === 'Vibes' && label === 'Handcuffs sex police') return 'Handcuffs';
+  return label;
+}
 
 export const HANKY_GROUP = 'Hanky code';
 const HANKY_BADGE_OPTIONS: BadgeOption[] = HANKY_COLORS.map((hanky) => ({
@@ -405,6 +413,17 @@ const CLASSIC_VIBE_BADGE_OPTIONS = buildProfileBadgeOptions(
   VIBE_GROUPS.flatMap((category) => category.options),
 );
 
+function uniqueBadgeIcons(options: BadgeOption[]) {
+  const seen = new Set<BadgeOption['icon']>();
+  return options.filter((option) => {
+    if (seen.has(option.icon)) {
+      return false;
+    }
+    seen.add(option.icon);
+    return true;
+  });
+}
+
 function badgeTitle(option: BadgeOption, intent: BadgeIntent, meaning?: string) {
   return meaning?.trim()
     || (option.hanky
@@ -418,13 +437,19 @@ function optionalBadgeTitle(value: string) {
 }
 
 function buildPoolBadgeOptions(group: BadgePoolGroup, manifest: BadgePoolManifest): BadgeOption[] {
-  return manifest.icons.map((entry) => ({
+  return manifest.icons
+    .filter((entry) => !HIDDEN_POOL_ICON_LABELS.has(entry.label.trim().toLocaleLowerCase()))
+    .filter((entry, index, entries) => entries.findIndex((candidate) => (
+      poolIconLabel(group, candidate.label).trim().toLocaleLowerCase()
+        === poolIconLabel(group, entry.label).trim().toLocaleLowerCase()
+    )) === index)
+    .map((entry) => ({
     id: `${group.toLowerCase()}-icon-${entry.id}`,
-    label: entry.label,
+    label: poolIconLabel(group, entry.label),
     category: entry.iconCategory,
     group,
     imageSrc: `/badge-icons/${entry.file}`,
-    icon: ({ className }) => <img alt="" className={`${className ?? ''} object-contain brightness-0 invert`} src={`/badge-icons/${entry.file}`} />,
+    icon: ({ className }) => <img alt="" className={`${className ?? ''} object-contain brightness-0 invert`} decoding="async" loading="lazy" src={`/badge-icons/${entry.file}`} />,
   }));
 }
 
@@ -440,17 +465,26 @@ const SIDES = [
 // placement, same surface. Your pin's border colour is the indigo the map uses.
 const CURRENT_USER_BORDER = '#004BFF';
 
+function FilledPencilGlyph({ className }: { className?: string }) {
+  return (
+    <svg aria-hidden="true" className={className} fill="currentColor" viewBox="0 0 24 24">
+      <path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25ZM20.71 7.04a.996.996 0 0 0 0-1.41l-2.34-2.34a.996.996 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83Z" />
+    </svg>
+  );
+}
+
 function badgeFrameId(_value: string | null | undefined, _hanky = false): BadgeFrameId {
   return 'circle';
 }
 
-function BadgeChip({ darkRoom = false, frame, option, side, meaning }: {
+function BadgeChip({ darkRoom = false, embedded = false, frame, option, side, meaning }: {
   frame: BadgeFrameId;
   option: BadgeOption;
   side: 'left' | 'right';
   /** What the badge says, shown above it on hover. */
   meaning?: string;
   darkRoom?: boolean;
+  embedded?: boolean;
 }) {
   const Icon = option.icon as LucideIcon;
   const gradientStops = darkRoom
@@ -462,7 +496,7 @@ function BadgeChip({ darkRoom = false, frame, option, side, meaning }: {
       aria-label={meaning}
       className={[
         `group/badge absolute flex items-center justify-center text-white ${BADGE_INTERACTION_CLASS}`,
-        MAP_SIDE_BADGE_PLACEMENT_CLASS,
+        embedded ? 'top-[70%] -translate-y-1/2' : MAP_SIDE_BADGE_PLACEMENT_CLASS,
       ].join(' ')}
       role="img"
       onContextMenu={preventBadgeContextMenu}
@@ -473,7 +507,7 @@ function BadgeChip({ darkRoom = false, frame, option, side, meaning }: {
       tabIndex={0}
     >
       <BadgeUnit
-        fillWithGlyph={option.id.startsWith('flag-')}
+        fillWithGlyph={false}
         className="h-full w-full"
         frame={frame}
         gradientStops={gradientStops}
@@ -568,12 +602,11 @@ export default function BadgePickerPreview({
   const [activePoolCategory, setActivePoolCategory] = useState('All');
   const [poolSearch, setPoolSearch] = useState('');
   const activePoolGroup = activeGroup === 'Kinks' || activeGroup === 'Vibes' ? activeGroup : null;
-  const activePoolOptions = activePoolGroup
-    ? [
-        ...(activePoolGroup === 'Vibes' ? CLASSIC_VIBE_BADGE_OPTIONS : []),
-        ...badgePoolOptions[activePoolGroup],
-      ]
-    : [];
+  const activePoolOptions = activePoolGroup === 'Vibes'
+    ? [...uniqueBadgeIcons(CLASSIC_VIBE_BADGE_OPTIONS), ...badgePoolOptions.Vibes]
+    : activePoolGroup
+      ? badgePoolOptions.Kinks
+      : [];
   const poolCategories = [...new Set(activePoolOptions.map((option) => option.category ?? 'Other'))];
   const optionsForActiveGroup = activePoolGroup
     ? activePoolOptions
@@ -896,7 +929,7 @@ export default function BadgePickerPreview({
 
     return (
       <button
-        className={`flex min-h-24 min-w-0 flex-col items-center justify-center gap-2 rounded-xl border px-2 py-3 text-center text-sm leading-tight transition ${
+        className={`flex h-24 min-w-0 flex-col items-center justify-center gap-1.5 rounded-xl border px-2 py-2 text-center text-sm leading-tight transition ${
           selected
             ? 'border-[#004BFF] bg-black/60 text-white'
             : 'border-white/10 bg-black/40 text-white/70 hover:bg-white/[0.06]'
@@ -909,16 +942,16 @@ export default function BadgePickerPreview({
         {option.hanky ? (
           <>
             <HankyPaisleyIcon
-              className="h-6 w-6"
+              className="h-6 w-6 shrink-0"
               color={option.hanky.color}
               label={option.hanky.meaning}
             />
-            <span className="w-full break-words">{option.hanky.meaning}</span>
+            <span className="min-w-0 break-words">{option.hanky.meaning}</span>
           </>
         ) : (
           <>
-            <Icon aria-hidden="true" className="h-6 w-6 text-white" strokeWidth={2.2} />
-            <span className="w-full break-words">{option.label}</span>
+            <Icon aria-hidden="true" className="h-6 w-6 shrink-0 text-white" strokeWidth={2.2} />
+            <span className="min-w-0 break-words">{option.label}</span>
           </>
         )}
       </button>
@@ -991,6 +1024,7 @@ export default function BadgePickerPreview({
                 userId="badge-preview"
               />
               <BadgeChip
+                embedded={containedEmbedded}
                 frame={leftFrame}
                 option={leftOption}
                 meaning={leftOption.id === 'none' ? undefined : badgeTitle(leftOption, leftIntent, leftTitle)}
@@ -998,6 +1032,7 @@ export default function BadgePickerPreview({
                 darkRoom={darkRoomEnabled}
               />
               <BadgeChip
+                embedded={containedEmbedded}
                 frame={rightFrame}
                 option={rightOption}
                 meaning={rightOption.id === 'none' ? undefined : badgeTitle(rightOption, rightIntent, rightTitle)}
@@ -1015,26 +1050,58 @@ export default function BadgePickerPreview({
               const active = activeSide === side.id;
 
               return (
-                <button
-                  className={`min-w-0 rounded-xl border px-3 py-2 text-left transition ${
-                    active
-                      ? 'border-[#004BFF] bg-black/60 text-white'
-                      : 'border-white/10 bg-black/40 text-white/64 hover:bg-white/[0.06]'
-                  }`}
-                  key={side.id}
-                  onClick={() => setActiveSide(side.id)}
-                  type="button"
-                >
-                  <span className="flex items-center gap-1 text-[0.7rem] uppercase tracking-[0.12em] text-white/48">
-                    {side.hint}
-                    {active ? <Check aria-label="Selected" className="h-3.5 w-3.5 text-[#6f9aff]" strokeWidth={2.4} /> : null}
-                  </span>
-                  <span className="mt-0.5 block break-words text-sm leading-tight">
-                    {option.id === 'none'
-                      ? 'Empty'
-                      : badgeTitle(option, intent, title)}
-                  </span>
-                </button>
+                <div className="min-w-0" key={side.id}>
+                  <div
+                    className={`relative rounded-xl border px-3 py-2 text-left transition ${
+                      active
+                        ? 'border-[#004BFF] bg-black/60 text-white'
+                        : 'border-white/10 bg-black/40 text-white/64 hover:bg-white/[0.06]'
+                    }`}
+                  >
+                    <button
+                      aria-label={`Select ${side.label.toLowerCase()} badge`}
+                      className="absolute inset-0 z-0"
+                      onClick={() => setActiveSide(side.id)}
+                      type="button"
+                    />
+                    <div className="pointer-events-none relative z-10">
+                      <span className="block text-[0.7rem] uppercase tracking-[0.12em] text-white/48">{side.hint}</span>
+                      <span className="mt-0.5 flex min-w-0 items-center gap-1 text-sm leading-tight">
+                        {active && editingTitle ? (
+                          <>
+                            <label className="sr-only" htmlFor="badge-title">Badge title</label>
+                            <input
+                              className="pointer-events-auto min-w-0 flex-1 bg-transparent p-0 text-sm leading-tight text-white outline-none"
+                              id="badge-title"
+                              maxLength={10}
+                              onChange={(event) => changeTitle(event.target.value)}
+                              placeholder="Badge title"
+                              value={activeTitle}
+                            />
+                          </>
+                        ) : (
+                          <span className="min-w-0 break-words">
+                            {option.id === 'none'
+                              ? 'Empty'
+                              : badgeTitle(option, intent, title)}
+                          </span>
+                        )}
+                        <button
+                          aria-expanded={active && editingTitle}
+                          aria-label={`Edit ${side.label.toLowerCase()} badge title`}
+                          className="pointer-events-auto shrink-0 text-white/60 transition hover:text-white"
+                          onClick={() => {
+                            setActiveSide(side.id);
+                            setEditingTitle((editing) => active ? !editing : true);
+                          }}
+                          type="button"
+                        >
+                          <FilledPencilGlyph className="h-3.5 w-3.5" />
+                        </button>
+                      </span>
+                    </div>
+                  </div>
+                </div>
               );
             })}
           </div>
@@ -1102,67 +1169,66 @@ export default function BadgePickerPreview({
               );
             })}
           </div>
-          <button
-            aria-expanded={editingTitle}
-            className="text-xs text-white/60 underline underline-offset-4 transition hover:text-white"
-            onClick={() => setEditingTitle((editing) => !editing)}
-            type="button"
-          >
-            Edit badge title
-          </button>
-          {editingTitle ? (
-            <div>
-              <label className="sr-only" htmlFor="badge-title">Badge title</label>
-              <input
-                className="mt-1 h-10 w-full rounded-full border border-white/12 bg-black/55 px-4 text-sm text-white outline-none focus:border-[#004BFF]"
-                id="badge-title"
-                maxLength={10}
-                onChange={(event) => changeTitle(event.target.value)}
-                placeholder="Badge title"
-                value={activeTitle}
-              />
-            </div>
-          ) : null}
         </div>
 
-        <div className="mt-6">
-          <label className="block text-xs uppercase tracking-[0.14em] text-white/48" htmlFor="badge-category">
-            Badge category
-          </label>
-          <select
-            aria-label="Badge category"
-            className="mt-2 h-11 w-full rounded-full border border-white/12 bg-black/55 px-4 text-sm text-white outline-none focus:border-[#004BFF]"
-            id="badge-category"
-            onChange={(event) => chooseGroup(event.target.value)}
-            value={activeGroup}
-          >
-            {groups.map((group) => <option key={group} value={group}>{group}</option>)}
-          </select>
-        </div>
+        <fieldset className="mt-6">
+          <legend className="text-xs uppercase tracking-[0.14em] text-white/48">Badge category</legend>
+          <div className="mt-2 grid grid-cols-3 gap-2">
+            {groups.map((group) => {
+              const selected = activeGroup === group;
+              return (
+                <button
+                  aria-pressed={selected}
+                  className={`flex h-11 min-w-0 items-center justify-center rounded-xl border px-2 text-center text-xs leading-tight transition ${
+                    selected
+                      ? 'border-[#004BFF] bg-black/60 text-white'
+                      : 'border-white/10 bg-black/40 text-white/64 hover:bg-white/[0.06]'
+                  }`}
+                  key={group}
+                  onClick={() => chooseGroup(group)}
+                  type="button"
+                >
+                  {group}
+                </button>
+              );
+            })}
+          </div>
+        </fieldset>
 
         {activePoolGroup ? (
           <div className="mt-3 space-y-3">
-            <div className="grid grid-cols-2 gap-2">
+            <div>
               <input
                 aria-label={`Search ${activePoolGroup} icons`}
-                className="h-11 min-w-0 rounded-full border border-white/12 bg-black/55 px-4 text-sm text-white outline-none focus:border-[#004BFF]"
+                className="h-11 w-full rounded-full border border-white/12 bg-black/55 px-4 text-sm text-white outline-none focus:border-[#004BFF]"
                 onChange={(event) => setPoolSearch(event.target.value)}
                 placeholder="Search icons"
                 type="search"
                 value={poolSearch}
               />
-              <select
-                aria-label={`${activePoolGroup} icon category`}
-                className="h-11 min-w-0 rounded-full border border-white/12 bg-black/55 px-4 text-sm text-white outline-none focus:border-[#004BFF]"
-                onChange={(event) => setActivePoolCategory(event.target.value)}
-                value={activePoolCategory}
-              >
-                <option value="All">All categories</option>
-                {poolCategories.map((category) => <option key={category} value={category}>{category}</option>)}
-              </select>
+            </div>
+            <div className="flex flex-wrap gap-2" aria-label={`${activePoolGroup} icon category`}>
+              {['All', ...poolCategories].map((category) => {
+                const selected = activePoolCategory === category;
+                return (
+                  <button
+                    aria-pressed={selected}
+                    className={`rounded-full border px-3 py-1.5 text-xs transition ${
+                      selected
+                        ? 'border-[#004BFF] bg-black/60 text-white'
+                        : 'border-white/10 bg-black/40 text-white/64 hover:bg-white/[0.06]'
+                    }`}
+                    key={category}
+                    onClick={() => setActivePoolCategory(category)}
+                    type="button"
+                  >
+                    {category}
+                  </button>
+                );
+              })}
             </div>
             {visiblePoolOptions.length > 0 ? (
-              <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+              <div className="grid grid-cols-3 gap-2">
                 {visiblePoolOptions.map(renderOptionCard)}
               </div>
             ) : (
@@ -1172,7 +1238,7 @@ export default function BadgePickerPreview({
             )}
           </div>
         ) : (
-          <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3">
+          <div className="mt-3 grid grid-cols-3 gap-2">
             {optionsForActiveGroup.map(renderOptionCard)}
           </div>
         )}

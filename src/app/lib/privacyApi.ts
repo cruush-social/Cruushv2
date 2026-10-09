@@ -1,4 +1,5 @@
 import { requestApi } from './apiClient';
+import { notifyMapServiceAreaAccessChanged } from './mapServiceAreaAccess';
 import type { DlModePhotoRelationship } from './dlMode';
 
 export type CrowdPrecisionPolicy = {
@@ -16,6 +17,7 @@ export type PrivacySettings = {
   ghostRadiusMeters: number;
   ghostRadiusLabel: string;
   ghostRotationMinutes?: number;
+  ghostLeashVisible?: boolean;
   preciseToMutualCruushes: boolean;
   preciseToMutualCrowds: CrowdPrecisionPolicy[];
   darkRoomDistanceLabel?: boolean;
@@ -30,6 +32,7 @@ export type PrivacySettingsUpdate = Pick<
   | 'ghostModeEnabled'
   | 'ghostRadiusMeters'
   | 'ghostRotationMinutes'
+  | 'ghostLeashVisible'
   | 'preciseToMutualCruushes'
   | 'preciseToMutualCrowds'
   | 'preciseLocationVisibility'
@@ -42,6 +45,7 @@ export const DEFAULT_PRIVACY_SETTINGS: PrivacySettings = {
   ghostRadiusMeters: 1609,
   ghostRadiusLabel: '1 mi',
   ghostRotationMinutes: 15,
+  ghostLeashVisible: true,
   preciseToMutualCruushes: false,
   preciseToMutualCrowds: [],
   preciseLocationVisibility: 'none',
@@ -172,6 +176,7 @@ function toPrivacySettingsUpdate(settings: PrivacySettings): PrivacySettingsUpda
     ghostModeEnabled: settings.ghostModeEnabled,
     ghostRadiusMeters: settings.ghostRadiusMeters,
     ghostRotationMinutes: settings.ghostRotationMinutes,
+    ghostLeashVisible: settings.ghostLeashVisible,
     preciseToMutualCruushes: settings.preciseToMutualCruushes,
     preciseToMutualCrowds: settings.preciseToMutualCrowds,
     preciseLocationVisibility: settings.preciseLocationVisibility,
@@ -241,13 +246,17 @@ export function geocodeTravelAddress(query: string) {
   });
 }
 
-export function saveMyTravelPin(input: { latitude: number; longitude: number; label?: string }) {
-  return requestApi<{ pin: TravelPin }>('/api/privacy/travel', {
+export async function saveMyTravelPin(input: { latitude: number; longitude: number; label?: string }) {
+  const result = await requestApi<{ pin: TravelPin }>('/api/privacy/travel', {
     method: 'PUT',
     body: JSON.stringify(input),
   });
+  notifyMapServiceAreaAccessChanged();
+  return result;
 }
 
-export function clearMyTravelPin() {
-  return requestApi<{ pin: null }>('/api/privacy/travel', { method: 'DELETE' });
+export async function clearMyTravelPin() {
+  const result = await requestApi<{ pin: null }>('/api/privacy/travel', { method: 'DELETE' });
+  notifyMapServiceAreaAccessChanged();
+  return result;
 }

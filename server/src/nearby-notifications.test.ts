@@ -1,6 +1,19 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { notifyNearbyUsersForLocationUpdate } from "./nearby-notifications.js";
 import type { AppConfig } from "./config.js";
+import { loadLocationEnvelopes, type LocationPayload } from "./location-privacy.js";
+import { loadOosHiddenProfileIds } from "./profile-oos-visibility.js";
+import { loadTravelPins, type TravelPin } from "./travel-pins.js";
+
+vi.mock("./profile-oos-visibility.js", async (importOriginal) => ({
+  ...await importOriginal<typeof import("./profile-oos-visibility.js")>(),
+  loadOosHiddenProfileIds: vi.fn()
+}));
+
+vi.mock("./travel-pins.js", async (importOriginal) => ({
+  ...await importOriginal<typeof import("./travel-pins.js")>(),
+  loadTravelPins: vi.fn()
+}));
 
 const query = vi.fn();
 
@@ -233,6 +246,9 @@ function distanceVisibilityRules(distance: number) {
 beforeEach(() => {
   query.mockReset();
   resolveViewerGhostCoordinateMock.mockReset();
+  vi.mocked(loadLocationEnvelopes).mockReset().mockResolvedValue(new Map());
+  vi.mocked(loadTravelPins).mockReset().mockResolvedValue(new Map());
+  vi.mocked(loadOosHiddenProfileIds).mockReset().mockResolvedValue(new Set());
 });
 
 describe("nearby notifications", () => {
@@ -596,5 +612,99 @@ describe("nearby notifications", () => {
 
     expect(resolveViewerGhostCoordinateMock).not.toHaveBeenCalled();
     expect(result.sent).toBe(1);
+  });
+
+  it.each([
+    { scenario: "outside viewer", location: "outside", pin: false, hide: true, sent: 0 },
+    { scenario: "missing encrypted location with nearby legacy coordinates", location: "missing", pin: false, hide: true, sent: 0 },
+    { scenario: "in-area viewer", location: "inside", pin: false, hide: true, sent: 1 },
+    { scenario: "in-area MHC viewer", location: "outside", pin: true, hide: true, sent: 1 },
+    { scenario: "opt-out with unknown viewer location", location: "missing", pin: false, hide: false, sent: 1 }
+  ])("suppresses hidden nearby activity for $scenario", async (testCase) => {
+    const actual = await vi.importActual<typeof import("./profile-oos-visibility.js")>("./profile-oos-visibility.js");
+    vi.mocked(loadOosHiddenProfileIds).mockImplementation(actual.loadOosHiddenProfileIds);
+    const collectedAtMs = Date.now();
+    const sourceLocation = locationPayload(407128000, -740060000, collectedAtMs);
+    const source = {
+      ...nearbySourceRow(),
+      id: sourceUserId,
+      profile_visibility_ciphertext: "encrypted-test-policy",
+      _visibilityRules: { outside_service_area_members: testCase.hide }
+    };
+    const recipient = {
+      ...nearbyRecipientRow({ id: recipientAllowedId, latitude: 40.713 }),
+      lng: -74.006,
+      fuzzy_lng: -74.006
+    };
+    // The alert's displayed distance stays nearby while OOS uses encrypted state.
+    // Ghost display and old profile coordinates must never become OOS authority.
+    const locations = new Map<string, LocationPayload>([[sourceUserId, sourceLocation]]);
+    if (testCase.location !== "missing") {
+      const outside = testCase.location === "outside";
+      locations.set(recipientAllowedId, {
+        ...locationPayload(outside ? 423601000 : 407130000, outside ? -710589000 : -740060000, collectedAtMs),
+        subjectUserId: recipientAllowedId
+      });
+    }
+    if (testCase.pin) {
+      locations.set(recipientAllowedId, {
+        ...locationPayload(423601000, -710589000, collectedAtMs),
+        subjectUserId: recipientAllowedId
+      });
+      vi.mocked(loadTravelPins).mockResolvedValue(new Map([[recipientAllowedId, {
+        latitude: 40.713, longitude: -74.006, setAtMs: collectedAtMs, expiresAtMs: collectedAtMs + 1000
+      } as TravelPin]]));
+    }
+    // First load drives the existing proximity check; subsequent loads are the
+    // helper's encrypted OOS lookup, independent from public display coordinates.
+    vi.mocked(loadLocationEnvelopes).mockResolvedValue(locations).mockResolvedValueOnce(new Map());
+    query.mockImplementation(async (sql: string) => {
+      if (sql.includes("insert into app_notifications")) return { rows: [{ id: "notification-1" }] };
+      if (sql.includes("from profiles p")) return { rows: [recipient] };
+      return { rows: [source] };
+    });
+    const app = { config: baseConfig, db: { query, end: vi.fn() } } as never;
+
+    expect(await notifyNearbyUsersForLocationUpdate(app, {
+      sourceUserId, location: sourceLocation, visibilityPolicy: publicVisibilityPolicy()
+    })).toEqual({ attempted: true, sent: testCase.sent });
+    expect(query.mock.calls.filter(([sql]) => String(sql).includes("insert into app_notifications")))
+      .toHaveLength(testCase.sent);
+    expect(loadOosHiddenProfileIds).toHaveBeenCalledWith(app, recipientAllowedId, [sourceUserId]);
+  });
+
+  it.each([
+    { scenario: "in-area source", outside: false, pin: false, sent: 1 },
+    { scenario: "OOS source", outside: true, pin: false, sent: 0 },
+    { scenario: "effective in-area MHC source", outside: true, pin: true, sent: 1 }
+  ])("passes the correct OOS subject to the existing recipient matcher for $scenario", async (testCase) => {
+    const collectedAtMs = Date.now();
+    const sourceLocation = locationPayload(407128000, -740060000, collectedAtMs);
+    const encryptedLocation = locationPayload(
+      testCase.outside ? 423601000 : 407128000,
+      testCase.outside ? -710589000 : -740060000,
+      collectedAtMs
+    );
+    vi.mocked(loadLocationEnvelopes).mockResolvedValue(new Map([[sourceUserId, encryptedLocation]]));
+    if (testCase.pin) {
+      vi.mocked(loadTravelPins).mockResolvedValue(new Map([[sourceUserId, {
+        latitude: 40.7128, longitude: -74.006, setAtMs: collectedAtMs, expiresAtMs: collectedAtMs + 1000
+      } as TravelPin]]));
+    }
+    query
+      .mockResolvedValueOnce({ rows: [nearbySourceRow()] })
+      .mockResolvedValueOnce({ rows: [{
+        ...nearbyRecipientRow({ id: recipientAllowedId, latitude: 40.713, visibilityRules: { outside_service_area_members: true } }),
+        lng: -74.006, fuzzy_lng: -74.006
+      }] })
+      .mockResolvedValueOnce({ rows: [{ id: "notification-1" }] });
+
+    const result = await notifyNearbyUsersForLocationUpdate({
+      config: baseConfig, db: { query, end: vi.fn() }
+    } as never, { sourceUserId, location: sourceLocation, visibilityPolicy: publicVisibilityPolicy() });
+
+    expect(result.sent).toBe(testCase.sent);
+    expect(query.mock.calls.filter(([sql]) => String(sql).includes("insert into app_notifications")))
+      .toHaveLength(testCase.sent);
   });
 });

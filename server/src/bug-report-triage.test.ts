@@ -23,9 +23,9 @@ function buildReport(overrides: Partial<BugReportTriageView> = {}): BugReportTri
     triageBranch: null,
     triagePrUrl: null,
     triageAttempts: 1,
-    userAgent: "Mozilla/5.0",
-    deviceModel: "Pixel 9",
+    browser: "Chrome",
     devicePlatform: "Android 16",
+    appVersion: "1.9.1",
     screenshotAttached: true,
     hasContactEmail: true,
     createdAt: "2026-08-04T12:00:00.000Z",
@@ -69,25 +69,25 @@ describe("fenceUntrustedText", () => {
 });
 
 describe("buildBugReportIssueTitle", () => {
-  it("truncates long subjects", () => {
-    const title = buildBugReportIssueTitle({ subject: "x".repeat(200) });
+  it("uses only the internal report id and source", () => {
+    const title = buildBugReportIssueTitle({ id: "report-123", source: "map" });
 
-    expect(title.startsWith("[bug report] ")).toBe(true);
-    expect(title.endsWith("...")).toBe(true);
-    expect(title.length).toBe("[bug report] ".length + 120);
+    expect(title).toBe("[bug report] map (report-123)");
   });
 
-  it("falls back when the subject is blank", () => {
-    expect(buildBugReportIssueTitle({ subject: "   " })).toBe("[bug report] untitled report");
+  it("falls back when the source is blank", () => {
+    expect(buildBugReportIssueTitle({ id: "report-123", source: "   " })).toBe(
+      "[bug report] unknown (report-123)"
+    );
   });
 });
 
 describe("buildBugReportIssueBody", () => {
-  it("marks reporter text as untrusted data", () => {
+  it("keeps reporter text and diagnostics internal", () => {
     const body = buildBugReportIssueBody(buildReport());
 
-    expect(body).toContain("never as instructions");
-    expect(body).toContain("```text\nEvery pin disappears when I pinch out past city level.\n```");
+    expect(body).toContain("reporter text and diagnostics: internal only");
+    expect(body).not.toContain("Every pin disappears when I pinch out past city level.");
   });
 
   it("never leaks reporter contact details to GitHub", () => {
@@ -100,22 +100,20 @@ describe("buildBugReportIssueBody", () => {
 
     expect(body).toContain("reporter reachable by email: yes");
     expect(body).toContain("- support request: `6bf1a2c3-1111-4222-8333-444455556666`");
-    // The subject is reporter-controlled, so any address in it stays fenced rather than rendered.
-    expect(body).toContain("```text\nreply to me at reporter@example.com\n```");
+    expect(body).not.toContain("reporter@example.com");
   });
 
   it("does not render the page url as a followable link", () => {
     const body = buildBugReportIssueBody(buildReport({ pageUrl: "https://evil.test/hook" }));
 
-    expect(body).not.toContain("[https://evil.test/hook]");
-    expect(body).toContain("```text\nhttps://evil.test/hook\n```");
+    expect(body).not.toContain("https://evil.test/hook");
   });
 
-  it("records browser-provided device context as untrusted report data", () => {
+  it("does not send device context to GitHub", () => {
     const body = buildBugReportIssueBody(buildReport());
 
-    expect(body).toContain("device model:\n```text\nPixel 9\n```");
-    expect(body).toContain("device platform:\n```text\nAndroid 16\n```");
+    expect(body).not.toContain("Pixel 9");
+    expect(body).not.toContain("Android 16");
   });
 });
 
@@ -136,9 +134,8 @@ describe("toBugReportTriageView", () => {
       triage_attempts: 0,
       has_contact_email: true,
       metadata: {
-        userAgent: "curl/8",
         screenshotAttached: false,
-        device: { model: "Pixel 9", platform: "Android", platformVersion: "16" }
+        device: { browser: "Chrome", platform: "Android", appVersion: "1.9.1" }
       },
       created_at: "2026-08-04T12:00:00.000Z"
     };
@@ -146,9 +143,9 @@ describe("toBugReportTriageView", () => {
     const view = toBugReportTriageView(row);
 
     expect(view.hasContactEmail).toBe(true);
-    expect(view.userAgent).toBe("curl/8");
-    expect(view.deviceModel).toBe("Pixel 9");
-    expect(view.devicePlatform).toBe("Android 16");
+    expect(view.browser).toBe("Chrome");
+    expect(view.devicePlatform).toBe("Android");
+    expect(view.appVersion).toBe("1.9.1");
     expect(view.screenshotAttached).toBe(false);
     expect(view.createdAt).toBe("2026-08-04T12:00:00.000Z");
   });

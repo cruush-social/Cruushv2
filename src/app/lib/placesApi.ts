@@ -41,6 +41,7 @@ export type PlaceDetailRecord = PlaceRecord & {
     id: string;
     name: string;
     photo: string | null;
+    outOfSight?: boolean;
     photoExplicit?: boolean;
     sharesCrowd?: boolean;
     photoRelationship?: DlModePhotoRelationship;
@@ -72,6 +73,7 @@ export type PlaceBoardMessage = {
     name: string;
     pronouns: string;
     photo: string | null;
+    outOfSight?: boolean;
     photoExplicit?: boolean;
     sharesCrowd?: boolean;
     photoRelationship?: DlModePhotoRelationship;

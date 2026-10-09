@@ -13,7 +13,6 @@ import {
   type DlModeShowOnlyException,
 } from '../lib/dlMode';
 import { requestApi } from '../lib/apiClient';
-import { addDesktopPageLayoutChangedListener, getDesktopPageLayout, useCanChoosePopupLayout } from '../lib/desktopPageLayoutPreferences';
 
 type NsfwPhotoAudience = 'public' | 'mutual_cruushes' | 'mutual_crowds';
 
@@ -24,11 +23,6 @@ export default function DlModeSettings() {
   const [audienceReady, setAudienceReady] = useState(false);
   const [savingAudience, setSavingAudience] = useState(false);
   const [showOnlyException, setShowOnlyException] = useState<DlModeShowOnlyException>(() => getDlModeShowOnlyException());
-  const canChooseLayout = useCanChoosePopupLayout();
-  const [desktopLayout, setDesktopLayout] = useState(getDesktopPageLayout);
-  useEffect(() => addDesktopPageLayoutChangedListener(setDesktopLayout), []);
-  const desktopPopupLayout = canChooseLayout && desktopLayout === 'popups';
-
   useEffect(() => addDlModeChangedListener((nextEnabled) => {
     setEnabled(nextEnabled);
     setShowOnlyException(getDlModeShowOnlyException());
@@ -86,21 +80,22 @@ export default function DlModeSettings() {
   ];
 
   return (
-    <div className="h-full overflow-hidden bg-background" data-testid="dl-mode-settings-root">
+    <div className="h-full overflow-x-hidden overflow-y-auto bg-background" data-testid="dl-mode-settings-root">
       <AppPageHeader
         title="DL Mode"
         onBack={() => navigate(-1)}
         bugButtonTestId="dl-mode-settings-bug-button-slot"
-      >
-        {desktopPopupLayout ? <p className="text-sm text-muted-foreground">Explicit photo controls.</p> : null}
-      </AppPageHeader>
+      />
 
       <div className={`${ghostSettingsBodyClassName} min-w-0 !space-y-4 !px-3 !py-4 sm:!space-y-6 sm:!p-6`} data-testid="dl-mode-mobile-body">
         <div className={`${ghostSettingsCardClassName} min-w-0 !p-3 sm:!p-4`}>
           <div className="flex items-center justify-between gap-4">
             <div className="flex items-start gap-3">
               <DlModeMark active={enabled} className="mt-1 h-5 w-5" />
-              <p>DL Mode</p>
+              <div>
+                <p>DL Mode</p>
+                <p className="text-sm text-muted-foreground">DL Mode hides explicit photos behind gradients.</p>
+              </div>
             </div>
             <Switch
               aria-label="Toggle DL Mode"

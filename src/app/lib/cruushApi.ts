@@ -34,6 +34,7 @@ export type CruushActivityItem = CruushRecord & {
     name: string;
     pronouns: string;
     photo: string | null;
+    outOfSight?: boolean;
     photoExplicit?: boolean;
     badges?: CruushBadge[];
     sideBadges?: SideBadges;
@@ -46,6 +47,7 @@ export type CruushActivityPerson = {
   name: string;
   pronouns: string;
   photo: string | null;
+  outOfSight?: boolean;
   photoExplicit?: boolean;
   photoRelationship?: DlModePhotoRelationship;
   badges?: CruushBadge[];

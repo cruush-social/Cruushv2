@@ -6,6 +6,7 @@ export const PUBLIC_POLICY_LINKS = [
   { label: 'About', path: '/about' },
   { label: 'Help', path: '/help' },
   { label: 'Blog', path: '/blog' },
+  { label: 'Guides', path: '/guides' },
   { label: 'Human trafficking policy', path: '/human-trafficking-policy' },
   { label: 'Report or request removal of content', path: '/content-removal' },
   { label: 'Safety', path: '/safety' },

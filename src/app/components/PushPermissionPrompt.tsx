@@ -1,8 +1,8 @@
 import { useState } from 'react';
-import { Bell } from 'lucide-react';
 import { useExclusivePopup } from '../lib/popupQueue';
 import { enablePushNotifications } from '../lib/pushNotifications';
 import { Button } from './ui/button';
+import { CruushIcon } from './CruushIconImage';
 import FirstEntryPromptSurface from './FirstEntryPromptSurface';
 
 const PUSH_PROMPT_VERSION = 'v1';
@@ -73,8 +73,8 @@ export default function PushPermissionPrompt({ userId }: { userId: string }) {
       title="Enable notifications"
       description={error || 'Get alerts for cruushes, messages, and activity.'}
       icon={(
-        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/15 text-primary">
-          <Bell className="h-5 w-5" />
+        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-white" style={{ background: 'var(--cruush-gradient)' }}>
+          <CruushIcon name="notifications" variant="white" className="h-6 w-6" />
         </div>
       )}
       primary={(

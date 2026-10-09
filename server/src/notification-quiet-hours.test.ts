@@ -9,6 +9,7 @@ function preferences(overrides: Partial<NotificationPreferences> = {}): Notifica
     messagesEnabled: true,
     groupsEnabled: true,
     nearbyEnabled: true,
+    mutualFeedEnabled: true,
     rewardsEnabled: true,
     siteRemindersEnabled: true,
     soundEnabled: true,

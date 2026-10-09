@@ -1,9 +1,9 @@
-import { useDlMode, shouldMaskPhoto, getNsfwPhotoRestriction } from '../lib/dlMode';
 import { useEffect, useState } from 'react';
-import { Send } from 'lucide-react';
+import { useNavigate } from 'react-router';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from './ui/dialog';
-import HeartPhoto from './HeartPhoto';
-import UserActivityCapsule from './UserActivityCapsule';
+import CruushesProfileCard from './CruushesProfileCard';
+import ProfileActionTrio from './ProfileActionTrio';
+import AppPageHeader from './AppPageHeader';
 import {
   createInAppShareMessage,
   createMessage,
@@ -13,6 +13,7 @@ import {
   type InAppShare,
 } from '../lib/messagesApi';
 import { getMyCruushActivity, type MutualCruushActivityItem } from '../lib/cruushApi';
+import { openConversationOrInbox } from '../lib/openConversation';
 
 type InAppShareDialogProps = {
   open: boolean;
@@ -20,8 +21,13 @@ type InAppShareDialogProps = {
   share: InAppShare;
 };
 
+function sortByMostRecent(conversations: ConversationThread[]) {
+  return [...conversations].sort((left, right) => (
+    new Date(right.updatedAt).getTime() - new Date(left.updatedAt).getTime()
+  ));
+}
+
 export default function InAppShareDialog({ open, onOpenChange, share }: InAppShareDialogProps) {
-  const dlModeActive = useDlMode();
   const [conversations, setConversations] = useState<ConversationThread[]>([]);
   const [loading, setLoading] = useState(false);
   const [sendingId, setSendingId] = useState<string | null>(null);
@@ -29,6 +35,7 @@ export default function InAppShareDialog({ open, onOpenChange, share }: InAppSha
   const [mutuals, setMutuals] = useState<MutualCruushActivityItem[]>([]);
   const [selectedUserIds, setSelectedUserIds] = useState<string[]>([]);
   const [mutualSearch, setMutualSearch] = useState('');
+  const navigate = useNavigate();
 
   useEffect(() => {
     if (!open) return;
@@ -39,12 +46,16 @@ export default function InAppShareDialog({ open, onOpenChange, share }: InAppSha
     const loadRecipients = share.kind === 'club'
       ? Promise.all([getMyCruushActivity(), getConversations()]).then(([activity, items]) => {
           setMutuals((activity.mutual ?? []).filter((item) => item.canMessage !== false));
-          setConversations(items.filter((item) => item.kind === 'group'
+          setConversations(sortByMostRecent(items.filter((item) => item.kind === 'group'
             && item.closed !== true
-            && item.clubId !== share.id));
+            && item.clubId !== share.id)));
         })
       : getConversations().then((items) => {
-          setConversations(items.filter((item) => item.kind === 'dm' && item.canMessage !== false));
+          setConversations(sortByMostRecent(items.filter((item) => (
+            item.canMessage !== false
+            && item.closed !== true
+            && (item.kind === 'dm' || item.kind === 'group')
+          ))));
         });
     void loadRecipients
       .catch(() => setStatus('Chats could not load.'))
@@ -60,6 +71,21 @@ export default function InAppShareDialog({ open, onOpenChange, share }: InAppSha
       setStatus(`Sent to ${conversation.user.name}.`);
     } catch {
       setStatus(`Could not send to ${conversation.user.name}.`);
+    } finally {
+      setSendingId(null);
+    }
+  };
+
+  const openRecipientConversation = async (conversation: ConversationThread) => {
+    if (sendingId) return;
+    setSendingId(conversation.id);
+    onOpenChange(false);
+    try {
+      if (conversation.kind === 'dm') {
+        await openConversationOrInbox(navigate, conversation.user.id);
+      } else {
+        navigate(`/chat/${conversation.id}`);
+      }
     } finally {
       setSendingId(null);
     }
@@ -89,16 +115,29 @@ export default function InAppShareDialog({ open, onOpenChange, share }: InAppSha
       .some((value) => value.toLowerCase().includes(query));
   });
 
+  const toggleClubRecipient = (userId: string) => {
+    setSelectedUserIds((current) => current.includes(userId)
+      ? current.filter((id) => id !== userId)
+      : [...current, userId]);
+  };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[80dvh] overflow-y-auto border-white/10 bg-background/98 sm:max-w-md">
-        <DialogHeader>
+      <DialogContent className="!block max-h-[80dvh] overflow-y-auto border-white/10 bg-background/98 p-0 sm:top-6 sm:max-w-md sm:translate-y-0">
+        <DialogHeader className="sr-only">
           <DialogTitle>Send in cruush</DialogTitle>
           <DialogDescription>{share.label}</DialogDescription>
         </DialogHeader>
-        {status ? <p className="text-sm text-white/65" role="status">{status}</p> : null}
-        {loading ? <p className="py-6 text-center text-sm text-white/55">Loading chats...</p> : null}
-        {share.kind === 'club' ? (
+        <AppPageHeader
+          bugButtonTestId="send-in-cruush-bug-button-slot"
+          onBack={() => onOpenChange(false)}
+          onClose={() => onOpenChange(false)}
+          title="Send in cruush"
+        />
+        <div className="space-y-4 p-4">
+          {status ? <p className="text-sm text-white/65" role="status">{status}</p> : null}
+          {loading ? <p className="py-6 text-center text-sm text-white/55">Loading chats...</p> : null}
+          {share.kind === 'club' ? (
           <>
             <input
               aria-label="Search cruushes"
@@ -112,39 +151,84 @@ export default function InAppShareDialog({ open, onOpenChange, share }: InAppSha
               {filteredMutuals.map((item) => {
                 const selected = selectedUserIds.includes(item.user.id);
                 return (
-                  <UserActivityCapsule
-                    className="rounded-3xl p-3"
-                    heart={<HeartPhoto className="w-16" label={`${item.user.name} avatar`} restriction={getNsfwPhotoRestriction(item.user.photoExplicit, { ...item.user.photoRelationship, isMutualCruush: true })} masked={shouldMaskPhoto(dlModeActive, item.user.photoExplicit, { ...item.user.photoRelationship, isMutualCruush: true })} photo={item.user.photo} theme="mutual" userId={item.user.id} />}
+                  <CruushesProfileCard
                     key={item.user.id}
+                    user={{ ...item.user, vibes: item.user.vibes ?? item.vibes }}
+                    onOpenProfile={() => navigate(`/profile/${item.user.id}`)}
+                    metadata={(
+                      <button
+                        type="button"
+                        className="flex min-w-0 flex-col gap-0.5 text-left text-xs leading-snug text-white/62"
+                        onClick={() => navigate(`/profile/${item.user.id}`)}
+                      >
+                        <span className="flex h-11 w-full min-w-0 flex-col justify-center gap-0.5 overflow-hidden text-xs leading-snug text-white/62 sm:text-sm">
+                          <span className="block min-w-0 truncate">{item.lastActive}</span>
+                          <span className="block min-w-0 truncate">{item.distance}</span>
+                        </span>
+                      </button>
+                    )}
                     mutual
-                    name={item.user.name}
-                    onSelect={() => setSelectedUserIds((current) => current.includes(item.user.id)
-                      ? current.filter((id) => id !== item.user.id)
-                      : [...current, item.user.id])}
-                    pronouns={item.user.pronouns}
+                    actions={(
+                      <ProfileActionTrio
+                        className="!gap-1 [&>button]:!size-9 [&>button]:!p-1.5 [&>button>img]:!size-5 [&>button>svg]:!size-5"
+                        size="sm"
+                        userName={item.user.name}
+                        cruushState="mutual"
+                        cruushTone="dark"
+                        cruushDisabled
+                        onCruush={() => undefined}
+                        canMessage={item.canMessage}
+                        onMessage={() => toggleClubRecipient(item.user.id)}
+                        canCenterPin={item.canRevealPreciseLocation === true
+                          && item.coordinates?.precision === 'precise'
+                          && (item.displayExpiresAtMs == null || item.displayExpiresAtMs > Date.now())}
+                        onCenterPin={() => navigate(`/map?mode=mutuals&focusUserId=${encodeURIComponent(item.user.id)}`)}
+                      />
+                    )}
+                    sharesCrowd={(item.mutualCrowds?.length ?? 0) > 0}
+                    onSelect={() => toggleClubRecipient(item.user.id)}
                     selectLabel={`${selected ? 'Remove' : 'Select'} ${item.user.name}`}
                     selected={selected}
                     testId="share-recipient-profile-card"
+                    wrapVibes
                   />
                 );
               })}
             </div>
             {conversations.length > 0 ? (
               <div className="space-y-2">
-                <p className="text-sm text-white/65">Group chats</p>
+                <p className="text-sm text-white/65">Recent chats</p>
                 {conversations.map((conversation) => (
-                  <UserActivityCapsule
-                    actions={<Send className="h-4 w-4 shrink-0" />}
-                    className="rounded-3xl p-3"
-                    heart={<HeartPhoto className="w-16" label={`${conversation.user.name} avatar`} photo={conversation.user.photo} theme="mutual" userId={conversation.user.id} />}
+                  <CruushesProfileCard
                     key={conversation.id}
+                    metadata={(
+                      <span className="flex h-11 w-full min-w-0 flex-col justify-center gap-0.5 overflow-hidden text-xs leading-snug text-white/62 sm:text-sm">
+                        <span className="block min-w-0 truncate">{conversation.user.lastActive}</span>
+                        <span className="block min-w-0 truncate">{conversation.distance}</span>
+                      </span>
+                    )}
+                    actions={(
+                      <ProfileActionTrio
+                        className="!gap-1 [&>button]:!size-9 [&>button]:!p-1.5 [&>button>img]:!size-5 [&>button>svg]:!size-5"
+                        size="sm"
+                        userName={conversation.user.name}
+                        cruushState="mutual"
+                        cruushTone="dark"
+                        cruushDisabled
+                        onCruush={() => undefined}
+                        canCenterPin={false}
+                        onCenterPin={() => undefined}
+                        canMessage
+                        onMessage={() => void send(conversation)}
+                      />
+                    )}
                     mutual
-                    name={conversation.user.name}
+                    user={conversation.user}
                     onSelect={() => void send(conversation)}
-                    pronouns={conversation.clubId ? 'Club' : 'Group'}
                     selectLabel={`Send to ${conversation.user.name}`}
                     selected={sendingId === conversation.id}
                     testId="share-recipient-profile-card"
+                    wrapVibes
                   />
                 ))}
               </div>
@@ -159,28 +243,55 @@ export default function InAppShareDialog({ open, onOpenChange, share }: InAppSha
               Send Club
             </button>
           </>
-        ) : (
+          ) : (
           <>
           {!loading && conversations.length === 0 ? <p className="py-6 text-center text-sm text-white/55">No available chats yet.</p> : null}
           <div className="space-y-2">
           {conversations.map((conversation) => (
-            <UserActivityCapsule
-              actions={<Send className="h-4 w-4 shrink-0" />}
-              className="rounded-3xl p-3"
-              heart={<HeartPhoto className="w-16" label={`${conversation.user.name} avatar`} restriction={getNsfwPhotoRestriction(conversation.user.photoExplicit, { ...conversation.user.photoRelationship, isMutualCruush: conversation.mutual === true })} masked={shouldMaskPhoto(dlModeActive, conversation.user.photoExplicit, { ...conversation.user.photoRelationship, isMutualCruush: conversation.mutual === true })} photo={conversation.user.photo} theme={conversation.mutual ? 'mutual' : 'nearby'} userId={conversation.user.id} />}
+            <CruushesProfileCard
               key={conversation.id}
+              metadata={(
+                <span className="flex h-11 w-full min-w-0 flex-col justify-center gap-0.5 overflow-hidden text-xs leading-snug text-white/62 sm:text-sm">
+                  <span className="block min-w-0 truncate">{conversation.user.lastActive}</span>
+                  <span className="block min-w-0 truncate">{conversation.distance}</span>
+                </span>
+              )}
+              actions={(
+                <ProfileActionTrio
+                  className="!gap-1 [&>button]:!size-9 [&>button]:!p-1.5 [&>button>img]:!size-5 [&>button>svg]:!size-5"
+                  size="sm"
+                  userName={conversation.user.name}
+                  cruushState={conversation.mutual === true ? 'mutual' : 'sent'}
+                  cruushTone="dark"
+                  cruushDisabled
+                  onCruush={() => undefined}
+                  canCenterPin={false}
+                  onCenterPin={() => undefined}
+                  canMessage={conversation.canMessage !== false}
+                  onMessage={() => void (share.kind === 'profile'
+                    ? openRecipientConversation(conversation)
+                    : send(conversation))}
+                />
+              )}
               mutual={conversation.mutual === true}
-              name={conversation.user.name}
-              onSelect={() => void send(conversation)}
-              pronouns={conversation.user.pronouns}
-              selectLabel={`Send to ${conversation.user.name}`}
+              user={conversation.user}
+              onSelect={() => void (share.kind === 'profile'
+                ? openRecipientConversation(conversation)
+                : send(conversation))}
+              selectLabel={share.kind === 'profile'
+                ? conversation.kind === 'dm'
+                  ? `Open messages with ${conversation.user.name}`
+                  : `Open ${conversation.user.name} chat`
+                : `Send to ${conversation.user.name}`}
               selected={sendingId === conversation.id}
               testId="share-recipient-profile-card"
+              wrapVibes
             />
           ))}
           </div>
           </>
-        )}
+          )}
+        </div>
       </DialogContent>
     </Dialog>
   );

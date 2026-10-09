@@ -30,17 +30,46 @@ type MapControlsProps = {
   handleCenterMyLocation: () => void;
   locationStatus: string;
   mapInstance: CruushMapInstance | null;
+  visibilityOnly?: boolean;
 };
 
-export default function MapControls({ isMobile, sidePanelView, selectedPlace, selectedUser, setMapControlsHovered, activeCrowdNotice, setVisibilityError, setIsVisibilityOpen, mapControlsOpen, setMapControlsOpen, hasActiveFilters, setIsFiltersOpen, hasActiveVisibility, spotFiltersActive, setPlacesOpen, setMapPingSheetOpen, mapPingStatus, handleCenterMyLocation, locationStatus, mapInstance }: MapControlsProps) {
+type VisibilityControlButtonProps = Pick<MapControlsProps, 'hasActiveVisibility' | 'setVisibilityError' | 'setIsVisibilityOpen'>;
+
+function VisibilityControlButton({ hasActiveVisibility, setVisibilityError, setIsVisibilityOpen }: VisibilityControlButtonProps) {
+  return (
+    <Button
+      type="button"
+      data-testid="map-visibility-button"
+      data-tutorial-target="visibility"
+      onClick={() => {
+        setVisibilityError(null);
+        setIsVisibilityOpen(true);
+      }}
+      className={`h-8 rounded-full border px-4 text-[11px] uppercase tracking-[0.18em] text-white transition-[filter,border-color,background-color] hover:border-white/30 hover:brightness-125 has-[>img]:px-3 ${hasActiveVisibility ? 'border-white/15' : 'border-white/10 bg-[color:var(--cruush-black-glass)] backdrop-blur-[var(--cruush-black-glass-blur)] hover:bg-white/10'}`}
+      style={hasActiveVisibility ? { background: 'var(--cruush-gradient)' } : undefined}
+    >
+      <CruushIconImage src={visibilityIcon} className="mr-2 h-4 w-4 brightness-0 invert" />
+      VISIBILITY
+    </Button>
+  );
+}
+
+export default function MapControls({ isMobile, sidePanelView, selectedPlace, selectedUser, setMapControlsHovered, activeCrowdNotice, setVisibilityError, setIsVisibilityOpen, mapControlsOpen, setMapControlsOpen, hasActiveFilters, setIsFiltersOpen, hasActiveVisibility, spotFiltersActive, setPlacesOpen, setMapPingSheetOpen, mapPingStatus, handleCenterMyLocation, locationStatus, mapInstance, visibilityOnly = false }: MapControlsProps) {
   return (
         <div
-          className={`pointer-events-none [&_button]:pointer-events-auto absolute right-3 top-[4.625rem] z-[900] flex flex-col items-end gap-2 sm:right-4 sm:top-[5.375rem] lg:right-3 lg:top-16 ${isMobile && (sidePanelView || selectedPlace || selectedUser) ? 'hidden' : ''}`}
+          className={`pointer-events-none [&_button]:pointer-events-auto absolute right-3 top-[5.5rem] z-[900] flex flex-col items-end gap-2 sm:right-4 sm:top-[5.5rem] lg:right-3 lg:top-[5.5rem] ${isMobile && (sidePanelView || selectedPlace || selectedUser) ? 'hidden' : ''}`}
           data-map-control-hit-layer="true"
           data-testid="map-right-actions"
           onPointerEnter={() => setMapControlsHovered(true)}
           onPointerLeave={() => setMapControlsHovered(false)}
         >
+          {visibilityOnly ? (
+            <VisibilityControlButton
+              hasActiveVisibility={hasActiveVisibility}
+              setVisibilityError={setVisibilityError}
+              setIsVisibilityOpen={setIsVisibilityOpen}
+            />
+          ) : <>
           {activeCrowdNotice ? (
             <button
               type="button"
@@ -84,20 +113,11 @@ export default function MapControls({ isMobile, sidePanelView, selectedPlace, se
                 <CruushIconImage src={seekingIcon} className="mr-2 h-4 w-4 brightness-0 invert" />
                 SEEKING
               </Button>
-              <Button
-                type="button"
-                data-testid="map-visibility-button"
-                data-tutorial-target="visibility"
-                onClick={() => {
-                  setVisibilityError(null);
-                  setIsVisibilityOpen(true);
-                }}
-                className={`h-8 rounded-full border px-4 text-[11px] uppercase tracking-[0.18em] text-white transition-[filter,border-color,background-color] hover:border-white/30 hover:brightness-125 has-[>img]:px-3 ${hasActiveVisibility ? 'border-white/15' : 'border-white/10 bg-[color:var(--cruush-black-glass)] backdrop-blur-[var(--cruush-black-glass-blur)] hover:bg-white/10'}`}
-                style={hasActiveVisibility ? { background: 'var(--cruush-gradient)' } : undefined}
-              >
-                <CruushIconImage src={visibilityIcon} className="mr-2 h-4 w-4 brightness-0 invert" />
-                VISIBILITY
-              </Button>
+              <VisibilityControlButton
+                hasActiveVisibility={hasActiveVisibility}
+                setVisibilityError={setVisibilityError}
+                setIsVisibilityOpen={setIsVisibilityOpen}
+              />
               <Button
                 type="button"
                 data-testid="map-places-button"
@@ -165,6 +185,7 @@ export default function MapControls({ isMobile, sidePanelView, selectedPlace, se
               </div>
             </div>
           ) : null}
+          </>}
         </div>
   );
 }

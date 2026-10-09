@@ -39,9 +39,9 @@ const supportScreenshotSchema = z.object({
 }).strict();
 
 const supportDeviceSchema = z.object({
-  model: singleLineTextSchema({ min: 1, max: 120 }).optional(),
   platform: singleLineTextSchema({ min: 1, max: 80 }).optional(),
-  platformVersion: singleLineTextSchema({ min: 1, max: 80 }).optional(),
+  browser: singleLineTextSchema({ min: 1, max: 80 }).optional(),
+  appVersion: singleLineTextSchema({ min: 1, max: 80 }).optional(),
   mobile: z.boolean().optional()
 }).strict();
 
@@ -50,6 +50,7 @@ export const createSupportRequestPayloadSchema = z.object({
   subject: singleLineTextSchema({ min: 3, max: 140 }),
   message: multilineTextSchema({ min: 10, max: 4000 }),
   contactEmail: optionalEmailSchema,
+  linkAccountEmail: z.boolean().optional().default(false),
   source: supportRequestSourceSchema.optional().default("unknown"),
   pageUrl: singleLineTextSchema({ max: 1000 }).optional().default(""),
   device: supportDeviceSchema.optional(),

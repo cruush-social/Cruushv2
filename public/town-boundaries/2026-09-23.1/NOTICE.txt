@@ -1,0 +1,86 @@
+cruush town boundary data
+Source release: Overture Maps Foundation 2026-09-23.1
+Theme: divisions
+Type: division_area
+Notice checked: 2026-10-09
+
+DATABASE LICENSE
+
+The Overture Divisions database and cruush town-boundary derivative are
+licensed under the Open Data Commons Open Database License (ODbL) 1.0:
+https://opendatacommons.org/licenses/odbl/1-0/
+
+SOURCE AND CONTRIBUTOR NOTICES
+
+Overture Maps Foundation:
+https://docs.overturemaps.org/guides/divisions/
+https://docs.overturemaps.org/attribution/#divisions
+
+© OpenStreetMap contributors. ODbL 1.0.
+https://www.openstreetmap.org/copyright
+https://opendatacommons.org/licenses/odbl/1-0/
+
+geoBoundaries, William & Mary geoLab and community contributors. CC BY 4.0.
+https://www.geoboundaries.org/
+https://creativecommons.org/licenses/by/4.0/
+
+Esri Community Maps contributors. CC BY 4.0.
+https://communitymaps.arcgis.com/home/
+https://creativecommons.org/licenses/by/4.0/
+
+Land Information New Zealand (LINZ). CC BY 4.0.
+https://www.linz.govt.nz/
+https://creativecommons.org/licenses/by/4.0/
+
+These are the contributors listed by Overture for the Divisions theme.
+Retain the original copyright, database-right, license and source notices
+supplied with the source data. Do not imply endorsement by the contributors.
+Warranty disclaimers and liability terms are in the ODbL legal text and:
+https://creativecommons.org/licenses/by/4.0/legalcode.en
+
+SOURCE ACCESS
+
+Pinned upstream public source prefix:
+s3://overturemaps-us-west-2/release/2026-09-23.1/theme=divisions/type=division_area/
+
+Official access instructions:
+https://docs.overturemaps.org/guides/divisions/
+
+MODIFICATIONS AND REPRODUCTION METHOD
+
+Modified by cruush: select is_territorial = true and subtype locality or
+localadmin from all eight pinned division_area source objects. Preserve the
+source area/division IDs, names, country/region codes and complete 2D WKB
+Polygon/MultiPolygon geometry. Compress geometry losslessly using zlib level
+6; index exact geometry extents with SQLite R-tree outward rounding. No
+boundary simplification, nearest-city substitution or invented hierarchy.
+
+The recorded build contains 576,368 records across 229 source country codes.
+This is complete extraction of the stated filter, not a guarantee of every
+real-world town or legal municipal boundary. Unknown or ambiguous locations
+must not invent a town label.
+
+The complete alteration method and supporting files are provided at:
+/town-boundaries/2026-09-23.1/REPRODUCE.md
+/town-boundaries/2026-09-23.1/extract.py
+/town-boundaries/2026-09-23.1/build_dataset.py
+/town-boundaries/2026-09-23.1/source-manifest.json
+/town-boundaries/2026-09-23.1/schema.sql
+/town-boundaries/2026-09-23.1/towns.sqlite.manifest.json
+
+REPRODUCE.md includes dependency versions, setup and rebuild commands,
+resource limits and conservative lookup requirements. The matching release
+manifest includes all source object URLs/checksums, script hashes, recorded
+build versions, output hash and validation counts. Byte-identical output
+across different library versions is not promised. The database and its
+alterations are offered under ODbL 1.0; retain the contributor notices above.
+
+DATABASE DOWNLOAD STATUS
+
+The derivative database is not published for download here. The reproduction
+files above are the source/transformation offer, not a claim that the database
+has been mounted. Its reserved future path is:
+/town-boundaries/2026-09-23.1/towns.sqlite
+
+The public artifact must contain only public boundary data, not cruush member
+coordinates, saved member states, account records, identifiers or secrets.

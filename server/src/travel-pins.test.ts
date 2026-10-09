@@ -4,6 +4,7 @@ import {
   clearTravelPin,
   getTravelPin,
   isTravelPinDistanceAllowed,
+  loadTravelPins,
   locationPayloadAtTravelPin,
   setTravelPin,
   TRAVEL_PIN_LIFETIME_MS,
@@ -64,6 +65,23 @@ describe("travel pins", () => {
       expiresAtMs: setAtMs + TRAVEL_PIN_LIFETIME_MS
     });
     expect(query).toHaveBeenCalledWith(expect.stringContaining("set_at > now() - interval '24 hours'"), ["member-id"]);
+  });
+
+  it("excludes a pin expired by the application clock even when the transaction query returns it", async () => {
+    const nowMs = Date.parse("2026-10-09T12:00:00.000Z");
+    const clock = vi.spyOn(Date, "now").mockReturnValue(nowMs);
+    const query = vi.fn().mockResolvedValue({ rows: [
+      { user_id: "expired-member", latitude: 40.7128, longitude: -74.006, label: "", set_at: new Date(nowMs - TRAVEL_PIN_LIFETIME_MS).toISOString() },
+      { user_id: "active-member", latitude: 40.7128, longitude: -74.006, label: "", set_at: new Date(nowMs - TRAVEL_PIN_LIFETIME_MS + 1).toISOString() }
+    ] });
+    const app = { db: { query } } as unknown as FastifyInstance;
+
+    try {
+      const pins = await loadTravelPins(app, ["expired-member", "active-member"]);
+      expect([...pins.keys()]).toEqual(["active-member"]);
+    } finally {
+      clock.mockRestore();
+    }
   });
 
   it("rejects a move before the three-hour cooldown without writing", async () => {

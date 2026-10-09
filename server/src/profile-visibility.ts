@@ -10,6 +10,8 @@ export type VisibilitySubjectProfile = {
   bio?: string | null;
   tags?: string[] | null;
   mile_high_club_member?: boolean;
+  /** Effective service-area state, including an active Mile High Club pin. */
+  outside_service_area?: boolean;
   /** Undefined where the caller cannot tell, which never hides anyone. */
   has_photo?: boolean;
   year_of_birth?: number | null;
@@ -136,6 +138,7 @@ function normalizeVisibilityRules(rules: ProfileVisibilityRules): ProfileVisibil
     active_crowd_modes: rules.active_crowd_modes ?? [],
     mile_high_club_members: rules.mile_high_club_members ?? false,
     members_without_photos: rules.members_without_photos ?? false,
+    outside_service_area_members: rules.outside_service_area_members ?? false,
     age_range: rules.age_range ?? null,
     distance: rules.distance ?? null,
     identities: rules.identities ?? [],
@@ -172,6 +175,7 @@ export function visibilityRulesArePublic(rules: ProfileVisibilityRules | null | 
     normalizedRules.active_crowd_modes.length === 0 &&
     normalizedRules.mile_high_club_members === false &&
     normalizedRules.members_without_photos === false &&
+    normalizedRules.outside_service_area_members === false &&
     normalizedRules.age_range === null &&
     normalizedRules.distance === null &&
     normalizedRules.identities.length === 0 &&
@@ -209,6 +213,7 @@ export function countVisibilityExclusionFilters(rules: ProfileVisibilityRules | 
     normalizedRules.distance !== null,
     normalizedRules.mile_high_club_members,
     normalizedRules.members_without_photos,
+    normalizedRules.outside_service_area_members,
     normalizedRules.identities.length > 0,
     normalizedRules.presentations.length > 0,
     normalizedRules.looking_for.length > 0,
@@ -245,6 +250,12 @@ export function canSubjectViewProfile(
 
   if (visibilityRulesArePublic(normalizedRules)) {
     return true;
+  }
+
+  // The owner opted out of Out of Sight viewers. An unknown effective location
+  // must not turn that privacy choice into public visibility.
+  if (normalizedRules.outside_service_area_members && subject.outside_service_area !== false) {
+    return false;
   }
 
   if (normalizedRules.mile_high_club_members && subject.mile_high_club_member === true) {

@@ -56,7 +56,7 @@ export type DevelopmentTestProfile = {
   height: string;
   weight: string;
   hobbies: string[];
-  photo: null;
+  photo: string | null;
   lat: number;
   lng: number;
   fuzzyLat: number;
@@ -96,6 +96,12 @@ const seedProfileTemplates: readonly SeedProfileTemplate[] = [
   ["vale", ["he/they"], ["Gay"], ["Bottom"], ["Tonight", "Dates"]],
   ["ren", ["they/she"], ["T4T", "Dyke"], ["Versatile"], ["Cruising", "Chat"]]
 ] as const;
+
+const seededExplicitPhotoUrls: Readonly<Record<number, string>> = {
+  0: "/src/app/assets/ui-icons/latex-mask-noun-3574195.png",
+  6: "/src/app/assets/ui-icons/strap-on-flaticon-16011932.png",
+  12: "/src/app/assets/ui-icons/spit-roast-noun-759966.png"
+};
 
 const seedCoordinateOffsets = [
   [-0.0087, -0.0112],
@@ -203,10 +209,10 @@ function readEnvFile(url: URL) {
 
 export function loadSeedConfig() {
   const serverEnv = {
-    ...process.env,
     ...readEnvFile(new URL("../.env.example", import.meta.url)),
     ...readEnvFile(new URL("../.env", import.meta.url)),
-    ...readEnvFile(new URL("../.env.local", import.meta.url))
+    ...readEnvFile(new URL("../.env.local", import.meta.url)),
+    ...process.env
   };
 
   return loadConfig(serverEnv);
@@ -252,7 +258,7 @@ export function buildDevelopmentTestProfiles(now = new Date()): DevelopmentTestP
       height: `${5 + (index % 2)}'${4 + (index % 8)}\"`,
       weight: `${135 + index * 5} lb`,
       hobbies: [seedHobbies[index % seedHobbies.length], seedHobbies[(index + 3) % seedHobbies.length]],
-      photo: null,
+      photo: seededExplicitPhotoUrls[index] ?? null,
       lat,
       lng,
       fuzzyLat: offsetCoordinate(lat, index, 1),
@@ -278,6 +284,15 @@ const DEVELOPMENT_MUTUAL_PROFILES = new Set([0, 1, 2, 3, 4, 5, 8, 10]);
 const DEVELOPMENT_PRECISE_MUTUAL_PROFILES = new Set([0, 1, 2, 3, 4, 8, 10]);
 const DEVELOPMENT_DARK_ROOM_PROFILE = 8;
 const DEVELOPMENT_MISSING_LOCATION_PROFILE = 10;
+/** Existing billing badges make their card treatment visible in local development. */
+const DEVELOPMENT_PROFILE_BADGES = new Map<number, readonly ("founder" | "lifetime_founder")[]>([
+  [0, ["founder"]],
+  [1, ["lifetime_founder"]],
+  [6, ["founder"]],
+  [7, ["lifetime_founder"]],
+  [9, ["founder"]],
+  [11, ["lifetime_founder"]]
+] as const);
 
 export function assertDevelopmentSeedConfig(config: Pick<AppConfig, "NODE_ENV" | "DEVELOPMENT_ADMIN_ENABLED" | "DEVELOPMENT_ADMIN_PASSWORD">) {
   if (config.NODE_ENV === "production") {
@@ -350,9 +365,41 @@ async function upsertDevelopmentProfile(context: DevelopmentSeedContext, profile
     throw new Error(`Unable to create ${profile.email}.`);
   }
 
-  const profilePhotoUrls: string[] = [];
+  const profilePhotoUrls = profile.photo ? [profile.photo] : [];
   const encryptedSensitiveProfile = encryptSensitiveProfile(context.config, profile.sensitiveProfile);
   const encryptedProfileVisibility = encryptProfileVisibility(context.config, emptyProfile.visibility_rules);
+
+  if (profile.photo) {
+    await context.db.query(
+      `insert into media_objects (
+         owner_user_id,
+         surface,
+         object_key,
+         public_url,
+         media_type,
+         mime_type,
+         byte_size,
+         encrypted_data_key,
+         data_key_nonce,
+         data_key_auth_tag,
+         content_nonce,
+         content_auth_tag,
+         key_version,
+         moderation_status,
+         explicit_classification,
+         explicit_classification_reason
+       )
+       values ($1, 'profile_photo', $2, $3, 'image', 'image/png', 1, 'development-seed', 'development-seed', 'development-seed', 'development-seed', 'development-seed', 'development-seed', 'approved', 'explicit', 'Local DL Mode preview seed')
+       on conflict (public_url) do update
+       set owner_user_id = excluded.owner_user_id,
+           object_key = excluded.object_key,
+           moderation_status = 'approved',
+           explicit_classification = 'explicit',
+           explicit_classification_reason = 'Local DL Mode preview seed',
+           deleted_at = null`,
+      [userId, `development-seed/dl-mode/${profile.email}.png`, profile.photo]
+    );
+  }
 
   await context.db.query(
     `insert into profiles (
@@ -563,6 +610,15 @@ export async function seedDevelopmentProfilesWithDb(context: DevelopmentSeedCont
 
     for (const [profileIndex, profile] of profiles.entries()) {
       const profileUserId = await upsertDevelopmentProfile(context, profile);
+
+      await context.db.query(`delete from user_badges where user_id = $1`, [profileUserId]);
+      for (const badgeKey of DEVELOPMENT_PROFILE_BADGES.get(profileIndex) ?? []) {
+        await context.db.query(
+          `insert into user_badges (user_id, badge_key, source_plan_id, permanent)
+           values ($1, $2, 'development-seed', true)`,
+          [profileUserId, badgeKey]
+        );
+      }
 
       // Visiting members show Mile High Club on the map and profiles without
       // turning it on for the signed-in development account.

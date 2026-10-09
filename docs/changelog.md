@@ -1,5 +1,13 @@
 # cruush changelog
 
+## Release 2.0 (October 9, 2026)
+
+- Use cruush from anywhere; the map remains limited to supported locations.
+- The updated UI brings clearer controls and smoother navigation across the map, profiles, Feed, Messages, and Clubs.
+- Follow Bitcoin orders for cruush+ and Pulse with clearer payment and confirmation progress.
+- Choose more Feed post durations and control mutual Feed-post notifications.
+- Bug fixes and stability improvements throughout the app.
+
 ## Release 1.9 (October 5, 2026)
 
 - Browse persistent Clubs from Messages with separate My Clubs and Browse Clubs views.

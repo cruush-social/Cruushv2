@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { DROPDOWN_TRIGGER_CLASS } from '../lib/controlStyles';
-import { Bell, Download, Smartphone } from 'lucide-react';
+import { Download, Smartphone } from 'lucide-react';
 import { useNavigate } from 'react-router';
 import {
   getNotificationPreferences,
@@ -12,6 +12,8 @@ import { Button } from './ui/button';
 import { Switch } from './ui/switch';
 import LoadingCardSkeletons from './LoadingCardSkeletons';
 import AppPageHeader from './AppPageHeader';
+import { CruushIcon } from './CruushIconImage';
+import { useMapServiceArea } from './MapServiceAreaContext';
 
 const MINUTES_PER_DAY = 1440;
 const QUIET_HOURS_STEP_MINUTES = 30;
@@ -75,6 +77,11 @@ function preferenceRows(preferences: NotificationPreferences) {
       checked: preferences.nearbyEnabled,
     },
     {
+      key: 'mutualFeedEnabled' as const,
+      label: 'Feed posts from cruushes',
+      checked: preferences.mutualFeedEnabled !== false,
+    },
+    {
       key: 'pulseEnabled' as const,
       label: 'Pulse alerts',
       checked: preferences.pulseEnabled,
@@ -94,6 +101,7 @@ function preferenceRows(preferences: NotificationPreferences) {
 
 export default function NotificationSettings() {
   const navigate = useNavigate();
+  const { profilePinsAllowed: pulseAllowed } = useMapServiceArea();
   const [preferences, setPreferences] = useState<NotificationPreferences | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
@@ -134,7 +142,7 @@ export default function NotificationSettings() {
   }, [loadSettings]);
 
   const savePreferences = async (partial: Partial<NotificationPreferences>) => {
-    if (!preferences) {
+    if (!preferences || (partial.pulseEnabled !== undefined && !pulseAllowed)) {
       return;
     }
 
@@ -210,7 +218,9 @@ export default function NotificationSettings() {
 
         <section className="rounded-lg border border-border bg-card p-4">
           <div className="flex items-start gap-3">
-            <Bell className="mt-1 h-5 w-5 text-primary" />
+            <span className="mt-1 flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-white" style={{ background: 'var(--cruush-gradient)' }}>
+              <CruushIcon name="notifications" variant="white" className="h-6 w-6" />
+            </span>
             <div className="min-w-0 flex-1">
               <h2 className="text-lg text-white">Push alerts</h2>
               <p className="mt-1 text-sm text-muted-foreground">
@@ -248,7 +258,7 @@ export default function NotificationSettings() {
                 <Switch
                   checked={row.checked}
                   onCheckedChange={(checked) => void savePreferences({ [row.key]: checked })}
-                  disabled={isSaving}
+                  disabled={isSaving || (row.key === 'pulseEnabled' && !pulseAllowed)}
                   aria-label={`Toggle ${row.label}`}
                 />
               </div>

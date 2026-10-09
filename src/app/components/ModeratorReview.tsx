@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import {
-  Bell,
   CheckCircle2,
   ChevronLeft,
   ChevronRight,
@@ -14,6 +13,7 @@ import {
 } from 'lucide-react';
 import { useNavigate } from 'react-router';
 import { toast } from '../lib/toast';
+import { CruushIcon } from './CruushIconImage';
 import { ApiClientError, resolveMediaUrl } from '../lib/apiClient';
 import {
   changeModeratedAccountStatus,
@@ -848,7 +848,9 @@ export default function ModeratorReview() {
                 variant={view === 'notifications' ? 'default' : 'ghost'}
                 onClick={() => setView('notifications')}
               >
-                <Bell className="h-4 w-4" />
+                <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-white" style={{ background: 'var(--cruush-gradient)' }}>
+                  <CruushIcon name="notifications" variant="white" className="h-4 w-4" />
+                </span>
                 Notifications
               </Button>
               <Button
@@ -1123,7 +1125,7 @@ export default function ModeratorReview() {
 
             <button type="button" onClick={() => setView('surveys')} className="mt-5 flex w-full items-center justify-between gap-3 rounded-lg border border-border bg-card p-4 text-left" aria-label="Open subscription survey responses">
               <span className="font-medium">Subscription survey responses</span>
-              <span className="text-sm text-muted-foreground">{surveysLoading ? '…' : surveysError ? '—' : surveyPage.total}</span>
+              <span className="text-sm text-muted-foreground">{surveysLoading ? '…' : surveysError ? '-' : surveyPage.total}</span>
               <ChevronRight className="h-4 w-4 shrink-0" />
             </button>
 

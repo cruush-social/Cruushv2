@@ -25,13 +25,12 @@ import {
   type SideQuestKey,
   type SideQuestSummary,
 } from '../lib/rewardsApi';
-import { CRUUSH_PLUS_CHANGED_EVENT } from '../lib/billingApi';
-import { CRUUSH_PLUS_FEATURES } from '../lib/cruushPlusFeatures';
+import { CRUUSH_PLUS_CHANGED_EVENT, getMyBillingStatus, type BillingStatus } from '../lib/billingApi';
 import { showEarnedCruushPlusCard, showEarnedPingsCard } from '../lib/earnedCruushPlusCard';
 import { buildCruushPlusStorePath } from '../lib/cruushPlusConversion';
 import { trackCruushPlusConversion } from '../lib/posthog';
-import CruushPlusBenefitsAccordion from './CruushPlusBenefitsAccordion';
-import CruushPlusSectionTabs from './CruushPlusSectionTabs';
+import CruushPlusSectionControls from './CruushPlusSectionControls';
+import CruushPlusSectionTitle from './CruushPlusSectionTitle';
 
 function sourceLabel(source: RewardSummary['recentGrants'][number]['source']) {
   switch (source) {
@@ -58,9 +57,20 @@ function formatDate(value: string | null) {
   });
 }
 
+function formatRemainingTime(remainingMs: number) {
+  const totalSeconds = Math.max(0, Math.ceil(remainingMs / 1000));
+  const days = Math.floor(totalSeconds / 86_400);
+  const hours = Math.floor((totalSeconds % 86_400) / 3_600);
+  const minutes = Math.floor((totalSeconds % 3_600) / 60);
+  const seconds = totalSeconds % 60;
+  return `${days}:${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+}
+
 export default function Rewards() {
   const navigate = useNavigate();
   const [summary, setSummary] = useState<RewardSummary | null>(null);
+  const [billingStatus, setBillingStatus] = useState<BillingStatus | null>(null);
+  const [clockMs, setClockMs] = useState(() => Date.now());
   const [sideQuests, setSideQuests] = useState<SideQuestSummary | null>(null);
   const [sideQuestError, setSideQuestError] = useState<string | null>(null);
   const [sideQuestLoading, setSideQuestLoading] = useState(false);
@@ -120,11 +130,13 @@ export default function Rewards() {
       const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
       await updateRewardTimezone(timezone).catch(() => undefined);
       await recordDailyRewardCheckIn().catch(() => undefined);
-      const [rewardSummary] = await Promise.all([
+      const [rewardSummary, , nextBillingStatus] = await Promise.all([
         getRewardSummary(),
         loadSideQuestSummary(),
+        getMyBillingStatus().catch(() => null),
       ]);
       setSummary(rewardSummary);
+      setBillingStatus(nextBillingStatus);
     } catch (loadError) {
       setError(loadError instanceof Error ? loadError.message : 'Unable to load rewards.');
     } finally {
@@ -235,18 +247,56 @@ export default function Rewards() {
     .filter((quest) => quest.claimed)
     .sort((left, right) => new Date(right.claimedAt ?? 0).getTime() - new Date(left.claimedAt ?? 0).getTime()) ?? [];
   const recentNonQuestGrants = summary?.recentGrants.filter((grant) => !grant.sideQuestKey) ?? [];
+  const lifetimeAccess = billingStatus?.cruushPlus === true && billingStatus.expiresAt === null;
+  const activeUntil = billingStatus?.cruushPlus === true
+    ? billingStatus.expiresAt
+    : summary?.promotionalAccess.effectiveCruushPlus
+      ? summary.promotionalAccess.activeUntil
+      : null;
+  const hasActiveAccess = lifetimeAccess || Boolean(activeUntil && Date.parse(activeUntil) > clockMs);
+  const remainingTime = activeUntil ? Date.parse(activeUntil) - clockMs : 0;
+
+  useEffect(() => {
+    if (!activeUntil || lifetimeAccess) return;
+    const interval = window.setInterval(() => setClockMs(Date.now()), 1000);
+    return () => window.clearInterval(interval);
+  }, [activeUntil, lifetimeAccess]);
+  const cruushPlusTimeCapsule = !loading && summary ? (
+    <Card>
+      <CardHeader>
+        <CardTitle><CruushPlusWord /> time capsule</CardTitle>
+      </CardHeader>
+      <CardContent className="grid grid-cols-2 gap-3 text-sm">
+        <div className="rounded-lg bg-muted/40 p-3">
+          <p className="text-muted-foreground">Active through</p>
+          <p className="mt-1 font-medium">
+            {formatDate(summary.promotionalAccess.activeUntil) ?? 'No active promo'}
+          </p>
+        </div>
+        <div className="rounded-lg bg-muted/40 p-3">
+          <p className="text-muted-foreground">Banked</p>
+          <p className="mt-1 font-medium">{summary.promotionalAccess.bankedDays} days</p>
+        </div>
+        <div className="col-span-2 rounded-lg bg-muted/40 p-3">
+          <p className="text-muted-foreground">Active cruush+ time</p>
+          <p className="mt-1 font-medium" role="timer" aria-label="cruush+ time remaining">
+            {lifetimeAccess ? 'Lifetime Access' : hasActiveAccess ? formatRemainingTime(remainingTime) : 'No active cruush+'}
+          </p>
+        </div>
+      </CardContent>
+    </Card>
+  ) : null;
 
   return (
     <div className="min-h-screen bg-background pb-24">
       <AppPageHeader
-        title={<>Rewards &amp; <CruushPlusWord /></>}
+        title={<CruushPlusSectionTitle />}
         onBack={() => navigate(-1)}
         bugButtonTestId="rewards-bug-button-slot"
       />
 
       <main className="mx-auto max-w-2xl space-y-5 p-4">
-        <CruushPlusSectionTabs active="rewards" />
-        <CruushPlusBenefitsAccordion features={CRUUSH_PLUS_FEATURES} />
+        <CruushPlusSectionControls active="rewards" />
         <Button
           className="h-12 w-full rounded-full text-base font-semibold text-white disabled:opacity-50"
           style={{ background: 'var(--cruush-logo)' }}
@@ -258,6 +308,8 @@ export default function Rewards() {
             navigate(buildCruushPlusStorePath('rewards', 'overview'));
           }}
         >Get <CruushPlusWord /></Button>
+
+        {cruushPlusTimeCapsule}
 
         {!loading && summary ? (
           <Card>
@@ -302,26 +354,6 @@ export default function Rewards() {
                   <p className="text-muted-foreground">Successful</p>
                   <p className="mt-1 text-lg font-semibold">{summary.referrals.qualified}</p>
                 </div>
-              </div>
-            </CardContent>
-          </Card>
-        ) : null}
-
-        {!loading && summary ? (
-          <Card>
-            <CardHeader>
-              <CardTitle><CruushPlusWord /> time capsule</CardTitle>
-            </CardHeader>
-            <CardContent className="grid grid-cols-2 gap-3 text-sm">
-              <div className="rounded-lg bg-muted/40 p-3">
-                <p className="text-muted-foreground">Active through</p>
-                <p className="mt-1 font-medium">
-                  {formatDate(summary.promotionalAccess.activeUntil) ?? 'No active promo'}
-                </p>
-              </div>
-              <div className="rounded-lg bg-muted/40 p-3">
-                <p className="text-muted-foreground">Banked</p>
-                <p className="mt-1 font-medium">{summary.promotionalAccess.bankedDays} days</p>
               </div>
             </CardContent>
           </Card>

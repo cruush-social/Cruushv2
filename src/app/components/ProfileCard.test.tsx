@@ -3,11 +3,17 @@ import { MemoryRouter } from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import ProfileCard from './ProfileCard';
 
-const { getProfileById, revokeMutualCruush, sendCruush } = vi.hoisted(() => ({
+const { serviceArea } = vi.hoisted(() => ({ serviceArea: { profilePinsAllowed: false } }));
+vi.mock('./MapServiceAreaContext', () => ({ useMapServiceArea: () => serviceArea }));
+
+const { getProfileById, revokeMutualCruush, sendCruush, openConversationOrInbox } = vi.hoisted(() => ({
   getProfileById: vi.fn(),
   revokeMutualCruush: vi.fn(),
   sendCruush: vi.fn(),
+  openConversationOrInbox: vi.fn(),
 }));
+
+vi.mock('../lib/openConversation', () => ({ openConversationOrInbox }));
 
 vi.mock('../lib/cruushApi', async () => {
   const actual = await vi.importActual<typeof import('../lib/cruushApi')>('../lib/cruushApi');
@@ -30,14 +36,55 @@ vi.mock('../lib/profileApi', async () => {
 
 describe('ProfileCard', () => {
   beforeEach(() => {
+    serviceArea.profilePinsAllowed = false;
     getProfileById.mockReset();
     revokeMutualCruush.mockReset();
     sendCruush.mockReset();
+    openConversationOrInbox.mockReset();
     getProfileById.mockResolvedValue({
       photos: ['/jordan.jpg'],
       photo_metadata: [{ url: '/jordan.jpg', explicit: false }],
     });
     revokeMutualCruush.mockResolvedValue({ revoked: true });
+  });
+
+  it.each(['standard', 'carousel'] as const)('loads authoritative Purgatory membership for a %s card', async (presentation) => {
+    getProfileById.mockResolvedValue({ photos: ['/jordan.jpg'], outOfSight: true });
+    const onViewProfile = vi.fn();
+    render(<MemoryRouter><ProfileCard user={{ id: 'user-1', name: 'Jordan', age: 26, photos: ['/jordan.jpg'], travelling: true }} presentation={presentation} onViewProfile={onViewProfile} /></MemoryRouter>);
+    const badge = await screen.findByRole('button', { name: 'This is a Purgatory member.' });
+    expect(getProfileById).toHaveBeenCalledTimes(1);
+    expect(screen.getByRole('button', { name: 'This is a Mile High Club member.' })).toBeInTheDocument();
+    fireEvent.click(badge);
+    expect(await screen.findByRole('tooltip')).toHaveTextContent('currently outside cruush’s service area');
+    expect(onViewProfile).not.toHaveBeenCalled();
+  });
+
+  it('does not reuse a previous card’s Purgatory status while a new profile loads', async () => {
+    getProfileById.mockResolvedValueOnce({ outOfSight: true });
+    const props = { user: { id: 'user-1', name: 'Jordan', age: 26 }, onViewProfile: vi.fn() };
+    const { rerender } = render(<MemoryRouter><ProfileCard {...props} /></MemoryRouter>);
+    await screen.findByRole('button', { name: 'This is a Purgatory member.' });
+    getProfileById.mockRejectedValueOnce(new Error('Profile unavailable'));
+    rerender(<MemoryRouter><ProfileCard {...props} user={{ id: 'user-2', name: 'River', age: 29 }} /></MemoryRouter>);
+    expect(screen.queryByRole('button', { name: 'This is a Purgatory member.' })).not.toBeInTheDocument();
+    await waitFor(() => expect(getProfileById).toHaveBeenCalledWith('user-2'));
+    expect(screen.queryByRole('button', { name: 'This is a Purgatory member.' })).not.toBeInTheDocument();
+  });
+
+  it('gates a precise mutual carousel pin by service area without changing target privacy', () => {
+    const props = { user: { id: 'user-1', name: 'Jordan', age: 26, relationship: { mutualCruush: true, precision: 'precise' } }, presentation: 'carousel' as const, onViewProfile: vi.fn() };
+    const { rerender } = render(<MemoryRouter><ProfileCard {...props} /></MemoryRouter>);
+    const blocked = screen.getByRole('button', { name: 'Map location unavailable' });
+    expect(blocked).toBeDisabled();
+    expect(blocked).toHaveStyle({ background: 'var(--cruush-gradient-soft-28), #0A0A12' });
+
+    serviceArea.profilePinsAllowed = true;
+    rerender(<MemoryRouter><ProfileCard {...props} /></MemoryRouter>);
+    expect(screen.getByRole('button', { name: 'Center the map on Jordan' })).toBeEnabled();
+
+    rerender(<MemoryRouter><ProfileCard {...props} user={{ ...props.user, relationship: { mutualCruush: true, precision: 'approximate' } }} /></MemoryRouter>);
+    expect(screen.getByRole('button', { name: 'Jordan does not share a precise location with you' })).toBeDisabled();
   });
 
   it('lets users revoke an existing mutual from the profile card', async () => {
@@ -192,7 +239,11 @@ describe('ProfileCard', () => {
     expect(screen.getByTestId('carousel-profile-glass')).not.toHaveClass('bg-black/60', 'backdrop-blur-xl');
     expect(card).toContainElement(browseAgainButton);
     expect(browseAgainButton).toHaveClass('bg-black/55', 'backdrop-blur-xl');
-    expect(screen.getByRole('button', { name: 'cruushes only' })).toBeDisabled();
+    const messageButton = screen.getByRole('button', { name: 'Message' });
+    expect(messageButton).toBeEnabled();
+    expect(messageButton).toHaveStyle({ background: 'var(--cruush-gradient-soft-28)' });
+    fireEvent.click(messageButton);
+    expect(openConversationOrInbox).toHaveBeenCalledWith(expect.any(Function), 'user-1');
     expect(screen.getByTestId('profile-card-vibes')).toHaveTextContent('GothPunkClub kid');
     expect(screen.queryByText('Leather')).not.toBeInTheDocument();
 
@@ -226,6 +277,7 @@ describe('ProfileCard', () => {
             vibes: ['Goth'],
             photo: '/jordan.jpg',
             photos: ['/jordan.jpg'],
+            outOfSight: false,
           }}
           onClose={vi.fn()}
           onViewProfile={vi.fn()}
@@ -265,7 +317,7 @@ describe('ProfileCard', () => {
 
     const placeholder = screen.getByTestId('dl-mode-photo-placeholder');
     expect(placeholder).toHaveClass('w-28');
-    expect(placeholder.querySelector('text')).toHaveTextContent('cruushes only');
+    expect(placeholder.querySelector('text')).toHaveTextContent('DL MODE ON');
     expect(screen.queryByTestId('carousel-profile-photo')).not.toBeInTheDocument();
   });
 });

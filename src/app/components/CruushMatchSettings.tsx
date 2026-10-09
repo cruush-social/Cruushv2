@@ -2,7 +2,13 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router';
 import { MapPin, MessageCircle } from 'lucide-react';
 import { Switch } from './ui/switch';
-import { Card, CardContent } from './ui/card';
+import {
+  ghostSettingsBodyClassName,
+  ghostSettingsCardClassName,
+  ghostSettingsChoiceClassName,
+  ghostSettingsIdleChoiceClassName,
+  ghostSettingsSelectedChoiceClassName,
+} from './ghostSettingsStyles';
 import AppPageHeader from './AppPageHeader';
 import {
   DEFAULT_CRUUSH_MATCH_SETTINGS,
@@ -52,10 +58,10 @@ function ChoiceRow({
   return (
     <button
       type="button"
-      className={`w-full rounded-lg border p-3 text-left transition ${
+      className={`w-full ${ghostSettingsChoiceClassName} p-3 text-left ${
         selected
-          ? 'border-primary/45 bg-primary/14 text-white'
-          : 'border-white/10 bg-white/[0.035] text-white/78 hover:bg-white/[0.06]'
+          ? ghostSettingsSelectedChoiceClassName
+          : ghostSettingsIdleChoiceClassName
       }`}
       onClick={onSelect}
       style={selected ? { background: 'var(--cruush-gradient-soft-18)' } : undefined}
@@ -150,20 +156,20 @@ export default function CruushMatchSettings({ embedded = false }: { embedded?: b
         />
       ) : null}
 
-      <main className="mx-auto max-w-2xl space-y-5 p-4">
+      <main className={ghostSettingsBodyClassName}>
         {error ? (
           <div className="rounded-md border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">
             {error}
           </div>
         ) : null}
 
-        <Card>
-          <CardContent className="p-4">
+        <section className={ghostSettingsCardClassName}>
+          <div className="space-y-5 rounded-lg border border-white/10 bg-white/[0.025] p-4">
             <div className="flex items-start gap-3">
               <MessageCircle className="mt-1 h-5 w-5 text-primary" />
               <h3 className="text-base">Who can message me</h3>
             </div>
-            <div className="mt-4 grid gap-2">
+            <div className="grid gap-2">
               {visibilityOptions.map((option) => (
                 <ChoiceRow
                   key={option.value}
@@ -176,12 +182,9 @@ export default function CruushMatchSettings({ embedded = false }: { embedded?: b
                 />
               ))}
             </div>
-          </CardContent>
-        </Card>
+          </div>
 
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-start justify-between gap-4">
+          <div className="flex items-start justify-between gap-4 rounded-lg border border-white/10 bg-white/[0.025] p-4">
               <div className="flex items-start gap-3">
                 <MapPin className="mt-1 h-5 w-5 text-primary" />
                 <div>
@@ -199,9 +202,8 @@ export default function CruushMatchSettings({ embedded = false }: { embedded?: b
                   preciseLocationVisibility: enabled ? 'mutual_cruushes' : 'none',
                 })}
               />
-            </div>
-          </CardContent>
-        </Card>
+          </div>
+        </section>
 
         {status === 'saving' ? (
           <p className="px-1 text-xs text-white/52">Saving...</p>
