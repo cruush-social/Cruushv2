@@ -1089,25 +1089,8 @@ export async function registerMessageRoutes(app: FastifyInstance) {
       [conversationId, userId, payload.otherUserId]
     );
 
-    const result = await app.db.query<ConversationRow>(
-      `${CONVERSATION_SELECT}
-       where cm.user_id = $1
-         and c.id::text = $2
-       limit 1`,
-      [userId, conversationId]
-    );
-
-    const conversation = result.rows[0];
-
-    if (!conversation) {
-      throw new ApiError(404, "NOT_FOUND", "Conversation not found.");
-    }
-
     return reply.code(201).send({
-      data: mapConversationRow(app, conversation, {
-        canMessage: relationship.canMessage,
-        mutual: relationship.isMutualCruush
-      })
+      data: { id: conversationId }
     });
   });
 
