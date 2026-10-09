@@ -1013,7 +1013,9 @@ export async function registerMessageRoutes(app: FastifyInstance) {
     }
 
     const relationship = await getRelationshipPermissions(app, userId, payload.otherUserId);
-    await assertCanStartDirectMessage(app, userId, payload.otherUserId, relationship);
+    if (!relationship.canMessage) {
+      throw new ApiError(403, "FORBIDDEN", "You cannot message this user.");
+    }
 
     const existingUser = await app.db.query<ExistingUserRow>(
       `select id::text as id
