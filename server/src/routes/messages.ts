@@ -18,7 +18,6 @@ import { photoUploadAvailability } from "../photo-upload-availability.js";
 import { ApiError } from "../errors.js";
 import { assertCanSendNsfwMessagePhoto, assertCanStartDirectMessage, canStartDirectMessage } from "../cruush-match-settings.js";
 import { getRelationshipPermissions, type RelationshipPermissions } from "../match-relationships.js";
-import { hasUserBlockBetween } from "../user-blocks.js";
 import { createGroupPulse } from "../map-pings.js";
 import { createAppNotificationAndPush } from "../notification-service.js";
 import {
@@ -1011,10 +1010,6 @@ export async function registerMessageRoutes(app: FastifyInstance) {
 
     if (payload.otherUserId === userId) {
       throw new ApiError(400, "VALIDATION_ERROR", "You cannot create a direct conversation with yourself.");
-    }
-
-    if (await hasUserBlockBetween(app, userId, payload.otherUserId)) {
-      throw new ApiError(403, "FORBIDDEN", "You cannot message this user.");
     }
 
     const existingUser = await app.db.query<ExistingUserRow>(
