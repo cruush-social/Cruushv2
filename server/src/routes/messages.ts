@@ -1104,7 +1104,10 @@ export async function registerMessageRoutes(app: FastifyInstance) {
     }
 
     return reply.code(201).send({
-      data: mapConversationRow(app, conversation, await getDirectConversationOptions(app, userId, conversation, relationship))
+      data: mapConversationRow(app, conversation, {
+        canMessage: relationship.canMessage,
+        mutual: relationship.isMutualCruush
+      })
     });
   });
 
