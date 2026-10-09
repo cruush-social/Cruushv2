@@ -1086,8 +1086,8 @@ export default function LocalFeed({ embedded = false, onClose }: { embedded?: bo
               />
               <span>Show distance on feed post</span>
             </label>
-            <div className="flex min-w-0 flex-1 items-center justify-end gap-2">
-              <div className="flex min-w-0 items-center gap-2">
+            <div className={`flex min-w-fit flex-1 items-center justify-end gap-2 ${hasCruushPlus !== true ? 'cruush-feed-composer-basic-actions' : ''}`}>
+              <div className="cruush-feed-photo-control flex min-w-0 items-center gap-2">
                 <Button
                   aria-label={hasCruushPlus === true ? 'Add Feed photo' : 'Feed photos require cruush+'}
                   className={[
@@ -1247,7 +1247,7 @@ export default function LocalFeed({ embedded = false, onClose }: { embedded?: bo
                   wrapVibes
                   content={(
                     <div className="space-y-1.5">
-                      <p className="text-[13px] sm:text-[15px]">{post.content}</p>
+                      <p className="text-[calc(var(--text-xs)+1px)] sm:text-[calc(var(--text-sm)+1px)]">{post.content}</p>
 
                       <FeedAttachmentPreview
                         dlModeActive={dlModeActive}

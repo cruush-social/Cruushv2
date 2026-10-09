@@ -1149,7 +1149,7 @@ export default function DirectMessages({
             </label>
 
             <label className="block space-y-2">
-              <span className="text-sm text-muted-foreground">Short description</span>
+              <span className="text-sm text-muted-foreground">Short description <span>Optional</span></span>
               <Textarea aria-label="Short description" maxLength={1000} value={clubSummary} onChange={(event) => setClubSummary(event.target.value)} />
             </label>
 

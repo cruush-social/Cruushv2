@@ -1,10 +1,13 @@
 import type { FastifyInstance, FastifyRequest } from "fastify";
 import { loadPhotoViewerRelationships } from "../nsfw-photo-audience.js";
 import { loadOosHiddenProfileIds } from "../profile-oos-visibility.js";
-import { loadOutOfSightStatuses, type OutOfSightStatus } from "../out-of-sight-location.js";
+import { loadOutOfSightStatuses, resolveOutOfSightLocationLabel, type OutOfSightStatus } from "../out-of-sight-location.js";
+import { loadCurrentTownLabels } from "../current-town-labels.js";
+import { assertProfileVisibleToViewer } from "./profiles.js";
 import { z } from "zod";
 import { ApiError } from "../errors.js";
 import {
+  canStartDirectMessage,
   cruushMatchSettingsPayloadSchema,
   getCruushMatchSettings,
   saveCruushMatchSettings
@@ -1427,21 +1430,72 @@ export async function registerCruushRoutes(app: FastifyInstance) {
       distanceLabelMode: await getSharedDistanceLabelMode(app, authenticatedUserId, row.other_user_id)
     })));
     const views = lockable(viewRows, isCruushPlus, basicVisibleViewRecordId);
-    const photoRelationships = await loadPhotoViewerRelationships(app, authenticatedUserId,
-      [...incoming, ...sent, ...mutual, ...views].flatMap((item) => item.user ? [item.user.id] : []));
-    // Locked activity identities are excluded from this metadata-only batch.
-    const physicalStatuses = await loadOutOfSightStatuses(app,
+    // Only identities already visible after activity privacy and locking can
+    // receive location labels or the same Message state shown on their profile.
+    const visibleUserIds = [...new Set(
       [...incoming, ...sent, ...mutual, ...views].flatMap((item) => item.user ? [item.user.id] : [])
-    ).catch(() => new Map<string, OutOfSightStatus>());
-    const withPhotoRelationship = <T extends { user: { id: string } | null }>(item: T) => ({
-      ...item,
-      user: item.user ? {
-        ...item.user,
-        photoRelationship: photoRelationships.get(item.user.id),
-        ...(physicalStatuses.get(item.user.id) === "in_area" || physicalStatuses.get(item.user.id) === "out_of_sight"
-          ? { outOfSight: physicalStatuses.get(item.user.id) === "out_of_sight" } : {})
-      } : null
-    });
+    )];
+    const [photoRelationships, physicalStatuses, distanceModeEntries, messagePermissionEntries] = await Promise.all([
+      loadPhotoViewerRelationships(app, authenticatedUserId, visibleUserIds),
+      loadOutOfSightStatuses(app, [authenticatedUserId, ...visibleUserIds])
+        .catch(() => new Map<string, OutOfSightStatus>()),
+      Promise.all(visibleUserIds.map(async (id) => [
+        id, await getSharedDistanceLabelMode(app, authenticatedUserId, id, { forTown: true })
+      ] as const)),
+      Promise.all(visibleUserIds.map(async (id) => {
+        const relationship = await getRelationshipPermissions(app, authenticatedUserId, id);
+        return [id, {
+          matchId: relationship.matchId,
+          canMessage: await canStartDirectMessage(app, authenticatedUserId, id, relationship),
+          canRevealPreciseLocation: relationship.canRevealPreciseLocation
+        }] as const;
+      }))
+    ]);
+    const distanceModes = new Map(distanceModeEntries);
+    const messagePermissions = new Map(messagePermissionEntries);
+    const townCandidates = visibleUserIds.filter((id) =>
+      physicalStatuses.get(id) === "out_of_sight" && distanceModes.get(id) === "precise"
+    );
+    // Retained activity can outlive profile visibility. Require the same current
+    // profile authorization before enriching history with a fresh physical town.
+    const authorizedTownIds = (await Promise.all(townCandidates.map(async (id) => {
+      try {
+        await assertProfileVisibleToViewer(app, authenticatedUserId, id);
+        return id;
+      } catch {
+        return null;
+      }
+    }))).filter((id): id is string => id !== null);
+    const townLabels = await loadCurrentTownLabels(app, authorizedTownIds);
+    const withActivityMetadata = <T extends {
+      user: { id: string } | null;
+      permissions?: { canMessage: boolean };
+    }>(item: T) => {
+      if (!item.user) return item;
+      const userId = item.user.id;
+      const distanceLabel = "distance" in item && item.distance === "Dark Room"
+        ? "Dark Room"
+        : resolveOutOfSightLocationLabel({
+            viewerStatus: physicalStatuses.get(authenticatedUserId) ?? "unknown",
+            subjectStatus: physicalStatuses.get(userId) ?? "unknown",
+            sharedMode: distanceModes.get(userId) ?? "approximate",
+            subjectCityLabel: townLabels.get(userId)
+          });
+      const permissions = messagePermissions.get(userId)!;
+      return {
+        ...item,
+        ...(distanceLabel ? { distanceLabel } : {}),
+        ...("canMessage" in item
+          ? { canMessage: permissions.canMessage }
+          : { permissions: { ...item.permissions, ...permissions } }),
+        user: {
+          ...item.user,
+          photoRelationship: photoRelationships.get(userId),
+          ...(physicalStatuses.get(userId) === "in_area" || physicalStatuses.get(userId) === "out_of_sight"
+            ? { outOfSight: physicalStatuses.get(userId) === "out_of_sight" } : {})
+        }
+      };
+    };
 
     return reply.send({
       data: {
@@ -1452,10 +1506,10 @@ export async function registerCruushRoutes(app: FastifyInstance) {
           mutual: mutualRows.length,
           views: viewRows.length
         },
-        incoming: incoming.map(withPhotoRelationship),
-        sent: sent.map(withPhotoRelationship),
-        mutual: mutual.map(withPhotoRelationship),
-        views: views.map(withPhotoRelationship)
+        incoming: incoming.map(withActivityMetadata),
+        sent: sent.map(withActivityMetadata),
+        mutual: mutual.map(withActivityMetadata),
+        views: views.map(withActivityMetadata)
       }
     });
   });

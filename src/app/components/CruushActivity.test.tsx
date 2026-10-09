@@ -418,6 +418,81 @@ describe('CruushActivity', () => {
     })));
   });
 
+  it('keeps authoritative Purgatory labels across all activity tabs', async () => {
+    getMyCruushActivity.mockResolvedValue({
+      ...activityFixture,
+      incoming: [{ ...activityFixture.incoming[0], distanceLabel: 'Far far away' }],
+      sent: [{ ...activityFixture.sent[0], distanceLabel: 'Among sinners' }],
+      mutual: [{ ...activityFixture.mutual[0], distanceLabel: 'Boston, MA' }],
+      views: [
+        { ...activityFixture.views[0], distanceLabel: 'Far far away' },
+        { ...activityFixture.views[1], distanceLabel: 'Hidden town' },
+      ],
+    });
+
+    render(<MemoryRouter><CruushActivity /></MemoryRouter>);
+
+    expect(await screen.findByText('Far far away')).toBeInTheDocument();
+    expect(screen.queryByText('Nearby')).not.toBeInTheDocument();
+    selectTab(/sent/i);
+    expect(await screen.findByText('Among sinners')).toBeInTheDocument();
+    selectTab(/mutual/i);
+    expect(await screen.findByText('Boston, MA')).toBeInTheDocument();
+    expect(screen.queryByText('Nearby')).not.toBeInTheDocument();
+    selectTab(/views/i);
+    expect(await screen.findByText('Far far away')).toBeInTheDocument();
+    expect(screen.queryByText('Hidden town')).not.toBeInTheDocument();
+    expect(screen.getByText('Someone new')).toBeInTheDocument();
+  });
+
+  it('never falls back to Nearby for a known Purgatory member without a coarse label', async () => {
+    getMyCruushActivity.mockResolvedValue({
+      ...activityFixture,
+      incoming: [{
+        ...activityFixture.incoming[0],
+        user: { ...activityFixture.incoming[0].user, outOfSight: true },
+      }],
+      mutual: [{
+        ...activityFixture.mutual[0],
+        user: { ...activityFixture.mutual[0].user, outOfSight: true },
+      }],
+    });
+
+    render(<MemoryRouter><CruushActivity /></MemoryRouter>);
+
+    expect(await screen.findByText('Far far away')).toBeInTheDocument();
+    selectTab(/mutual/i);
+    expect(await screen.findByText('Far far away')).toBeInTheDocument();
+    expect(screen.queryByText('Nearby')).not.toBeInTheDocument();
+    selectTab(/sent/i);
+    expect(await screen.findByText('Nearby')).toBeInTheDocument();
+  });
+
+  it.each([undefined, 'Far far away'])('preserves a mutual Dark Room label when coarse metadata is %s', async (distanceLabel) => {
+    getMyCruushActivity.mockResolvedValue({
+      ...activityFixture,
+      incoming: [{
+        ...activityFixture.incoming[0],
+        user: { ...activityFixture.mutual[0].user, outOfSight: true },
+        distanceLabel,
+      }],
+      mutual: [{
+        ...activityFixture.mutual[0],
+        user: { ...activityFixture.mutual[0].user, outOfSight: true },
+        distance: 'Dark Room',
+        distanceLabel,
+      }],
+    });
+
+    render(<MemoryRouter><CruushActivity /></MemoryRouter>);
+    expect(await screen.findByText('Dark Room')).toBeInTheDocument();
+    expect(screen.queryByText('Far far away')).not.toBeInTheDocument();
+    selectTab(/mutual/i);
+
+    expect(await screen.findByText('Dark Room')).toBeInTheDocument();
+    expect(screen.queryByText('Far far away')).not.toBeInTheDocument();
+  });
+
   it('refreshes activity when cruush state changes elsewhere', async () => {
     render(
       <MemoryRouter>

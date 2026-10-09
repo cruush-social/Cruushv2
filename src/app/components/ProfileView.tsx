@@ -807,10 +807,10 @@ export default function ProfileView() {
                   void handleMessage();
                 }}
                 disabled={openingMessage}
-                aria-label="Message"
+                aria-label="message"
               >
                 <CruushIcon name="send" className="mr-2 h-7 w-7 sm:h-4 sm:w-4" variant="white" />
-                {openingMessage ? 'Opening...' : 'Message'}
+                {openingMessage ? 'Opening...' : 'message'}
               </Button>
             </div>
             </div>

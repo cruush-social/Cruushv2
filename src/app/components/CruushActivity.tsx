@@ -26,7 +26,7 @@ import {
 } from '../lib/cruushNotifications';
 import { openConversationOrInbox } from '../lib/openConversation';
 import { shouldMaskPhoto, useDlMode } from '../lib/dlMode';
-import { formatDistanceLabel as formatUserDistanceLabel, useDistancePreferences } from '../lib/distancePreferences';
+import { formatDistanceLabel as formatUserDistanceLabel, useDistancePreferences, type DistanceDisplayMode } from '../lib/distancePreferences';
 import ProfileActionTrio from './ProfileActionTrio';
 import CruushesProfileCard from './CruushesProfileCard';
 import UserActivityCapsule from './UserActivityCapsule';
@@ -53,6 +53,18 @@ const activityActionClassName = '!gap-1 [&>button]:!size-9 [&>button]:!p-1.5 [&>
 // with no post to carry, these centre their content in that space rather than
 // pinning it to the top and leaving the rest empty.
 const activityCardClassName = 'bg-black/72 hover:bg-black/86 min-h-[7.5rem] content-center';
+
+function activityDistanceLabel(
+  item: CruushLockableActivityItem | MutualCruushActivityItem,
+  mode: DistanceDisplayMode,
+  fallback?: string,
+) {
+  if (('distance' in item && item.distance === 'Dark Room') || fallback === 'Dark Room') return 'Dark Room';
+  const distance = item.distanceLabel
+    ?? (item.user?.outOfSight ? 'Far far away' : undefined)
+    ?? ('distance' in item ? item.distance : fallback);
+  return formatUserDistanceLabel(distance, mode) ?? 'Nearby';
+}
 
 function formatRelativeTime(isoTimestamp: string) {
   const now = Date.now();
@@ -803,9 +815,10 @@ export default function CruushActivity({
   const mutualUserIds = new Set((activity?.mutual ?? []).map((item) => item.user.id));
   const mutualDistanceByUserId = new Map((activity?.mutual ?? []).map((item) => [
     item.user.id,
-    formatUserDistanceLabel(item.distance, distancePreferences.mode) ?? 'Nearby',
+    activityDistanceLabel(item, distancePreferences.mode),
   ]));
-  const distanceForUser = (userId: string) => mutualDistanceByUserId.get(userId) ?? 'Nearby';
+  const distanceForItem = (item: CruushLockableActivityItem | MutualCruushActivityItem) =>
+    activityDistanceLabel(item, distancePreferences.mode, item.user ? mutualDistanceByUserId.get(item.user.id) : undefined);
 
   const handleIncomingAction = (item: CruushLockableActivityItem) => {
     if (!item.user) return;
@@ -963,7 +976,7 @@ export default function CruushActivity({
                         <IncomingRow
                           key={item.id}
                           item={item}
-                          distance={item.user ? distanceForUser(item.user.id) : 'Nearby'}
+                          distance={distanceForItem(item)}
                           sentCruush={Boolean(item.user && sentUserIds.has(item.user.id))}
                           pendingCruush={Boolean(item.user && pendingCruushUserIds.has(item.user.id))}
                           pinActionable={Boolean(item.user && validPinUserIds.has(item.user.id))}
@@ -984,7 +997,7 @@ export default function CruushActivity({
                         <SentRow
                           key={item.id}
                           item={item}
-                          distance={item.user ? distanceForUser(item.user.id) : 'Nearby'}
+                          distance={distanceForItem(item)}
                           pendingRevoke={Boolean(item.user && pendingRevokeUserIds.has(item.user.id))}
                           pinActionable={Boolean(item.user && validPinUserIds.has(item.user.id))}
                           onOpenProfile={openProfile}
@@ -1002,7 +1015,7 @@ export default function CruushActivity({
                         <MutualRow
                           key={item.id}
                           item={item}
-                          distance={distanceForUser(item.user.id)}
+                          distance={distanceForItem(item)}
                           pendingRevoke={pendingRevokeUserIds.has(item.user.id)}
                           pinActionable={validPinUserIds.has(item.user.id)}
                           onRevoke={() => void handleRevokeMutual(item.user)}
@@ -1021,7 +1034,7 @@ export default function CruushActivity({
                         <ViewRow
                           key={item.id}
                           item={item}
-                          distance={item.user ? distanceForUser(item.user.id) : 'Nearby'}
+                          distance={distanceForItem(item)}
                           actionState={viewActionState(item)}
                           pinActionable={Boolean(item.user && validPinUserIds.has(item.user.id))}
                           onCruush={handleViewAction}
@@ -1163,7 +1176,7 @@ function MutualDirectOverlay({
               <CruushesProfileCard
                 key={item.user.id}
                 user={item.user}
-                metadata={<span className="text-xs text-white/62">{formatUserDistanceLabel(item.distance, distancePreferences.mode)}</span>}
+                metadata={<span className="text-xs text-white/62">{activityDistanceLabel(item, distancePreferences.mode)}</span>}
                 mutual
                 onOpenProfile={() => onOpenProfile(item.user.id)}
                 onSelect={() => onMessage(item.user.id)}

@@ -239,7 +239,8 @@
   box-shadow:
     0 0.55rem 1.25rem rgba(0, 0, 0, 0.55);
   text-shadow: 0 0.35rem 0.85rem rgba(0, 0, 0, 0.88);
-  white-space: nowrap;
+  white-space: normal;
+  text-wrap: balance;
 }
 
 .launch-login-auth-form {
@@ -1114,6 +1115,10 @@
   .launch-login-auth-footer-policies,
   .launch-login-auth-footer-accordion > summary {
     font-size: 1.1rem;
+  }
+
+  .launch-login-auth-beta-capsule {
+    line-height: 1.2;
   }
 }
 

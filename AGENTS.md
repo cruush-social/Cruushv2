@@ -57,6 +57,9 @@ For backend or infrastructure work, consult `docs/master-architecture.md` and
 the applicable source. Current explicit user instructions override older decisions.
 
 ## Mistakes
+- 2026-10-09: A release command continued to commit after a diagnostic scan returned nonzero; confirmed the match was an unchanged mock token, then reran the added-line scan successfully before any push.
+- 2026-10-09: Initial activity-label enrichment could override Dark Room and disclose a fresh town for a profile hidden after historical activity; preserved Dark Room and required the existing current Profile visibility check before town lookup, with regression coverage.
+- 2026-10-09: Initially blamed the Feed font mismatch on a CSS override without checking cascade layers; live measurements showed the utilities worked but used the wrong metadata baseline, so corrected only the Feed font utilities to follow the actual metadata size.
 - 2026-10-09: Used an unverified database helper interface in the ignored review launcher; corrected it to resolve the API-owned pg Pool, then completed the isolated migration and restarted only the review API.
 - 2026-10-09: Recorded a browser handoff before checking command success; corrected the queue to the actual user-takeover hard stop and waited for explicit continuation.
 - 2026-10-09: A delegated queue entry mislabeled internal implementation instructions as Julien quotations; corrected the attribution and retained the actual user requests as the scope authority.

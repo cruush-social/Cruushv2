@@ -62,6 +62,8 @@ export type CruushLockableActivityItem = {
   mutual?: boolean;
   locked: boolean;
   user: CruushActivityPerson | null;
+  distanceLabel?: string;
+  permissions?: CruushRecord['permissions'];
 };
 
 export type MutualCruushActivityItem = {

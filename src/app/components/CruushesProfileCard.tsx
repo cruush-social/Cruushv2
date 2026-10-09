@@ -56,7 +56,7 @@ export default function CruushesProfileCard({
   cornerAction,
   mutual = false,
   sharesCrowd = false,
-  wrapVibes = false,
+  wrapVibes = true,
   onOpenProfile,
   onSelect,
   selected,

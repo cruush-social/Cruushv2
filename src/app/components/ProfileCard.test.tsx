@@ -239,7 +239,7 @@ describe('ProfileCard', () => {
     expect(screen.getByTestId('carousel-profile-glass')).not.toHaveClass('bg-black/60', 'backdrop-blur-xl');
     expect(card).toContainElement(browseAgainButton);
     expect(browseAgainButton).toHaveClass('bg-black/55', 'backdrop-blur-xl');
-    const messageButton = screen.getByRole('button', { name: 'Message' });
+    const messageButton = screen.getByRole('button', { name: 'message' });
     expect(messageButton).toBeEnabled();
     expect(messageButton).toHaveStyle({ background: 'var(--cruush-gradient-soft-28)' });
     fireEvent.click(messageButton);

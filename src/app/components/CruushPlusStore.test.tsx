@@ -1107,9 +1107,9 @@ describe('Bitcoin through Cash App, PayPal, Venmo or a wallet', () => {
     expect(paymentGuideToggle).toHaveClass('text-sm');
     fireEvent.click(paymentGuideToggle);
     const paymentGuideTitle = await screen.findByRole('heading', { name: 'Cash App, PayPal or Venmo' });
-    expect(paymentGuideTitle).toHaveClass('text-base');
-    expect(paymentGuideTitle.parentElement?.querySelector('ol')).toHaveClass('text-base', 'leading-6');
-    expect(screen.getByRole('link', { name: 'Venmo Bitcoin sending instructions' })).toHaveClass('text-base');
+    expect(paymentGuideTitle).toHaveClass('text-sm');
+    expect(paymentGuideTitle.parentElement?.querySelector('ol')).toHaveClass('text-sm', 'leading-6');
+    expect(screen.getByRole('link', { name: 'Venmo Bitcoin sending instructions' })).toHaveClass('text-sm');
 
 
     await waitFor(() => expect(createCryptoPaymentIntent).toHaveBeenCalledWith({

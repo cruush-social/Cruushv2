@@ -141,12 +141,12 @@ export function CryptoPaymentMethodInstructions({ rail, sendingApp }: { rail: Cr
     <div className="space-y-3">
       {guides.map((guide) => (
         <section className="border-t border-border px-0 py-3 first:border-t-0" key={guide.title}>
-          <h3 className="text-base font-semibold">{guide.title}</h3>
-          <ol className="mt-2 list-decimal space-y-1 pl-5 text-base leading-6 text-muted-foreground">
+          <h3 className="text-sm font-semibold">{guide.title}</h3>
+          <ol className="mt-2 list-decimal space-y-1 pl-5 text-sm leading-6 text-muted-foreground">
             {guide.steps.map((step) => <li key={step}>{step}</li>)}
           </ol>
           {rail === 'btc_bitcoin' && sendingApp && sendingApp !== 'wallet' ? (
-            <a className="mt-2 inline-block text-base text-primary underline" href={BITCOIN_SENDING_HELP[sendingApp]} target="_blank" rel="noopener noreferrer">
+            <a className="mt-2 inline-block text-sm text-primary underline" href={BITCOIN_SENDING_HELP[sendingApp]} target="_blank" rel="noopener noreferrer">
               {CRYPTO_SENDING_APP_LABELS[sendingApp]} Bitcoin sending instructions
             </a>
           ) : null}

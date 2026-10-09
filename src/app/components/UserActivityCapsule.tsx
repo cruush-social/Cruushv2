@@ -106,8 +106,7 @@ export default function UserActivityCapsule({
   const vibeRow = (vibes?.length ?? 0) > 0 ? (
     /* Above the card's grid, not inside it, so the heart, name and actions
        keep the layout they already had. Each tag keeps its own width. Feed
-       opts into wrapping so every pill stays whole; other surfaces retain
-       their existing single clipped row. */
+       and the shared person card enable wrapping so every pill stays whole. */
     <div className={`flex min-w-0 items-center gap-1.5 ${wrapVibes ? 'flex-wrap overflow-visible' : 'flex-nowrap overflow-hidden'}`} data-testid="activity-vibes">
       {vibes?.slice(0, 3).map((vibe) => (
         <span

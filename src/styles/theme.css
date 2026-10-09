@@ -116,7 +116,7 @@ header :is(h1, h2)[class] {
   min-width: 0;
   overflow: hidden;
   color: #fff;
-  font-size: var(--text-2xl);
+  font-size: 1.5rem;
   font-weight: var(--font-weight-medium);
   line-height: var(--text-2xl--line-height);
   text-overflow: ellipsis;
@@ -268,6 +268,29 @@ html[data-cruush-larger-text] body {
 
 :where([class~="text-[21px]"]) {
   font-size: 1.640625rem !important;
+}
+
+@media (max-width: 360px) {
+  /* Keep both composer actions on one row when Larger text leaves no room
+     for the Basic photo explanation between them. */
+  html[data-cruush-larger-text] .cruush-feed-composer-basic-actions {
+    min-width: 0;
+    flex-basis: 100%;
+    flex-wrap: wrap;
+  }
+
+  html[data-cruush-larger-text] .cruush-feed-composer-basic-actions .cruush-feed-photo-control {
+    display: contents;
+  }
+
+  html[data-cruush-larger-text] .cruush-feed-composer-basic-actions .cruush-feed-photo-control > p {
+    order: 1;
+    flex-basis: 100%;
+  }
+
+  html[data-cruush-larger-text] .cruush-feed-composer-basic-actions > button {
+    margin-left: auto;
+  }
 }
 
 @media (max-width: 640px) {

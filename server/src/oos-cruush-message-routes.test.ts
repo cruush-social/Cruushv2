@@ -17,7 +17,7 @@ const m = vi.hoisted(() => ({
   byActor: vi.fn(), byTarget: vi.fn(), byParticipant: vi.fn(), find: vi.fn(), upsert: vi.fn(),
   entitlement: vi.fn(), privacy: vi.fn(), relationship: vi.fn(), policy: vi.fn(), distanceMode: vi.fn(),
   blockedIds: vi.fn(), assertNotBlocked: vi.fn(), hasBlock: vi.fn(),
-  locations: vi.fn(), location: vi.fn(), travelPins: vi.fn(), displayToken: vi.fn(),
+  locations: vi.fn(), location: vi.fn(), travelPins: vi.fn(), displayToken: vi.fn(), towns: vi.fn(),
   canSend: vi.fn(), assertCanSend: vi.fn(), photoRelationships: vi.fn(), sharedCrowds: vi.fn(), audience: vi.fn(),
   moderate: vi.fn(), reward: vi.fn(), notify: vi.fn(), owner: vi.fn()
 }));
@@ -48,6 +48,7 @@ vi.mock("./location-privacy.js", async (original) => ({
 vi.mock("./travel-pins.js", async (original) => ({
   ...await original<typeof import("./travel-pins.js")>(), loadTravelPins: m.travelPins
 }));
+vi.mock("./current-town-labels.js", () => ({ loadCurrentTownLabels: m.towns }));
 vi.mock("./cruush-match-settings.js", async (original) => ({
   ...await original<typeof import("./cruush-match-settings.js")>(),
   canStartDirectMessage: m.canSend, assertCanStartDirectMessage: m.assertCanSend
@@ -98,6 +99,7 @@ function profile(id: string, rules: Partial<ProfileVisibilityRules> = {}) {
   return {
     ...emptyProfile, id, display_name: id === hiddenId ? "Hidden member" : "Public member",
     photos: ["/test-photo"], updated_at: time, ghost_mode_enabled: false,
+    year_of_birth: null as number | null,
     ...encryptProfileVisibility(config, { ...emptyProfile.visibility_rules, ...rules })
   };
 }
@@ -161,6 +163,7 @@ describe("OOS cruush activity and new contacts", () => {
     m.locations.mockResolvedValue(new Map([[viewerId, location()]]));
     m.location.mockImplementation(async (_app, id) => location(id === viewerId ? outside : nyc, id));
     m.travelPins.mockResolvedValue(new Map());
+    m.towns.mockResolvedValue(new Map());
     m.displayToken.mockResolvedValue({ token: "synthetic-display-token", expiresAtMs: Date.now() + 60_000 });
     m.canSend.mockResolvedValue(true);
     m.photoRelationships.mockResolvedValue(new Map());
@@ -257,6 +260,214 @@ describe("OOS cruush activity and new contacts", () => {
     expect(response.statusCode).toBe(200);
     expect(response.json().data.counts.views).toBe(1);
     expect(response.json().data.views).toEqual([expect.objectContaining({ id: "public-profile_view", locked: true, user: null })]);
+  });
+
+  it.each([
+    { mode: "approximate", resolvedTown: "Holmdel, NJ", expected: "Far far away" },
+    { mode: "precise", resolvedTown: "Holmdel, NJ", expected: "Holmdel, NJ" },
+    { mode: "precise", resolvedTown: null, expected: "Far far away" }
+  ])("uses the shared $mode saved-OOS label on every unlocked activity list (town: $resolvedTown)", async ({ mode, resolvedTown, expected }) => {
+    seedActivity();
+    savedStates.set(publicId, savedState(publicId, true));
+    savedStates.set(hiddenId, savedState(hiddenId, true));
+    m.distanceMode.mockResolvedValue(mode);
+    m.towns.mockImplementation(async (_app, ids: string[]) => new Map(
+      ids.flatMap(id => resolvedTown ? [[id, resolvedTown]] : [])
+    ));
+
+    const response = await app.inject({ method: "GET", url: "/api/cruush/me", headers });
+    expect(response.statusCode, response.body).toBe(200);
+    const data = response.json().data;
+    expect(data.counts).toEqual({ incoming: 1, sent: 2, mutual: 1, views: 1 });
+    for (const key of ["incoming", "sent", "mutual", "views"]) {
+      for (const item of data[key]) {
+        expect(item).toMatchObject({ locked: false, distanceLabel: expected, user: { id: publicId, outOfSight: true } });
+      }
+    }
+    expect(m.distanceMode.mock.calls.map(call => call.slice(1))).toContainEqual([viewerId, publicId, { forTown: true }]);
+    const townIds = m.towns.mock.calls.flatMap(([, ids]) => ids as string[]);
+    expect(townIds).toEqual(mode === "precise" ? [publicId] : []);
+    expect(townIds).not.toContain(hiddenId);
+    expect(response.body).not.toContain(hiddenId);
+    expect(response.body).not.toContain("state_ciphertext");
+    expect(m.displayToken).not.toHaveBeenCalled();
+  });
+
+  it("keeps activity towns coarse when the town-aware shared mode restricts an otherwise precise subject", async () => {
+    seedActivity();
+    savedStates.set(publicId, savedState(publicId, true));
+    m.distanceMode.mockImplementation(async (_app, _viewer, _subject, options?: { forTown?: boolean }) =>
+      options?.forTown ? "approximate" : "precise");
+    m.towns.mockResolvedValue(new Map([[publicId, "Holmdel, NJ"]]));
+
+    const response = await app.inject({ method: "GET", url: "/api/cruush/me", headers });
+    expect(response.statusCode, response.body).toBe(200);
+    for (const key of ["incoming", "sent", "mutual", "views"]) {
+      for (const item of response.json().data[key]) expect(item.distanceLabel).toBe("Far far away");
+    }
+    expect(m.distanceMode.mock.calls.map(call => call.slice(1))).toContainEqual([viewerId, publicId, { forTown: true }]);
+    expect(m.towns.mock.calls.flatMap(([, ids]) => ids as string[])).toEqual([]);
+    expect(response.body).not.toContain("Holmdel, NJ");
+  });
+
+  it("preserves Dark Room for a saved-OOS STEALTH mutual instead of replacing it with a coarse location", async () => {
+    seedActivity();
+    savedStates.set(publicId, savedState(publicId, true));
+    m.relationship.mockResolvedValue({
+      isMutualCruush: true, canMessage: true, canRevealPreciseLocation: true,
+      targetBaseMode: "STEALTH", targetDarkRoomDistanceLabel: true
+    });
+    m.distanceMode.mockImplementation(async (_app, _viewer, _subject, options?: { forTown?: boolean }) =>
+      options?.forTown ? "approximate" : "precise");
+
+    const response = await app.inject({ method: "GET", url: "/api/cruush/me", headers });
+    expect(response.statusCode, response.body).toBe(200);
+    expect(response.json().data.mutual[0]).toMatchObject({
+      distance: "Dark Room", distanceLabel: "Dark Room", canRevealPreciseLocation: false,
+      user: { id: publicId, outOfSight: true }
+    });
+    expect(m.towns.mock.calls.flatMap(([, ids]) => ids as string[])).toEqual([]);
+    expect(m.displayToken).not.toHaveBeenCalled();
+  });
+
+  it.each([false, true])("enriches retained activity with a precise town only when current profile visibility allows the viewer (%s)", async allowed => {
+    seedActivity();
+    profiles = profiles.map(row => row.id === publicId
+      ? profile(publicId, { age_range: [25, 35] })
+      : row.id === viewerId ? { ...row, year_of_birth: new Date().getFullYear() - (allowed ? 30 : 60) } : row);
+    savedStates.set(publicId, savedState(publicId, true));
+    m.distanceMode.mockResolvedValue("precise");
+    m.towns.mockImplementation(async (_app, ids: string[]) => new Map(ids.map(id => [id, "Holmdel, NJ"])));
+
+    const response = await app.inject({ method: "GET", url: "/api/cruush/me", headers });
+    expect(response.statusCode, response.body).toBe(200);
+    const data = response.json().data;
+    expect(data.counts).toEqual({ incoming: 1, sent: 2, mutual: 1, views: 1 });
+    for (const key of ["incoming", "sent", "mutual", "views"]) {
+      for (const item of data[key]) {
+        expect(item).toMatchObject({
+          locked: false, distanceLabel: allowed ? "Holmdel, NJ" : "Far far away", user: { id: publicId }
+        });
+      }
+    }
+    expect(m.towns.mock.calls.flatMap(([, ids]) => ids as string[])).toEqual(allowed ? [publicId] : []);
+    if (!allowed) expect(response.body).not.toContain("Holmdel, NJ");
+    expect(m.assertCanSend).not.toHaveBeenCalled();
+  });
+
+  it("retains activity without a fresh town when a current distance visibility rule cannot be measured", async () => {
+    seedActivity();
+    profiles = profiles.map(row => row.id === publicId ? profile(publicId, { distance: 10 }) : row);
+    savedStates.set(publicId, savedState(publicId, true));
+    m.distanceMode.mockResolvedValue("precise");
+    m.towns.mockImplementation(async (_app, ids: string[]) => new Map(ids.map(id => [id, "Holmdel, NJ"])));
+    // The viewer has an envelope, but this target has no coordinate evidence.
+    m.locations.mockResolvedValue(new Map([[viewerId, location()]]));
+
+    const response = await app.inject({ method: "GET", url: "/api/cruush/me", headers });
+    expect(response.statusCode, response.body).toBe(200);
+    expect(response.json().data.counts).toEqual({ incoming: 1, sent: 2, mutual: 1, views: 1 });
+    for (const key of ["incoming", "sent", "mutual", "views"]) {
+      for (const item of response.json().data[key]) {
+        expect(item).toMatchObject({ distanceLabel: "Far far away", user: { id: publicId } });
+      }
+    }
+    expect(m.towns.mock.calls.flatMap(([, ids]) => ids as string[])).toEqual([]);
+    expect(response.body).not.toContain("Holmdel, NJ");
+  });
+
+  it.each(["missing", "corrupt"])("does not invent activity labels or resolve towns from %s saved subject state", async kind => {
+    seedActivity();
+    if (kind === "missing") savedStates.delete(publicId);
+    else savedStates.set(publicId, { ...savedState(publicId, true), state_auth_tag: "invalid" });
+    m.distanceMode.mockResolvedValue("precise");
+    m.towns.mockResolvedValue(new Map([[publicId, "Holmdel, NJ"]]));
+
+    const response = await app.inject({ method: "GET", url: "/api/cruush/me", headers });
+    expect(response.statusCode, response.body).toBe(200);
+    for (const key of ["incoming", "sent", "mutual", "views"]) {
+      for (const item of response.json().data[key]) {
+        expect(item).not.toHaveProperty("distanceLabel");
+        expect(item.user).not.toHaveProperty("outOfSight");
+      }
+    }
+    expect(m.towns.mock.calls.flatMap(([, ids]) => ids as string[])).toEqual([]);
+    expect(response.body).not.toContain("Holmdel, NJ");
+    expect(response.body).not.toContain("New York, NY");
+  });
+
+  it.each([
+    { mode: "approximate", expected: "Among sinners" },
+    { mode: "precise", expected: "New York, NY" }
+  ])("labels an in-area activity subject for a saved-OOS viewer using shared $mode mode", async ({ mode, expected }) => {
+    seedActivity();
+    m.distanceMode.mockResolvedValue(mode);
+    const response = await app.inject({ method: "GET", url: "/api/cruush/me", headers });
+    expect(response.statusCode, response.body).toBe(200);
+    for (const key of ["incoming", "sent", "mutual", "views"]) {
+      for (const item of response.json().data[key]) expect(item.distanceLabel).toBe(expected);
+    }
+    expect(m.distanceMode.mock.calls.map(call => call.slice(1))).toContainEqual([viewerId, publicId, { forTown: true }]);
+    expect(m.towns.mock.calls.flatMap(([, ids]) => ids as string[])).toEqual([]);
+  });
+
+  it("preserves ordinary in-area activity distance without adding a coarse override", async () => {
+    seedActivity();
+    savedStates.set(viewerId, savedState(viewerId, false));
+    const response = await app.inject({ method: "GET", url: "/api/cruush/me", headers });
+    expect(response.statusCode, response.body).toBe(200);
+    for (const key of ["incoming", "sent", "mutual", "views"]) {
+      for (const item of response.json().data[key]) expect(item).not.toHaveProperty("distanceLabel");
+    }
+    expect(response.json().data.mutual[0].distance).toBe("Nearby");
+    expect(m.towns.mock.calls.flatMap(([, ids]) => ids as string[])).toEqual([]);
+  });
+
+  it.each([false, true])("uses effective message eligibility %s on every unlocked activity item despite relationship permission", async allowed => {
+    seedActivity();
+    m.canSend.mockResolvedValue(allowed);
+    const response = await app.inject({ method: "GET", url: "/api/cruush/me", headers });
+    expect(response.statusCode, response.body).toBe(200);
+    const data = response.json().data;
+    expect(data.counts).toEqual({ incoming: 1, sent: 2, mutual: 1, views: 1 });
+    for (const key of ["incoming", "sent", "mutual", "views"]) {
+      for (const item of data[key]) {
+        expect(item.user.id).toBe(publicId);
+        if (key === "mutual") expect(item.canMessage).toBe(allowed);
+        else {
+          expect(item.permissions).toMatchObject({ canMessage: allowed, canRevealPreciseLocation: true });
+          expect(item).not.toHaveProperty("canMessage");
+        }
+      }
+    }
+    expect(m.canSend.mock.calls.map(call => call.slice(1, 3))).toEqual([[viewerId, publicId]]);
+    expect(m.assertCanSend).not.toHaveBeenCalled();
+  });
+
+  it("does not resolve town, distance mode or message eligibility for a locked-only activity identity", async () => {
+    m.entitlement.mockResolvedValue({ cruushPlus: false });
+    savedStates.set(publicId, savedState(publicId, true));
+    m.distanceMode.mockResolvedValue("precise");
+    m.canSend.mockResolvedValue(false);
+    m.towns.mockResolvedValue(new Map([[publicId, "Holmdel, NJ"]]));
+    m.byTarget.mockImplementation(async (_app, { type, status }) => type === "profile_view" && !status ? [
+      record("hidden-profile_view", type, hiddenId, viewerId),
+      record("public-profile_view", type, publicId, viewerId, "2026-10-08T12:00:00.000Z")
+    ] : []);
+
+    const response = await app.inject({ method: "GET", url: "/api/cruush/me", headers });
+    expect(response.statusCode, response.body).toBe(200);
+    const data = response.json().data;
+    expect(data.counts).toEqual({ incoming: 0, sent: 0, mutual: 0, views: 1 });
+    expect(data.views).toHaveLength(1);
+    expect(data.views[0]).toMatchObject({ id: "public-profile_view", locked: true, user: null });
+    for (const key of ["distanceLabel", "canMessage", "permissions", "coordinates", "locationPin"]) expect(data.views[0]).not.toHaveProperty(key);
+    expect(m.distanceMode).not.toHaveBeenCalled();
+    expect(m.canSend).not.toHaveBeenCalled();
+    expect(m.towns.mock.calls.flatMap(([, ids]) => ids as string[])).toEqual([]);
+    expect(response.body).not.toContain(publicId);
+    expect(response.body).not.toContain("Holmdel, NJ");
+    expect(m.displayToken).not.toHaveBeenCalled();
   });
 
   it.each(["physical", "mhc"])("shows opted-in activity for an in-area %s viewer", async (mode) => {

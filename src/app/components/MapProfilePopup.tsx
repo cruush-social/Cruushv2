@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router';
 import { formatDistanceLabel, useDistancePreferences } from '../lib/distancePreferences';
 import { X } from 'lucide-react';
 import { Button } from './ui/button';
+import { Tooltip, TooltipContent, TooltipTrigger } from './ui/tooltip';
 import BlockUserAction from './BlockUserAction';
 import ReportAction from './ReportAction';
 import CruushBadge from './CruushBadge';
@@ -149,7 +150,6 @@ export default function MapProfilePopup({
   const displayOutOfSight = profileView?.id === user.id
     ? profileView.outOfSight
     : user.outOfSight === true;
-  const displayTravelLabel = profileView?.travelLabel ?? user.travelLabel ?? '';
   const displayPronouns = profileView?.pronouns ?? user.pronouns;
   const displayPhoto = profileView?.photos[0] ?? user.photo;
   const displayPhotos = profileView?.photos ?? (user.photo ? [user.photo] : []);
@@ -337,12 +337,19 @@ export default function MapProfilePopup({
                   <span className="min-w-0 truncate">{displayName}</span>
                   {displayAge ? <span className="shrink-0 whitespace-nowrap text-white/80">, {displayAge}</span> : null}
                   {displayTravelling ? (
-                    <img
-                      alt="Mile High Club"
-                      className="ml-2 h-5 w-5 shrink-0"
-                      src={mileHighClubWhite}
-                      title={displayTravelLabel ? `Mile High Club: ${displayTravelLabel}` : 'Mile High Club'}
-                    />
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <button
+                          type="button"
+                          className="ml-2 h-5 w-5 shrink-0 touch-manipulation"
+                          aria-label="This is a Mile High Club member."
+                          onClick={() => navigate('/settings/travel')}
+                        >
+                          <img alt="Mile High Club" className="h-5 w-5" src={mileHighClubWhite} />
+                        </button>
+                      </TooltipTrigger>
+                      <TooltipContent side="top" sideOffset={6}>This is a Mile High Club member.</TooltipContent>
+                    </Tooltip>
                   ) : null}
                   {displayOutOfSight ? <PurgatoryMemberBadge key={user.id} size="map" /> : null}
                 </h3>
@@ -476,13 +483,13 @@ export default function MapProfilePopup({
                     : 'var(--cruush-gradient)',
               } as CSSProperties}
               disabled={isDemo || openingMessage}
-              aria-label={isDemo ? 'Demo message unavailable' : openingMessage ? 'Opening conversation' : 'Message now'}
+              aria-label={isDemo ? 'Demo message unavailable' : openingMessage ? 'Opening conversation' : 'message'}
               onClick={() => {
                 void handleMessage();
               }}
             >
               <CruushIconImage src={sendIconWhite} className="mr-2 h-4 w-4" />
-              {isDemo ? 'Demo only' : openingMessage ? 'Opening...' : 'Message now'}
+              {isDemo ? 'Demo only' : openingMessage ? 'Opening...' : 'message'}
             </Button>
           </div>
           </div>

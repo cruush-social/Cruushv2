@@ -773,6 +773,7 @@ These are not preferences. Breaking one is a bug.
   actions sit below the header on compact layouts so they never hide or overlap the title.
 
 ### Page headers
+- October 9, 2026: “The titles on this mobile release are too big.” Mobile app-header titles use the earlier 1.5rem size (24px normally, 30px with Larger text); desktop titles, body/metadata text, controls, and header geometry remain unchanged.
 - A page header is **one line**: back control, title, and icon controls all sit
   on the same row, at every width, in a full page or in a dock panel. Sizes may
   shrink; the row never wraps and the title never moves to its own line.
