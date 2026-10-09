@@ -4261,6 +4261,38 @@ describe("server", () => {
     expect(response.json().data[0].lastMessage).toBe("legacy preview");
   });
 
+  it("keeps the block boundary on the open-only DM route", async () => {
+    query.mockImplementation(async (sql: unknown) => ({
+      rows: String(sql).includes("from user_blocks") ? [{ exists: true }] : []
+    }));
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/conversations/dm",
+      headers: { "x-user-id": userId },
+      payload: { otherUserId: "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97" }
+    });
+    expect(response.statusCode).toBe(403);
+    expect(query.mock.calls.some(([sql]) => String(sql).includes("insert into conversations"))).toBe(false);
+  });
+
+  it("opens a nonblocked DM without requiring send permission", async () => {
+    query.mockImplementation(async (sql: unknown) => {
+      const text = String(sql);
+      if (text.includes("from app_users")) return { rows: [{ id: "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97" }] };
+      if (text.includes("insert into conversations")) return { rows: [{ id: conversationId }] };
+      return { rows: [] };
+    });
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/conversations/dm",
+      headers: { "x-user-id": userId },
+      payload: { otherUserId: "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97" }
+    });
+    expect(response.statusCode).toBe(201);
+    expect(response.json().data.id).toBe(conversationId);
+    expect(query.mock.calls.some(([sql]) => String(sql).includes("insert into conversation_members"))).toBe(true);
+  });
+
   it("opens or creates a dm conversation on POST /api/conversations/dm", async () => {
     const matchRecord = await encryptedRelationshipRecordRow({
       id: "match-1",

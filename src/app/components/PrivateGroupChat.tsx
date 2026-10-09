@@ -18,6 +18,7 @@ import LoadingCardSkeletons from './LoadingCardSkeletons';
 import HeartPhoto from './HeartPhoto';
 import { Textarea } from './ui/textarea';
 import { getCurrentUserId } from '../lib/sessionUser';
+import { addCruushChangedListener } from '../lib/cruushEvents';
 import {
   addGroupMember,
   clearConversationForEveryone,
@@ -480,6 +481,26 @@ export default function PrivateGroupChat({
       active = false;
     };
   }, [chatId]);
+
+  useEffect(() => {
+    if (conversation?.kind !== 'dm') return;
+    let active = true;
+    const unsubscribe = addCruushChangedListener(({ targetUserId, revoked }) => {
+      if (targetUserId !== conversation.user.id) return;
+      if (revoked) setMutualRequiredConversationId(conversation.id);
+      void getConversationMessages(conversation.id).then((data) => {
+        if (!active) return;
+        setConversation(data.conversation);
+        setMutualRequiredConversationId(data.conversation.canMessage === false ? data.conversation.id : null);
+      }).catch(() => {
+        // Keep sending disabled after revocation until permissions can be refreshed.
+      });
+    });
+    return () => {
+      active = false;
+      unsubscribe();
+    };
+  }, [conversation?.id, conversation?.kind, conversation?.user.id]);
 
   useEffect(() => {
     if (conversation?.kind === 'group') {
@@ -2073,7 +2094,7 @@ export default function PrivateGroupChat({
                     onFocus={() => setComposerFocused(true)}
                     onBlur={() => setComposerFocused(false)}
                     disabled={messageSendDisabled}
-                    placeholder={composerDisabled ? 'Group closed' : conversation.kind === 'group' ? 'Drop the plan...' : 'Say what you want...'}
+                    placeholder={dmMessagingBlocked ? 'cruushes only' : conversation.closed ? 'Group closed' : conversation.kind === 'group' ? 'Drop the plan...' : 'Say what you want...'}
                     className="min-h-[60px] min-w-0 flex-1 border-0 bg-transparent px-0 py-1 focus-visible:ring-0"
                   />
                   <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">

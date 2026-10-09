@@ -4,6 +4,8 @@ The notched cruush logo is rejected for every app use, including installed home-
 
 # cruush design decisions
 
+- October 8 DM permissions: Julien: "and if i uncruush someone who has their messages set to cruushes only, i shouldnt be able to send them a dm - the dms themselves can open but the input where id type my messages says \"cruushes only\"". Opening a nonblocked DM does not grant send permission. After mutuality is revoked, enforce the recipient's message audience on the server and disable the composer with the placeholder `cruushes only`. Preserve block boundaries and unrelated presentation.
+
 - October 7 cruush+ entry point: “cruush+ ahould load on check out.” The main cruush+ button opens the cruush+ Checkout page, not Rewards. Rewards remains available through the shared Checkout/Rewards tabs. Pricing, plans, payment state, and Pulse checkout remain unchanged.
 
 - October 7 Spot body typography: “Increase text size for this”, “Bigger”, and “Im talking about body not hesding.” In the shown Pink Book body, explanatory/input/source text uses the 18px type step, while form labels, option chips, expiration text, and visibility controls use the 16px type step. The Bar page header and body headings remain unchanged, as do surrounding presentation and check-in behavior.

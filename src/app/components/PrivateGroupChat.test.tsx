@@ -2113,11 +2113,14 @@ describe('PrivateGroupChat', () => {
     expect(await screen.findByAltText('View-once photo')).toHaveAttribute('src', 'blob:view-once-photo');
   });
 
-  it('disables the composer when a group is closed', async () => {
+  it.each([
+    { kind: 'group' as const, closed: true, canMessage: true, placeholder: 'Group closed' },
+    { kind: 'dm' as const, closed: false, canMessage: false, placeholder: 'cruushes only' },
+  ])('disables the composer for $placeholder while keeping the thread open', async ({ kind, closed, canMessage, placeholder }) => {
     getConversationMessages.mockResolvedValue({
       conversation: {
         id: '7fba9ce1-b9ca-44f3-a4b1-03ad861a24d2',
-        kind: 'group',
+        kind,
         user: {
           id: 'group-1',
           name: 'Beta crew',
@@ -2133,7 +2136,8 @@ describe('PrivateGroupChat', () => {
         membersLabel: '3 people',
         currentUserRole: 'owner',
         disappearingTimer: 'off',
-        closed: true,
+        closed,
+        canMessage,
       },
       messages: [],
     });
@@ -2146,8 +2150,8 @@ describe('PrivateGroupChat', () => {
       </MemoryRouter>,
     );
 
-    expect(await screen.findByText('This group is closed.')).toBeInTheDocument();
-    expect(screen.getByPlaceholderText('Group closed')).toBeDisabled();
+    expect(await screen.findByPlaceholderText(placeholder)).toBeDisabled();
+    if (closed) expect(screen.getByText('This group is closed.')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Send message' })).toBeDisabled();
     expect(screen.getByLabelText('Choose message photo')).toBeDisabled();
     expect(screen.getByRole('button', { name: 'Attach photo' })).toBeDisabled();
