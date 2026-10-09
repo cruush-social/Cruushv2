@@ -2,7 +2,7 @@
 -- discard a later subscription survey response. Preserve every existing row.
 drop index if exists support_requests_active_survey_requester_uidx;
 
-create unique index support_requests_active_survey_requester_subject_uidx
+create unique index if not exists support_requests_active_survey_requester_subject_uidx
   on support_requests (requester_user_id, subject)
   where source = 'survey'
     and requester_user_id is not null
