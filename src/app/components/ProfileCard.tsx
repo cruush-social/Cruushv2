@@ -222,10 +222,6 @@ export default function ProfileCard({
       return;
     }
 
-    if (!canMessage) {
-      return;
-    }
-
     setOpeningMessage(true);
     try {
       await openConversationOrInbox(navigate, user.id);
@@ -444,14 +440,14 @@ export default function ProfileCard({
                 type="button"
                 className={`cruush-action-sheen flex-1 rounded-xl border border-[#6F00FF] disabled:opacity-100 ${canMessage ? 'text-white' : 'text-white/55'}`}
                 style={{ background: canMessage ? 'var(--cruush-gradient)' : '#151021' }}
-                disabled={openingMessage || !canMessage}
+                disabled={openingMessage}
                 onClick={() => {
                   void handleMessage();
                 }}
-                aria-label={canMessage ? 'Message' : 'cruushes only'}
+                aria-label="Message"
               >
                 <CruushIcon name="send" className="mr-2 h-4 w-4" variant="white" />
-                {!canMessage ? 'cruushes only' : openingMessage ? 'Opening...' : 'Message'}
+                {openingMessage ? 'Opening...' : 'Message'}
               </Button>
             </div>
             <Button
@@ -599,13 +595,13 @@ export default function ProfileCard({
           </Button>
           <Button
             className={`${actionButtonClassName} rounded-xl border border-[#6F00FF]/55 bg-[var(--cruush-gradient-soft-18)] text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] hover:bg-[var(--cruush-gradient-soft-28)]`}
-            disabled={openingMessage || !canMessage}
+            disabled={openingMessage}
             onClick={() => {
               void handleMessage();
             }}
           >
             <CruushIcon name="send" className="mr-2 h-4 w-4" variant="white" />
-            {!canMessage ? 'cruushes only' : openingMessage ? 'Opening...' : 'Message'}
+            {openingMessage ? 'Opening...' : 'Message'}
           </Button>
         </div>
 

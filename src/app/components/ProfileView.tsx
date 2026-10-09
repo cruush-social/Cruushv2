@@ -23,7 +23,6 @@ import {
   handleMutualCruushRevokeSuccess,
   handleSentCruushRevokeSuccess,
   notifyCruushSendError,
-  notifyMutualCruushRequired,
   notifyMutualCruushRevokeError,
   notifySentCruushRevokeError,
 } from '../lib/cruushNotifications';
@@ -550,11 +549,6 @@ export default function ProfileView() {
       return;
     }
 
-    if (!isAlreadyMutual && profileView?.relationship && !profileView.relationship.can_message) {
-      notifyMutualCruushRequired();
-      return;
-    }
-
     setOpeningMessage(true);
     try {
       await openConversationOrInbox(navigate, userId, undefined, 'profile');
@@ -782,11 +776,11 @@ export default function ProfileView() {
                 onClick={() => {
                   void handleMessage();
                 }}
-                disabled={openingMessage || !canMessage}
-                aria-label={canMessage ? 'Message' : 'cruushes only'}
+                disabled={openingMessage}
+                aria-label="Message"
               >
                 <CruushIcon name="send" className="mr-2 h-4 w-4" variant="white" />
-                {!canMessage ? 'cruushes only' : openingMessage ? 'Opening...' : 'Message'}
+                {openingMessage ? 'Opening...' : 'Message'}
               </Button>
             </div>
             </div>

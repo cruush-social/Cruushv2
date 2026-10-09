@@ -227,7 +227,7 @@ export default function MapProfilePopup({
   };
 
   const handleMessage = async () => {
-    if (isDemo || canMessage === false || openingMessage) {
+    if (isDemo || openingMessage) {
       return;
     }
 
@@ -450,14 +450,14 @@ export default function MapProfilePopup({
               style={{
                 background: isDemo ? 'rgba(255,255,255,0.16)' : 'var(--cruush-gradient)',
               }}
-              disabled={isDemo || canMessage === false || openingMessage}
+              disabled={isDemo || openingMessage}
               aria-label={isDemo ? 'Demo message unavailable' : openingMessage ? 'Opening conversation' : 'Message now'}
               onClick={() => {
                 void handleMessage();
               }}
             >
               <CruushIconImage src={sendIconWhite} className="mr-2 h-4 w-4" />
-              {isDemo ? 'Demo only' : canMessage === false ? 'cruushes only' : openingMessage ? 'Opening...' : 'Message now'}
+              {isDemo ? 'Demo only' : openingMessage ? 'Opening...' : 'Message now'}
             </Button>
           </div>
           </div>
