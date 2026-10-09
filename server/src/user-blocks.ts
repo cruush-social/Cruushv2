@@ -35,8 +35,8 @@ export async function hasUserBlockBetween(app: FastifyInstance, userAId: string,
     const result = await app.db.query<BlockLookupRow>(
       `select true as exists
        from user_blocks
-       where (blocker_user_id = $1 and blocked_user_id = $2)
-          or (blocker_user_id = $2 and blocked_user_id = $1)
+       where (blocker_user_id::text = $1::text and blocked_user_id::text = $2::text)
+          or (blocker_user_id::text = $2::text and blocked_user_id::text = $1::text)
        limit 1`,
       [userAId, userBId]
     );
