@@ -1,43 +1,80 @@
-import type { FastifyInstance } from "fastify";
-import { z } from "zod";
-import { authEmailSchema } from "../auth-schema.js";
-import { checkBetaAccess } from "../beta-access.js";
-import { saveBetaCityRequest } from "../beta-city-requests.js";
-import { singleLineTextSchema } from "../input-schema.js";
+import type { AppConfig } from "./config.js";
+import { ApiError } from "./errors.js";
+import { distanceMiles, NYC_SERVICE_AREA } from "./service-area.js";
 
-const betaAccessLocationSchema = z.object({
-  lat: z.number().min(-90).max(90),
-  lng: z.number().min(-180).max(180),
-  accuracyMeters: z.number().nonnegative().max(100_000).optional()
-}).strict();
+export { distanceMiles } from "./service-area.js";
 
-const betaCityRequestPayloadSchema = z.object({
-  email: authEmailSchema,
-  requestedCity: singleLineTextSchema({ min: 2, max: 120 })
-}).strict();
+const BETA_LAUNCH_CENTER = NYC_SERVICE_AREA.center;
+const BETA_LAUNCH_RADIUS_MILES = NYC_SERVICE_AREA.radiusMiles;
 
-export async function registerBetaAccessRoutes(app: FastifyInstance) {
-  app.post("/api/beta/access/check", async (request) => {
-    const payload = betaAccessLocationSchema.parse(request.body);
-    const result = checkBetaAccess(app.config, payload);
+export type BetaAccessLocation = {
+  lat: number;
+  lng: number;
+  accuracyMeters?: number | null;
+};
 
+export function isWithinBetaLaunchArea(location: { lat: number; lng: number }) {
+  return distanceMiles(location, BETA_LAUNCH_CENTER) <= BETA_LAUNCH_RADIUS_MILES;
+}
+
+export function getBetaAccessConfig(config: AppConfig) {
+  return {
+    enabled: Boolean(config.BETA_ACCESS_GEOFENCE_ENABLED),
+    center: BETA_LAUNCH_CENTER,
+    radiusMiles: BETA_LAUNCH_RADIUS_MILES
+  };
+}
+
+export function checkBetaAccess(config: AppConfig, location: BetaAccessLocation | null | undefined) {
+  const access = getBetaAccessConfig(config);
+
+  if (!access.enabled) {
     return {
-      data: {
-        enabled: result.enabled,
-        allowed: result.allowed
-      }
+      ...access,
+      allowed: true,
+      distanceMiles: null
     };
-  });
+  }
 
-  app.post("/api/beta/city-requests", async (request, reply) => {
-    const payload = betaCityRequestPayloadSchema.parse(request.body);
-    const saved = await saveBetaCityRequest(app, payload);
+  if (!location) {
+    return {
+      ...access,
+      allowed: false,
+      distanceMiles: null
+    };
+  }
 
-    return reply.code(202).send({
-      data: {
-        accepted: true,
-        requestId: saved?.id ?? null
-      }
-    });
-  });
+  const distance = distanceMiles(location, access.center);
+
+  return {
+    ...access,
+    allowed: distance <= access.radiusMiles,
+    distanceMiles: distance
+  };
+}
+
+export function assertBetaAccessAllowed(config: AppConfig, location: BetaAccessLocation | null | undefined) {
+  const result = checkBetaAccess(config, location);
+
+  if (!result.enabled) {
+    return result;
+  }
+
+  if (!location) {
+    throw new ApiError(
+      403,
+      "BETA_ACCESS_LOCATION_REQUIRED",
+      "NYC open beta. Share location to continue."
+    );
+  }
+
+  if (!result.allowed) {
+    throw new ApiError(
+      403,
+      "BETA_ACCESS_OUTSIDE_RADIUS",
+      "NYC open beta."
+    );
+  }
+
+  return result;
 }
