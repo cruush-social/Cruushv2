@@ -1078,8 +1078,14 @@ export async function registerMessageRoutes(app: FastifyInstance) {
 
     await app.db.query(
       `insert into conversation_members (conversation_id, user_id, last_read_at)
-       values ($1, $2, now()), ($1, $3, null)
-       on conflict (conversation_id, user_id) do nothing`,
+       select requested.conversation_id, requested.user_id, requested.last_read_at
+       from (values ($1, $2, now()), ($1, $3, null)) as requested(conversation_id, user_id, last_read_at)
+       where not exists (
+         select 1
+         from conversation_members existing
+         where existing.conversation_id = requested.conversation_id
+           and existing.user_id = requested.user_id
+       )`,
       [conversationId, userId, payload.otherUserId]
     );
 
