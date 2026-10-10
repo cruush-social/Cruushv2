@@ -8,7 +8,7 @@ const indexSource = readFileSync('index.html', 'utf8');
 const nginxConfig = readFileSync('nginx.conf', 'utf8');
 
 /**
- * Release delivery marker: v178. The release id is written in five places and a deploy is only delivered if
+ * Release delivery marker: v179. The release id is written in five places and a deploy is only delivered if
  * all five agree. This used to be pinned as a literal, so every bump left the
  * test failing until someone remembered to edit it here too, which meant it
  * spent most of its life red and guarding nothing. Read the id from the worker
