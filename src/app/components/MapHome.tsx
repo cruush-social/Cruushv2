@@ -2917,13 +2917,13 @@ export default function MapHome(_props: MapHomeProps = {}) {
       className={`cruush-map-shell ${isFiltersOpen || isVisibilityOpen ? 'cruush-map-surface-open' : ''} ${isMobile ? `fixed${mobileVisualViewportBounds ? '' : ' inset-0'}` : 'relative isolate'} overflow-hidden overscroll-none bg-background select-none`}
       data-testid="map-home-shell"
       style={mobileVisualViewportBounds ? {
-        height: `${mobileVisualViewportBounds.height}px`,
+        height: `calc(${mobileVisualViewportBounds.height}px - var(--cruush-sale-banner-height, 0px))`,
         left: `${mobileVisualViewportBounds.left}px`,
-        maxHeight: `${mobileVisualViewportBounds.height}px`,
-        minHeight: `${mobileVisualViewportBounds.height}px`,
-        top: `${mobileVisualViewportBounds.top}px`,
+        maxHeight: `calc(${mobileVisualViewportBounds.height}px - var(--cruush-sale-banner-height, 0px))`,
+        minHeight: `calc(${mobileVisualViewportBounds.height}px - var(--cruush-sale-banner-height, 0px))`,
+        top: `calc(${mobileVisualViewportBounds.top}px + var(--cruush-sale-banner-height, 0px))`,
         width: `${mobileVisualViewportBounds.width}px`,
-      } : undefined}
+      } : isMobile ? { top: 'var(--cruush-sale-banner-height, 0px)' } : undefined}
     >
       <div
         className="pointer-events-none absolute inset-x-0 top-0 z-[1000] px-2 pb-10 pt-2 max-[360px]:px-1 sm:px-3 sm:pt-3"

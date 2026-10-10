@@ -4,7 +4,7 @@ The gates are open.
 
 cruush v2 is here, and the biggest change is Purgatory: being outside the service area no longer means being shut out of the rest of cruush.
 
-Purgatory members can now use the Feed, Clubs, Messages, and Profiles globally. You can post, message, connect, and keep moving through the parts of the app that do not require a live position on the map. Your existing chats and history stay with you.
+Purgatory members can now use the Confessional, Covens, Messages, and Profiles globally. You can post, message, connect, and keep moving through the parts of the app that do not require a live position on the map. Your existing chats and history stay with you.
 
 The Map is the exception. For now, it is taking a personal day.
 
@@ -12,7 +12,7 @@ The Map is the exception. For now, it is taking a personal day.
 
 Purgatory is cruush's outside-the-service-area state. It is not a ban, a breakup, or an exorcism. It is a different way to use the app when your current location is outside the service area.
 
-Your bottom navigation keeps its size and feel, with Map omitted. The rest of the experience remains available: global posting, messaging, profiles, Clubs, and the wider cruush community.
+Your bottom navigation keeps its size and feel, with Map omitted. The rest of the experience remains available: global posting, messaging, profiles, Covens, and the wider cruush community.
 
 Purgatory members cannot access profile location pins, and they can never access anyone's precise location. Ghost Mode is unavailable in Purgatory and points toward Mile High Club, or MHC. Members who use MHC to access the service area can use location controls under the normal privacy rules.
 
@@ -24,7 +24,7 @@ The Sinner's Map is the lore of cruush made visible.
 
 cruush is a technopagan occult artifact powered by sex magic. Signing the Code of Conduct is not just checking a box. In the old language, it signs your soul onto the Sinner's Map.
 
-That oath opens the threshold to the Feed, Clubs, Crowds, Cruise Carousel, and everything else waiting inside cruush. It also comes with responsibilities: be honest, respect boundaries, and keep private things private.
+That oath opens the threshold to the Confessional, Covens, Crowds, Carousel, and everything else waiting inside cruush. It also comes with responsibilities: be honest, respect boundaries, and keep private things private.
 
 Do not spoof your location. Location spoofing is now a reportable violation, and accounts caught spoofing their location will be banned. The Sinner's Map has many mysteries. Fake GPS coordinates are not one of them.
 
@@ -32,7 +32,7 @@ Do not spoof your location. Location spoofing is now a reportable violation, and
 
 Purgatory is the headline change, but v2 is a global opening of the app around the Map.
 
-The Feed is open beyond the service area. Clubs are open. Messages and Profiles remain part of the experience. You can keep finding people, sharing things, and staying connected even when the Map is not available to you.
+The Confessional is open beyond the service area. Covens are open. Messages and Profiles remain part of the experience. You can keep finding people, sharing things, and staying connected even when the Map is not available to you.
 
 While you are there, tell us how cruush feels. Complete the v2 survey and we will give you one free day of cruush+. Finish the survey to reveal your one-use reward.
 

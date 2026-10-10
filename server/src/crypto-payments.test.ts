@@ -5,7 +5,7 @@ vi.mock("./crypto-collection-fee.js", () => ({
     ethUsd: "2000.00", sampledAt: "2026-09-08T12:00:00.000Z"
   })
 }));
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import * as bitcoin from "./bitcoin.js";
 import {
   assertCryptoPaymentStatusTransition,
@@ -25,6 +25,9 @@ import {
 import { deriveCryptoReceivingAddress, fingerprintCryptoWalletXpub } from "./crypto-wallet.js";
 import type { AppConfig } from "./config.js";
 import type { DbClient } from "./db.js";
+
+beforeEach(() => { vi.spyOn(Date, "now").mockReturnValue(Date.parse("2026-10-10T12:00:00Z")); });
+afterEach(() => vi.restoreAllMocks());
 
 const receiveChainXpub = "xpub6FHa3pjLCk84BayeJxFW2SP4XRrFd1JYnxeLeU8EqN3vDfZmbqBqaGJAyiLjTAwm6ZLRQUMv1ZACTj37sR62cfN7fe5JnJ7dh8zL4fiyLHV";
 const walletFingerprint = fingerprintCryptoWalletXpub(receiveChainXpub);
@@ -450,7 +453,7 @@ describe("crypto payment core", () => {
     const reserved = paymentRow({
       plan_id: "ping_10",
       product_type: "ping_pack",
-      amount_usd_cents: 2499,
+      amount_usd_cents: 1250,
       derivation_index: 2,
       idempotency_key: "ping-pack-10"
     });
@@ -458,7 +461,7 @@ describe("crypto payment core", () => {
       reserved,
       paymentRow({
         ...reserved,
-        quoted_amount_atomic: "25000000",
+        quoted_amount_atomic: "12510000",
         payment_address: address,
         watch_start_block: "123456",
         status: "awaiting_payment"
@@ -469,15 +472,15 @@ describe("crypto payment core", () => {
       userId: reserved.user_id,
       planId: "ping_10",
       productType: "ping_pack",
-      amountUsdCents: 2499,
+      amountUsdCents: 1250,
       idempotencyKey: "ping-pack-10",
       metadata: { source: "ping_pack_store", pingCount: 10 },
       watchStartBlock: 123456n
     })).resolves.toMatchObject({
       planId: "ping_10",
       productType: "ping_pack",
-      amountUsdCents: 2499,
-      quotedAmountAtomic: "25000000",
+      amountUsdCents: 1250,
+      quotedAmountAtomic: "12510000",
       paymentAddress: address
     });
 
@@ -487,7 +490,7 @@ describe("crypto payment core", () => {
     expect((reservation as unknown as [string, unknown[]] | undefined)?.[1]).toEqual(expect.arrayContaining([
       "ping_10",
       "ping_pack",
-      2499,
+      1250,
       "ping-pack-10"
     ]));
     expect(query.mock.calls.some(([sql]) => String(sql).includes("reservation_count"))).toBe(false);

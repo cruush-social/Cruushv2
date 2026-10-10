@@ -7,7 +7,7 @@ export type CruushBadge = 'founder' | 'lifetime_founder';
 export type CruushPlusSale = {
   id: 'cruush-plus-50';
   percentOff: 50;
-  endsAt: null;
+  endsAt: string | null;
   couponStacking: false;
 };
 

@@ -3,13 +3,33 @@ import { useLocation } from 'react-router';
 import { useCanChoosePopupLayout, getDesktopPageLayout, addDesktopPageLayoutChangedListener } from '../lib/desktopPageLayoutPreferences';
 
 /** One window-sized app frame; page content scrolls inside it. */
-export default function AppViewport({ children }: { children: ReactNode }) {
+export default function AppViewport({ children, topBanner }: { children: ReactNode; topBanner?: ReactNode }) {
   const canChooseLayout = useCanChoosePopupLayout();
   const [layout, setLayout] = useState(getDesktopPageLayout);
   useEffect(() => addDesktopPageLayoutChangedListener(setLayout), []);
   const fullscreen = !canChooseLayout || layout === 'fullscreen';
   const location = useLocation();
   const content = useRef<HTMLDivElement>(null);
+  const banner = useRef<HTMLDivElement>(null);
+
+  useLayoutEffect(() => {
+    const node = banner.current;
+    if (!node) return;
+    const measure = () => {
+      const height = `${node.getBoundingClientRect().height}px`;
+      if (document.documentElement.style.getPropertyValue('--cruush-sale-banner-height') !== height) {
+        document.documentElement.style.setProperty('--cruush-sale-banner-height', height);
+        window.dispatchEvent(new Event('cruush:sale-banner-height-changed'));
+      }
+    };
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(node);
+    return () => {
+      observer.disconnect();
+      document.documentElement.style.removeProperty('--cruush-sale-banner-height');
+    };
+  }, []);
 
   useLayoutEffect(() => {
     document.documentElement.dataset.cruushPageFraming = fullscreen ? 'fullscreen' : 'desktop';
@@ -49,7 +69,8 @@ export default function AppViewport({ children }: { children: ReactNode }) {
   return (
     // A pinch belongs to the map when it starts on the map; elsewhere the page itself never zooms.
     <div data-testid="app-viewport" className="fixed inset-0 overflow-hidden bg-background text-foreground" style={{ touchAction: 'pan-x pan-y' }}>
-      <div ref={content} data-testid="app-page-content" className={`scrollbar-hide absolute inset-0 overflow-y-auto overscroll-contain${onMap ? '' : ' cruush-app-page-content'}`} style={{ bottom: onMap ? 0 : 'var(--cruush-nav-clearance, 6rem)' }}>
+      <div ref={banner} className="absolute inset-x-0 top-0 z-30">{topBanner}</div>
+      <div ref={content} data-testid="app-page-content" className={`scrollbar-hide absolute inset-0 overflow-y-auto overscroll-contain${onMap ? '' : ' cruush-app-page-content'}`} style={{ top: 'var(--cruush-sale-banner-height, 0px)', bottom: onMap ? 0 : 'var(--cruush-nav-clearance, 6rem)' }}>
         {children}
       </div>
     </div>

@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { HDKey } from "@scure/bip32";
 import { listBitcoinSendingEligibility } from "./crypto-payments.js";
 import { BITCOIN_GENESIS_HASH } from "./bitcoin.js";
@@ -41,9 +41,11 @@ function chainStub(btcUsd: number) {
 }
 
 describe("Bitcoin sending eligibility", () => {
+  beforeEach(() => { vi.spyOn(Date, "now").mockReturnValue(Date.parse("2026-10-10T12:00:00Z")); });
+  afterEach(() => vi.restoreAllMocks());
   it("keeps the repriced smallest Pulse pack above Cash App's on-chain minimum", async () => {
-    // The new $9.99 entry pack clears Cash App's 5,000-satoshi minimum even at
-    // a high BTC spot price.
+    // The $5.00 sale entry pack still clears Cash App's 5,000-satoshi minimum
+    // at an $80,000 BTC price.
     const expensive = await listBitcoinSendingEligibility(config(), chainStub(80_000));
     expect(expensive.products.ping_3).toEqual(["Cash App"]);
     expect(expensive.products.ping_10).toEqual(["Cash App"]);
@@ -51,6 +53,9 @@ describe("Bitcoin sending eligibility", () => {
 
     const cheap = await listBitcoinSendingEligibility(config(), chainStub(30_000));
     expect(cheap.products.ping_3).toEqual(["Cash App"]);
+    const aboveSaleMinimum = await listBitcoinSendingEligibility(config(), chainStub(150_000));
+    expect(aboveSaleMinimum.products.ping_3).not.toContain("Cash App");
+    expect(aboveSaleMinimum.products.ping_10).toContain("Cash App");
   });
 
   it("clears the PayPal and Venmo minimum only once an order reaches 0.001 BTC", async () => {

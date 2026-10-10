@@ -446,7 +446,7 @@ describe('CruushPlusStore', () => {
     expect(sectionHeading.querySelector('.cruush-logo-font')).toHaveTextContent('cruush+');
     expect(await screen.findByText('$18.99/month')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Show cruush+ benefits' }));
-    expect(await screen.findByText('Who has a cruush on you')).toBeInTheDocument();
+    expect(await screen.findByText('Full activity')).toBeInTheDocument();
     expect(screen.getByText('See your full incoming cruush and profile-view lists.')).toBeInTheDocument();
     expect(screen.getByText('More Pulses')).toBeInTheDocument();
     expect(screen.getByText('Send up to 5 Pulses per day.')).toBeInTheDocument();
@@ -1412,5 +1412,88 @@ describe('Bitcoin through Cash App, PayPal, Venmo or a wallet', () => {
     fireEvent.click(buttons[1]);
     expect(buttons[1]).toHaveAttribute('aria-pressed', 'true');
     expect(buttons[0]).toHaveAttribute('aria-pressed', 'false');
+  });
+});
+
+
+describe('sale expiry keeps catalogue and issued-order prices separate', () => {
+  it.each([
+    { product: 'cruush_plus' as const, hasOrder: false, lateInitial: false },
+    { product: 'ping_pack' as const, hasOrder: false, lateInitial: false },
+    { product: 'cruush_plus' as const, hasOrder: true, lateInitial: false },
+    { product: 'ping_pack' as const, hasOrder: true, lateInitial: false },
+    { product: 'cruush_plus' as const, hasOrder: false, lateInitial: true },
+    { product: 'ping_pack' as const, hasOrder: false, lateInitial: true },
+  ])('$product restores catalogue pricing at expiry while preserving an issued order ($hasOrder, late sample: $lateInitial)', async ({ product, hasOrder, lateInitial }) => {
+    const deadline = Date.parse('2026-10-12T03:59:00Z');
+    const isPulse = product === 'ping_pack';
+    const amountUsdCents = isPulse ? 500 : 950;
+    const originalAmountUsdCents = isPulse ? 999 : 1899;
+    const discountedText = isPulse ? '$5.00' : '$9.50/month';
+    const listText = isPulse ? '$9.99' : '$18.99/month';
+    const sale = { id: 'cruush-plus-50', percentOff: 50, endsAt: '2026-10-12T03:59:00Z', couponStacking: false } as const;
+    vi.useFakeTimers({ toFake: ['Date', 'setTimeout', 'clearTimeout'] });
+    vi.setSystemTime(deadline - 1000);
+    let view: ReturnType<typeof render> | undefined;
+    try {
+      window.localStorage.clear();
+      vi.mocked(getCryptoProcessorStatus).mockResolvedValue(bitcoinOnlyProcessorStatus());
+      vi.mocked(getBillingPlans).mockResolvedValue({
+        processor: 'fake', testCheckout: true, testWarning: '', currency: 'USD', sale,
+        plans: [{ ...plans[0]!, amountCents: 950, originalAmountCents: 1899, sale }],
+      });
+      vi.mocked(getPulsePacks).mockResolvedValue({ sale, packs: [{
+        id: 'ping_3', name: '3 Pulses', description: '3 permanent Pulse credits', pingCount: 3,
+        amountCents: 500, originalAmountCents: 999, currency: 'USD', sale,
+      }] });
+      const productId = isPulse ? 'ping_3' : 'plus_monthly';
+      let finishInitialSample = () => {};
+      const initialSample = new Promise<Awaited<ReturnType<typeof getBitcoinSendingEligibility>>>(resolve => {
+        finishInitialSample = () => resolve({ rail: 'btc_bitcoin', products: { [productId]: [] } });
+        if (!lateInitial) finishInitialSample();
+      });
+      vi.mocked(getBitcoinSendingEligibility).mockReset()
+        .mockReturnValueOnce(initialSample)
+        .mockResolvedValue({ rail: 'btc_bitcoin', products: { [productId]: ['Cash App'] } });
+      const order = hasOrder ? {
+        id: 'expiry-locked-order', userId: 'member', planId: isPulse ? 'ping_3' : 'plus_monthly', productType: product,
+        asset: 'BTC' as const, network: 'bitcoin' as const, rail: 'btc_bitcoin' as const, chainId: 0, tokenAddress: '',
+        amountUsdCents, discount: null,
+        sale: { ...sale, originalAmountUsdCents, amountUsdCents, discountAmountUsdCents: originalAmountUsdCents - amountUsdCents },
+        quotedAmountAtomic: '9500000', paymentAddress: 'bc1qexistingtestorder', paymentUri: null, qrCodeDataUrl: null,
+        status: 'awaiting_payment' as const, expiresAt: '2026-10-12T04:29:00Z', createdAt: null, updatedAt: null, paidAt: null,
+      } : null;
+      vi.mocked(getCurrentCryptoPaymentIntent).mockResolvedValue(order);
+      vi.mocked(getCurrentPulsePaymentIntent).mockResolvedValue(order);
+      await act(async () => {
+        view = render(<MemoryRouter><CruushPlusStore product={product} /></MemoryRouter>);
+      });
+      const prices = within(screen.getByRole('list', { name: isPulse ? 'Pulse prices' : 'cruush+ prices' }));
+      expect(prices.getByText(discountedText)).toBeInTheDocument();
+      expect(prices.getByText(listText)).toHaveClass('line-through');
+      expect(screen.getByRole('button', { name: 'Cash App' })).toBeDisabled();
+      await act(async () => { await vi.advanceTimersByTimeAsync(1000); });
+      expect(getBitcoinSendingEligibility).toHaveBeenCalledTimes(2);
+      if (hasOrder) {
+        expect(prices.getByText(discountedText)).toBeInTheDocument();
+        expect(prices.getByText(listText)).toHaveClass('line-through');
+        expect(screen.getByRole('button', { name: 'Payment started' })).toBeDisabled();
+        expect(screen.getByRole('button', { name: 'Cash App' })).toBeDisabled();
+      } else {
+        expect(screen.getByRole('button', { name: 'Cash App' })).toBeEnabled();
+        expect(prices.queryByText(discountedText)).not.toBeInTheDocument();
+        expect(prices.getByText(listText)).not.toHaveClass('line-through');
+        expect(screen.getByLabelText('Coupon code')).toBeInTheDocument();
+      }
+      if (lateInitial) {
+        await act(async () => { finishInitialSample(); });
+        expect(screen.getByRole('button', { name: 'Cash App' })).toBeEnabled();
+      }
+      expect(createCryptoPaymentIntent).not.toHaveBeenCalled();
+      expect(createPulsePaymentIntent).not.toHaveBeenCalled();
+    } finally {
+      view?.unmount();
+      vi.useRealTimers();
+    }
   });
 });

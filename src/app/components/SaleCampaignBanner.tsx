@@ -1,14 +1,60 @@
-import CruushPlusWord from './CruushPlusWord';
+import { useEffect, useState } from 'react';
+import './SaleCampaignBanner.css';
 
-export function SaleBanner({ percentOff, onClick }: { percentOff: number; onClick: () => void }) {
-  if (percentOff <= 0) return null;
+export function SaleBanner({ percentOff, endsAt = null, onClick }: { percentOff: number; endsAt?: string | null; onClick: () => void }) {
+  const [now, setNow] = useState(Date.now);
+  const deadline = endsAt === null ? null : Date.parse(endsAt);
+
+  useEffect(() => {
+    if (deadline === null || !Number.isFinite(deadline)) return;
+    setNow(Date.now());
+    const timer = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(timer);
+  }, [deadline]);
+  const [flickering, setFlickering] = useState(false);
+
+  useEffect(() => {
+    if (percentOff <= 0 || typeof window.matchMedia !== 'function') return;
+    const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const schedule = () => {
+      timer = setTimeout(() => {
+        setFlickering(true);
+        timer = setTimeout(() => {
+          setFlickering(false);
+          schedule();
+        }, 1100);
+      }, 700 + Math.random() * 1100);
+    };
+    const syncMotion = () => {
+      clearTimeout(timer);
+      setFlickering(false);
+      if (!reducedMotion.matches) schedule();
+    };
+    syncMotion();
+    reducedMotion.addEventListener('change', syncMotion);
+    return () => {
+      clearTimeout(timer);
+      reducedMotion.removeEventListener('change', syncMotion);
+    };
+  }, [percentOff]);
+
+  if (percentOff <= 0 || (deadline !== null && (!Number.isFinite(deadline) || deadline <= now))) return null;
+  const remaining = deadline === null ? null : Math.max(0, Math.ceil((deadline - now) / 1000));
+  const countdown = remaining === null ? null : [
+    Math.floor(remaining / 3600), Math.floor((remaining % 3600) / 60), remaining % 60,
+  ].map(value => String(value).padStart(2, '0')).join(':');
+
+  const glowClass = `cruush-sale-text${flickering ? ' cruush-sale-text--flickering' : ''}`;
 
   return (
-    <aside aria-label="cruush+ sale" className="border-b border-red-500/50 bg-red-950 px-4 text-center text-sm text-white">
-      <p className="pt-3 font-semibold">You’ve been marked for sacrifice.</p>
-      <p className="pt-1">{percentOff}% off <CruushPlusWord /></p>
-      <button type="button" className="min-h-11 py-2 font-semibold underline decoration-red-400 underline-offset-4" onClick={onClick}>
-        Claim your offer
+    <aside aria-label="cruush+ sale" className="cruush-sale-banner w-full border-y border-primary bg-primary/10 px-3 text-white sm:px-4">
+      <button type="button" className="flex w-full items-center justify-between gap-3 px-1 py-2.5 text-left" onClick={onClick}>
+        <span className="flex min-w-0 flex-col">
+          {countdown !== null && <time dateTime={endsAt!} aria-label="Sale countdown" className={`${glowClass} text-sm leading-5 tabular-nums text-muted-foreground`}>{countdown}</time>}
+          <span className={`${glowClass} cruush-sale-heading text-sm font-medium`}>Purgatory Sacrifical Offering</span>
+        </span>
+        <span className={`${glowClass} cruush-sale-offer shrink-0 text-base font-semibold`}>{percentOff}% off this weekend</span>
       </button>
     </aside>
   );

@@ -132,9 +132,9 @@ export async function cancelCryptoPaymentIntent(intentId: string) {
   });
 }
 
-export type PulsePack = { id: 'ping_3' | 'ping_10' | 'ping_25'; name: string; description: string; pingCount: number; amountCents: number; currency: 'USD' };
+export type PulsePack = { id: 'ping_3' | 'ping_10' | 'ping_25'; name: string; description: string; pingCount: number; amountCents: number; originalAmountCents?: number; sale?: CruushPlusSale | null; currency: 'USD' };
 export function getPulsePacks() {
-  return requestApi<{ packs: PulsePack[] }>('/api/billing/ping-packs');
+  return requestApi<{ packs: PulsePack[]; sale?: CruushPlusSale | null }>('/api/billing/ping-packs');
 }
 export function createPulsePaymentIntent(input: { packId: string; idempotencyKey: string; rail: CryptoPaymentRailId; sendingApp?: CryptoSendingApp; couponCode?: string }) {
   return requestApi<CryptoPaymentIntent>('/api/crypto/ping-pack-intents', { method: 'POST', body: JSON.stringify(input) });

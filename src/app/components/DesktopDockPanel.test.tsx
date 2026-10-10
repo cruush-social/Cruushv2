@@ -82,6 +82,29 @@ describe('DesktopDockPanel', () => {
     expect(screen.getByLabelText('Responsive panel')).toHaveStyle({ top: '10px', height: '880px' });
   });
 
+  it('keeps a dock below the active sale banner as its measured height changes', () => {
+    setViewport(1280, 800);
+    const rootStyle = document.documentElement.style;
+    const originalBannerHeight = rootStyle.getPropertyValue('--cruush-sale-banner-height');
+    try {
+      rootStyle.setProperty('--cruush-sale-banner-height', '113.5px');
+      render(
+        <DesktopDockPanel slot="right" ariaLabel="Banner-safe panel" bottomClearance={10}>
+          <p>Panel content</p>
+        </DesktopDockPanel>,
+      );
+      const panel = screen.getByLabelText('Banner-safe panel');
+      expect(panel).toHaveStyle({ top: '123.5px', height: '666.5px' });
+      rootStyle.setProperty('--cruush-sale-banner-height', '150px');
+      act(() => window.dispatchEvent(new Event('cruush:sale-banner-height-changed')));
+      expect(panel).toHaveStyle({ top: '160px', height: '630px' });
+      expect(Number.parseFloat(panel.style.top) + Number.parseFloat(panel.style.height)).toBe(790);
+    } finally {
+      if (originalBannerHeight) rootStyle.setProperty('--cruush-sale-banner-height', originalBannerHeight);
+      else rootStyle.removeProperty('--cruush-sale-banner-height');
+    }
+  });
+
   it('keeps modal popups beneath persistent map controls', () => {
     setViewport(1280, 800);
 

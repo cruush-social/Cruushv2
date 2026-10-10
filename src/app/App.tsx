@@ -18,10 +18,12 @@ import AdminOnboardingReplay, { AdminOnboardingReplayFrame } from './components/
 import { recordDailyRewardCheckIn, updateRewardTimezone } from './lib/rewardsApi';
 import type { AuthSessionPayload } from './lib/authApi';
 import { refreshExistingPushSubscription } from './lib/pushNotifications';
+import { resetPushPromptForLogin } from './lib/pushPromptSession';
 import type { ProfileRecord } from './lib/profileApi';
 import AccessibilityQuickAccess from './components/AccessibilityQuickAccess';
 import LoadingCardSkeletons from './components/LoadingCardSkeletons';
 import { MapServiceAreaProvider } from './components/MapServiceAreaContext';
+import GlobalSaleBanner from './components/GlobalSaleBanner';
 
 const MapHome = lazyRoute(() => import('./components/MapHome'));
 const LocalFeed = lazyRoute(() => import('./components/LocalFeed'));
@@ -337,6 +339,7 @@ export default function App({
   }, [authStatus, session?.user.emailVerifiedAt, session?.user.id]);
 
   const handleAuth = (session: AuthSessionPayload) => {
+    resetPushPromptForLogin(session.user.id);
     setSession(session);
     if (session.user.emailVerifiedAt) {
       redirectAfterAuthentication();
@@ -346,6 +349,7 @@ export default function App({
   };
 
   const handleVerified = (nextSession: AuthSessionPayload) => {
+    resetPushPromptForLogin(nextSession.user.id);
     setSession(nextSession);
     setNeedsOnboarding(nextSession.needsOnboarding);
     redirectAfterAuthentication();
@@ -643,7 +647,7 @@ export default function App({
       <CanonicalAppAddressBar />
       <PostHogPageTracker />
       <AppErrorBoundary>
-        <AppViewport>
+        <AppViewport topBanner={<GlobalSaleBanner key={session.user.id} userId={session.user.id} />}>
           <MapServiceAreaProvider>
           <Suspense fallback={<RouteLoading />}>
             <Routes>
@@ -711,7 +715,7 @@ export default function App({
               <Route path="*" element={<Navigate to="/map" replace />} />
             </Routes>
             <MobileInstallPrompt userId={session.user.id} />
-            <PushPermissionPrompt userId={session.user.id} />
+            <PushPermissionPrompt key={session.user.id} userId={session.user.id} />
             <DlModeDefaultNotice />
             <PulseGesturePrompt pending={showPulseGestureIntro} userId={session.user.id} />
             <ForegroundNotifications showLatestRewardOnFirstPoll={showOnboardingReward} />

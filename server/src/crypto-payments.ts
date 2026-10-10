@@ -855,7 +855,7 @@ export async function createInHouseCryptoPaymentIntent(
     ? getPingPack(input.planId)
     : null;
   const amountCents = cruushPlusPlan?.amountCents ?? pingPack?.amountCents;
-  const sale = cruushPlusPlan ? cruushPlusOrderSale(cruushPlusPlan.amountCents) : null;
+  const sale = amountCents != null ? cruushPlusOrderSale(amountCents) : null;
   const requestedCoupon = input.couponCode ? getCheckoutCoupon(input.couponCode) : null;
   const coupon = sale ? null : requestedCoupon;
   const expectedAmountCents = amountCents && coupon
@@ -933,7 +933,7 @@ export async function createInHouseCryptoPaymentIntent(
       productType,
       // Retrying the same order keeps its original quote when a sale starts
       // or ends. Other identity fields must still match exactly.
-      amountUsdCents: matchedIdempotencyKey && productType === "cruush_plus"
+      amountUsdCents: matchedIdempotencyKey
         ? Number(reserved.amount_usd_cents) : input.amountUsdCents,
       walletXpubFingerprint,
       rail,
@@ -1240,7 +1240,7 @@ export async function listBitcoinSendingEligibility(config: AppConfig, fetcher: 
     products[plan.id] = sendingApps(getCruushPlusSalePrice(plan.amountCents).amountCents);
   }
   for (const pack of PING_PACKS) {
-    products[pack.id] = sendingApps(pack.amountCents);
+    products[pack.id] = sendingApps(getCruushPlusSalePrice(pack.amountCents).amountCents);
   }
 
   return { rail: "btc_bitcoin" as const, products };

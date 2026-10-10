@@ -789,7 +789,7 @@ export default function LocalFeed({ embedded = false, onClose }: { embedded?: bo
     <div
       className={embedded
         ? 'relative flex h-full w-full max-w-full flex-col overflow-x-clip overflow-y-hidden bg-[#050505] text-foreground'
-        : 'fixed inset-x-0 top-0 bottom-[var(--cruush-nav-clearance,6rem)] flex w-full max-w-full flex-col overflow-x-clip overflow-y-hidden bg-[#050505] pt-[env(safe-area-inset-top)] text-foreground'}
+        : 'fixed inset-x-0 top-[var(--cruush-sale-banner-height,0px)] bottom-[var(--cruush-nav-clearance,6rem)] flex w-full max-w-full flex-col overflow-x-clip overflow-y-hidden bg-[#050505] pt-[env(safe-area-inset-top)] text-foreground'}
       data-testid="local-feed-screen"
     >
       <AppPageHeader

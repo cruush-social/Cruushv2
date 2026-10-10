@@ -581,3 +581,29 @@ Julien: “Remove ugly red banner up top”. Remove the red sale banner below th
 ## Carousel full-page entry, October 9, 2026
 
 Julien: “Carousel should be full screen only”, followed by “Or at elast never overlap with top”. Use the existing full-page Carousel route on desktop as on mobile, keeping it separate from map top controls. Preserve the existing page composition.
+
+## Purgatory first-entry prompt, October 9, 2026
+
+Julien: “we need a pop up for purgatory memberss too that appears after the first 2”. Show a Purgatory-only popup after the install and push prompts, using the existing serialized prompt flow. Wording and button action are pending Julien’s answer.
+
+## Android push reminder at login, October 9, 2026
+
+Julien: “if its off, keep asking them to turn it on upon log in”; “seams like we gotta do this for all android users”. For all Android users, show the existing notification prompt again at login while push is off. Dismissal lasts for that browser login; enabling remains an explicit user action. Preserve existing prompt presentation and other platforms.
+
+## Global sale banner placement, October 9, 2026
+
+Julien: “but the banner on top of the entire website or basic users, fill the width”; “remove it from below the top bar”. Place the existing sale banner above the app top bar across the full website width for basic users, replacing below-bar placement. Preserve existing approved sale wording/artwork and automatic50% pricing.
+
+Julien also specified “i want the banner to be ABOVE the app content at the very top” and “make the text up top on the banner flicker and glow randomly”. Banner starts at viewport top, app starts below it; animate only the existing first-line text with irregular flicker/glow, preserving its composition.
+
+- October 10 sale correction: Julien said “no i wanted a weekend sale”. This supersedes the earlier owner-ended and per-user24-hour sale timing. Use a shared weekend deadline with a truthful countdown; exact endtime is awaiting confirmation. Preserve automatic50%off and no couponstacking.
+
+- October 10 confirmed weekend deadline: “Yes, Sunday at 11:59 p.m.” to SundayOctober11,2026NewYork. Sharedexpiry2026-10-12T03:59:00.000Z; countdown and newcheckoutdiscount use the same deadline.
+
+- October10bannerreconciliation: “and Purgatory sale copy” refers to01a1232f approved “Purgatory Sacrifical Offering” / “50% off” and redcheckoutprice-pickerrow style. Reuse that exactcontent with countdownabovelefttitle/rightdiscount. Currentthreadaboveapp/fullwidthplacement supersedes oldbelowbaroverlay. Purgatory namescampaign, no membereligibilityrestriction.
+
+- October10latestbanner: exactdiscountcopy “50% off this weekend”; “make the color match the same magenta used in check out” replaces redsurface withactualselectedcheckoutprice row border-primary/bg-primary/10. Otherbannerpropertiespreserved.
+
+- October 10 final flicker scope: Julien said “btw this banner up top. is only for basic users, i want the flicker on all the banner text”. Preserve Basic-only banner eligibility; apply the existing random flicker and glow to the countdown, title, and discount text, with static glow under reduced motion. This supersedes title-only animation.
+
+- October 10 glow strength: Julien said “make the banner flickering glow stronger and happen more often”. Strengthen the existing text effect and shorten its random pause; preserve the banner composition, eligibility, and reduced-motion treatment.

@@ -10,7 +10,7 @@ import {
 } from "../billing.js";
 import { getActiveAccountUserId, getAuthenticatedUserId } from "../request-auth.js";
 import { PING_PACKS } from "../ping-packs.js";
-import { getActiveCruushPlusSale } from "../cruush-plus-sale.js";
+import { getActiveCruushPlusSale, getCruushPlusSalePrice } from "../cruush-plus-sale.js";
 
 const checkoutSessionPayloadSchema = z.object({
   planId: z.string().min(1),
@@ -28,7 +28,8 @@ export async function registerBillingRoutes(app: FastifyInstance) {
     return reply.send({
       data: {
         currency: "USD",
-        packs: PING_PACKS
+        sale: getActiveCruushPlusSale(),
+        packs: PING_PACKS.map(pack => ({ ...pack, ...getCruushPlusSalePrice(pack.amountCents) }))
       }
     });
   });

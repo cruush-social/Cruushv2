@@ -132,7 +132,7 @@ export default function Survey() {
           <div className="space-y-2"><Label htmlFor="survey-best">What is working best?</Label><Textarea id="survey-best" value={bestPart} onChange={(event) => setBestPart(event.target.value)} /></div>
           <div className="space-y-2"><Label htmlFor="survey-improvement">What should we improve?</Label><Textarea id="survey-improvement" value={improvement} onChange={(event) => setImprovement(event.target.value)} /></div>
           <div className="space-y-2"><Label htmlFor="survey-bugs">Did you hit any bugs or confusing moments?</Label><Textarea id="survey-bugs" value={bugs} onChange={(event) => setBugs(event.target.value)} /></div>
-          <Button disabled={submitting} type="submit">{submitting ? 'Sending...' : 'Send feedback'}</Button>
+          <Button disabled={submitting} type="submit" style={{ background: 'var(--cruush-gradient)' }}>{submitting ? 'Sending...' : 'Send feedback'}</Button>
           {error ? <p className="text-sm text-destructive">{error}</p> : null}
         </form>}
       </main>

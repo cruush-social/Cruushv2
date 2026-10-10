@@ -5,9 +5,9 @@ vi.mock("./crypto-collection-fee.js", () => ({
     ethUsd: "2000.00", sampledAt: "2026-09-08T12:00:00.000Z"
   })
 }));
-import { afterAll, describe, expect, it, vi } from "vitest";
+import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { buildServer } from "./app.js";
-import { cruushPlusOrderSale } from "./cruush-plus-sale.js";
+import { CRUUSH_PLUS_SALE, cruushPlusOrderSale } from "./cruush-plus-sale.js";
 import { deriveCryptoReceivingAddress, fingerprintCryptoWalletXpub } from "./crypto-wallet.js";
 import type { AppConfig } from "./config.js";
 import type { DbClient } from "./db.js";
@@ -20,6 +20,9 @@ import {
   resolvePrePublicationWatchStartBlocks
 } from "./routes/crypto-payments.js";
 import type { ChainSource } from "./crypto-chain-source.js";
+
+beforeEach(() => { vi.spyOn(Date, "now").mockReturnValue(Date.parse("2026-10-10T12:00:00Z")); });
+afterEach(() => vi.restoreAllMocks());
 
 const userId = "00000000-0000-4000-8000-000000000001";
 const intentId = "00000000-0000-4000-8000-000000000010";
@@ -198,10 +201,11 @@ describe("crypto payment routes", () => {
     expect(response.json()).toEqual({
       data: {
         currency: "USD",
+        sale: CRUUSH_PLUS_SALE,
         packs: [
-          expect.objectContaining({ id: "ping_3", pingCount: 3, amountCents: 999 }),
-          expect.objectContaining({ id: "ping_10", pingCount: 10, amountCents: 2499 }),
-          expect.objectContaining({ id: "ping_25", pingCount: 25, amountCents: 4999 })
+          expect.objectContaining({ id: "ping_3", pingCount: 3, amountCents: 500, originalAmountCents: 999 }),
+          expect.objectContaining({ id: "ping_10", pingCount: 10, amountCents: 1250, originalAmountCents: 2499 }),
+          expect.objectContaining({ id: "ping_25", pingCount: 25, amountCents: 2500, originalAmountCents: 4999 })
         ]
       }
     });

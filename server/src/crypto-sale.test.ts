@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 vi.mock("./crypto-collection-fee.js", () => ({
   quoteCollectionFee: vi.fn().mockResolvedValue({ version: 1, feeUsdCents: 1, estimatedCostWei: "5000000000000", ethUsd: "2000.00", sampledAt: "2026-10-09T12:00:00.000Z" })
 }));
@@ -43,13 +43,31 @@ function database(existing: CryptoPaymentIntentRow | null = null) {
   return { db, query };
 }
 const apps: ReturnType<typeof buildServer>[] = [];
-afterEach(async () => { for (const app of apps.splice(0)) await app.close(); });
+beforeEach(() => {
+  vi.useFakeTimers({ toFake: ["Date"] });
+  vi.setSystemTime(new Date("2026-10-10T12:00:00Z"));
+});
+afterEach(async () => { for (const app of apps.splice(0)) await app.close(); vi.useRealTimers(); });
 function makeApp(db: DbClient) {
   const app = buildServer(config, { db, rateLimiter: createMemoryRateLimiter(), cryptoPaymentRailHeadReader: async () => 123456n });
   apps.push(app); return app;
 }
 
 describe("sale checkout contracts", () => {
+  it("quotes list price after the deadline while retrying a stored sale order preserves its quote", async () => {
+    const storedSale = cruushPlusOrderSale(1899);
+    vi.setSystemTime(new Date("2026-10-12T03:59:00Z"));
+    const fresh = makeApp(database().db);
+    const response = await fresh.inject({ method: "POST", url: "/api/crypto/payment-intents", headers: { "x-user-id": userId }, payload: { planId: "plus_monthly", idempotencyKey: "after-sale" } });
+    expect(response.statusCode).toBe(201);
+    expect(response.json().data).toMatchObject({ amountUsdCents: 1899, sale: null, discount: null });
+    const existing = recordedOrder({ amount_usd_cents: 950, metadata: { sale: storedSale, collectionFee: { feeUsdCents: 1 } } });
+    const retryApp = makeApp(database(existing).db);
+    const retry = await retryApp.inject({ method: "POST", url: "/api/crypto/payment-intents", headers: { "x-user-id": userId }, payload: { planId: "plus_monthly", idempotencyKey: existing.idempotency_key } });
+    expect(retry.statusCode).toBe(201);
+    expect(retry.json().data).toMatchObject({ amountUsdCents: 950, sale: storedSale });
+  });
+
   it.each([userId, "00000000-0000-4000-8000-000000000002"])("automatically quotes the same 50%% price for account %s without consuming CLUBS20", async (accountId) => {
     const { db, query } = database(); const app = makeApp(db);
     const response = await app.inject({ method: "POST", url: "/api/crypto/payment-intents", headers: { "x-user-id": accountId }, payload: { planId: "plus_monthly", idempotencyKey: "sale-order-1", couponCode: "CLUBS20" } });
@@ -58,22 +76,63 @@ describe("sale checkout contracts", () => {
     expect(query.mock.calls.some(([sql]) => sql.includes("checkout_coupon_redemptions"))).toBe(false);
   });
 
-  it("advertises sale prices on the authenticated catalogue and preserves Pulse list prices", async () => {
+  it("advertises half-price cruush+ and every Pulse pack on the authenticated catalogues", async () => {
     const { db } = database(); const app = makeApp(db);
     const catalog = await app.inject({ method: "GET", url: "/api/billing/plans", headers: { "x-user-id": userId } });
     expect(catalog.json().data.sale).toEqual(CRUUSH_PLUS_SALE);
     expect(catalog.json().data.plans.find((plan: { id: string }) => plan.id === "plus_monthly")).toMatchObject({ amountCents: 950, originalAmountCents: 1899 });
     const pulse = await app.inject({ method: "GET", url: "/api/billing/ping-packs", headers: { "x-user-id": userId } });
-    expect(pulse.json().data.packs[0]).toMatchObject({ id: "ping_3", amountCents: 999 });
-    expect(pulse.json().data).not.toHaveProperty("sale");
+    expect(pulse.json().data.packs.map((pack: { amountCents: number }) => pack.amountCents)).toEqual([500, 1250, 2500]);
+    expect(pulse.json().data.packs[0]).toMatchObject({ id: "ping_3", pingCount: 3, originalAmountCents: 999, sale: CRUUSH_PLUS_SALE });
+    expect(pulse.json().data.sale).toEqual(CRUUSH_PLUS_SALE);
   });
 
-  it("keeps Pulse coupon pricing and reservation behavior unchanged", async () => {
+  it("applies the Pulse sale without stacking or consuming a coupon", async () => {
     const { db, query } = database(); const app = makeApp(db);
     const response = await app.inject({ method: "POST", url: "/api/crypto/ping-pack-intents", headers: { "x-user-id": userId }, payload: { packId: "ping_3", idempotencyKey: "pulse-order-1", couponCode: "CLUBS20" } });
     expect(response.statusCode).toBe(201);
-    expect(response.json().data).toMatchObject({ amountUsdCents: 799, sale: null, discount: { code: "CLUBS20", percentOff: 20, originalAmountUsdCents: 999 } });
-    expect(query.mock.calls.some(([sql]) => sql.includes("insert into checkout_coupon_redemptions"))).toBe(true);
+    expect(response.json().data).toMatchObject({ amountUsdCents: 500, sale: { percentOff: 50, originalAmountUsdCents: 999 }, discount: null });
+    expect(query.mock.calls.some(([sql]) => sql.includes("insert into checkout_coupon_redemptions"))).toBe(false);
+  });
+
+  it("restores Pulse catalogue and new quotes at the Sunday deadline", async () => {
+    vi.setSystemTime(new Date("2026-10-12T03:59:00Z"));
+    const { db } = database(); const app = makeApp(db);
+    const catalogue = await app.inject({ method: "GET", url: "/api/billing/ping-packs", headers: { "x-user-id": userId } });
+    expect(catalogue.json().data.sale).toBeNull();
+    expect(catalogue.json().data.packs.map((pack: { amountCents: number }) => pack.amountCents)).toEqual([999, 2499, 4999]);
+    const response = await app.inject({ method: "POST", url: "/api/crypto/ping-pack-intents", headers: { "x-user-id": userId }, payload: { packId: "ping_3", idempotencyKey: "pulse-expired-sale" } });
+    expect(response.statusCode).toBe(201);
+    expect(response.json().data).toMatchObject({ amountUsdCents: 999, sale: null });
+  });
+
+  it.each([
+    { url: "/api/crypto/payment-intents", product: { planId: "plus_monthly" }, amountUsdCents: 1899 },
+    { url: "/api/crypto/ping-pack-intents", product: { packId: "ping_3" }, amountUsdCents: 999 }
+  ])("uses list price when an awaited rail read crosses the sale deadline: $url", async ({ url, product, amountUsdCents }) => {
+    const deadline = Date.parse("2026-10-12T03:59:00Z");
+    vi.setSystemTime(deadline - 1);
+    const { db } = database();
+    const readRailHead = vi.fn(async () => {
+      await Promise.resolve();
+      vi.setSystemTime(deadline);
+      return 123456n;
+    });
+    const app = buildServer(config, { db, rateLimiter: createMemoryRateLimiter(), cryptoPaymentRailHeadReader: readRailHead });
+    apps.push(app);
+    const response = await app.inject({ method: "POST", url, headers: { "x-user-id": userId }, payload: { ...product, idempotencyKey: "sale-boundary-order" } });
+    expect(readRailHead).toHaveBeenCalled();
+    expect(response.statusCode).toBe(201);
+    expect(response.json().data).toMatchObject({ amountUsdCents, sale: null, discount: null });
+  });
+
+  it.each([false, true])("preserves a Pulse order created before the sale (coupon=%s)", async (hasCoupon) => {
+    const discount = hasCoupon ? { code: "CLUBS20", percentOff: 20, originalAmountUsdCents: 999, discountAmountUsdCents: 200, amountUsdCents: 799 } : null;
+    const existing = recordedOrder({ product_type: "ping_pack", plan_id: "ping_3", amount_usd_cents: discount?.amountUsdCents ?? 999, metadata: { source: "ping_pack_store", ...(discount ? { discount } : {}), collectionFee: { feeUsdCents: 1 } } });
+    const { db } = database(existing); const app = makeApp(db);
+    const response = await app.inject({ method: "POST", url: "/api/crypto/ping-pack-intents", headers: { "x-user-id": userId }, payload: { packId: "ping_3", idempotencyKey: existing.idempotency_key, ...(hasCoupon ? { couponCode: "CLUBS20" } : {}) } });
+    expect(response.statusCode).toBe(201);
+    expect(response.json().data).toMatchObject({ amountUsdCents: existing.amount_usd_cents, sale: null, discount });
   });
 
   it.each([false, true])("returns the original quote on an old order retry (coupon=%s)", async (hasCoupon) => {

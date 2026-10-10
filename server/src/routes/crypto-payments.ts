@@ -212,10 +212,6 @@ export async function registerCryptoPaymentRoutes(
 
     // The plan price is always derived on the server. A client-supplied amount is never trusted.
     const plan = getCruushPlusPlan(payload.planId);
-    const price = getCruushPlusSalePrice(plan.amountCents);
-    const discount = payload.couponCode && !price.sale
-      ? applyCheckoutCoupon(plan.amountCents, getCheckoutCoupon(payload.couponCode))
-      : null;
     const rail = payload.rail as CryptoPaymentRailId;
     assertRailAllowed(app, rail);
     const readRailHead = deps.readRailHead ?? readVerifiedCryptoPaymentRailHead;
@@ -225,6 +221,11 @@ export async function registerCryptoPaymentRoutes(
       rail,
       readRailHead
     );
+    // Sample sale eligibility after network reads, which may cross its deadline.
+    const price = getCruushPlusSalePrice(plan.amountCents);
+    const discount = payload.couponCode && !price.sale
+      ? applyCheckoutCoupon(plan.amountCents, getCheckoutCoupon(payload.couponCode))
+      : null;
     const intent = await createInHouseCryptoPaymentIntent(app.db, app.config, {
       userId,
       planId: plan.id,
@@ -249,9 +250,6 @@ export async function registerCryptoPaymentRoutes(
     });
     const payload = pingPackIntentPayloadSchema.parse(request.body);
     const pack = getPingPack(payload.packId);
-    const discount = payload.couponCode
-      ? applyCheckoutCoupon(pack.amountCents, getCheckoutCoupon(payload.couponCode))
-      : null;
     const rail = payload.rail as CryptoPaymentRailId;
     assertRailAllowed(app, rail);
     const readRailHead = deps.readRailHead ?? readVerifiedCryptoPaymentRailHead;
@@ -261,13 +259,17 @@ export async function registerCryptoPaymentRoutes(
       rail,
       readRailHead
     );
+    const price = getCruushPlusSalePrice(pack.amountCents);
+    const discount = payload.couponCode && !price.sale
+      ? applyCheckoutCoupon(pack.amountCents, getCheckoutCoupon(payload.couponCode))
+      : null;
     const intent = await createInHouseCryptoPaymentIntent(app.db, app.config, {
       userId,
       planId: pack.id,
       productType: "ping_pack",
-      amountUsdCents: discount?.amountUsdCents ?? pack.amountCents,
+      amountUsdCents: discount?.amountUsdCents ?? price.amountCents,
       idempotencyKey: payload.idempotencyKey,
-      couponCode: discount?.code,
+      couponCode: payload.couponCode,
       rail,
       watchStartBlock,
       watchStartBlocksByChain,

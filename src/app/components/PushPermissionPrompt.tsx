@@ -1,9 +1,11 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useExclusivePopup } from '../lib/popupQueue';
 import { enablePushNotifications } from '../lib/pushNotifications';
 import { Button } from './ui/button';
 import { CruushIcon } from './CruushIconImage';
 import FirstEntryPromptSurface from './FirstEntryPromptSurface';
+import { getNotificationPreferences } from '../lib/notificationsApi';
+import { androidPushPromptSessionKey } from '../lib/pushPromptSession';
 
 const PUSH_PROMPT_VERSION = 'v1';
 
@@ -20,7 +22,22 @@ function isIosBrowser() {
   return /iphone|ipad|ipod/i.test(window.navigator.userAgent);
 }
 
+function isAndroidBrowser() {
+  return /android/i.test(window.navigator.userAgent);
+}
+
+function canOfferAndroidPush(userId: string) {
+  return isAndroidBrowser()
+    && 'Notification' in window
+    && Boolean(navigator.serviceWorker)
+    && 'PushManager' in window
+    && window.sessionStorage.getItem(androidPushPromptSessionKey(userId)) !== 'true';
+}
+
 function canOfferPush(userId: string) {
+  if (isAndroidBrowser()) {
+    return canOfferAndroidPush(userId) && Notification.permission !== 'granted';
+  }
   if (window.localStorage.getItem(pushPromptHandledKey(userId)) === 'true') {
     return false;
   }
@@ -40,28 +57,56 @@ export default function PushPermissionPrompt({ userId }: { userId: string }) {
   const [visible, setVisible] = useState(() => canOfferPush(userId));
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
+  const enableGeneration = useRef(0);
   const showing = useExclusivePopup('push-permission', visible);
 
+  useEffect(() => {
+    let active = true;
+    setVisible(canOfferPush(userId));
+    setError('');
+    setSaving(false);
+
+    if (canOfferAndroidPush(userId) && Notification.permission === 'granted') {
+      void getNotificationPreferences().then((preferences) => {
+        if (active) setVisible(!preferences.pushEnabled);
+      }).catch(() => {
+        // An unavailable preference is not evidence that push is off.
+      });
+    }
+
+    return () => {
+      active = false;
+      enableGeneration.current += 1;
+    };
+  }, [userId]);
+
   const markHandledAndClose = () => {
-    window.localStorage.setItem(pushPromptHandledKey(userId), 'true');
+    if (isAndroidBrowser()) {
+      window.sessionStorage.setItem(androidPushPromptSessionKey(userId), 'true');
+    } else {
+      window.localStorage.setItem(pushPromptHandledKey(userId), 'true');
+    }
     setVisible(false);
   };
 
   const enable = async () => {
+    const generation = ++enableGeneration.current;
     setSaving(true);
     setError('');
 
     try {
       await enablePushNotifications();
+      if (generation !== enableGeneration.current) return;
       markHandledAndClose();
     } catch (nextError) {
-      if ('Notification' in window && Notification.permission === 'denied') {
+      if (generation !== enableGeneration.current) return;
+      if (!isAndroidBrowser() && 'Notification' in window && Notification.permission === 'denied') {
         markHandledAndClose();
       } else {
         setError(nextError instanceof Error ? nextError.message : 'Failed to enable push alerts.');
       }
     } finally {
-      setSaving(false);
+      if (generation === enableGeneration.current) setSaving(false);
     }
   };
 

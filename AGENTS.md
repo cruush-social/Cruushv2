@@ -57,6 +57,7 @@ For backend or infrastructure work, consult `docs/master-architecture.md` and
 the applicable source. Current explicit user instructions override older decisions.
 
 ## Mistakes
+- 2026-10-10: Reused an older sale banner before finding the newer Purgatory sale session; recovered and applied its exact approved copy and price-picker styling, added the confirmed weekend countdown, and checked the shorter banner in the app.
 - 2026-10-09: A release command continued to commit after a diagnostic scan returned nonzero; confirmed the match was an unchanged mock token, then reran the added-line scan successfully before any push.
 - 2026-10-09: Initial activity-label enrichment could override Dark Room and disclose a fresh town for a profile hidden after historical activity; preserved Dark Room and required the existing current Profile visibility check before town lookup, with regression coverage.
 - 2026-10-09: Initially blamed the Feed font mismatch on a CSS override without checking cascade layers; live measurements showed the utilities worked but used the wrong metadata baseline, so corrected only the Feed font utilities to follow the actual metadata size.

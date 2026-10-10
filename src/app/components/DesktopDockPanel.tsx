@@ -51,7 +51,9 @@ function topChromeClearance(slot: DesktopDockSlot) {
   // Map chrome takes precedence by z-layer, not by blocking where a popup can
   // be dragged. Keep only the map edge gap for the popup itself.
   void slot;
-  return EDGE_GAP;
+  const bannerHeight = typeof document === 'undefined' ? 0
+    : Number.parseFloat(document.documentElement.style.getPropertyValue('--cruush-sale-banner-height')) || 0;
+  return EDGE_GAP + bannerHeight;
 }
 
 function clampGeometry(slot: DesktopDockSlot, geometry: DockGeometry, minWidth: number, minHeight: number, bottomClearance = bottomFloatingControlsClearance()): DockGeometry {
@@ -167,8 +169,12 @@ export default function DesktopDockPanel({
 
     const handleResize = () => setGeometry((current) => clampGeometry(slot, current, minWidth, minHeight, bottomClearance));
     window.addEventListener('resize', handleResize);
+    window.addEventListener('cruush:sale-banner-height-changed', handleResize);
 
-    return () => window.removeEventListener('resize', handleResize);
+    return () => {
+      window.removeEventListener('resize', handleResize);
+      window.removeEventListener('cruush:sale-banner-height-changed', handleResize);
+    };
   }, [bottomClearance, minHeight, minWidth, slot]);
 
   useEffect(() => {

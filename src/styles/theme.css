@@ -1311,12 +1311,12 @@ html[data-cruush-alpha-bug-corner='top-right'] [data-testid='accessibility-quick
   }
 
   .cruush-map-shell {
-    height: 100vh;
-    min-height: 100vh;
-    max-height: 100vh;
-    height: 100dvh;
-    min-height: 100dvh;
-    max-height: 100dvh;
+    height: calc(100vh - var(--cruush-sale-banner-height, 0px));
+    min-height: calc(100vh - var(--cruush-sale-banner-height, 0px));
+    max-height: calc(100vh - var(--cruush-sale-banner-height, 0px));
+    height: calc(100dvh - var(--cruush-sale-banner-height, 0px));
+    min-height: calc(100dvh - var(--cruush-sale-banner-height, 0px));
+    max-height: calc(100dvh - var(--cruush-sale-banner-height, 0px));
   }
 
   .cruush-marker-motion {
@@ -2207,4 +2207,10 @@ html[data-cruush-map-route='open'] [data-slot='dialog-content'].cruush-first-ent
   translate: none !important;
   transform: translate(-50%, -50%) !important;
   z-index: 80 !important;
+}
+
+/* Keep this reset separate from transform so the production CSS optimizer
+   cannot fold it away and re-enable Tailwind's additional translation. */
+.cruush-first-entry-prompt[data-slot="dialog-content"][data-dialog-framing="first-entry"] {
+  translate: 0 0 !important;
 }

@@ -9,7 +9,6 @@ import { Card, CardContent } from './ui/card';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from './ui/accordion';
 import AppPageHeader from './AppPageHeader';
 import CruushPlusWord from './CruushPlusWord';
-import { CRUUSH_PLUS_FEATURES } from '../lib/cruushPlusFeatures';
 import { getBillingPlans, type CruushPlusPlan, type CruushPlusPlanId } from '../lib/billingApi';
 import {
   getPulsePacks, createPulsePaymentIntent, getCurrentPulsePaymentIntent,
@@ -29,7 +28,7 @@ import {
 } from '../lib/cryptoCheckoutApi';
 import { trackBitcoinCheckoutMilestone } from '../lib/posthog';
 import { trackCruushPlusConversion } from '../lib/posthog';
-import { readCruushPlusConversionContext, type CruushPlusConversionBenefit } from '../lib/cruushPlusConversion';
+import { readCruushPlusConversionContext } from '../lib/cruushPlusConversion';
 import CruushPlusSectionControls from './CruushPlusSectionControls';
 import CruushPlusSectionTitle from './CruushPlusSectionTitle';
 import {
@@ -42,32 +41,6 @@ import {
 } from './CryptoPaymentMethods';
 
 type StorePlan = Omit<CruushPlusPlan, 'id' | 'interval'> & { id: string; interval: CruushPlusPlan['interval'] | 'pack' };
-
-const CHECKOUT_PLUS_FEATURES = CRUUSH_PLUS_FEATURES.map((benefit) =>
-  benefit.title === 'Full activity'
-    ? { ...benefit, title: 'Who has a cruush on you' }
-    : benefit,
-);
-
-const BALANCED_CHECKOUT_PLUS_FEATURES = [
-  CHECKOUT_PLUS_FEATURES[0],
-  CHECKOUT_PLUS_FEATURES[5],
-  CHECKOUT_PLUS_FEATURES[2],
-  CHECKOUT_PLUS_FEATURES[3],
-  CHECKOUT_PLUS_FEATURES[1],
-  CHECKOUT_PLUS_FEATURES[4],
-  CHECKOUT_PLUS_FEATURES[6],
-] as const;
-
-const BENEFIT_TITLE_BY_CONTEXT: Partial<Record<CruushPlusConversionBenefit, string>> = {
-  full_activity: 'Who has a cruush on you',
-  more_pulses: 'More Pulses',
-  mile_high_club: 'Mile High Club',
-  feed_plus: 'Confessional+',
-  cruise_carousel: 'Carousel',
-  seeking_visibility: 'All seeking and visibility controls',
-  dark_room: 'Dark Room',
-};
 
 const PAYMENT_STATUS_COPY: Record<CryptoPaymentIntent['status'], string> = {
   pending: 'Setting up your payment.',
@@ -191,6 +164,7 @@ export default function CruushPlusStore({ product = 'cruush_plus' }: { product?:
   const [plans, setPlans] = useState<StorePlan[]>([]);
   const [processor, setProcessor] = useState<CryptoProcessorStatus | null>(null);
   const [bitcoinEligibility, setBitcoinEligibility] = useState<BitcoinSendingEligibility | null | undefined>(undefined);
+  const [bitcoinEligibilityRevision, setBitcoinEligibilityRevision] = useState(0);
   const [selectedPlanId, setSelectedPlanId] = useState<string | null>(null);
   const [intent, setIntent] = useState<CryptoPaymentIntent | null>(null);
   const [selectedSourceId, setSelectedSourceId] = useState<string>(BITCOIN_PAYMENT_SOURCES[0].id);
@@ -304,15 +278,12 @@ export default function CruushPlusStore({ product = 'cruush_plus' }: { product?:
     void Promise.all([
       getCryptoProcessorStatus().catch(() => null),
       (isPulse ? getCurrentPulsePaymentIntent() : getCurrentCryptoPaymentIntent()).catch(() => null),
-      // A missing sample leaves the catalogue as it is rather than hiding it.
-      getBitcoinSendingEligibility().catch(() => null),
-    ]).then(([cryptoStatus, currentIntent, bitcoinSending]) => {
+    ]).then(([cryptoStatus, currentIntent]) => {
       if (!active) {
         return;
       }
 
       setProcessor(cryptoStatus);
-      setBitcoinEligibility(bitcoinSending);
       if (currentIntent && isOpenCryptoPayment(currentIntent.status)) {
         setIntent(currentIntent);
         setHasChosenSource(true);
@@ -332,6 +303,15 @@ export default function CruushPlusStore({ product = 'cruush_plus' }: { product?:
       active = false;
     };
   }, [isPulse]);
+
+  useEffect(() => {
+    let active = true;
+    // Refresh independently so a late pre-expiry sample cannot replace the new one.
+    void getBitcoinSendingEligibility().catch(() => null).then((sample) => {
+      if (active) setBitcoinEligibility(sample);
+    });
+    return () => { active = false; };
+  }, [isPulse, bitcoinEligibilityRevision]);
 
   const intentExpiresAtMs = intent?.expiresAt ? Date.parse(intent.expiresAt) : Number.NaN;
   const paymentWindowClosed = Boolean(
@@ -449,7 +429,21 @@ export default function CruushPlusStore({ product = 'cruush_plus' }: { product?:
     [plans, selectedPlanId],
   );
 
-  const checkoutSale = !isPulse ? plans.find((plan) => plan.sale)?.sale ?? null : null;
+  const checkoutSale = plans.find((plan) => plan.sale)?.sale ?? null;
+
+  useEffect(() => {
+    if (!checkoutSale?.endsAt) return;
+    // Expire the displayed catalogue too, preserving any already-quoted order.
+    const expiresAt = Date.parse(checkoutSale.endsAt);
+    const expire = () => {
+      setPlans(current => current.map(plan => plan.sale && plan.originalAmountCents != null
+        ? { ...plan, amountCents: plan.originalAmountCents, sale: null }
+        : plan));
+      setBitcoinEligibilityRevision(current => current + 1);
+    };
+    const timer = window.setTimeout(expire, Math.max(0, expiresAt - Date.now()));
+    return () => window.clearTimeout(timer);
+  }, [checkoutSale?.endsAt]);
 
   const discountedAmountCents = useCallback((amountCents: number) => (
     appliedCoupon && !checkoutSale
@@ -470,17 +464,6 @@ export default function CruushPlusStore({ product = 'cruush_plus' }: { product?:
     () => listedPlans.filter((plan) => plan.id !== selectedPlanId),
     [listedPlans, selectedPlanId],
   );
-
-  const contextualPlusFeatures = useMemo(() => {
-    const preferredTitle = conversionContext.benefit
-      ? BENEFIT_TITLE_BY_CONTEXT[conversionContext.benefit]
-      : undefined;
-    if (!preferredTitle) return BALANCED_CHECKOUT_PLUS_FEATURES;
-    const preferred = BALANCED_CHECKOUT_PLUS_FEATURES.find((benefit) => benefit.title === preferredTitle);
-    return preferred
-      ? [preferred, ...BALANCED_CHECKOUT_PLUS_FEATURES.filter((benefit) => benefit !== preferred)]
-      : BALANCED_CHECKOUT_PLUS_FEATURES;
-  }, [conversionContext.benefit]);
 
   const readyRailIds = useMemo(
     () => new Set(processor?.rails.filter((rail) => rail.ready).map((rail) => rail.id) ?? []),
@@ -718,7 +701,7 @@ export default function CruushPlusStore({ product = 'cruush_plus' }: { product?:
     const selected = plan.id === selectedPlanId;
     const recommended = plan.id === recommendedPlanId;
     const soldOut = plan.supplyRemaining === 0;
-    const recordedOrder = !isPulse && selected && checkoutSelectionLocked && (checkoutSale || intent?.sale) ? intent : null;
+    const recordedOrder = selected && checkoutSelectionLocked && (checkoutSale || intent?.sale) ? intent : null;
     const displayedAmount = recordedOrder?.amountUsdCents ?? plan.amountCents;
     const perMonth = monthlyEquivalentCents({ ...plan, amountCents: displayedAmount });
     const discountedPlanAmount = recordedOrder ? displayedAmount : discountedAmountCents(displayedAmount);
@@ -863,7 +846,7 @@ export default function CruushPlusStore({ product = 'cruush_plus' }: { product?:
       />
 
       <main ref={checkoutContentRef} className="mx-auto flex max-w-2xl flex-col gap-3 px-3 py-2 sm:px-4">
-        {!isPulse ? <CruushPlusSectionControls active="checkout" features={contextualPlusFeatures} /> : null}
+        {!isPulse ? <CruushPlusSectionControls active="checkout" /> : null}
         {!isPulse ? whyCruushCryptoCard : null}
 
         {isPulse ? <Button variant="outline" onClick={() => navigate('/store')}>cruush+ checkout</Button> : null}
