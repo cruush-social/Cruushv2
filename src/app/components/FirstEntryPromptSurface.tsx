@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import type { ReactNode, RefObject } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -11,6 +11,7 @@ import {
 type FirstEntryPromptSurfaceProps = {
   description: string;
   icon: ReactNode;
+  initialFocusRef?: RefObject<HTMLButtonElement | null>;
   onDismiss: () => void;
   open: boolean;
   primary: ReactNode;
@@ -22,6 +23,7 @@ type FirstEntryPromptSurfaceProps = {
 export default function FirstEntryPromptSurface({
   description,
   icon,
+  initialFocusRef,
   onDismiss,
   open,
   primary,
@@ -40,6 +42,10 @@ export default function FirstEntryPromptSurface({
     >
       <DialogContent
         floating
+        onOpenAutoFocus={initialFocusRef ? (event) => {
+          event.preventDefault();
+          initialFocusRef.current?.focus();
+        } : undefined}
         showCloseButton={false}
         data-dialog-framing="first-entry"
         data-testid={testId}

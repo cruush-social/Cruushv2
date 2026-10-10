@@ -4,9 +4,11 @@ import dlModeBalaclavaHalo from '../assets/ui-icons/dl-mode-balaclava-halo-user-
 export default function DlModeMark({
   active,
   className = 'h-6 w-6',
+  svgBounds,
 }: {
   active: boolean;
   className?: string;
+  svgBounds?: { x: number; y: number; width: number; height: number };
 }) {
   const id = useId().replace(/:/g, '');
   const maskId = `dl-mode-balaclava-halo-${id}`;
@@ -15,6 +17,7 @@ export default function DlModeMark({
   return (
     <svg
       aria-hidden="true"
+      {...svgBounds}
       className={`inline-block shrink-0 overflow-visible ${className}`}
       data-source="Julien supplied balaclava halo DL Mode icon"
       data-testid="dl-mode-mark"

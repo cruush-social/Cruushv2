@@ -21,6 +21,7 @@ export type FeedPost = {
   expiresIn: FeedPostExpiry;
   expiresAt: string | null;
   createdAt: string;
+  paginationCursor?: string;
   distance: string;
   audience: FeedPostAudience;
   showDistance?: boolean;
@@ -63,9 +64,10 @@ export type FeedSettings = {
 
 export type FeedPostFilters = {
   within?: FeedPostWindow;
-  distanceMiles?: number;
+  distanceMiles?: number | 'global';
   limit?: number;
   before?: string;
+  cursor?: string;
   coordinates?: {
     lat: number;
     lng: number;
@@ -114,7 +116,7 @@ export async function getFeedPosts(filters: FeedPostFilters = {}) {
     params.set('within', filters.within);
   }
 
-  if (typeof filters.distanceMiles === 'number' && Number.isFinite(filters.distanceMiles)) {
+  if (filters.distanceMiles === 'global' || (typeof filters.distanceMiles === 'number' && Number.isFinite(filters.distanceMiles))) {
     params.set('distanceMiles', String(filters.distanceMiles));
   }
 
@@ -124,6 +126,9 @@ export async function getFeedPosts(filters: FeedPostFilters = {}) {
 
   if (filters.before) {
     params.set('before', filters.before);
+  }
+  if (filters.cursor) {
+    params.set('cursor', filters.cursor);
   }
 
   if (filters.coordinates) {

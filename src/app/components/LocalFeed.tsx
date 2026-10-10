@@ -1,3 +1,5 @@
+import { useContentVisibilityRefresh } from '../lib/contentVisibilityRevision';
+import { showPurgatoryPresentation } from '../lib/purgatoryPresentation';
 import { useTrustRestrictions } from '../lib/trustRestrictions';
 import TrustRestrictionNotice from './TrustRestrictionNotice';
 import PhotoUploadSpinner from './PhotoUploadSpinner';
@@ -47,7 +49,7 @@ import {
   type FeedSettings,
 } from '../lib/postApi';
 import { CRUUSH_PLUS_CHANGED_EVENT, getMyBillingStatus } from '../lib/billingApi';
-import { getMyProfile, type ProfileRecord } from '../lib/profileApi';
+import { getMyProfile, getProfileById, ProfileApiError, type ProfileRecord } from '../lib/profileApi';
 import { getMutualCruushMap, getMyCruushActivity, revokeMutualCruush, revokeSentCruush, sendCruush } from '../lib/cruushApi';
 import {
   handleCruushSendSuccess,
@@ -59,7 +61,7 @@ import {
 } from '../lib/cruushNotifications';
 import { CROWDS, normalizeCrowdValues } from '../lib/profileOptions';
 import { getCurrentUserId } from '../lib/sessionUser';
-import { resolveUserBorderTone } from '../lib/userBorderTone';
+import { resolveUserBorderTone, USER_BORDER_COLORS } from '../lib/userBorderTone';
 import partyHatIcon from '../assets/ui-icons/party-hat.svg';
 
 function formatRelativeTime(isoTimestamp: string) {
@@ -143,12 +145,11 @@ const FEED_EXPIRY_OPTIONS: Array<{ value: FeedPostExpiry; label: string }> = [
   { value: 'never', label: 'Never' },
 ];
 const FEED_PAGE_SIZE = 30;
-const FEED_MAX_LOADED_POSTS = 100;
-// The open beta covers fifty miles around NYC, so the feed reaches that far.
-const DEFAULT_FEED_RADIUS_MILES = 50;
+// The final slider step is Global; finite distances retain the 1–100 mile range.
+const GLOBAL_FEED_DISTANCE = 101;
 const DEFAULT_FEED_SEEKING_FILTERS: FilterState = {
   ...DEFAULT_FILTER_STATE,
-  distance: DEFAULT_FEED_RADIUS_MILES,
+  distance: GLOBAL_FEED_DISTANCE,
 };
 const LAUNCH_PARTY_EVENT_SLUG = 'the-chocolate-factory-launch';
 const DEFAULT_FEED_SETTINGS: FeedSettings = {
@@ -277,8 +278,10 @@ export default function LocalFeed({ embedded = false, onClose }: { embedded?: bo
   }, [location.search]);
 
   const fetchPosts = useCallback(async (options: {
+    retryVisibilityFailure?: boolean;
     append?: boolean;
     before?: string | null;
+    cursor?: string;
     coordinates?: FeedCoordinates | null;
     distanceMiles?: number;
     within?: FeedPostWindow;
@@ -291,24 +294,16 @@ export default function LocalFeed({ embedded = false, onClose }: { embedded?: bo
     // Keep the current list in place while a replacement request is pending.
     // Filter/window changes used to clear the list behind a loading skeleton,
     // which made the Feed visibly flash even when it already had posts.
-    const hasRenderedPosts = postsRef.current.length > 0;
-    const remainingPostCapacity = FEED_MAX_LOADED_POSTS - postsRef.current.length;
-    if (append && remainingPostCapacity <= 0) {
-      setHasMorePosts(false);
-      return;
-    }
-    const requestLimit = append
-      ? Math.min(FEED_PAGE_SIZE, remainingPostCapacity)
-      : FEED_PAGE_SIZE;
+    const loadedPostCount = postsRef.current.length;
+    const hasRenderedPosts = loadedPostCount > 0;
+    const requestLimit = FEED_PAGE_SIZE;
     const nextCoordinates = options.coordinates === undefined ? feedCoordinates : options.coordinates;
     const nextWindow = options.within ?? feedWindow;
     const nextSeekingFilters = options.seekingFilters ?? feedSeekingFilters;
     const nextExcludeMileHighClub = options.excludeMileHighClub ?? excludeMileHighClub;
     const nextPurgatoryFilter = options.purgatoryFilter ?? purgatoryFilter;
-    const nextDistanceMiles = Math.min(
-      options.distanceMiles ?? nextSeekingFilters.distance,
-      DEFAULT_FEED_RADIUS_MILES,
-    );
+    const selectedDistance = options.distanceMiles ?? nextSeekingFilters.distance;
+    const nextDistanceMiles = selectedDistance === GLOBAL_FEED_DISTANCE ? 'global' : selectedDistance;
 
     if (append) {
       loadingMoreRequestRef.current = true;
@@ -321,8 +316,9 @@ export default function LocalFeed({ embedded = false, onClose }: { embedded?: bo
 
     setError(null);
     try {
-      const nextPosts = await getFeedPosts({
+      const requestFilters: Parameters<typeof getFeedPosts>[0] = {
         before: options.before ?? undefined,
+        ...(options.cursor ? { cursor: options.cursor } : {}),
         coordinates: nextCoordinates,
         distanceMiles: nextDistanceMiles,
         limit: requestLimit,
@@ -333,7 +329,24 @@ export default function LocalFeed({ embedded = false, onClose }: { embedded?: bo
           ...(nextPurgatoryFilter === 'only' ? { purgatoryMembers: true } : {}),
           ...(nextPurgatoryFilter === 'exclude' ? { excludePurgatoryMembers: true } : {}),
         },
-      });
+      };
+      let page = await getFeedPosts(requestFilters);
+      const nextPosts = [...page];
+      const targetCount = options.retryVisibilityFailure ? Math.max(requestLimit, loadedPostCount) : requestLimit;
+      const refreshedIds = new Set(nextPosts.map(post => post.id));
+      while (nextPosts.length < targetCount && page.length === requestLimit) {
+        if (requestId !== feedRequestIdRef.current) return;
+        const lastPost = page[page.length - 1];
+        page = await getFeedPosts({
+          ...requestFilters,
+          before: lastPost.createdAt,
+          ...(lastPost.paginationCursor ? { cursor: lastPost.paginationCursor } : {}),
+        });
+        const unseen = page.filter(post => !refreshedIds.has(post.id));
+        if (!unseen.length) break;
+        unseen.forEach(post => refreshedIds.add(post.id));
+        nextPosts.push(...unseen);
+      }
 
       if (requestId !== feedRequestIdRef.current) {
         return;
@@ -344,11 +357,11 @@ export default function LocalFeed({ embedded = false, onClose }: { embedded?: bo
       const mergedPosts = [
         ...currentPosts,
         ...nextPosts.filter((post) => !knownPostIds.has(post.id)),
-      ].slice(0, FEED_MAX_LOADED_POSTS);
+      ];
       postsRef.current = mergedPosts;
       setPosts(mergedPosts);
       setHasMorePosts(
-        mergedPosts.length < FEED_MAX_LOADED_POSTS && nextPosts.length >= requestLimit,
+        page.length >= requestLimit,
       );
     } catch (error) {
       if (requestId !== feedRequestIdRef.current) {
@@ -361,6 +374,7 @@ export default function LocalFeed({ embedded = false, onClose }: { embedded?: bo
         setPosts([]);
         setHasMorePosts(false);
       }
+      if (options.retryVisibilityFailure) throw error;
     } finally {
       if (requestId !== feedRequestIdRef.current) {
         return;
@@ -504,6 +518,17 @@ export default function LocalFeed({ embedded = false, onClose }: { embedded?: bo
 
   }, []);
 
+  useContentVisibilityRefresh(async (isCurrent) => {
+    // Replace the loaded window: appending cannot remove a now-banned author.
+    const viewedAuthorId = photoViewer?.post.user.id;
+    const refreshPhoto = viewedAuthorId ? getProfileById(viewedAuthorId).catch(error => {
+      if (isCurrent() && error instanceof ProfileApiError && error.status === 404) {
+        setPhotoViewer(current => current?.post.user.id === viewedAuthorId ? null : current);
+      } else if (isCurrent()) throw error;
+    }) : Promise.resolve();
+    if (isCurrent()) await Promise.all([fetchPosts({ retryVisibilityFailure: true }), refreshPhoto]);
+  });
+
   const loadMorePosts = useCallback(() => {
     if (loading || loadingMore || loadingMoreRequestRef.current || !hasMorePosts) {
       return;
@@ -516,7 +541,7 @@ export default function LocalFeed({ embedded = false, onClose }: { embedded?: bo
       return;
     }
 
-    void fetchPosts({ append: true, before });
+    void fetchPosts({ append: true, before, cursor: currentPosts[currentPosts.length - 1]?.paginationCursor });
   }, [fetchPosts, hasMorePosts, loading, loadingMore]);
 
   const handlePostsScroll = useCallback((event: UIEvent<HTMLDivElement>) => {
@@ -571,7 +596,7 @@ export default function LocalFeed({ embedded = false, onClose }: { embedded?: bo
       setShowDistanceOnPost(true);
       setSelectedCrowdTargets([]);
       setPosts((prev) => {
-        const nextPosts = [createdPost, ...prev].slice(0, FEED_MAX_LOADED_POSTS);
+        const nextPosts = [createdPost, ...prev];
         postsRef.current = nextPosts;
         return nextPosts;
       });
@@ -1084,6 +1109,7 @@ export default function LocalFeed({ embedded = false, onClose }: { embedded?: bo
           {stagedPhotos.length > 0 ? (
             <div className="mb-2 space-y-2 rounded-xl border border-white/10 bg-black/45 p-2" data-testid="feed-photo-staging">
               <FeedAttachmentPreview
+                borderColor={USER_BORDER_COLORS.current}
                 dlModeActive={false}
                 onOpen={() => undefined}
                 photos={stagedPhotos}
@@ -1133,7 +1159,10 @@ export default function LocalFeed({ embedded = false, onClose }: { embedded?: bo
                     }
                     feedPhotoInputRef.current?.click();
                   }}
-                  style={{ background: 'var(--cruush-gradient-soft-28)' }}
+                  style={{
+                    background: hasCruushPlus !== true || stagedPhotos.length >= 3 || trust.restricted('feed_posting') || trust.restricted('photo_uploads') ? 'var(--cruush-gradient)' : 'var(--cruush-gradient-soft-28)',
+                    opacity: hasCruushPlus !== true || stagedPhotos.length >= 3 || trust.restricted('feed_posting') || trust.restricted('photo_uploads') ? 0.5 : undefined,
+                  }}
                   type="button"
                 >
                   {uploadingFeedPhoto ? <PhotoUploadSpinner className="mr-2 h-4 w-4" /> : null}
@@ -1146,11 +1175,10 @@ export default function LocalFeed({ embedded = false, onClose }: { embedded?: bo
               <Button
                 className={[
                   'relative overflow-hidden text-white transition before:pointer-events-none before:absolute before:inset-0 before:bg-[linear-gradient(105deg,transparent_30%,rgba(255,255,255,0.28)_50%,transparent_70%)] before:opacity-0 hover:before:opacity-100 disabled:text-white disabled:opacity-100',
-                  trust.restricted('feed_posting') ? 'grayscale' : '',
                 ].join(' ')}
                 onClick={handlePost}
                 disabled={!newPost.trim() || posting || uploadingFeedPhoto || trust.restricted('feed_posting')}
-                style={{ background: 'var(--cruush-gradient)' }}
+                style={{ background: 'var(--cruush-gradient)', opacity: !newPost.trim() || trust.restricted('feed_posting') ? 0.5 : undefined }}
               >
                 <CruushIcon name="send" className="mr-2 h-4 w-4" />
                 {posting ? 'Posting...' : 'Post'}
@@ -1186,7 +1214,7 @@ export default function LocalFeed({ embedded = false, onClose }: { embedded?: bo
                   key={post.id}
                   testId={`feed-post-${post.id}`}
                   className="bg-black/72 hover:bg-black/86"
-                  outOfSight={post.user.outOfSight === true}
+                  outOfSight={showPurgatoryPresentation(post.user.outOfSight, post.user.travelling)}
                   heart={(
                     <div className="-mt-1 w-20" data-testid={`feed-post-profile-stack-${post.id}`}>
                       <HeartPhoto
@@ -1196,7 +1224,7 @@ export default function LocalFeed({ embedded = false, onClose }: { embedded?: bo
                         masked={shouldMaskPhoto(dlModeActive, post.user.photoExplicit, { ...post.user.photoRelationship, isMutualCruush: mutualAuthor, sharesCrowd: post.user.sharesCrowd })}
                         restriction={getNsfwPhotoRestriction(post.user.photoExplicit, post.user.photoRelationship)}
                         photo={post.user?.photo}
-                        outOfSight={post.user.outOfSight === true}
+                        outOfSight={showPurgatoryPresentation(post.user.outOfSight, post.user.travelling)}
                         staticMileHigh={post.user.id === currentUserId && post.user.travelling === true}
                         theme={currentUserId && post.user.id === currentUserId ? 'current' : mutualAuthor ? 'mutual' : 'nearby'}
                         userId={post.user.id}
@@ -1280,6 +1308,7 @@ export default function LocalFeed({ embedded = false, onClose }: { embedded?: bo
                       <p className="text-[calc(var(--text-xs)+1px)] sm:text-[calc(var(--text-sm)+1px)]">{post.content}</p>
 
                       <FeedAttachmentPreview
+                        borderColor={USER_BORDER_COLORS[borderTone]}
                         dlModeActive={dlModeActive}
                         relationship={{ ...post.user.photoRelationship, isMutualCruush: mutualAuthor, sharesCrowd: post.user.sharesCrowd }}
                         onOpen={(index) => setPhotoViewer({ post, index })}
@@ -1347,16 +1376,14 @@ export default function LocalFeed({ embedded = false, onClose }: { embedded?: bo
       </div>
     </div>
     <MapFiltersSurface
+      allowGlobalDistance
       description={null}
       excludeMileHighClub={excludeMileHighClubDraft}
       purgatoryFilter={purgatoryFilterDraft}
       onPurgatoryFilterChange={setPurgatoryFilterDraft}
       hasCruushPlus={hasCruushPlus === true}
       onApply={() => {
-        const nextFilters = {
-          ...feedSeekingDraft,
-          distance: Math.min(feedSeekingDraft.distance, DEFAULT_FEED_RADIUS_MILES),
-        };
+        const nextFilters = { ...feedSeekingDraft };
         setFeedSeekingDraft(nextFilters);
         setFeedSeekingFilters(nextFilters);
         setExcludeMileHighClub(excludeMileHighClubDraft);

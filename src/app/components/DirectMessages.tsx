@@ -1,7 +1,8 @@
+import { useContentVisibilityRefresh } from '../lib/contentVisibilityRevision';
 import { getNsfwPhotoRestriction } from '../lib/dlMode';
 import { useTrustRestrictions } from '../lib/trustRestrictions';
 import TrustRestrictionNotice from './TrustRestrictionNotice';
-import { useDeferredValue, useEffect, useMemo, useState } from 'react';
+import { useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
 import { DROPDOWN_TRIGGER_CLASS } from '../lib/controlStyles';
 import { useNavigate, useSearchParams } from 'react-router';
 import { ChevronLeft, Clock3, MapPin, Pin, Plus, Search, Settings2, Trash2, X, ArrowLeft } from 'lucide-react';
@@ -363,6 +364,7 @@ export default function DirectMessages({
 
   useEffect(() => {
     void fetchConversations();
+    return () => { conversationLoadGeneration.current += 1; };
   }, []);
 
   useEffect(() => {
@@ -380,11 +382,14 @@ export default function DirectMessages({
     return () => { active = false; };
   }, [activeTab]);
 
-  const fetchConversations = async () => {
-    setLoading(true);
+  const conversationLoadGeneration = useRef(0);
+  const fetchConversations = async (background = false) => {
+    const generation = ++conversationLoadGeneration.current;
+    if (!background) setLoading(true);
     setError(null);
     try {
       const data = await getConversations();
+      if (generation !== conversationLoadGeneration.current) return;
       const normalized = Array.isArray(data)
         ? data.map(normalizeConversation).filter((conversation) => Boolean(conversation.id))
         : [];
@@ -396,6 +401,7 @@ export default function DirectMessages({
           getMyCruushActivity(),
           getMutualCruushMap().catch(() => []),
         ]);
+        if (generation !== conversationLoadGeneration.current) return;
         const distanceByUserId = new Map((activity?.mutual ?? []).map((item) => [
           item.user.id,
           item.distance,
@@ -418,13 +424,19 @@ export default function DirectMessages({
         setValidPinUserIds(new Set());
       }
     } catch (error) {
+      if (generation !== conversationLoadGeneration.current) return;
       console.error('Error fetching conversations:', error);
       setConversations([]);
       setError(error instanceof Error ? error.message : 'Failed to load messages.');
+      if (background) throw error;
     } finally {
-      setLoading(false);
+      if (generation === conversationLoadGeneration.current) setLoading(false);
     }
   };
+
+  useContentVisibilityRefresh(async () => {
+    await fetchConversations(true);
+  });
 
   const query = deferredSearchQuery.trim().toLowerCase();
   const filteredConversations = conversations.filter((conversation) => {
@@ -839,7 +851,7 @@ export default function DirectMessages({
                 aria-label="New message"
                 title="New message"
                 onClick={() => setComposeChooserOpen(true)}
-                className="h-11 w-11 rounded-full text-white disabled:grayscale"
+                className="h-11 w-11 rounded-full text-white"
                 style={{ background: 'var(--cruush-gradient)' }}
               >
                 <Plus className="size-4" />
@@ -1117,6 +1129,7 @@ export default function DirectMessages({
               type="button"
               className="w-full"
               disabled={!groupName.trim() || selectedMemberIds.length === 0 || groupCreating || trust.restricted('group_creation')}
+              style={!groupName.trim() || selectedMemberIds.length === 0 || trust.restricted('group_creation') ? { background: 'var(--cruush-gradient)', opacity: 0.5 } : undefined}
               onClick={() => void handleCreateGroup()}
             >
               Create group
@@ -1386,7 +1399,10 @@ export default function DirectMessages({
                 metadata={(
                   <button type="button" className="flex h-11 min-w-0 flex-col justify-center gap-0.5 text-left text-xs leading-snug text-white/62 sm:text-sm" onClick={() => openConversation(conversation.id)}>
                     {conversation.kind === 'dm' ? (
-                      <span className="truncate">{conversation.user.lastActive ?? 'Active recently'}</span>
+                      <>
+                        <span className="truncate">{conversation.user.lastActive ?? 'Active recently'}</span>
+                        <span className="truncate">{formatDistanceLabel(conversation.distance, distancePreferences.mode) ?? conversation.distance}</span>
+                      </>
                     ) : (
                       <>
                         <span className="truncate">{formatRelativeTime(conversation.updatedAt)}</span>
@@ -1434,7 +1450,7 @@ export default function DirectMessages({
                     {conversation.lastMessage ? (
                       <button
                         type="button"
-                        className={`line-clamp-1 min-w-0 break-words text-left text-base ${conversation.unreadCount > 0 ? 'text-white' : 'text-white/62'}`}
+                        className={`block w-full min-w-0 truncate text-left text-base ${conversation.unreadCount > 0 ? 'text-white' : 'text-white/62'}`}
                         onClick={() => openConversation(conversation.id)}
                       >
                         {formatConversationPreview(conversation)}

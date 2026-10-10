@@ -66,7 +66,6 @@ const changelogReleases = [
       'Basic profiles can add 3 kinks; cruush+ removes the profile kink limit.',
       'Post text to Confessional for free and search #tags. cruush+ adds up to ten tags on a post and up to three photos.',
       'cruush+ includes 5 Pulses per day, with optional alerts protected from repeats.',
-      'Complete Side Quests to earn bonus Pulses and cruush+ days.',
       'Ghost Mode keeps its familiar animation with the new 1.6 icon.',
       'Dark Room gives cruush+ a private way to browse.',
       'Profiles, messages, map controls, loading states, and mobile layouts feel faster and clearer.',

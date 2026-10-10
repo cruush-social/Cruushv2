@@ -1,3 +1,4 @@
+import { nonBannedNotificationSql } from "../banned-content.js";
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import {
@@ -77,6 +78,25 @@ const pushUnsubscribePayloadSchema = z.object({
 }).strict();
 
 export function registerNotificationRoutes(app: FastifyInstance) {
+  app.get("/api/notifications/visible-ids", async (request, reply) => {
+    const userId = await getAuthenticatedUserId(request);
+    const parsed = z.object({
+      ids: z.string().transform(value => value.split(",")).pipe(z.array(z.uuid()).min(1).max(50))
+    }).strict().safeParse(request.query);
+    if (!parsed.success) throw new ApiError(400, "VALIDATION_ERROR", "Invalid notification IDs.");
+    const result = await app.db.query<AppNotificationRow>(
+      `select notification.id::text as id, type, actor_user_id::text as actor_user_id,
+              conversation_id::text as conversation_id, metadata
+       from app_notifications notification
+       where notification.user_id = $1 and notification.id = any($2::uuid[])
+         and ${nonBannedNotificationSql("notification")}`,
+      [userId, [...new Set(parsed.data.ids)]]
+    );
+    const visible = await filterOosHiddenNotifications(app, userId, result.rows);
+    reply.header("Cache-Control", "private, no-store");
+    return reply.send({ data: { ids: visible.map(row => row.id) } });
+  });
+
   app.get("/api/notifications", async (request, reply) => {
     const userId = await getAuthenticatedUserId(request);
     const parsedQuery = notificationQuerySchema.safeParse(request.query);
@@ -90,6 +110,7 @@ export function registerNotificationRoutes(app: FastifyInstance) {
     const values: unknown[] = [userId, query.limit, cursorTime, cursorId];
     const whereClauses = [
       "notification.user_id = $1",
+      nonBannedNotificationSql("notification"),
       `($3::timestamptz is null
         or notification.created_at < $3::timestamptz
         or ($4::uuid is not null and notification.created_at = $3::timestamptz and notification.id < $4::uuid))`
@@ -178,6 +199,7 @@ export function registerNotificationRoutes(app: FastifyInstance) {
        select count(*)::int as unread_count
        from app_notifications notification
        where notification.user_id = $1
+         and ${nonBannedNotificationSql("notification")}
          and notification.read_at is null`,
       [userId]
     );

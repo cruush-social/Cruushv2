@@ -1,5 +1,5 @@
-import { render, screen } from '@testing-library/react';
-import { describe, expect, it } from 'vitest';
+import { act, render, screen } from '@testing-library/react';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { MemoryRouter } from 'react-router';
 import AppViewport from './AppViewport';
 
@@ -13,6 +13,55 @@ function dispatchMultiTouch(target: HTMLElement, touchCount: number) {
 }
 
 describe('AppViewport', () => {
+  afterEach(() => {
+    delete document.documentElement.dataset.cruushDmKeyboardOpen;
+    vi.unstubAllGlobals();
+  });
+
+  it('keeps the DM frame at the visible top during iOS keyboard panning and restores it on close', () => {
+    const viewport = Object.assign(new EventTarget(), { offsetTop: 0, height: 812 });
+    vi.stubGlobal('visualViewport', viewport);
+    render(<MemoryRouter><AppViewport><div /></AppViewport></MemoryRouter>);
+    const frame = screen.getByTestId('app-viewport');
+    expect(frame.style.top).toBe('');
+    act(() => {
+      document.documentElement.dataset.cruushDmKeyboardOpen = 'true';
+      viewport.offsetTop = 190;
+      viewport.height = 409;
+      window.dispatchEvent(new Event('cruush:dm-keyboard-changed'));
+    });
+    expect(frame.style.top).toBe('190px');
+    expect(frame.style.height).toBe('409px');
+    expect(frame.style.bottom).toBe('auto');
+    expect(frame.style.transform).toBe('');
+    act(() => {
+      viewport.offsetTop = 403;
+      viewport.dispatchEvent(new Event('scroll'));
+    });
+    expect(frame.style.top).toBe('403px');
+    act(() => {
+      delete document.documentElement.dataset.cruushDmKeyboardOpen;
+      window.dispatchEvent(new Event('cruush:dm-keyboard-changed'));
+    });
+    expect(frame.style.top).toBe('');
+    expect(frame.style.height).toBe('');
+    expect(frame.style.bottom).toBe('');
+  });
+
+  it('does not reframe other surfaces or desktop focus when the visual viewport changes', () => {
+    const viewport = Object.assign(new EventTarget(), { offsetTop: 0, height: 812 });
+    vi.stubGlobal('visualViewport', viewport);
+    render(<MemoryRouter><AppViewport><div /></AppViewport></MemoryRouter>);
+    act(() => {
+      viewport.offsetTop = 403;
+      viewport.height = 409;
+      viewport.dispatchEvent(new Event('resize'));
+    });
+    const frame = screen.getByTestId('app-viewport');
+    expect(frame.style.top).toBe('');
+    expect(frame.style.height).toBe('');
+  });
+
   it('blocks browser page zoom gestures outside the map surface', () => {
     render(
       <MemoryRouter initialEntries={['/profile/example']}>

@@ -1,3 +1,5 @@
+import { nonBannedAccountSql } from "../banned-content.js";
+import { getMhcLocationLabel } from "../mhc-location-label.js";
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import { loadPhotoViewerRelationships, type PhotoViewerRelationship } from "../nsfw-photo-audience.js";
@@ -211,6 +213,8 @@ async function mapPostRow(app: FastifyInstance, row: PostRow, viewerUserId: stri
     && locationStatuses.get(row.user_id) === "out_of_sight"
     ? (townLabels ?? await loadCurrentTownLabels(app, [row.user_id])).get(row.user_id)
     : undefined;
+  const mhcLabel = row.travelling === true && row.show_distance !== false
+    ? await getMhcLocationLabel(app, row.user_id, distanceLabelMode) : null;
   const outOfSightLabel = resolveOutOfSightLocationLabel({
     viewerStatus,
     subjectStatus: locationStatuses.get(row.user_id) ?? "unknown",
@@ -231,7 +235,7 @@ async function mapPostRow(app: FastifyInstance, row: PostRow, viewerUserId: stri
     createdAt: new Date(row.created_at).toISOString(),
     audience: row.audience ?? (crowdTargets.length > 0 ? "crowd" : "public"),
     tags: row.feed_tags ?? [],
-    distance: outOfSightLabel ?? (row.show_distance !== false && !outsideServiceArea && viewerStatus !== "out_of_sight" && distanceLabelMode === "precise" && typeof row.distance_miles === "number"
+    distance: mhcLabel ?? outOfSightLabel ?? (row.show_distance !== false && !outsideServiceArea && viewerStatus !== "out_of_sight" && distanceLabelMode === "precise" && typeof row.distance_miles === "number"
       ? formatCoarseDistance(row.distance_miles)
       : "Nearby"),
     ...(crowdTargets.length > 0 ? { crowdTargets } : {}),
@@ -444,12 +448,29 @@ const feedBooleanQueryFlag = z.preprocess((value) => {
     : normalizedValue === true;
 }, z.boolean().default(false));
 
+const feedCursorPayloadSchema = z.object({
+  at: z.string().max(64).refine((value) => z.string().datetime({ offset: true }).safeParse(
+    value.replace(" ", "T").replace(/([+-]\d{2})$/, "$1:00")
+  ).success),
+  id: z.uuid()
+}).strict();
+
+const feedCursorSchema = z.string().max(512).regex(/^[A-Za-z0-9_-]+$/).transform((value, context) => {
+  try {
+    const decoded = Buffer.from(value, "base64url").toString("utf8");
+    const parsed = feedCursorPayloadSchema.safeParse(JSON.parse(decoded));
+    if (parsed.success) return parsed.data;
+  } catch { /* Invalid cursors fail validation before any query. */ }
+  context.addIssue({ code: "custom", message: "Invalid Feed pagination cursor." });
+  return z.NEVER;
+});
+
 const feedPostQuerySchema = z.object({
   within: feedWindowSchema.default("7d"),
-  // The open beta covers fifty miles around NYC, so the feed reaches that far too.
-  distanceMiles: z.coerce.number().min(1).max(50).default(50),
+  distanceMiles: z.union([z.literal("global"), z.coerce.number().min(1).max(100)]).default("global"),
   limit: z.coerce.number().int().min(1).max(50).default(30),
   before: z.string().datetime().optional(),
+  cursor: feedCursorSchema.optional(),
   lat: z.coerce.number().min(-90).max(90).optional(),
   lng: z.coerce.number().min(-180).max(180).optional(),
   q: z.string().trim().min(1).max(320).optional(),
@@ -636,13 +657,14 @@ export async function registerPostRoutes(app: FastifyInstance) {
       query.within,
       query.lat ?? null,
       query.lng ?? null,
-      query.distanceMiles,
-      query.before ?? null,
-      null // Internal scan tie-breaker; the public before parameter stays unchanged.
+      query.distanceMiles === "global" ? null : query.distanceMiles,
+      query.cursor?.at ?? query.before ?? null,
+      query.cursor?.id ?? null
     ];
     const where = [
       "p.expires_at > now()",
       "coalesce(author.account_status, 'active') <> 'deleted'",
+      nonBannedAccountSql("p.user_id"),
       notTombstonedSql("pr"),
       `(p.created_at >= now() - case
         when $2 = '1h' then interval '1 hour'
@@ -653,7 +675,8 @@ export async function registerPostRoutes(app: FastifyInstance) {
         else interval '24 hours'
       end)`,
       `(
-        $3::double precision is null
+        $5::double precision is null
+        or $3::double precision is null
         or $4::double precision is null
         or (
           coalesce(pr.fuzzy_lat, pr.lat) is not null
@@ -744,9 +767,9 @@ export async function registerPostRoutes(app: FastifyInstance) {
        where ${where.join("\n         and ")}
        order by p.created_at desc, p.id desc
        limit ${limitPlaceholder}`;
-    const visibleRows: PostRow[] = [];
-    let scanBefore = query.before ?? null;
-    let scanBeforeId: string | null = null;
+    const visibleRows: Array<PostRow & { scan_created_at?: string }> = [];
+    let scanBefore = query.cursor?.at ?? query.before ?? null;
+    let scanBeforeId: string | null = query.cursor?.id ?? null;
     const viewerOutsideServiceArea = await getViewerOutsideServiceArea(app, userId);
 
     while (visibleRows.length < query.limit) {
@@ -800,7 +823,12 @@ export async function registerPostRoutes(app: FastifyInstance) {
       && locationStatuses.get(row.user_id) === "out_of_sight"
     ).map((row) => row.user_id));
     return reply.send({
-      data: await Promise.all(pageRows.map((row) => mapPostRow(app, row, userId, photoRelationships.get(row.user_id), viewerOutsideServiceArea, locationStatuses, townLabels, distanceModes)))
+      data: await Promise.all(pageRows.map(async (row) => ({
+        ...await mapPostRow(app, row, userId, photoRelationships.get(row.user_id), viewerOutsideServiceArea, locationStatuses, townLabels, distanceModes),
+        paginationCursor: Buffer.from(JSON.stringify({
+          at: row.scan_created_at ?? new Date(row.created_at).toISOString(), id: row.id
+        })).toString("base64url")
+      })))
     });
   });
 

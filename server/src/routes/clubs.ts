@@ -1,3 +1,4 @@
+import { nonBannedAccountSql, loadBannedUserIds } from "../banned-content.js";
 import type { FastifyInstance } from "fastify";
 import {
   clubVisibilityPayloadSchema,
@@ -165,7 +166,7 @@ async function loadClubVisibilitySubject(app: FastifyInstance, userId: string, d
          where travel.user_id = profile.id and travel.set_at > now() - interval '24 hours'
        ) as mile_high_club_member
      from profiles profile
-     where profile.id = $1`,
+     where profile.id = $1 and ${nonBannedAccountSql("profile.id")}`,
     [userId]
   );
   const row = result.rows[0];
@@ -298,13 +299,14 @@ async function loadClubDetail(app: FastifyInstance, clubId: string, userId: stri
   const membership = await findClubEnrollment(context, { clubId, userId, type: "membership" });
   const joinRequest = await findClubEnrollment(context, { clubId, userId, type: "join_request" });
   const memberships = await listClubMemberships(context, clubId);
+  const bannedMembers = await loadBannedUserIds(db, memberships.map((record) => record.payload.userId));
   const owner = memberships.find((record) => record.payload.role === "owner");
   const club: ClubDetailRow = {
     ...rawClub,
     current_user_role: membership?.payload.role ?? null,
     conversation_id: membership ? rawClub.conversation_id : null,
     join_request_pending: Boolean(joinRequest),
-    member_count: memberships.length,
+    member_count: memberships.filter((record) => !bannedMembers.has(record.payload.userId)).length,
     owner_user_id: owner?.payload.userId ?? ""
   };
   return club;
@@ -349,7 +351,7 @@ export async function registerClubRoutes(app: FastifyInstance) {
        left join lateral (
          select max(message.created_at) as created_at
          from messages message
-         where message.conversation_id = c.conversation_id
+         where message.conversation_id = c.conversation_id and ${nonBannedAccountSql("message.user_id")}
            and (message.expires_at is null or message.expires_at > now())
        ) latest_activity on true
        where c.directory_visible = true
@@ -373,13 +375,14 @@ export async function registerClubRoutes(app: FastifyInstance) {
         listClubMemberships(context, row.id),
         listClubJoinRequests(context, row.id)
       ]);
+      const bannedMembers = await loadBannedUserIds(app.db, [...memberships, ...requests].map((record) => record.payload.userId));
       const role = viewerRoleByClub.get(row.id) ?? null;
       return {
         ...row,
         current_user_role: role,
         conversation_id: role ? row.conversation_id : null,
-        pending_join_request_count: role && requestReviewRoles.has(role) ? requests.length : 0,
-        member_count: memberships.length,
+        pending_join_request_count: role && requestReviewRoles.has(role) ? requests.filter((record) => !bannedMembers.has(record.payload.userId)).length : 0,
+        member_count: memberships.filter((record) => !bannedMembers.has(record.payload.userId)).length,
         owner_user_id: memberships.find((record) => record.payload.role === "owner")?.payload.userId ?? ""
       };
     }));
@@ -574,7 +577,9 @@ export async function registerClubRoutes(app: FastifyInstance) {
     await moderateClubMetadata(app, userId, payload, clubId);
     await app.db.query(
       `with updated_club as (
-         update clubs set title = $2, summary = $3, updated_at = now() where id = $1 returning conversation_id
+         update clubs set title = $2, summary = $3,
+           requires_join_approval = coalesce($5::boolean, requires_join_approval),
+           updated_at = now() where id = $1 returning conversation_id
        ), removed_tags as (
          delete from club_tags where club_id = $1 and not (tag = any($4::text[]))
        ), inserted_tags as (
@@ -584,7 +589,7 @@ export async function registerClubRoutes(app: FastifyInstance) {
        )
        update conversations set title = $2, tags = $4::text[], updated_at = now()
        where id = (select conversation_id from updated_club)`,
-      [clubId, payload.title, payload.summary, payload.tags]
+      [clubId, payload.title, payload.summary, payload.tags, payload.requiresJoinApproval ?? null]
     );
     return { data: mapClubDetail(app, await loadClubDetail(app, clubId, userId)) };
   });
@@ -683,7 +688,7 @@ export async function registerClubRoutes(app: FastifyInstance) {
          applicant.id
        from app_users applicant
        left join profiles profile on profile.id = applicant.id
-       where applicant.id = any($1::uuid[])`,
+       where applicant.id = any($1::uuid[]) and ${nonBannedAccountSql("applicant.id")}`,
       [applicantIds]
     );
     const applicants = new Map(result.rows.map((row) => [row.user_id, row]));

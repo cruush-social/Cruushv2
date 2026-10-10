@@ -19,6 +19,7 @@ export type ProfileVisibilityRules = {
   hosting: string[];
   preferred_spots: string[];
   vibes: string[];
+  tags?: string[];
   crowds: string[];
   hobbies: string[];
   positions: string[];
@@ -245,6 +246,7 @@ export const emptyProfilePayload: ProfilePayload = {
     hosting: [],
     preferred_spots: [],
     vibes: [],
+    tags: [],
     crowds: [],
     hobbies: [],
     positions: [],

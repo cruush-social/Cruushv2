@@ -16,7 +16,7 @@ import {
 } from "./encrypted-relationships.js";
 import { emptyProfile, profileVisibilityRulesSchema } from "./profile-schema.js";
 import { GhostLandUnavailableError, isGhostLand } from "./ghost-land.js";
-import { createCrowdTokens, decryptSensitiveProfile, encryptProfileVisibility, encryptSensitiveProfile, type ProfileVisibilityRules } from "./profile-sensitive.js";
+import { createCrowdTokens, decryptProfileVisibility, decryptSensitiveProfile, encryptProfileVisibility, encryptSensitiveProfile, type ProfileVisibilityRules } from "./profile-sensitive.js";
 import { createMemoryRateLimiter } from "./rate-limit.js";
 import {
   buildRevokeActionToken,
@@ -15868,12 +15868,13 @@ describe("server", () => {
     expect(pingRevocationIndex).toBeLessThan(commitIndex);
   });
 
-  it("updates manual visibility rules and revokes active Pings when the rules narrow", async () => {
+  it.each([false, true])("updates encrypted manual rules and revokes active Pings when rules narrow (tags=%s)", async (withTags) => {
     const visibilityRules: ProfileVisibilityRules = {
       ...emptyVisibilityRules,
       distance: 25,
       identities: ["nonbinary"],
-      looking_for: ["hookup"]
+      looking_for: withTags ? [] : ["hookup"],
+      tags: withTags ? ["rope"] : []
     };
     const encryptedProfileVisibility = encryptProfileVisibility(app.config, emptyProfile.visibility_rules);
     const profileRow = {
@@ -15969,6 +15970,13 @@ describe("server", () => {
     expect(query.mock.calls.some((call) => String(call[0]).includes("update profiles"))).toBe(true);
     const pingRevocationIndex = query.mock.calls.findIndex((call) => String(call[0]).includes("update map_pings"));
     const profileUpdateIndex = query.mock.calls.findIndex((call) => String(call[0]).includes("update profiles"));
+    const savedValues = query.mock.calls[profileUpdateIndex]?.[1] as unknown[];
+    expect(decryptProfileVisibility(app.config, {
+      profile_visibility_ciphertext: String(savedValues[1]),
+      profile_visibility_nonce: String(savedValues[2]),
+      profile_visibility_auth_tag: String(savedValues[3]),
+      profile_visibility_key_version: String(savedValues[4]),
+    })).toEqual(visibilityRules);
     const commitIndex = query.mock.calls.findIndex((call) => String(call[0]).trim().toLowerCase() === "commit");
     expect(pingRevocationIndex).toBeGreaterThan(-1);
     expect(profileUpdateIndex).toBeLessThan(pingRevocationIndex);
@@ -15980,7 +15988,7 @@ describe("server", () => {
     });
   });
 
-  it("requires cruush+ when manual visibility rules exceed three exclusion filters", async () => {
+  it.each([false, true])("requires cruush+ for fourth manual exclusion category (tags=%s)", async (withTags) => {
     query.mockResolvedValueOnce({
       rows: [{
         email: "not-owner@example.com"
@@ -16008,7 +16016,8 @@ describe("server", () => {
           distance: 25,
           identities: ["nonbinary"],
           looking_for: ["hookup"],
-          kinks: ["leather"]
+          kinks: withTags ? [] : ["leather"],
+          tags: withTags ? ["rope"] : []
         }
       }
     });
@@ -16827,6 +16836,9 @@ describe("server", () => {
     expect(listSql).toContain("limit $10 offset $11");
     expect(listSql).toContain("c.visibility_scope = 'public'");
     expect(listSql).toContain("c.visibility_scope = 'checked_in'");
+    expect(listSql).toContain("c.visibility_scope = 'mutuals'");
+    expect(listSql).toContain("viewer_crowd_token.token_hash = target.token_hash");
+    expect(listSql).toContain("m.visibility_scope = 'mutuals'");
     expect(listCall?.[1]).toEqual(expect.arrayContaining([100, 23, 46]));
     // The viewport radius remains parameterized. Service-area bounds are now
     // SQL literals, so verify the independent NYC bound in its AND clause.
@@ -16938,11 +16950,71 @@ describe("server", () => {
     // check-in instead of a message expiry: without one a viewer sees only
     // their own posts.
     expect(boardSql).toContain("($5::boolean or m.user_id = $2)");
+    expect(boardSql).toContain("m.visibility_scope = 'public'");
+    expect(boardSql).toContain("m.visibility_scope = 'mutuals'");
+    expect(boardSql).toContain("jsonb_to_recordset(m.crowd_targets)");
     expect(boardSql).not.toContain("m.expires_at >");
     expect(queries.some((sql) => sql.includes("from place_checkins")
       && sql.includes("expires_at > now()"))).toBe(true);
     expect(queries.some((sql) => sql.includes("encrypted_relationship_records"))).toBe(true);
     expect(queries.every((sql) => !sql.includes("cruush_matches"))).toBe(true);
+  });
+
+  it.each(["mutuals", "crowd"])("rejects a report of an unreadable restricted Spot message (%s)", async visibility => {
+    const messageId = "20000000-0000-4000-8000-000000000001";
+    query.mockImplementation(async (sql: string) => {
+      if (sql.includes("as target_user_id, m.visibility_scope")) return { rows: [{ id: messageId, place_id: "10000000-0000-4000-8000-000000000001", target_user_id: "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97", visibility_scope: visibility }] };
+      return { rows: [] };
+    });
+    const response = await app.inject({ method: "POST", url: "/api/reports", headers: { "x-user-id": userId }, payload: { targetType: "place_message", targetId: messageId, reason: "spam_scam" } });
+    expect(response.statusCode, response.body).toBe(404);
+    const read = query.mock.calls.find(([sql]) => sql.includes("jsonb_to_recordset(m.crowd_targets)"));
+    expect(read).toBeDefined();
+    expect(read?.[0]).toContain("viewer_checkin.expires_at > now()");
+    expect(read?.[0]).toContain("blocker_user_id");
+    expect(query.mock.calls.some(([sql]) => sql.includes("insert into reports"))).toBe(false);
+  });
+
+  it.each([
+    { visibility: "mutuals", plus: false, member: false, expected: 201 },
+    { visibility: "crowd", plus: true, member: true, expected: 201 },
+    { visibility: "crowd", plus: false, member: true, expected: 402 },
+    { visibility: "crowd", plus: true, member: false, expected: 403 }
+  ])("enforces restricted Spot check-in audience $visibility plus=$plus member=$member", async ({ visibility, plus, member, expected }) => {
+    const placeId = "10000000-0000-4000-8000-000000000001";
+    query.mockImplementation(async (sql: string) => {
+      if (sql.includes("from user_entitlements")) return { rows: [{ cruush_plus_enabled: plus, cruush_plus_expires_at: null }] };
+      if (sql.includes("select target.crowd from jsonb_to_recordset")) return { rows: member ? [{ crowd: "Gay" }] : [] };
+      if (sql.includes("from places where id")) return { rows: [{ id: placeId, name: "Existing Spot", latitude: 40.7, longitude: -74 }] };
+      if (sql.includes("select exists") && sql.includes("feature_restrictions")) return { rows: [{ allowed: true }] };
+      if (sql.includes("insert into place_checkin_events")) return { rows: [{ place_id: placeId }], rowCount: 1 };
+      if (sql.includes("insert into place_board_messages")) return { rows: [{ id: "20000000-0000-4000-8000-000000000001" }] };
+      if (sql.includes("insert into place_checkins")) return { rows: [{ expires_at: new Date(Date.now() + 3600000) }] };
+      return { rows: [] };
+    });
+    const response = await app.inject({ method: "POST", url: `/api/places/${placeId}/check-ins`, headers: { "x-user-id": userId }, payload: {
+      content: "Selected audience note", durationHours: 1, visibility, ...(visibility === "crowd" ? { crowdTargets: ["Gay"] } : {}),
+      latitude: 40.7, longitude: -74, accuracyMeters: 10, observedAt: new Date().toISOString()
+    } });
+    expect(response.statusCode, response.body).toBe(expected);
+    const insert = query.mock.calls.find(([sql]) => sql.includes("insert into place_checkins"));
+    if (expected !== 201) { expect(insert).toBeUndefined(); return; }
+    expect(insert?.[1]?.[3]).toBe(visibility);
+    const board = query.mock.calls.find(([sql]) => sql.includes("insert into place_board_messages"));
+    expect(board?.[1]?.[6]).toBe(visibility);
+    expect(board?.[0]).toContain("visibility_scope, crowd_targets");
+    expect(query.mock.calls.some(([sql]) => sql.includes("insert into place_activity_hourly"))).toBe(false);
+    const feed = query.mock.calls.find(([sql]) => sql.includes("insert into posts"));
+    expect(feed?.[1]?.[15]).toBe(visibility);
+    expect(feed?.[0]).not.toContain("'public',");
+    const targets = query.mock.calls.find(([sql]) => sql.includes("insert into feed_post_crowd_targets"));
+    if (visibility === "crowd") {
+      expect(JSON.parse(String(insert?.[1]?.[5]))[0]).toHaveProperty("token_hash");
+      expect(JSON.parse(String(insert?.[1]?.[5]))[0]).not.toHaveProperty("crowd");
+      expect(JSON.parse(String(board?.[1]?.[7]))).toEqual(JSON.parse(String(insert?.[1]?.[5])));
+      expect(JSON.parse(String(targets?.[1]?.[1]))[0].crowd).toBe("Gay");
+      expect(query.mock.calls.some(([sql]) => sql.includes("for share of author_crowd_token"))).toBe(true);
+    } else expect(targets).toBeUndefined();
   });
 
   it("stores new Spot board text only as encrypted content", async () => {
@@ -17003,13 +17075,14 @@ describe("server", () => {
     // The Pink Book post outlives the check-in that carried it: it is stored
     // with no expiry and removed only when its author deletes it.
     expect(boardInsertSql).toContain("expires_at");
-    expect(boardInsertSql).toContain(", null)");
+    expect(boardInsertSql).toContain(", null, $7, $8::jsonb)");
     expect(boardInsertSql).not.toContain("interval '1 hour'");
     expect(boardInsertParams).not.toContain(content);
-    expect(boardInsertParams).toHaveLength(6);
+    expect(boardInsertParams).toHaveLength(8);
+    expect(boardInsertParams.slice(6)).toEqual(["public", "[]"]);
     // The check-in itself still expires on the requested schedule.
     expect(checkinInsertSql).toContain("now() + ($5::int * interval '1 hour')");
-    expect(checkinInsertParams).toEqual([userId, placeId, true, "public", 3]);
+    expect(checkinInsertParams).toEqual([userId, placeId, true, "public", 3, "[]"]);
     const feedInsertSql = query.mock.calls.find(([sql]) => sql.includes("with eligible_user as (") && sql.includes("insert into posts"))?.[0];
     expect(feedInsertSql).toContain("coalesce(account.account_status, 'active') = 'active'");
     expect(feedInsertSql).toContain("for update of account");
@@ -17115,6 +17188,8 @@ describe("server", () => {
     expect(peopleSql).toContain("c.visible = true and c.expires_at > now()");
     expect(peopleSql).toContain("c.visibility_scope = 'public'");
     expect(peopleSql).toContain("c.visibility_scope = 'checked_in'");
+    expect(peopleSql).toContain("c.visibility_scope = 'mutuals'");
+    expect(peopleSql).toContain("viewer_crowd_token.token_hash = target.token_hash");
     expect(queries.some((sql) => sql.includes("encrypted_relationship_records"))).toBe(true);
     expect(queries.every((sql) => !sql.includes("cruush_matches"))).toBe(true);
     expect(popularTimesSql).toContain("bucket_start >= now() - interval '90 days'");

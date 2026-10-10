@@ -1,7 +1,9 @@
+import { useContentVisibilityRefresh } from '../lib/contentVisibilityRevision';
+import { Switch } from './ui/switch';
 import { useTrustRestrictions } from '../lib/trustRestrictions';
 import TrustRestrictionNotice from './TrustRestrictionNotice';
 import PhotoUploadSpinner from './PhotoUploadSpinner';
-import { useEffect, useId, useRef, useState } from 'react';
+import { useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
 import type { CSSProperties, ChangeEvent, RefObject } from 'react';
 import { useLocation, useParams, useNavigate } from 'react-router';
 import { Clock3, Eye, Image as ImageIcon, ImagePlus, Share2, Timer, Star, Trash2, X } from 'lucide-react';
@@ -332,6 +334,7 @@ export default function PrivateGroupChat({
   const [messages, setMessages] = useState<ChatMessageRecord[]>([]);
   const [sharedProfiles, setSharedProfiles] = useState<Record<string, ProfileRecord>>({});
   const [expiryNowMs, setExpiryNowMs] = useState(() => Date.now());
+  const chatLoadGeneration = useRef(0);
   const [conversation, setConversation] = useState<ConversationThread | null>(null);
   const [loading, setLoading] = useState(true);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
@@ -353,6 +356,7 @@ export default function PrivateGroupChat({
   const [clubTitleDraft, setClubTitleDraft] = useState('');
   const [clubSummaryDraft, setClubSummaryDraft] = useState('');
   const [clubTagsDraft, setClubTagsDraft] = useState<string[]>([]);
+  const [clubRequiresJoinApprovalDraft, setClubRequiresJoinApprovalDraft] = useState(true);
   const [clubVisibilityOpen, setClubVisibilityOpen] = useState(false);
   const [clubShareOpen, setClubShareOpen] = useState(false);
   const [clubVisibility, setClubVisibility] = useState<VisibilityControlState>(DEFAULT_VISIBILITY_STATE);
@@ -372,10 +376,88 @@ export default function PrivateGroupChat({
   const [deletingMessageId, setDeletingMessageId] = useState<string | null>(null);
   const [keyboardInset, setKeyboardInset] = useState(0);
   const [composerFocused, setComposerFocused] = useState(false);
+  const [dmKeyboardOpen, setDmKeyboardOpen] = useState(false);
+  const dmKeyboardOpenRef = useRef(false);
+  const keyboardViewportBaseline = useRef({ height: Math.max(window.innerHeight, document.documentElement.clientHeight), width: window.innerWidth });
+  const [dmComposerClearance, setDmComposerClearance] = useState<number | null>(null);
+  const threadContentRef = useRef<HTMLDivElement | null>(null);
+  const composerBarRef = useRef<HTMLDivElement | null>(null);
+  const latestMessageRef = useRef<HTMLDivElement | null>(null);
+  const retainKeyboardBottomRef = useRef(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const favoriteFileInputRef = useRef<HTMLInputElement | null>(null);
   const settingsPanelRef = useRef<HTMLElement | null>(null);
   const textMessageSendingRef = useRef(false);
+
+  useLayoutEffect(() => {
+    if (conversation?.kind !== 'dm' || embedded || settingsOpen) return;
+    const composer = composerBarRef.current;
+    const viewport = threadContentRef.current?.closest<HTMLElement>('[data-testid="app-page-content"]');
+    if (!composer || !viewport) return;
+    const measure = () => {
+      const composerBounds = composer.getBoundingClientRect();
+      const viewportBounds = viewport.getBoundingClientRect();
+      if (!composerBounds.height || !viewportBounds.height) return;
+      // AppViewport already reserves navigation space. Reserve only the part
+      // of its scroll area covered by the fixed composer; the route retains
+      // its existing 1rem end gap. Keyboard bottom retention is handled separately.
+      setDmComposerClearance(Math.max(0, viewportBounds.bottom - composerBounds.top));
+    };
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(composer);
+    observer.observe(viewport);
+    window.addEventListener('resize', measure);
+    window.visualViewport?.addEventListener('resize', measure);
+    window.visualViewport?.addEventListener('scroll', measure);
+    return () => {
+      observer.disconnect();
+      window.removeEventListener('resize', measure);
+      window.visualViewport?.removeEventListener('resize', measure);
+      window.visualViewport?.removeEventListener('scroll', measure);
+    };
+  }, [conversation?.kind, embedded, settingsOpen, keyboardInset, composerFocused, dmKeyboardOpen]);
+
+  useLayoutEffect(() => {
+    if (conversation?.kind !== 'dm' || embedded || settingsOpen || !dmKeyboardOpen) return;
+    const viewport = threadContentRef.current?.closest<HTMLElement>('[data-testid="app-page-content"]');
+    if (!viewport) return;
+    let frame = 0;
+    const retainBottom = () => {
+      cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(() => {
+        if (retainKeyboardBottomRef.current) viewport.scrollTop = Math.max(0, viewport.scrollHeight - viewport.clientHeight);
+      });
+    };
+    const releaseBottom = () => { retainKeyboardBottomRef.current = false; };
+    const observer = new ResizeObserver(retainBottom);
+    observer.observe(viewport);
+    if (threadContentRef.current) observer.observe(threadContentRef.current);
+    viewport.addEventListener('touchstart', releaseBottom, { passive: true });
+    viewport.addEventListener('wheel', releaseBottom, { passive: true });
+    retainBottom();
+    return () => {
+      cancelAnimationFrame(frame);
+      observer.disconnect();
+      viewport.removeEventListener('touchstart', releaseBottom);
+      viewport.removeEventListener('wheel', releaseBottom);
+    };
+  }, [conversation?.kind, embedded, settingsOpen, dmKeyboardOpen, dmComposerClearance, keyboardInset]);
+
+  const focusComposer = () => {
+    if (!dmKeyboardOpenRef.current) {
+      const viewport = threadContentRef.current?.closest<HTMLElement>('[data-testid="app-page-content"]');
+      const last = latestMessageRef.current?.getBoundingClientRect();
+      const bounds = viewport?.getBoundingClientRect();
+      const composerTop = composerBarRef.current?.getBoundingClientRect().top;
+      retainKeyboardBottomRef.current = Boolean(viewport && (
+        viewport.scrollHeight - viewport.clientHeight - viewport.scrollTop <= 24
+        || (last && last.height > 0 && bounds && composerTop !== undefined
+          && last.bottom >= bounds.top && last.bottom <= Math.min(bounds.bottom, composerTop))
+      ));
+    }
+    setComposerFocused(true);
+  };
 
   useEffect(() => {
     const reevaluateExpiredMessages = () => {
@@ -456,41 +538,67 @@ export default function PrivateGroupChat({
 
   useEffect(() => {
     const visualViewport = window.visualViewport;
-
-    if (!visualViewport) {
-      return;
-    }
-
     const updateKeyboardInset = () => {
+      const layoutHeight = document.documentElement.clientHeight || window.innerHeight;
+      const visibleHeight = visualViewport?.height ?? window.innerHeight;
+      const offsetTop = visualViewport?.offsetTop ?? 0;
+      const baseline = keyboardViewportBaseline.current;
+      if (baseline.width !== window.innerWidth) {
+        baseline.width = window.innerWidth;
+        baseline.height = Math.max(layoutHeight, window.innerHeight);
+      } else {
+        baseline.height = Math.max(baseline.height, layoutHeight, window.innerHeight);
+      }
+      if (conversation?.kind === 'dm') {
+        const mobileInput = window.matchMedia?.('(pointer: coarse)').matches
+          || /Android|iPhone|iPad|iPod/i.test(navigator.userAgent)
+          || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+        const viewportShrunk = layoutHeight - visibleHeight >= KEYBOARD_INSET_THRESHOLD_PX
+          || (mobileInput && baseline.height - Math.min(window.innerHeight, visibleHeight) >= KEYBOARD_INSET_THRESHOLD_PX);
+        const open = Boolean(viewportShrunk && (composerFocused || dmKeyboardOpenRef.current));
+        dmKeyboardOpenRef.current = open;
+        setDmKeyboardOpen(open);
+        // Safari pans the layout viewport while changing innerHeight. Fixed
+        // positioning still uses clientHeight; detection is separate because
+        // the required bottom inset can legitimately become zero mid-keyboard.
+        setKeyboardInset(open ? Math.max(0, Math.round(layoutHeight - visibleHeight - offsetTop)) : 0);
+        return;
+      }
       const nextInset = Math.max(
         0,
-        Math.round(window.innerHeight - visualViewport.height - visualViewport.offsetTop),
+        Math.round(window.innerHeight - visibleHeight - offsetTop),
       );
-
       setKeyboardInset(nextInset >= KEYBOARD_INSET_THRESHOLD_PX ? nextInset : 0);
     };
 
     updateKeyboardInset();
-    visualViewport.addEventListener('resize', updateKeyboardInset);
-    visualViewport.addEventListener('scroll', updateKeyboardInset);
-    // Some Android browsers resize the layout viewport for the keyboard rather
-    // than reporting it on the visual viewport. Missing that left the inset at
-    // zero with the keyboard up, so the composer kept its 5.5rem resting gap
-    // and a strip of the thread showed through between the input and the
-    // keyboard.
+    visualViewport?.addEventListener('resize', updateKeyboardInset);
+    visualViewport?.addEventListener('scroll', updateKeyboardInset);
     window.addEventListener('resize', updateKeyboardInset);
 
     return () => {
-      visualViewport.removeEventListener('resize', updateKeyboardInset);
-      visualViewport.removeEventListener('scroll', updateKeyboardInset);
+      visualViewport?.removeEventListener('resize', updateKeyboardInset);
+      visualViewport?.removeEventListener('scroll', updateKeyboardInset);
       window.removeEventListener('resize', updateKeyboardInset);
     };
-  }, []);
+  }, [conversation?.kind, composerFocused]);
+
+  useEffect(() => {
+    if (conversation?.kind !== 'dm' || embedded) return;
+    const update = (open: boolean) => {
+      if (open) document.documentElement.dataset.cruushDmKeyboardOpen = 'true';
+      else delete document.documentElement.dataset.cruushDmKeyboardOpen;
+      window.dispatchEvent(new Event('cruush:dm-keyboard-changed'));
+    };
+    update(dmKeyboardOpen && !settingsOpen);
+    return () => update(false);
+  }, [conversation?.kind, embedded, settingsOpen, dmKeyboardOpen]);
 
   useEffect(() => {
     let active = true;
 
     const loadChatState = async () => {
+      const generation = ++chatLoadGeneration.current;
       setLoading(true);
       setError(null);
       setComposerError(null);
@@ -498,7 +606,7 @@ export default function PrivateGroupChat({
       try {
         const resolvedUserId = await getCurrentUserId();
 
-        if (!active) {
+        if (!active || generation !== chatLoadGeneration.current) {
           return;
         }
 
@@ -513,7 +621,7 @@ export default function PrivateGroupChat({
 
         const data = await getConversationMessages(chatId);
 
-        if (!active) {
+        if (!active || generation !== chatLoadGeneration.current) {
           return;
         }
 
@@ -522,7 +630,7 @@ export default function PrivateGroupChat({
         setMutualRequiredConversationId(data.conversation.kind === 'dm' && data.conversation.canMessage === false ? data.conversation.id : null);
         setError(null);
       } catch (error) {
-        if (!active) {
+        if (!active || generation !== chatLoadGeneration.current) {
           return;
         }
 
@@ -532,7 +640,7 @@ export default function PrivateGroupChat({
         setError(error instanceof Error ? error.message : 'Failed to load live chat.');
         setComposerError(null);
       } finally {
-        if (active) {
+        if (active && generation === chatLoadGeneration.current) {
           setLoading(false);
         }
       }
@@ -550,9 +658,10 @@ export default function PrivateGroupChat({
     let active = true;
     const unsubscribe = addCruushChangedListener(({ targetUserId, revoked }) => {
       if (targetUserId !== conversation.user.id) return;
+      const generation = chatLoadGeneration.current;
       if (revoked) setMutualRequiredConversationId(conversation.id);
       void getConversationMessages(conversation.id).then((data) => {
-        if (!active) return;
+        if (!active || generation !== chatLoadGeneration.current) return;
         setConversation(data.conversation);
         setMutualRequiredConversationId(data.conversation.canMessage === false ? data.conversation.id : null);
       }).catch(() => {
@@ -570,6 +679,33 @@ export default function PrivateGroupChat({
       setGroupTitleDraft(conversation.user.name);
     }
   }, [conversation?.kind, conversation?.user.name]);
+
+  useContentVisibilityRefresh(async (isCurrent) => {
+    if (!chatId) return;
+    const generation = ++chatLoadGeneration.current;
+    try {
+      const resolvedUserId = currentUserId ?? await getCurrentUserId();
+      const data = await getConversationMessages(chatId);
+      if (!isCurrent() || generation !== chatLoadGeneration.current) return;
+      setLoading(false);
+      setCurrentUserId(resolvedUserId);
+      setConversation(data.conversation);
+      const visibleMessages = Array.isArray(data.messages) ? normalizeRemoteMessages(data.messages, resolvedUserId) : [];
+      setMessages(current => [
+        ...visibleMessages,
+        ...current.filter(item => item.author === 'self' && item.id.startsWith('local-')),
+      ]);
+      setMutualRequiredConversationId(data.conversation.kind === 'dm' && data.conversation.canMessage === false ? data.conversation.id : null);
+    } catch (error) {
+      if (!isCurrent() || generation !== chatLoadGeneration.current) return;
+      if (!(error instanceof ApiClientError) || ![403, 404].includes(error.status)) throw error;
+      setConversation(null);
+      setMessages([]);
+      setError(error.message);
+    } finally {
+      if (isCurrent() && generation === chatLoadGeneration.current) setLoading(false);
+    }
+  }, chatId);
 
   const canManageConversation = conversation?.kind !== 'group' || ['owner', 'admin'].includes(conversation.currentUserRole ?? '');
   const canReviewClubRequests = Boolean(conversation?.clubId)
@@ -612,6 +748,7 @@ export default function PrivateGroupChat({
       setClubTitleDraft(item.title);
       setClubSummaryDraft(item.summary);
       setClubTagsDraft(item.tags);
+      setClubRequiresJoinApprovalDraft(item.requiresJoinApproval !== false);
       setClubVisibility({ ...visibilityRulesToState(item.visibilityRules), outsideServiceAreaMembers: false });
       if (item.currentUserRole === 'owner' || item.currentUserRole === 'admin' || item.currentUserRole === 'moderator') {
         setClubApplicants(await getClubJoinRequests(clubId));
@@ -887,7 +1024,7 @@ export default function PrivateGroupChat({
 
   const handleSaveClub = async () => {
     if (!conversation?.clubId || !canManageConversation || settingsSaving) return;
-    if (!clubTitleDraft.trim() || !clubSummaryDraft.trim() || clubTagsDraft.length === 0) return;
+    if (!clubTitleDraft.trim() || clubTagsDraft.length === 0) return;
 
     setSettingsSaving(true);
     try {
@@ -895,6 +1032,7 @@ export default function PrivateGroupChat({
         title: clubTitleDraft.trim(),
         summary: clubSummaryDraft.trim(),
         tags: clubTagsDraft,
+        requiresJoinApproval: clubRequiresJoinApprovalDraft,
       });
       setClubSettings(updated);
       setConversation((current) => current ? {
@@ -1230,11 +1368,9 @@ export default function PrivateGroupChat({
   const normalizedComposerMessage = normalizeMessageForSend(message);
   const canSendMessage = normalizedComposerMessage.length > 0;
   const favoriteUploadControlDisabled = favoriteUploading || composerDisabled || trust.restricted('favorite_images');
-  // Focus is the one signal every browser gives when the keyboard opens. Some
-  // resize the layout viewport instead of reporting an inset, which measures as
-  // zero, and the resting gap then showed a strip of the thread between the
-  // input and the keyboard.
-  const keyboardOpen = keyboardInset > 0 || composerFocused;
+  // DM keyboard visibility requires measured viewport shrink, not focus alone.
+  // Keep the existing Group/Coven focus behavior.
+  const keyboardOpen = conversation?.kind === 'dm' ? dmKeyboardOpen : keyboardInset > 0 || composerFocused;
   const composerBarStyle = {
     // With the keyboard up the composer sits flush on it: no rem gap and no
     // safe-area either, since the keyboard already covers that zone. The gap
@@ -1243,8 +1379,12 @@ export default function PrivateGroupChat({
       ? `${keyboardInset}px`
       : keyboardOpen
         ? '0px'
-        : 'calc(5.5rem + env(safe-area-inset-bottom))',
-  } as CSSProperties;
+        : conversation?.kind === 'dm'
+          // Match the chat fade to the measured navigation, retaining its
+          // existing top padding as the gap above the navigation pill.
+          ? 'var(--cruush-nav-clearance, calc(6rem + env(safe-area-inset-bottom)))'
+          : 'calc(5.5rem + env(safe-area-inset-bottom))',
+  } as CSSProperties & { '--chat-composer-bottom': string };
 
   return (
     <div data-testid="private-group-chat-screen" className={`relative max-w-full overflow-x-clip bg-background pb-20 ${embedded ? 'min-h-full' : 'min-h-screen'}`}>
@@ -1345,7 +1485,12 @@ export default function PrivateGroupChat({
       />
       )}
 
-      <div className={`mx-auto flex w-full max-w-2xl flex-col px-4 pt-4 ${settingsOpen ? 'pb-8' : 'pb-[calc(17rem+env(safe-area-inset-bottom))]'}`}>
+      <div
+        ref={threadContentRef}
+        data-testid="chat-thread-content"
+        className={`mx-auto flex w-full max-w-2xl flex-col px-4 pt-4 ${settingsOpen ? 'pb-8' : 'pb-[calc(17rem+env(safe-area-inset-bottom))]'}`}
+        style={conversation?.kind === 'dm' && !embedded && !settingsOpen && dmComposerClearance !== null ? { paddingBottom: dmComposerClearance } : undefined}
+      >
         {error ? (
           <div className="mb-4 space-y-3 rounded-2xl border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">
             <p>{error}</p>
@@ -1510,10 +1655,19 @@ export default function PrivateGroupChat({
                       <span className="text-sm text-muted-foreground">Tags</span>
                       <TagInput ariaLabel="Coven settings tags" maxTags={10} onChange={setClubTagsDraft} tags={clubTagsDraft} />
                     </div>
+                    <label className="flex min-w-0 items-center gap-2 text-sm text-muted-foreground">
+                      <Switch
+                        aria-label="Require approval to join"
+                        checked={clubRequiresJoinApprovalDraft}
+                        disabled={!clubSettings || settingsSaving}
+                        onCheckedChange={setClubRequiresJoinApprovalDraft}
+                      />
+                      <span>Require approval to join</span>
+                    </label>
                     <Button
                       type="button"
                       variant="outline"
-                      disabled={!clubSettings || !clubTitleDraft.trim() || !clubSummaryDraft.trim() || clubTagsDraft.length === 0 || settingsSaving}
+                      disabled={!clubSettings || !clubTitleDraft.trim() || clubTagsDraft.length === 0 || settingsSaving}
                       onClick={() => void handleSaveClub()}
                     >
                       Save Coven
@@ -1703,7 +1857,7 @@ export default function PrivateGroupChat({
           {!loading && conversation && messages.length === 0 ? (
             <div className="flex min-h-[40vh] items-center justify-center">
               <div className="rounded-3xl border border-dashed border-border bg-card/60 p-10 text-center">
-                <CruushIcon name="cruush" className="mx-auto mb-4 size-12 opacity-55" />
+                <CruushIcon name="messages" className="mx-auto mb-4 size-12 opacity-55" />
                 <p className="text-muted-foreground">No messages yet.</p>
                 <p className="mt-2 text-sm text-muted-foreground">Break the ice when the vibe is right.</p>
               </div>
@@ -1745,6 +1899,7 @@ export default function PrivateGroupChat({
             return (
               <div
                 key={msg.id}
+                ref={msg.id === messages[messages.length - 1]?.id ? latestMessageRef : undefined}
                 className={`flex items-end gap-3 ${isOwn ? 'justify-end' : 'justify-start'}`}
               >
                 {messageSender ? (
@@ -1755,6 +1910,7 @@ export default function PrivateGroupChat({
                     onClick={() => openUserProfile(messageSender.id)}
                   >
                     <HeartPhoto
+                      staticMileHigh={conversation?.kind === 'dm' && conversation.user.travelling === true}
                       className="w-9"
                       label={`${messageSender.name} avatar`}
                       restriction={getNsfwPhotoRestriction(messageSender.photoExplicit, messageSender.photoRelationship)}
@@ -2001,11 +2157,21 @@ export default function PrivateGroupChat({
           })}
         </div>
 
+        {conversation?.kind === 'dm' && !embedded ? (
+          <div
+            aria-hidden="true"
+            data-testid="chat-composer-underlay"
+            className="pointer-events-none fixed inset-x-0 bottom-0 z-[49] bg-background"
+            style={{ height: composerBarStyle['--chat-composer-bottom'] }}
+          />
+        ) : null}
+
         {conversation ? (
           <div
+            ref={composerBarRef}
             data-testid="chat-composer-bar"
             className={`fixed bottom-[var(--chat-composer-bottom)] left-0 right-0 ${conversation.kind === 'dm' ? 'z-50' : 'z-[70]'} max-w-[100vw] overflow-x-hidden border-t border-border bg-background px-3 pt-3 backdrop-blur-md sm:px-4 ${keyboardOpen ? 'pb-3' : 'pb-0'}`}
-            data-keyboard-open={keyboardInset > 0 ? 'true' : undefined}
+            data-keyboard-open={(conversation.kind === 'dm' ? dmKeyboardOpen : keyboardInset > 0) ? 'true' : undefined}
             style={composerBarStyle}
           >
             <div className="mx-auto w-full max-w-2xl space-y-3">
@@ -2040,6 +2206,7 @@ export default function PrivateGroupChat({
                 >
                   <SelectTrigger
                     aria-label="Message disappearing timer"
+                    style={!canManageConversation || composerDisabled ? { background: 'var(--cruush-gradient)', opacity: 0.5 } : undefined}
                     size="sm"
                     className="h-9 w-auto min-w-28 rounded-full border-white/12 bg-card/82 px-3 text-xs text-foreground shadow-[0_10px_24px_rgba(0,0,0,0.24)] hover:border-primary/30 hover:bg-card disabled:opacity-60"
                   >
@@ -2103,6 +2270,7 @@ export default function PrivateGroupChat({
                   title="Quick access gallery"
                   aria-label="Quick access gallery"
                   disabled={composerDisabled}
+                  style={composerDisabled ? { background: 'var(--cruush-gradient)', opacity: 0.5 } : undefined}
                   onClick={toggleFavoriteGallery}
                 >
                   <Star className="size-4" fill={favoriteGalleryOpen ? 'currentColor' : 'none'} />
@@ -2133,6 +2301,7 @@ export default function PrivateGroupChat({
                           variant="outline"
                           size="sm"
                           disabled={favoriteUploadControlDisabled}
+                          style={composerDisabled || trust.restricted('favorite_images') ? { background: 'var(--cruush-gradient)', opacity: 0.5 } : undefined}
                           onClick={() => openFileInput(favoriteFileInputRef, favoriteUploadControlDisabled)}
                         >
                           {favoriteUploading ? <PhotoUploadSpinner className="size-4" /> : <ImagePlus className="size-4" />}
@@ -2193,6 +2362,7 @@ export default function PrivateGroupChat({
                                   size="icon"
                                   className="size-8 rounded-full"
                                   aria-label="Send favorite image"
+                                  style={messageSendDisabled ? { background: 'var(--cruush-gradient)', opacity: 0.5 } : undefined}
                                   disabled={messageSendDisabled || favoriteBusy}
                                   onClick={() => void handleSendFavoriteImage(favorite)}
                                 >
@@ -2228,7 +2398,7 @@ export default function PrivateGroupChat({
                         void handleSend();
                       }
                     }}
-                    onFocus={() => setComposerFocused(true)}
+                    onFocus={focusComposer}
                     onBlur={() => setComposerFocused(false)}
                     disabled={messageSendDisabled}
                     placeholder={dmMessagingBlocked ? 'cruushes only' : conversation.closed ? 'Group closed' : conversation.kind === 'group' ? 'Drop the plan...' : 'Say what you want...'}
@@ -2252,6 +2422,7 @@ export default function PrivateGroupChat({
                       title={photoUploading ? 'Sending photo' : 'Attach photo'}
                       aria-label={photoUploading ? 'Sending photo' : 'Attach photo'}
                       disabled={messagePhotoControlDisabled}
+                      style={composerDisabled || trust.restricted(messagePhotoFeature) ? { background: 'var(--cruush-gradient)', opacity: 0.5 } : undefined}
                       onClick={() => openFileInput(fileInputRef, messagePhotoControlDisabled)}
                     >
                       {photoUploading ? <PhotoUploadSpinner className="size-4" /> : <ImageIcon className="size-4" />}
@@ -2260,12 +2431,11 @@ export default function PrivateGroupChat({
                       onClick={() => void handleSend()}
                       disabled={!canSendMessage || messageSendDisabled || textMessageSending}
                       size="icon"
-                      className={`rounded-full ${trust.restricted(messageFeature) ? 'grayscale' : ''}`}
+                      className="rounded-full"
                       aria-label="Send message"
                       style={{
-                        background: canSendMessage
-                          ? 'var(--cruush-gradient)'
-                          : undefined,
+                        background: 'var(--cruush-gradient)',
+                        opacity: !canSendMessage || messageSendDisabled ? 0.5 : undefined,
                       }}
                     >
                       <CruushIcon name="send" className="h-4 w-4" />

@@ -607,3 +607,87 @@ Julien also specified “i want the banner to be ABOVE the app content at the ve
 - October 10 final flicker scope: Julien said “btw this banner up top. is only for basic users, i want the flicker on all the banner text”. Preserve Basic-only banner eligibility; apply the existing random flicker and glow to the countdown, title, and discount text, with static glow under reduced motion. This supersedes title-only animation.
 
 - October 10 glow strength: Julien said “make the banner flickering glow stronger and happen more often”. Strengthen the existing text effect and shorten its random pause; preserve the banner composition, eligibility, and reduced-motion treatment.
+
+- October10exactVisibilityControlslabel: “Hide me from Purgatory members”. Existingbehaviorunchanged. Feedphotopreviewheartbordersmatchposterhearttheme, includingblueforcurrentuser; compactPurgatorytooltipreusesexistingMHCtooltipstyle.
+
+## October 10, 2026 — clarified regression fixes
+
+Julien: “Keep Ghost pin only” when Leash is off. Hide the inactive leash radius and line, retaining the Ghost pin and privacy behavior.
+
+Julien: “Remove accordion; keep controls” for Check-in. Remove only the redundant accordion wrapper and keep its controls available.
+
+Julien: “just explain what it is” for the Purgatory popup, which appears after the install and push prompts. Reuse the existing feature explanation and dismissal pattern.
+
+Julien, October10: “Purgatory stuff isnt on profiles using MHC btw, the labels for mhc should reflect their mhc location.” Active Mile High Club overrides Purgatory profile treatment and uses the effective MHC pin for location/distance labels, subject to existing privacy rules.
+
+Julien, October10: “Be sure sale banner and sale stuff disappears after the time finishes.” All sale-specific presentation and new-order discounts expire at the shared deadline; normal non-sale checkout remains.
+
+
+## October 10, 2026 — signed-in pin clearance and Purgatory mobile fit
+
+Julien: “don't let any user's pin overlap with signed in user's pin somehow add to que”; “spiderfy must not overlap with signed in user's pin either add to que”. Other user pins, including spiderfied pins, must visually clear the signed-in user's pin without changing their actual locations. Implementation remains queued.
+
+Julien: “Put cruush+ button top bar and bug fix bar in the same positions and ratio of sizes as for sinner members, make the stuff in the center card fit to screen on mobile.” Reuse the normal Sinner header positions and relative sizes for the Purgatory map header. Fit the existing center-card composition above Recently Active and bottom navigation on mobile, preserving its content and controls.
+
+## Existing Coven join policy, October 10, 2026
+
+Julien: “i dont see the option i asked for the coven to have a setting where i can allow people to join without approval.” Existing Coven settings must also expose the creation-time approval choice. Preserve approval by default and existing management permissions, visibility and membership caps.
+
+## Mobile checkout QR code, October 10, 2026
+
+Julien: “On mobile make qr code an optional accordion for checkout”. Mobile checkout keeps the QR code collapsed in an optional QR code accordion; desktop retains the visible QR image.
+
+## Rewards affiliate QR code, October 10, 2026
+
+Julien: “Make reward members a qr code also in a similar optional accordian for their affiliate link”. Rewards includes a collapsed optional QR code accordion for the existing member referral link, matching checkout accordion styling.
+
+## Long profile option labels, October 10, 2026
+
+Julien: “Smaller text for longer titles”. For the overflowing Edit Profile Hanky tile labels, reduce long-label text rather than increasing tile height; preserve icons and the existing grid.
+
+## Owner pin clearance close zoom, October 10, 2026
+
+Julien: “look th epin overlap i meant upon close zoom”. Owner-pin clearance applies to close zoom, including expanded spiderfied pins; wide-map positions retain their normal placement.
+
+## Affiliate reminder and Side Quests, October 10, 2026
+
+Julien: “send a daily reminder upon log in about the affiliate program, remove side quests from the app”. Show a daily in-app login reminder for the affiliate program and remove Side Quests UI; preserve earned rewards and the affiliate program.
+
+### October 10, 2026 — inactive button treatment
+Julien: “In consistent buttons, i prefer the bright dim one tho for inactive buttons vs the darker one tho”. Preserve the brighter dimmed gradient reference in profile action-row screenshots4897/4896; exact inclusion of enabled-but-quiet uncruush is pending clarification. This does not authorize unrelated global button restyling.
+
+October 10 clarification: “Unavailable”. Brighter dimmed gradient applies only to unavailable profile action buttons. Clickable quiet uncruush stays unchanged.
+
+### October 10, 2026 — Feed distance
+Julien: “for the feed filter, put the distance up to global , global is default”. Feed distance supports Global with Global as initial/reset default. Other visibility, audience and privacy rules remain enforced.
+
+### October 10, 2026 — Confessional naming and scrolling
+Julien: “feed should allow for infinite scrolling, btw feed is internal only its confessional in app”. User-facing name is Confessional; Feed remains internal terminology. Scroll pagination must continue while matching posts remain, without a100-postclientceiling.
+
+- October 10 filter notices: Julien requested “make the basic includes up to... banners in filters resize text to fit on 2 lines on mobile”. Resize only mobile text in Seeking/Confessional and Visibility Basic allowance notices; preserve existing wording, controls, spacing, colors and desktop presentation.
+
+- October 10 Spot clusters: Julien chose “Keep clusters fixed until zoom” after being told new map areas would wait for a zoom to load. Same-zoom dragging retains the Spot query anchor; zoom reanchors. Filters, account/location changes and authoritative removals retain their existing semantics.
+
+## October 10, 2026 — expanded unavailable actions and foreground notifications
+
+Julien: “can you make that dim bright gradient the go to for unavailable buttons across the app? it's used in the unavilable center pin on profiles. i want that applied to the buttons on the profile cards across the app too for unavailable options - so in feed, send to, dms, and anywhere else those buttons appear, as well as the uncruush button on profiles themselves, and the feed composer options, and message composer options, again only to either uncruush or unavailable options”. This supersedes the earlier exclusion of enabled uncruush. Use the existing full cruush gradient dimmed to the approved unavailable reference; preserve other enabled actions, busy-only states, permissions and handlers.
+
+Julien: “add to que notification banners are centered and span width of window better”. Foreground notification banners use the available window width with equal existing16px horizontal gutters, preserving their internal composition, copy, colors, timing and dismissal.
+
+Julien: “can you make the mhc glyph on profiles the same height as purgatorey glyph on profiles? on click of purgatory hover pop up, take them to a new guide about purgatory that we write now explaining the feature and the difference between SInners and Purgatory members”. Match profile glyph heights; Purgatory tooltip explanation links to the guide without changing its two-line presentation.
+
+## October 10, 2026 — gallery previews and queued UI refinements
+Julien: “i don't want the plane on the gallery previews on profiles for mhc members just the color”. MHC profile gallery previews retain their color without plane artwork; other MHC glyphs remain unchanged.
+Julien: “make the dm/group/coven send message button the bright gradient when available, put less padding between lower fade and the message composer, add same amount of padding of vibe capsules and purgatory halo on cards across the app ... uncruush button should sheen on hover”. Preserve keyboard/nav clearance, standardize the requested card clearance, and reuse existing sheen for uncruush.
+Julien: “make the check in picker have all those options plus the crowd options for cruush+ members in a similar picker to the feed composer one”. Use the real Confessional picker treatment and preserve audience enforcement.
+Julien: “update cruush+ unlocks accordian keep it one column, cruush+ benefits have changed”. Update factual benefits without changing entitlement rules; keep one column.
+
+Julien, October 10: “make the stuff under order time in the protected order capsule ... under an accordian ... keep showing the countdown order time and title when its closed (default) ... mention cash app bitcoin minimum ... remove the steps 4. and 5. from how to.” Only the protected-order explanation collapses; amount, address and payment controls retain their visibility. Cash App shows its existing minimum; the two original sending-app-minimum instruction steps are removed. No payment-window or pricing policy change.
+Julien, October 10: “Make second paragraph same text color as rest of the text”. The second paragraph of Why cruush takes crypto matches surrounding body text color; copy and link treatment remain unchanged.
+
+October 10 clarification: Julien answered “with selected, reduce fade and gap”. New restricted Check-in Pink Book messages use the selected audience. Reduce the chat bottom fade extent and composer-to-navigation gap together, retaining keyboard/navigation clearance and other styling.
+
+## Single-line vibe capsules and banned-content visibility — October 10, 2026
+
+- Julien: “as opposed to overhang on 2 lines, can we make vibe tags shrink to fit on one line?” Shared card vibe rows scale their existing composition to fit one line; preserve full labels, order, colors and capsule proportions.
+- Julien: “remove banned user's content from app upon ban, i see a banned user stilli n the app”. Normal member-facing reads exclude banned accounts and their content, and mounted views refresh after a ban. Keep internal moderation evidence and existing privacy rules; this does not authorize deleting records or changing suspended-account policy.

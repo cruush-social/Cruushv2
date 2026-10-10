@@ -51,13 +51,21 @@ describe('ProfileCard', () => {
   it.each(['standard', 'carousel'] as const)('loads authoritative Purgatory membership for a %s card', async (presentation) => {
     getProfileById.mockResolvedValue({ photos: ['/jordan.jpg'], outOfSight: true });
     const onViewProfile = vi.fn();
-    render(<MemoryRouter><ProfileCard user={{ id: 'user-1', name: 'Jordan', age: 26, photos: ['/jordan.jpg'], travelling: true }} presentation={presentation} onViewProfile={onViewProfile} /></MemoryRouter>);
+    render(<MemoryRouter><ProfileCard user={{ id: 'user-1', name: 'Jordan', age: 26, photos: ['/jordan.jpg'] }} presentation={presentation} onViewProfile={onViewProfile} /></MemoryRouter>);
     const badge = await screen.findByRole('button', { name: 'This is a Purgatory member.' });
     expect(getProfileById).toHaveBeenCalledTimes(1);
-    expect(screen.getByRole('button', { name: 'This is a Mile High Club member.' })).toBeInTheDocument();
     fireEvent.click(badge);
     expect(await screen.findByRole('tooltip')).toHaveTextContent('currently outside cruush’s service area');
     expect(onViewProfile).not.toHaveBeenCalled();
+  });
+
+  it.each(['standard', 'carousel'] as const)('uses MHC presentation over physical Purgatory membership in a %s card', async (presentation) => {
+    getProfileById.mockResolvedValue({ photos: ['/jordan.jpg'], outOfSight: true });
+    render(<MemoryRouter><ProfileCard user={{ id: 'user-1', name: 'Jordan', age: 26, photos: ['/jordan.jpg'], travelling: true }} presentation={presentation} onViewProfile={vi.fn()} /></MemoryRouter>);
+    await waitFor(() => expect(getProfileById).toHaveBeenCalledTimes(1));
+    expect(screen.getByRole('button', { name: 'This is a Mile High Club member.' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'This is a Purgatory member.' })).not.toBeInTheDocument();
+    expect(screen.queryByTestId('purgatory-heart-overlay')).not.toBeInTheDocument();
   });
 
   it('does not reuse a previous card’s Purgatory status while a new profile loads', async () => {
@@ -77,7 +85,7 @@ describe('ProfileCard', () => {
     const { rerender } = render(<MemoryRouter><ProfileCard {...props} /></MemoryRouter>);
     const blocked = screen.getByRole('button', { name: 'Map location unavailable' });
     expect(blocked).toBeDisabled();
-    expect(blocked).toHaveStyle({ background: 'var(--cruush-gradient-soft-28), #0A0A12' });
+    expect(blocked).toHaveStyle({ background: 'var(--cruush-gradient)', opacity: 0.5 });
 
     serviceArea.profilePinsAllowed = true;
     rerender(<MemoryRouter><ProfileCard {...props} /></MemoryRouter>);
@@ -241,7 +249,7 @@ describe('ProfileCard', () => {
     expect(browseAgainButton).toHaveClass('bg-black/55', 'backdrop-blur-xl');
     const messageButton = screen.getByRole('button', { name: 'message' });
     expect(messageButton).toBeEnabled();
-    expect(messageButton).toHaveStyle({ background: 'var(--cruush-gradient-soft-28)' });
+    expect(messageButton).toHaveStyle({ background: 'var(--cruush-gradient)', opacity: 0.5 });
     fireEvent.click(messageButton);
     expect(openConversationOrInbox).toHaveBeenCalledWith(expect.any(Function), 'user-1');
     expect(screen.getByTestId('profile-card-vibes')).toHaveTextContent('GothPunkClub kid');

@@ -79,6 +79,7 @@ const publicRules: ProfileVisibilityRules = {
   timing: [],
   hosting: [],
   vibes: [],
+  tags: [],
   crowds: [],
   hobbies: [],
   positions: [],

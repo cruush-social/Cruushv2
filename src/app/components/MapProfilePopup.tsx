@@ -424,9 +424,10 @@ export default function MapProfilePopup({
                 void (hasRevocableCruush ? handleRevokeCruush() : handleCruush());
               }}
               disabled={cruushDisabled}
-              className="h-12 w-12 rounded-2xl border-0 px-0 text-white"
+              className={`${isAlreadyMutual && !cruushDisabled ? 'cruush-action-sheen ' : ''}h-12 w-12 rounded-2xl border-0 px-0 text-white`}
               style={{
-                background: hasRevocableCruush
+                opacity: (isAlreadyMutual && !cruushDisabled) || isDemo ? 0.5 : undefined,
+                background: (isAlreadyMutual && !cruushDisabled) || isDemo ? 'var(--cruush-gradient)' : hasRevocableCruush
                   ? 'var(--cruush-gradient-soft-28)'
                   : cruushDisabled
                   ? 'rgba(255,255,255,0.16)'
@@ -441,9 +442,10 @@ export default function MapProfilePopup({
               type="button"
               className="profile-center-pin-match-action h-12 w-12 rounded-2xl border-0 px-0 text-white disabled:opacity-100"
               style={{
-                background: pinActionable ? 'var(--cruush-gradient)' : 'var(--cruush-gradient-soft-28), #0A0A12',
-                '--profile-center-pin-mobile-background': !profilePinsAllowed
-                  ? 'var(--cruush-gradient-soft-28), #0A0A12'
+                background: 'var(--cruush-gradient)',
+                opacity: pinActionable ? undefined : 0.5,
+                '--profile-center-pin-mobile-background': !pinActionable
+                  ? 'var(--cruush-gradient)'
                   : hasRevocableCruush
                   ? 'var(--cruush-gradient-soft-28)'
                   : cruushDisabled
@@ -475,12 +477,9 @@ export default function MapProfilePopup({
             <Button
               className="desktop-profile-message-action h-12 min-w-0 flex-1 justify-center rounded-2xl border-0 text-base text-white"
               style={{
-                background: isDemo ? 'rgba(255,255,255,0.16)' : 'var(--cruush-gradient)',
-                '--desktop-profile-message-background': isDemo
-                  ? 'rgba(255,255,255,0.16)'
-                  : canMessage === false
-                    ? 'var(--cruush-gradient-soft-28), #0A0A12'
-                    : 'var(--cruush-gradient)',
+                background: 'var(--cruush-gradient)',
+                opacity: isDemo || canMessage === false ? 0.5 : undefined,
+                '--desktop-profile-message-background': 'var(--cruush-gradient)',
               } as CSSProperties}
               disabled={isDemo || openingMessage}
               aria-label={isDemo ? 'Demo message unavailable' : openingMessage ? 'Opening conversation' : 'message'}

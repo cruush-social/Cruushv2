@@ -19,6 +19,8 @@ function VisibilityHarness({ hasCruushPlus = false, onUpgrade = vi.fn(), showOut
         onClear={() => setValue(DEFAULT_VISIBILITY_STATE)}
         onApply={() => setApplied(value)}
       />
+      <output data-testid="selected-tags">{value.tags.join(',')}</output>
+      <output data-testid="applied-tags">{applied?.tags.join(',') ?? ''}</output>
       <output data-testid="hidden-body-types">{value.bodyTypes.join(',')}</output>
       <output data-testid="applied-identities">{applied?.identities.join(',') ?? ''}</output>
       <output data-testid="applied-mile-high-club">{String(applied?.mileHighClub ?? false)}</output>
@@ -38,12 +40,12 @@ function selectVisibilityOption(label: string, option: string) {
 describe('MapVisibilitySurface', () => {
   it('omits the member-only Purgatory row when reused for Club visibility', () => {
     render(<VisibilityHarness showOutsideServiceAreaControl={false} />);
-    expect(screen.queryByRole('switch', { name: 'Purgatory members' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('switch', { name: 'Hide me from Purgatory members' })).not.toBeInTheDocument();
     expect(screen.getByRole('switch', { name: 'Hide me from people with no profile picture' })).toBeInTheDocument();
   });
   it('counts Purgatory members within the three Basic hidden filters', () => {
     render(<VisibilityHarness initialValue={{ ...DEFAULT_VISIBILITY_STATE, identities: ['man'], presentations: ['masc'], crowds: ['Gay'] }} />);
-    const control = screen.getByRole('switch', { name: 'Purgatory members' });
+    const control = screen.getByRole('switch', { name: 'Hide me from Purgatory members' });
     expect(control).not.toBeChecked();
     expect(control.closest('.rounded-2xl')).toHaveClass('border-white/10', 'bg-white/[0.035]', 'p-4');
     fireEvent.click(control);
@@ -52,7 +54,7 @@ describe('MapVisibilitySurface', () => {
   });
   it('lets Basic members choose Purgatory as one of three hidden filters', () => {
     render(<VisibilityHarness initialValue={{ ...DEFAULT_VISIBILITY_STATE, identities: ['man'], presentations: ['masc'] }} />);
-    const control = screen.getByRole('switch', { name: 'Purgatory members' });
+    const control = screen.getByRole('switch', { name: 'Hide me from Purgatory members' });
     fireEvent.click(control);
     expect(control).toBeChecked();
     fireEvent.click(screen.getByRole('button', { name: 'Apply' }));
@@ -60,14 +62,14 @@ describe('MapVisibilitySurface', () => {
   });
   it('always allows turning the Purgatory restriction off, even for a legacy over-limit Basic state', () => {
     render(<VisibilityHarness initialValue={{ ...DEFAULT_VISIBILITY_STATE, outsideServiceAreaMembers: true, identities: ['man'], presentations: ['masc'], crowds: ['Gay'] }} />);
-    const control = screen.getByRole('switch', { name: 'Purgatory members' });
+    const control = screen.getByRole('switch', { name: 'Hide me from Purgatory members' });
     expect(control).toBeChecked();
     fireEvent.click(control);
     expect(control).not.toBeChecked();
   });
   it('allows cruush+ to add Purgatory after three other hidden filters', () => {
     render(<VisibilityHarness hasCruushPlus initialValue={{ ...DEFAULT_VISIBILITY_STATE, identities: ['man'], presentations: ['masc'], crowds: ['Gay'] }} />);
-    const control = screen.getByRole('switch', { name: 'Purgatory members' });
+    const control = screen.getByRole('switch', { name: 'Hide me from Purgatory members' });
     fireEvent.click(control);
     expect(control).toBeChecked();
     expect(screen.queryByText('You can use up to 3 hidden filters. Remove one before adding another.')).not.toBeInTheDocument();
@@ -166,4 +168,19 @@ describe('MapVisibilitySurface', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Apply' }));
     expect(screen.getByTestId('applied-identities')).toHaveTextContent('man');
   });
+});
+
+
+it('adds and removes independent Tags with the existing Basic category cap', () => {
+  render(<VisibilityHarness initialValue={{ ...DEFAULT_VISIBILITY_STATE, identities: ['man'], presentations: ['masc'] }} />);
+  const input = screen.getByRole('textbox', { name: 'Tags', exact: true });
+  fireEvent.change(input, { target: { value: '#ROPE' } });
+  fireEvent.keyDown(input, { key: 'Enter' });
+  expect(screen.getByTestId('selected-tags')).toHaveTextContent('rope');
+  fireEvent.click(screen.getByRole('switch', { name: 'Hide me from Purgatory members' }));
+  expect(screen.getByRole('switch', { name: 'Hide me from Purgatory members' })).not.toBeChecked();
+  fireEvent.click(screen.getByRole('button', { name: 'Apply' }));
+  expect(screen.getByTestId('applied-tags')).toHaveTextContent('rope');
+  fireEvent.click(screen.getByRole('button', { name: 'Remove #rope' }));
+  expect(screen.getByTestId('selected-tags')).toBeEmptyDOMElement();
 });

@@ -46,6 +46,9 @@ vi.mock('../lib/privacyApi', async () => {
   };
 });
 
+const serviceArea = vi.hoisted(() => ({ outsideServiceArea: false, profilePinsAllowed: true }));
+vi.mock('./MapServiceAreaContext', () => ({ useMapServiceArea: () => serviceArea }));
+
 function LocationProbe() {
   const location = useLocation();
   return <div data-testid="location-probe">{location.pathname}</div>;
@@ -53,6 +56,8 @@ function LocationProbe() {
 
 describe('GhostModeSettings', () => {
   beforeEach(() => {
+    serviceArea.outsideServiceArea = false;
+    serviceArea.profilePinsAllowed = true;
     getMyPrivacySettings.mockReset();
     getMyBillingStatus.mockReset();
     saveMyPrivacySettings.mockReset();
@@ -452,4 +457,35 @@ describe('GhostModeSettings', () => {
     expect(getMyBillingStatus).toHaveBeenCalledTimes(2);
     expect(getMyPrivacySettings).toHaveBeenCalledTimes(2);
   });
+  it('keeps the outside-area page available but prevents privacy changes and links to Mile High Club', async () => {
+    serviceArea.outsideServiceArea = true;
+    serviceArea.profilePinsAllowed = false;
+    render(<MemoryRouter><GhostModeSettings /><LocationProbe /></MemoryRouter>);
+    await screen.findByText('Ghost Mode is unavailable outside the service area. Enter the service area or use Mile High Club to use Ghost Mode.');
+    await waitFor(() => expect(getMyPrivacySettings).toHaveBeenCalled());
+    expect(screen.getByRole('switch', { name: 'Toggle Ghost Mode' })).toBeDisabled();
+    expect(screen.getByRole('switch', { name: 'Show leash between your real and decoy pins' })).toBeDisabled();
+    expect(screen.getByRole('switch', { name: 'Show a countdown before your pin moves' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Public' })).toBeDisabled();
+    fireEvent.click(screen.getByRole('switch', { name: 'Toggle Ghost Mode' }));
+    expect(saveMyPrivacySettings).not.toHaveBeenCalled();
+    expect(saveMyGhostPulseSettings).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('button', { name: 'Mile High Club' }));
+    expect(screen.getByTestId('location-probe')).toHaveTextContent('/settings/travel');
+  });
+
+  it('allows existing settings when server access includes an eligible MHC pin and disables them when access expires', async () => {
+    const view = render(<MemoryRouter><GhostModeSettings /></MemoryRouter>);
+    const toggle = await screen.findByRole('switch', { name: 'Toggle Ghost Mode' });
+    await waitFor(() => expect(toggle).toBeEnabled());
+    fireEvent.click(toggle);
+    await waitFor(() => expect(saveMyPrivacySettings).toHaveBeenCalledTimes(1));
+    serviceArea.outsideServiceArea = true;
+    serviceArea.profilePinsAllowed = false;
+    view.rerender(<MemoryRouter><GhostModeSettings /></MemoryRouter>);
+    expect(toggle).toBeDisabled();
+    fireEvent.click(toggle);
+    expect(saveMyPrivacySettings).toHaveBeenCalledTimes(1);
+  });
+
 });

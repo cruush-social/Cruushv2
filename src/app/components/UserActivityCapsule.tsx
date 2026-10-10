@@ -10,6 +10,7 @@ import type { KeyboardEvent, ReactNode } from 'react';
 import { resolveVibeTone, vibeCapsuleStyle } from '../lib/vibeTone';
 import type { SideBadges } from '../lib/profileApi';
 import SideBadgePair, { type SideBadgeTone } from './SideBadgePair';
+import SingleLineVibeRow from './SingleLineVibeRow';
 
 export type UserActivityCapsuleProps = {
   heart: ReactNode;
@@ -26,7 +27,7 @@ export type UserActivityCapsuleProps = {
   /** Vibe capsules, shown above the card body on every surface. */
   vibes?: string[];
   vibeTone?: 'current' | 'mutual' | 'nearby';
-  /** Keep whole vibe pills visible by moving them onto additional rows. */
+  /** Legacy call-site preference; shared card vibes now shrink into one row. */
   wrapVibes?: boolean;
   content?: ReactNode;
   cornerAction?: ReactNode;
@@ -57,7 +58,6 @@ export default function UserActivityCapsule({
   sideBadgeTone = mutual ? 'mutual' : 'nearby',
   vibes,
   vibeTone = 'nearby',
-  wrapVibes = false,
   content,
   cornerAction,
   cornerBadge,
@@ -106,10 +106,7 @@ export default function UserActivityCapsule({
 
 
   const vibeRow = (vibes?.length ?? 0) > 0 ? (
-    /* Above the card's grid, not inside it, so the heart, name and actions
-       keep the layout they already had. Each tag keeps its own width. Feed
-       and the shared person card enable wrapping so every pill stays whole. */
-    <div className={`flex min-w-0 items-center gap-1.5 ${wrapVibes ? 'flex-wrap overflow-visible' : 'flex-nowrap overflow-hidden'}`} data-testid="activity-vibes">
+    <SingleLineVibeRow>
       {vibes?.slice(0, 3).map((vibe) => (
         <span
           className="max-w-full flex-shrink-0 truncate rounded-full border px-2 py-0.5 text-[11px] uppercase leading-tight tracking-[0.08em]"
@@ -122,7 +119,7 @@ export default function UserActivityCapsule({
           {vibe}
         </span>
       ))}
-    </div>
+    </SingleLineVibeRow>
   ) : null;
 
   return (

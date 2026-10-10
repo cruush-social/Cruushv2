@@ -1,7 +1,9 @@
+import { useContentVisibilityRefresh } from '../lib/contentVisibilityRevision';
+import { showPurgatoryPresentation } from '../lib/purgatoryPresentation';
 import { shouldMaskPhoto, useDlMode } from '../lib/dlMode';
 import { IDENTITIES } from '../lib/profileOptions';
 import type { CSSProperties, ReactNode } from 'react';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { resolveMediaUrl } from '../lib/apiClient';
 import { useLocation, useNavigate, useParams } from 'react-router';
 import { notifyProfileUnavailable } from '../lib/profileUnavailable';
@@ -291,6 +293,7 @@ export default function ProfileView() {
   const distancePreferences = useDistancePreferences();
   const isOwnProfile = !userId;
   const previewState = (location.state as ProfileLocationState | null) ?? null;
+  const profileLoadGeneration = useRef(0);
   const [profile, setProfile] = useState<ProfileRecord | null>(null);
   const [membershipSource, setMembershipSource] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -327,6 +330,7 @@ export default function ProfileView() {
     let active = true;
 
     const loadProfile = async () => {
+      const generation = ++profileLoadGeneration.current;
       setLoading(true);
       setError(null);
       setCruushed(false);
@@ -337,7 +341,7 @@ export default function ProfileView() {
           ? await getMyProfile()
           : await getProfileById(userId);
 
-        if (!active) {
+        if (!active || generation !== profileLoadGeneration.current) {
           return;
         }
 
@@ -347,7 +351,7 @@ export default function ProfileView() {
         });
         setMembershipSource(userId ?? 'self');
       } catch (loadError) {
-        if (!active) {
+        if (!active || generation !== profileLoadGeneration.current) {
           return;
         }
 
@@ -364,7 +368,7 @@ export default function ProfileView() {
           setError(loadError instanceof Error ? loadError.message : 'Failed to load profile.');
         }
       } finally {
-        if (active) {
+        if (active && generation === profileLoadGeneration.current) {
           setLoading(false);
         }
       }
@@ -376,6 +380,27 @@ export default function ProfileView() {
       active = false;
     };
   }, [isOwnProfile, userId]);
+
+  useContentVisibilityRefresh(async (isCurrent) => {
+    if (isOwnProfile) return;
+    const generation = ++profileLoadGeneration.current;
+    try {
+      const data = await getProfileById(userId);
+      if (isCurrent() && generation === profileLoadGeneration.current) {
+        setProfile({ ...emptyProfilePayload, ...data });
+        setLoading(false);
+      }
+    } catch (error) {
+      if (!isCurrent() || generation !== profileLoadGeneration.current) return;
+      if (!(error instanceof ProfileApiError) || error.status !== 404) throw error;
+      setExpandedPhoto(null);
+      setProfile(null);
+      if (userId) notifyProfileUnavailable(userId);
+      navigate(-1);
+    } finally {
+      if (isCurrent() && generation === profileLoadGeneration.current) setLoading(false);
+    }
+  }, userId);
 
   useEffect(() => {
     if (!isOwnProfile) {
@@ -676,7 +701,7 @@ export default function ProfileView() {
 
         <ProfilePhotoGallery
           borderTone={resolveUserBorderTone({ current: isOwnProfile, mileHigh: profileView.travelling, mutual: heartTheme === 'mutual' })}
-          outOfSight={membershipSource === (userId ?? 'self') && profileView.outOfSight}
+          outOfSight={membershipSource === (userId ?? 'self') && showPurgatoryPresentation(profileView.outOfSight, profileView.travelling)}
           fitViewport
           relationship={{ ...profileView.photoRelationship, isMutualCruush: isAlreadyMutual, sharesCrowd: profileView.photoRelationship?.sharesCrowd ?? (!isOwnProfile && profileView.crowds.length > 0) }}
           name={profileView.name}
@@ -710,16 +735,20 @@ export default function ProfileView() {
                 <TooltipContent side="top" sideOffset={6}>This is a Mile High Club member.</TooltipContent>
               </Tooltip>
             ) : null}
-            {membershipSource === (userId ?? 'self') && profileView.outOfSight ? <PurgatoryMemberBadge key={profileView.id} /> : null}
+            {membershipSource === (userId ?? 'self') && showPurgatoryPresentation(profileView.outOfSight, profileView.travelling) ? <PurgatoryMemberBadge key={profileView.id} /> : null}
           </h1>
           <p className="mt-1 text-sm text-white" style={PROFILE_OVERLAY_TEXT_STYLE}>{profileView.pronouns}</p>
-          {displayedDistance ? (
+          {displayedDistance || profileView.lastActive ? (
             <div className="mt-1 flex min-w-0 items-center gap-2 overflow-hidden text-sm text-white" style={PROFILE_OVERLAY_TEXT_STYLE}>
-              {displayedDistance === 'Dark Room'
-                ? <DarkRoomMark active className="h-4 w-4 shrink-0" />
-                : <CruushIcon name="map" className="h-4 w-4 shrink-0" />}
-              <span className="min-w-0 truncate">{displayedDistance === 'Dark Room' || isServerCoarseLocationLabel(displayedDistance) ? displayedDistance : formatDistanceWithAway(displayedDistance, distancePreferences.mode)}</span>
-              {profileView.lastActive ? <span className="shrink-0">• {profileView.lastActive}</span> : null}
+              {displayedDistance ? (
+                <>
+                  {displayedDistance === 'Dark Room'
+                    ? <DarkRoomMark active className="h-4 w-4 shrink-0" />
+                    : <CruushIcon name="map" className="h-4 w-4 shrink-0" />}
+                  <span className="min-w-0 truncate">{displayedDistance === 'Dark Room' || isServerCoarseLocationLabel(displayedDistance) ? displayedDistance : formatDistanceWithAway(displayedDistance, distancePreferences.mode)}</span>
+                </>
+              ) : null}
+              {profileView.lastActive ? <span className="shrink-0">{displayedDistance ? '• ' : ''}{profileView.lastActive}</span> : null}
             </div>
           ) : null}
 
@@ -767,7 +796,8 @@ export default function ProfileView() {
                 disabled={cruushDisabled}
                 aria-label={revokingCruush ? (isAlreadyMutual ? 'uncruushing' : 'unsending cruush') : isAlreadyMutual ? 'uncruush' : hasSentCruush ? 'unsend cruush' : sendingCruush ? 'sending cruush' : 'send cruush'}
                 style={{
-                  background: cruushDisabled
+                  opacity: isAlreadyMutual && !cruushDisabled ? 0.5 : undefined,
+                  background: isAlreadyMutual && !cruushDisabled ? 'var(--cruush-gradient)' : cruushDisabled
                     ? '#151021'
                     : hasRevocableCruush
                       ? 'var(--cruush-gradient-soft-28), #0A0A12'
@@ -783,9 +813,9 @@ export default function ProfileView() {
                   size="icon"
                   className="profile-center-pin-match-action size-11 shrink-0 rounded-xl border-0 text-white transition hover:brightness-110"
                   style={{
-                    background: pinActionable ? 'var(--cruush-gradient)' : 'var(--cruush-gradient-soft-28), #0A0A12',
-                    '--profile-center-pin-mobile-background': !profilePinsAllowed
-                      ? 'var(--cruush-gradient-soft-28), #0A0A12'
+                    background: 'var(--cruush-gradient)',
+                    '--profile-center-pin-mobile-background': !pinActionable
+                      ? 'var(--cruush-gradient)'
                       : cruushDisabled
                       ? '#151021'
                       : hasRevocableCruush
@@ -802,7 +832,7 @@ export default function ProfileView() {
               ) : null}
               <Button
                 className={`cruush-action-sheen flex-1 rounded-xl disabled:opacity-100 ${canMessage ? 'border border-[#6F00FF] text-white' : 'border-0 text-white/55'}`}
-                style={{ background: canMessage ? 'var(--cruush-gradient)' : 'var(--cruush-gradient-soft-28)' }}
+                style={{ background: 'var(--cruush-gradient)', opacity: canMessage ? undefined : 0.5 }}
                 onClick={() => {
                   void handleMessage();
                 }}

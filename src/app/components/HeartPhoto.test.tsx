@@ -77,12 +77,14 @@ describe('HeartPhoto', () => {
     rerender(<HeartPhoto label="Sinner member" masked outOfSight={false} />);
     expect(screen.queryByTestId('purgatory-heart-overlay')).not.toBeInTheDocument();
 
-    rerender(<HeartPhoto label="Purgatory member" masked outOfSight borderTone="mile-high" />);
+    rerender(<HeartPhoto label="Purgatory member" masked outOfSight />);
     const overlay = screen.getByTestId('purgatory-heart-overlay');
     expect(overlay).toHaveClass('left-0', '-top-[12.5%]', 'h-[112.5%]', 'w-full', 'pointer-events-none');
     expect(overlay).toHaveAttribute('alt', '');
     expect(overlay).toHaveAttribute('aria-hidden', 'true');
     expect(overlay).toHaveAttribute('src', purgatoryHeartOverlay);
+    rerender(<HeartPhoto label="Purgatory member" masked outOfSight borderTone="mile-high" />);
+    expect(screen.queryByTestId('purgatory-heart-overlay')).not.toBeInTheDocument();
     expect(screen.getByRole('img', { name: 'Purgatory member' }).querySelector('[data-contrail-style]')).toBeInTheDocument();
   });
 

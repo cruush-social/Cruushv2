@@ -1,3 +1,4 @@
+import { showPurgatoryPresentation } from '../lib/purgatoryPresentation';
 import type { ReactNode } from 'react';
 import type { CruushBadge as CruushBadgeKey } from '../lib/billingApi';
 import type { DlModePhotoRelationship } from '../lib/dlMode';
@@ -80,11 +81,11 @@ export default function CruushesProfileCard({
     <UserActivityCapsule
       className="bg-black/72 hover:bg-black/86 min-h-[7.5rem] content-center"
       testId={testId}
-      outOfSight={user.outOfSight === true}
+      outOfSight={showPurgatoryPresentation(user.outOfSight, user.travelling)}
       heart={(
         <HeartPhoto
           borderTone={borderTone}
-          outOfSight={user.outOfSight === true}
+          outOfSight={showPurgatoryPresentation(user.outOfSight, user.travelling)}
           className="w-20 shrink-0"
           label={`${user.name} preview`}
           restriction={getNsfwPhotoRestriction(user.photoExplicit, photoRelationship)}

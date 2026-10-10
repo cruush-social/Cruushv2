@@ -75,7 +75,7 @@ export function updateClubVisibility(clubId: string, visibilityRules: ProfileVis
   });
 }
 
-export function updateClub(clubId: string, input: ClubMetadataInput) {
+export function updateClub(clubId: string, input: ClubMetadataInput & { requiresJoinApproval?: boolean }) {
   return requestApi<ClubDetailRecord>(`/api/clubs/${clubId}`, {
     method: 'PATCH',
     body: JSON.stringify(input),

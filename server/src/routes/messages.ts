@@ -1,3 +1,5 @@
+import { loadBannedUserIds, nonBannedAccountSql } from "../banned-content.js";
+import { getMhcLocationLabel } from "../mhc-location-label.js";
 import type { FastifyInstance, FastifyReply } from "fastify";
 import { z } from "zod";
 import { canViewNsfwPhoto, loadSharedCrowdUserIds, loadPhotoViewerRelationships, getNsfwPhotoAudience, resolveNsfwPhotoRestriction, type PhotoViewerRelationship } from "../nsfw-photo-audience.js";
@@ -557,6 +559,14 @@ async function getConversationOutOfSightLabel(
   const resolvedStatuses = statuses ?? await loadOutOfSightStatuses(app, [userId, row.other_user_id]);
   const sharedMode = distanceModes?.get(row.other_user_id)
     ?? await getSharedDistanceLabelMode(app, userId, row.other_user_id, { forTown: true });
+  if (row.other_user_travelling === true) {
+    // Retained conversation history cannot expose a newly hidden profile's town.
+    const hidden = sharedMode === "precise"
+      ? await loadOosHiddenProfileIds(app, userId, [row.other_user_id]).catch(() => new Set([row.other_user_id!]))
+      : new Set<string>();
+    const mhcLabel = await getMhcLocationLabel(app, row.other_user_id, hidden.has(row.other_user_id) ? "approximate" : sharedMode);
+    if (mhcLabel) return mhcLabel;
+  }
   const subjectCityLabel = sharedMode === "precise" && resolvedStatuses.get(row.other_user_id) === "out_of_sight"
     ? (townLabels ?? await loadVisibleConversationTownLabels(app, userId, [row.other_user_id])).get(row.other_user_id)
     : undefined;
@@ -859,6 +869,11 @@ const CONVERSATION_SELECT = `
     linked_club.id::text as club_id
   from conversation_members cm
   join conversations c on c.id = cm.conversation_id
+    and (c.kind <> 'dm' or not exists (
+      select 1 from conversation_members peer
+      where peer.conversation_id = c.id and peer.user_id <> $1
+        and not (${nonBannedAccountSql("peer.user_id")})
+    ))
   left join lateral (
     select
       m.content,
@@ -870,6 +885,7 @@ const CONVERSATION_SELECT = `
       m.created_at
     from messages m
     where m.conversation_id = c.id
+      and ${nonBannedAccountSql("m.user_id")}
       and (m.expires_at is null or m.expires_at > now())
       and (c.cleared_at is null or m.created_at > c.cleared_at)
     order by m.created_at desc
@@ -881,6 +897,7 @@ const CONVERSATION_SELECT = `
     select count(*)::int as unread_count
     from messages m
     where m.conversation_id = c.id
+      and ${nonBannedAccountSql("m.user_id")}
       and m.user_id <> $1
       and m.created_at > coalesce(cm.last_read_at, to_timestamp(0))
       and (m.expires_at is null or m.expires_at > now())
@@ -890,6 +907,7 @@ const CONVERSATION_SELECT = `
     select count(*)::int as member_count
     from conversation_members members
     where members.conversation_id = c.id
+      and ${nonBannedAccountSql("members.user_id")}
   ) as member_counts on true
   left join conversation_members other_member
     on other_member.conversation_id = c.id
@@ -899,6 +917,16 @@ const CONVERSATION_SELECT = `
   left join profiles other_profile on other_profile.id = other_member.user_id
   left join clubs linked_club on linked_club.conversation_id = c.id
 `;
+
+async function withVisibleClubMemberCount(app: FastifyInstance, row: ConversationRow): Promise<ConversationRow> {
+  if (!row.club_id) return row;
+  const memberships = await listClubMemberships({ config: app.config, db: app.db }, row.club_id);
+  const bannedIds = await loadBannedUserIds(app.db, memberships.map((membership) => membership.payload.userId));
+  return {
+    ...row,
+    member_count: memberships.filter((membership) => !bannedIds.has(membership.payload.userId)).length
+  };
+}
 
 async function loadConversationForUser(app: FastifyInstance, userId: string, conversationId: string) {
   const result = await app.db.query<ConversationRow>(
@@ -915,7 +943,7 @@ async function loadConversationForUser(app: FastifyInstance, userId: string, con
     { clubId: conversation.club_id, userId, type: "membership" }
   );
   if (!membership?.payload.role) return null;
-  return { ...conversation, current_user_role: membership.payload.role };
+  return withVisibleClubMemberCount(app, { ...conversation, current_user_role: membership.payload.role });
 }
 
 async function assertGroupAdmin(app: FastifyInstance, userId: string, conversationId: string) {
@@ -1108,6 +1136,7 @@ export async function registerMessageRoutes(app: FastifyInstance) {
       `select id::text as id
        from app_users
        where id::text = $1::text
+         and account_status is distinct from 'banned'
        limit 1`,
       [payload.otherUserId]
     );
@@ -1681,7 +1710,8 @@ export async function registerMessageRoutes(app: FastifyInstance) {
            ), true) as photo_explicit
          from app_users app_user
          left join profiles profile on profile.id = app_user.id
-         where app_user.id = any($1::uuid[])`,
+         where app_user.id = any($1::uuid[])
+           and app_user.account_status is distinct from 'banned'`,
         [memberIds]
       );
       const profiles = new Map(result.rows.map((row) => [row.id, row]));
@@ -1724,6 +1754,7 @@ export async function registerMessageRoutes(app: FastifyInstance) {
        join app_users app_user on app_user.id = member.user_id
        left join profiles profile on profile.id = member.user_id
        where member.conversation_id::text = $1
+         and app_user.account_status is distinct from 'banned'
        order by
          case member.role when 'owner' then 0 when 'admin' then 1 when 'moderator' then 2 else 3 end,
          member.joined_at asc`,
@@ -1781,7 +1812,7 @@ export async function registerMessageRoutes(app: FastifyInstance) {
         { config: app.config, db: app.db },
         { clubId: row.club_id, userId, type: "membership" }
       );
-      return membership?.payload.role ? { ...row, current_user_role: membership.payload.role } : null;
+      return membership?.payload.role ? withVisibleClubMemberCount(app, { ...row, current_user_role: membership.payload.role }) : null;
     }))).filter((row): row is ConversationRow => row !== null);
     const relationshipsByConversationId = new Map<string, RelationshipPermissions>();
     const rows = await filterReadableConversationRows(app, userId, authorizedRows, relationshipsByConversationId);
@@ -2456,6 +2487,7 @@ export async function registerMessageRoutes(app: FastifyInstance) {
            and media.moderation_status = 'approved'
        ) as message_attachments on true
        where m.conversation_id::text = $1
+         and sender_user.account_status is distinct from 'banned'
          and (m.expires_at is null or m.expires_at > now())
          and (c.cleared_at is null or m.created_at > c.cleared_at)
        order by m.created_at asc`,

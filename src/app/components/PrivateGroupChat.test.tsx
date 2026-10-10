@@ -1,3 +1,4 @@
+import { refreshContentVisibility } from '../lib/contentVisibilityRevision';
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { PHOTO_UPLOAD_ACCEPT } from '../lib/photoUploadFormats';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router';
@@ -509,6 +510,10 @@ describe('PrivateGroupChat', () => {
     expect(sendButton).toBeDisabled();
 
     fireEvent.change(composer, { target: { value: 'next message' } });
+    await act(async () => refreshContentVisibility());
+    await waitFor(() => expect(getConversationMessages).toHaveBeenCalledTimes(2));
+    expect(screen.getAllByText('only once').filter((element) => element.classList.contains('rounded-[22px]'))).toHaveLength(1);
+    expect(composer).toHaveValue('next message');
 
     await act(async () => {
       resolveSend({
@@ -1398,6 +1403,23 @@ describe('PrivateGroupChat', () => {
     expect(screen.queryByRole('button', { name: 'Attach photo or video' })).not.toBeInTheDocument();
   });
 
+  it.each([false, true])('keeps received DM avatar Purgatory styling below active MHC precedence (%s)', async (travelling) => {
+    const conversationId = '7fba9ce1-b9ca-44f3-a4b1-03ad861a24d2';
+    getConversationMessages.mockResolvedValue({
+      conversation: {
+        id: conversationId, kind: 'dm',
+        user: { id: 'user-2', name: 'River', pronouns: '', photo: null, outOfSight: true, travelling },
+        distance: 'Nearby', updatedAt: '2026-04-29T12:00:00.000Z', lastMessage: 'hello',
+        unreadCount: 0, pinned: false, tags: [],
+      },
+      messages: [{ id: 'message-mhc', author: 'other', userId: 'user-2', content: 'hello', timestamp: '2026-04-29T12:05:00.000Z' }],
+    });
+    render(<MemoryRouter initialEntries={[`/chat/${conversationId}`]}><Routes><Route path="/chat/:chatId" element={<PrivateGroupChat />} /></Routes></MemoryRouter>);
+    const avatar = await screen.findByRole('button', { name: 'Open River profile' });
+    expect(within(avatar).queryByTestId('purgatory-heart-overlay') !== null).toBe(!travelling);
+    expect(avatar.querySelector('[data-contrail-style]') !== null).toBe(travelling);
+  });
+
   it('opens a group message sender profile from their avatar', async () => {
     const conversationId = '7fba9ce1-b9ca-44f3-a4b1-03ad861a24d2';
     getConversationMessages.mockResolvedValue({
@@ -1566,12 +1588,17 @@ describe('PrivateGroupChat', () => {
     expect(screen.queryByRole('button', { name: 'Edit Coven' })).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Conversation settings' }));
     fireEvent.change(await screen.findByLabelText('Coven settings short description'), { target: { value: 'Updated description.' } });
+    const approvalSwitch = screen.getByRole('switch', { name: 'Require approval to join' });
+    expect(approvalSwitch).toHaveAttribute('aria-checked', 'true');
+    fireEvent.click(approvalSwitch);
+    expect(approvalSwitch).toHaveAttribute('aria-checked', 'false');
     expect(screen.getByRole('button', { name: 'Visibility Controls' })).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Save Coven' }));
     await waitFor(() => expect(updateClub).toHaveBeenCalledWith(clubId, {
       title: 'Brooklyn techno',
       summary: 'Updated description.',
       tags: ['techno'],
+      requiresJoinApproval: false,
     }));
     fireEvent.click(screen.getByRole('button', { name: 'Approve' }));
     await waitFor(() => expect(reviewClubJoinRequest).toHaveBeenCalledWith(
@@ -1911,6 +1938,13 @@ describe('PrivateGroupChat', () => {
   });
 
   it('keeps the mobile composer above the bottom nav without horizontal overflow', async () => {
+    let composerTop = 395;
+    const originalBounds = HTMLElement.prototype.getBoundingClientRect;
+    const bounds = vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function () {
+      if (this.dataset.testid === 'chat-composer-bar') return { ...originalBounds.call(this), top: composerTop, bottom: 630, height: 630 - composerTop } as DOMRect;
+      if (this.dataset.testid === 'app-page-content') return { ...originalBounds.call(this), top: 57, bottom: 622, height: 565 } as DOMRect;
+      return originalBounds.call(this);
+    });
     const conversationId = '7fba9ce1-b9ca-44f3-a4b1-03ad861a24d2';
     getConversationMessages.mockResolvedValue({
       conversation: {
@@ -1934,32 +1968,48 @@ describe('PrivateGroupChat', () => {
       messages: [],
     });
 
-    render(
-      <MemoryRouter initialEntries={[`/chat/${conversationId}`]}>
-        <Routes>
-          <Route path="/chat/:chatId" element={<PrivateGroupChat />} />
-        </Routes>
-      </MemoryRouter>,
-    );
+    try {
+      render(
+        <div data-testid="app-page-content">
+        <MemoryRouter initialEntries={[`/chat/${conversationId}`]}>
+          <Routes>
+            <Route path="/chat/:chatId" element={<PrivateGroupChat />} />
+          </Routes>
+        </MemoryRouter>
+        </div>,
+      );
 
-    expect(await screen.findByText('No messages yet.')).toBeInTheDocument();
+      expect(await screen.findByText('No messages yet.')).toBeInTheDocument();
 
-    expect(screen.getByTestId('private-group-chat-screen')).toHaveClass('max-w-full', 'overflow-x-clip');
-    expect(screen.getByTestId('chat-thread-header')).toHaveClass('sticky', 'top-0', 'z-40');
+      expect(screen.getByTestId('private-group-chat-screen')).toHaveClass('max-w-full', 'overflow-x-clip');
+      expect(screen.getByTestId('chat-thread-header')).toHaveClass('sticky', 'top-0', 'z-40');
 
-    const composerBar = screen.getByTestId('chat-composer-bar');
-    expect(composerBar).toHaveClass(
-      'bottom-[var(--chat-composer-bottom)]',
-      'max-w-[100vw]',
-      'overflow-x-hidden',
-    );
-    expect(composerBar.style.getPropertyValue('--chat-composer-bottom')).toBe('calc(5.5rem + env(safe-area-inset-bottom))');
-    expect(composerBar).toHaveClass('pb-0');
-    expect(screen.getByPlaceholderText('Say what you want...')).toHaveClass('min-w-0', 'flex-1');
-    expect(screen.getByRole('button', { name: 'Send message' })).toHaveClass('size-9', 'rounded-full');
+      const composerBar = screen.getByTestId('chat-composer-bar');
+      expect(composerBar).toHaveClass(
+        'bottom-[var(--chat-composer-bottom)]',
+        'max-w-[100vw]',
+        'overflow-x-hidden',
+      );
+      expect(composerBar.style.getPropertyValue('--chat-composer-bottom')).toBe('var(--cruush-nav-clearance, calc(6rem + env(safe-area-inset-bottom)))');
+      expect(composerBar).toHaveClass('pb-0');
+      expect(screen.getByTestId('chat-composer-underlay').style.height).toBe(composerBar.style.getPropertyValue('--chat-composer-bottom'));
+      expect(screen.getByPlaceholderText('Say what you want...')).toHaveClass('min-w-0', 'flex-1');
+      expect(screen.getByRole('button', { name: 'Send message' })).toHaveClass('size-9', 'rounded-full');
+      expect(screen.getByTestId('chat-thread-content')).toHaveStyle({ paddingBottom: '227px' });
+      const viewport = screen.getByTestId('app-page-content');
+      viewport.scrollTop = 64;
+      composerTop = 450;
+      fireEvent(window, new Event('resize'));
+      expect(screen.getByTestId('chat-thread-content')).toHaveStyle({ paddingBottom: '172px' });
+      expect(viewport.scrollTop).toBe(64);
+    } finally {
+      bounds.mockRestore();
+    }
   });
 
-  it('drops the composer gap when the input is focused and no inset is reported', async () => {
+  it.each([false, true])('keeps focus steady and recognizes layout keyboard shrink only on mobile (mobile=%s)', async (mobile) => {
+    const userAgent = vi.spyOn(window.navigator, 'userAgent', 'get').mockReturnValue(mobile ? 'Mozilla/5.0 (Linux; Android 15)' : 'Desktop browser');
+    const visualViewport = mockVisualViewport({ height: 900, innerHeight: 900 });
     const conversationId = '7fba9ce1-b9ca-44f3-a4b1-03ad861a24d2';
     getConversationMessages.mockResolvedValue({
       conversation: {
@@ -1978,36 +2028,59 @@ describe('PrivateGroupChat', () => {
       messages: [],
     });
 
-    render(
-      <MemoryRouter initialEntries={[`/chat/${conversationId}`]}>
-        <Routes>
-          <Route path="/chat/:chatId" element={<PrivateGroupChat />} />
-        </Routes>
-      </MemoryRouter>,
-    );
+    try {
+      render(
+        <MemoryRouter initialEntries={[`/chat/${conversationId}`]}>
+          <Routes>
+            <Route path="/chat/:chatId" element={<PrivateGroupChat />} />
+          </Routes>
+        </MemoryRouter>,
+      );
 
-    expect(await screen.findByText('No messages yet.')).toBeInTheDocument();
+      expect(await screen.findByText('No messages yet.')).toBeInTheDocument();
 
-    const composerBar = screen.getByTestId('chat-composer-bar');
-    expect(composerBar.style.getPropertyValue('--chat-composer-bottom')).toBe('calc(5.5rem + env(safe-area-inset-bottom))');
+      const composerBar = screen.getByTestId('chat-composer-bar');
+      expect(composerBar.style.getPropertyValue('--chat-composer-bottom')).toBe('var(--cruush-nav-clearance, calc(6rem + env(safe-area-inset-bottom)))');
 
-    // Some Android browsers resize the layout viewport instead of reporting a
-    // visual viewport inset, so the keyboard measures as zero. Focus is the one
-    // signal every browser gives, and the resting gap has to go or a strip of
-    // the thread shows between the input and the keyboard.
-    fireEvent.focus(screen.getByPlaceholderText('Say what you want...'));
+      // Desktop focus (and focus before a mobile keyboard appears) cannot drop
+      // the composer underneath the bottom navigation.
+      fireEvent.focus(screen.getByPlaceholderText('Say what you want...'));
+      expect(composerBar.style.getPropertyValue('--chat-composer-bottom')).toBe('var(--cruush-nav-clearance, calc(6rem + env(safe-area-inset-bottom)))');
+      expect(composerBar).toHaveClass('pb-0');
 
-    await waitFor(() => expect(composerBar.style.getPropertyValue('--chat-composer-bottom')).toBe('0px'));
+      // A mobile layout resize is a keyboard; an ordinary desktop window
+      // resize with a focused textarea must keep the navigation clearance.
+      visualViewport.viewport.height = 520;
+      Object.defineProperty(window, 'innerHeight', { configurable: true, value: 520 });
+      fireEvent(window, new Event('resize'));
+      await waitFor(() => expect(composerBar.style.getPropertyValue('--chat-composer-bottom')).toBe(mobile ? '0px' : 'var(--cruush-nav-clearance, calc(6rem + env(safe-area-inset-bottom)))'));
+      expect(composerBar).toHaveClass(mobile ? 'pb-3' : 'pb-0');
+      expect(document.documentElement.dataset.cruushDmKeyboardOpen).toBe(mobile ? 'true' : undefined);
 
-    fireEvent.blur(screen.getByPlaceholderText('Say what you want...'));
+      visualViewport.viewport.height = 900;
+      Object.defineProperty(window, 'innerHeight', { configurable: true, value: 900 });
+      fireEvent(window, new Event('resize'));
+      await waitFor(() => expect(composerBar.style.getPropertyValue('--chat-composer-bottom')).toBe('var(--cruush-nav-clearance, calc(6rem + env(safe-area-inset-bottom)))'));
 
-    await waitFor(() => expect(composerBar.style.getPropertyValue('--chat-composer-bottom')).toBe('calc(5.5rem + env(safe-area-inset-bottom))'));
+      fireEvent.blur(screen.getByPlaceholderText('Say what you want...'));
+
+      await waitFor(() => expect(composerBar.style.getPropertyValue('--chat-composer-bottom')).toBe('var(--cruush-nav-clearance, calc(6rem + env(safe-area-inset-bottom)))'));
+    } finally {
+      visualViewport.restore();
+      userAgent.mockRestore();
+    }
   });
 
-  it('moves the mobile composer above Android in-app browser keyboards', async () => {
+  it.each([
+    { name: 'Android visual inset', baseline: 900, innerHeight: 900, height: 520, offsetTop: 0, inset: '380px' },
+    { name: 'Safari first native keyboard pan', baseline: 714, innerHeight: 524, height: 377, offsetTop: 190, inset: '147px' },
+    { name: 'Safari second native keyboard pan', baseline: 714, innerHeight: 377, height: 377, offsetTop: 337, inset: '0px' },
+  ])('positions the mobile composer using actual keyboard geometry: $name', async ({ baseline, innerHeight, height, offsetTop, inset }) => {
+    const originalClientHeight = Object.getOwnPropertyDescriptor(document.documentElement, 'clientHeight');
+    Object.defineProperty(document.documentElement, 'clientHeight', { configurable: true, value: baseline });
     const visualViewport = mockVisualViewport({
-      height: 520,
-      innerHeight: 900,
+      height: baseline,
+      innerHeight: baseline,
     });
     const conversationId = '7fba9ce1-b9ca-44f3-a4b1-03ad861a24d2';
     getConversationMessages.mockResolvedValue({
@@ -2044,22 +2117,76 @@ describe('PrivateGroupChat', () => {
       expect(await screen.findByText('No messages yet.')).toBeInTheDocument();
 
       const composerBar = screen.getByTestId('chat-composer-bar');
+      fireEvent.focus(screen.getByPlaceholderText('Say what you want...'));
+      visualViewport.viewport.height = height;
+      visualViewport.viewport.offsetTop = offsetTop;
+      Object.defineProperty(window, 'innerHeight', { configurable: true, value: innerHeight });
+      fireEvent(window, new Event('resize'));
 
       await waitFor(() => expect(composerBar).toHaveAttribute('data-keyboard-open', 'true'));
       // Flush on the keyboard: no rem gap and no safe-area on top, since the
       // keyboard already covers that zone.
-      expect(composerBar.style.getPropertyValue('--chat-composer-bottom')).toBe('380px');
+      expect(composerBar.style.getPropertyValue('--chat-composer-bottom')).toBe(inset);
       expect(composerBar).toHaveClass('pb-3');
+      expect(screen.getByTestId('chat-composer-underlay')).toHaveStyle({ height: inset });
+      expect(document.documentElement.dataset.cruushDmKeyboardOpen).toBe('true');
 
-      visualViewport.viewport.height = 900;
+      visualViewport.viewport.height = baseline;
+      visualViewport.viewport.offsetTop = 0;
+      Object.defineProperty(window, 'innerHeight', { configurable: true, value: baseline });
       visualViewport.dispatch('resize');
 
       await waitFor(() => expect(composerBar).not.toHaveAttribute('data-keyboard-open'));
-      expect(composerBar.style.getPropertyValue('--chat-composer-bottom')).toBe('calc(5.5rem + env(safe-area-inset-bottom))');
+      expect(composerBar.style.getPropertyValue('--chat-composer-bottom')).toBe('var(--cruush-nav-clearance, calc(6rem + env(safe-area-inset-bottom)))');
       expect(composerBar).toHaveClass('pb-0');
+      expect(document.documentElement.dataset.cruushDmKeyboardOpen).toBeUndefined();
+      expect(screen.getByTestId('chat-composer-underlay').style.height).toBe(composerBar.style.getPropertyValue('--chat-composer-bottom'));
     } finally {
       visualViewport.restore();
+      if (originalClientHeight) Object.defineProperty(document.documentElement, 'clientHeight', originalClientHeight);
+      else delete (document.documentElement as unknown as { clientHeight?: number }).clientHeight;
     }
+  });
+
+  it.each(['bottom', 'latest visible', 'older history'])('retains only a latest-message reader during keyboard resize: %s', async position => {
+    const vv = mockVisualViewport({ height: 900, innerHeight: 900 });
+    const conversationId = '7fba9ce1-b9ca-44f3-a4b1-03ad861a24d2';
+    getConversationMessages.mockResolvedValue({
+      conversation: { id: conversationId, kind: 'dm', user: { id: 'user-2', name: 'River', pronouns: '', photo: null },
+        distance: 'Nearby', updatedAt: '2026-04-29T12:00:00.000Z', lastMessage: 'Latest message', unreadCount: 0, pinned: false, tags: [], mutual: true },
+      messages: [{ id: 'latest-message', userId: 'user-2', content: 'Latest message', timestamp: '2026-04-29T12:05:00.000Z' }],
+    });
+    try {
+      render(<div data-testid="app-page-content"><MemoryRouter initialEntries={[`/chat/${conversationId}`]}><Routes><Route path="/chat/:chatId" element={<PrivateGroupChat />} /></Routes></MemoryRouter></div>);
+      const latest = await screen.findByText('Latest message');
+      const viewport = screen.getByTestId('app-page-content');
+      Object.defineProperty(viewport, 'scrollHeight', { configurable: true, value: 1200 });
+      Object.defineProperty(viewport, 'clientHeight', { configurable: true, value: 600 });
+      viewport.scrollTop = position === 'bottom' ? 600 : position === 'latest visible' ? 450 : 100;
+      const initialScroll = viewport.scrollTop;
+      vi.spyOn(viewport, 'getBoundingClientRect').mockReturnValue({ top: 0, bottom: 600, height: 600 } as DOMRect);
+      vi.spyOn(screen.getByTestId('chat-composer-bar'), 'getBoundingClientRect').mockReturnValue({ top: 600, bottom: 755, height: 155 } as DOMRect);
+      const row = latest.closest('.items-end') as HTMLElement;
+      vi.spyOn(row, 'getBoundingClientRect').mockReturnValue({ top: 500, bottom: position === 'latest visible' ? 550 : 950, height: 50 } as DOMRect);
+      fireEvent.focus(screen.getByPlaceholderText('Say what you want...'));
+      expect(viewport.scrollTop).toBe(initialScroll);
+      Object.defineProperty(viewport, 'clientHeight', { configurable: true, value: 350 });
+      vv.viewport.height = 520;
+      fireEvent(window, new Event('resize'));
+      await waitFor(() => expect(screen.getByTestId('chat-composer-bar')).toHaveAttribute('data-keyboard-open', 'true'));
+      if (position === 'older history') {
+        await new Promise(resolve => setTimeout(resolve, 40));
+        expect(viewport.scrollTop).toBe(initialScroll);
+      } else {
+        await waitFor(() => expect(viewport.scrollTop).toBe(850));
+        fireEvent.wheel(viewport);
+        viewport.scrollTop = 100;
+        vv.viewport.height = 480;
+        fireEvent(window, new Event('resize'));
+        await new Promise(resolve => setTimeout(resolve, 40));
+        expect(viewport.scrollTop).toBe(100);
+      }
+    } finally { vv.restore(); }
   });
 
   it.each([undefined, 'mutual_cruushes', 'mutual_crowds'] as Array<NsfwPhotoRestriction | undefined>)('opens an eligible view-once photo only after tapping; owner restriction=%s', async (restriction) => {

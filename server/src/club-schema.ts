@@ -44,7 +44,10 @@ export const createClubPayloadSchema = z.object({
     .transform((ids) => Array.from(new Set(ids)))
 }).strict();
 
-export const updateClubPayloadSchema = z.object(clubMetadataShape).strict();
+export const updateClubPayloadSchema = z.object({
+  ...clubMetadataShape,
+  requiresJoinApproval: z.boolean().optional()
+}).strict();
 
 export const clubVisibilityPayloadSchema = z.object({
   visibilityRules: clubVisibilityRulesSchema

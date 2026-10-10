@@ -155,3 +155,16 @@ describe("profile visibility rules", () => {
     expect(canSubjectViewProfile(rules, { zodiac: ["Virgo"] })).toBe(true);
   });
 });
+
+
+describe("independent visibility tags", () => {
+  it("hides exact tag matches without matching names, bios or partial tags", () => {
+    const rules = { ...emptyProfile.visibility_rules, tags: ["leather"] };
+    expect(visibilityRulesArePublic(rules)).toBe(false);
+    expect(countVisibilityExclusionFilters(rules)).toBe(1);
+    expect(canSubjectViewProfile(rules, { tags: ["#LEATHER"] })).toBe(false);
+    expect(canSubjectViewProfile(rules, { tags: ["leatherdaddy"], display_name: "leather", bio: "leather" })).toBe(true);
+    expect(canSubjectViewProfile(rules, { tags: [] })).toBe(true);
+    expect(canSubjectViewProfile({ ...rules, mile_high_club_members: true }, { tags: ["rope"], mile_high_club_member: true })).toBe(false);
+  });
+});

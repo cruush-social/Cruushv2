@@ -6,12 +6,13 @@ import { trackCruushPlusConversion } from '../lib/posthog';
 
 type CruushPlusGateNoticeProps = {
   description: string;
+  compactMobileText?: boolean;
   onUpgrade: () => void;
   surface?: CruushPlusConversionSurface;
   benefit?: CruushPlusConversionBenefit;
 };
 
-export default function CruushPlusGateNotice({ description, onUpgrade, surface, benefit }: CruushPlusGateNoticeProps) {
+export default function CruushPlusGateNotice({ description, compactMobileText = false, onUpgrade, surface, benefit }: CruushPlusGateNoticeProps) {
   useEffect(() => {
     if (surface && benefit) {
       trackCruushPlusConversion('cruush_plus_paywall_viewed', { surface, benefit });
@@ -30,9 +31,9 @@ export default function CruushPlusGateNotice({ description, onUpgrade, surface, 
         onUpgrade();
       }}
     >
-      <span className="min-w-0 flex-1">
-        <span className="block text-sm text-white/72">{description}</span>
-        <span className="mt-1 block text-sm font-semibold"><CruushPlusWord /> unlocks more</span>
+      <span className={compactMobileText ? "min-w-0 flex-1 max-sm:text-[clamp(10px,3.1vw,14px)]" : "min-w-0 flex-1"}>
+        <span className={compactMobileText ? "block text-sm text-white/72 max-sm:text-[length:inherit]" : "block text-sm text-white/72"}>{description}</span>
+        <span className={compactMobileText ? "mt-1 block text-sm font-semibold max-sm:text-[length:inherit]" : "mt-1 block text-sm font-semibold"}><CruushPlusWord /> unlocks more</span>
       </span>
       <ChevronRight aria-hidden="true" className="h-5 w-5 shrink-0 text-primary" />
     </button>

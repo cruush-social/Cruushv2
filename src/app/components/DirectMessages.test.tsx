@@ -777,7 +777,7 @@ describe('DirectMessages', () => {
     expect(screen.queryByTestId('activity-vibes')).not.toBeInTheDocument();
     expect(screen.getByText('meet by the door')).toBeInTheDocument();
     expect(screen.getByText('12m ago')).toBeInTheDocument();
-    expect(screen.queryByText('Nearby')).not.toBeInTheDocument();
+    expect(screen.getByText('Nearby')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Delete River chat for everyone' })).toBeInTheDocument();
   });
 

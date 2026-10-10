@@ -1,3 +1,4 @@
+import { nonBannedAccountSql, loadBannedUserIds } from "../banned-content.js";
 import type { FastifyInstance, FastifyRequest } from "fastify";
 import { loadPhotoViewerRelationships } from "../nsfw-photo-audience.js";
 import { loadOosHiddenProfileIds } from "../profile-oos-visibility.js";
@@ -866,7 +867,7 @@ async function loadActivityProfiles(app: FastifyInstance, userIds: string[]) {
          where user_badges.user_id = profiles.id
        ), '{}'::text[]) as badges
      from profiles
-     where profiles.id = any($1::uuid[])`,
+     where profiles.id = any($1::uuid[]) and ${nonBannedAccountSql("profiles.id")}`,
     [uniqueUserIds]
   );
 
@@ -1238,13 +1239,14 @@ async function loadCruushActivityRecords(
     ...visibleSentRecords.map((record) => record.payload.targetUserId),
     ...visibleViewRecords.map((record) => record.payload.actorUserId)
   ];
+  const bannedUserIds = await loadBannedUserIds(app.db, profileIds);
   const oosHiddenUserIds = await loadOosHiddenProfileIds(app, userId, profileIds);
   const profilesById = await loadActivityProfiles(app, profileIds.filter((id) => !oosHiddenUserIds.has(id)));
 
   return {
-    incomingRecords: visibleIncomingRecords.filter((record) => !oosHiddenUserIds.has(record.payload.actorUserId)),
-    sentRecords: visibleSentRecords.filter((record) => !oosHiddenUserIds.has(record.payload.targetUserId)),
-    viewRecords: visibleViewRecords.filter((record) => !oosHiddenUserIds.has(record.payload.actorUserId)),
+    incomingRecords: visibleIncomingRecords.filter((record) => !oosHiddenUserIds.has(record.payload.actorUserId) && !bannedUserIds.has(record.payload.actorUserId)),
+    sentRecords: visibleSentRecords.filter((record) => !oosHiddenUserIds.has(record.payload.targetUserId) && !bannedUserIds.has(record.payload.targetUserId)),
+    viewRecords: visibleViewRecords.filter((record) => !oosHiddenUserIds.has(record.payload.actorUserId) && !bannedUserIds.has(record.payload.actorUserId)),
     // OOS filtering must not promote an older Basic history item to unlocked.
     basicVisibleIncomingRecordId: newestRelationshipRecordId([
       ...visibleIncomingRecords,

@@ -57,7 +57,7 @@ export type PlaceDetailRecord = PlaceRecord & {
     count: number;
     viewerRating: number | null;
   }>;
-  viewerCheckin: { visible: boolean; visibility: 'hidden' | 'public' | 'checked_in'; checkedInAt: string; expiresAt: string } | null;
+  viewerCheckin: { visible: boolean; visibility: 'hidden' | 'public' | 'checked_in' | 'mutuals' | 'crowd'; checkedInAt: string; expiresAt: string } | null;
 };
 
 export type PlaceRatingCategory = 'overall' | 'gender_inclusivity' | 'lgbtq_friendliness' | 'safety' | 'accessibility' | 'cleanliness';
@@ -154,14 +154,15 @@ export async function checkIntoPlace(placeId: string, input: {
   vibes: PlaceVibe[];
   amenities: PlaceAmenity[];
   durationHours: 1 | 3 | 6 | 12 | 24;
+  crowdTargets?: string[];
   visible: boolean;
-  visibility: 'hidden' | 'public' | 'checked_in';
+  visibility: 'hidden' | 'public' | 'checked_in' | 'mutuals' | 'crowd';
   latitude: number;
   longitude: number;
   accuracyMeters: number;
   observedAt: string;
 }) {
-  return requestApi<{ placeId: string; boardPostId: string | null; visible: boolean; visibility: 'hidden' | 'public' | 'checked_in'; expiresAt: string }>(`/api/places/${placeId}/check-ins`, { method: 'POST', body: JSON.stringify(input) });
+  return requestApi<{ placeId: string; boardPostId: string | null; visible: boolean; visibility: 'hidden' | 'public' | 'checked_in' | 'mutuals' | 'crowd'; expiresAt: string }>(`/api/places/${placeId}/check-ins`, { method: 'POST', body: JSON.stringify(input) });
 }
 
 export async function checkOutOfPlace(placeId: string) {

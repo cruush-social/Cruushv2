@@ -66,11 +66,11 @@ export default function MapTopBar({ setMapControlsHovered, handleFeelingLucky, n
             <Button
               variant="ghost"
               size="icon"
-              onClick={() => navigate(outsideServiceArea ? '/settings/travel' : '/privacy/ghost-mode')}
+              onClick={() => navigate('/privacy/ghost-mode')}
               data-tutorial-target="ghost"
-              aria-label={outsideServiceArea ? 'Mile High Club' : 'Ghost Mode Settings'}
-              title={outsideServiceArea ? 'Mile High Club' : 'Ghost Mode Settings'}
-              className={`size-[3.25rem] rounded-full bg-transparent text-white/90 hover:bg-transparent focus:bg-transparent focus-visible:bg-transparent${outsideServiceArea ? ' opacity-45' : ''}`}
+              aria-label="Ghost Mode Settings"
+              title="Ghost Mode Settings"
+              className="size-[3.25rem] rounded-full bg-transparent text-white/90 hover:bg-transparent focus:bg-transparent focus-visible:bg-transparent"
             >
               {!outsideServiceArea && privacySettings.baseMode === 'STEALTH' ? (
                 <DarkRoomMark active className="!h-11 !w-11 text-white" />

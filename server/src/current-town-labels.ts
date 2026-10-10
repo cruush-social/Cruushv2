@@ -60,3 +60,23 @@ export async function loadCurrentTownLabels(
   }
   return result;
 }
+
+/** Caller must authorize the subject and reciprocal Precise mode before lookup. */
+export async function loadTravelPinTownLabel(
+  context: CurrentTownLabelContext,
+  pin: { latitude: number; longitude: number; expiresAtMs: number },
+): Promise<string | null> {
+  const databasePath = context.config.TOWN_BOUNDARY_DATABASE_PATH?.trim();
+  if (!databasePath || pin.expiresAtMs <= Date.now()
+    || !Number.isFinite(pin.latitude) || !Number.isFinite(pin.longitude)
+    || Math.abs(pin.latitude) > 90 || Math.abs(pin.longitude) > 180) return null;
+  try {
+    if (!current || current.path !== databasePath) {
+      const previous = current;
+      current = { path: databasePath, lookup: new TownBoundaryLookup(databasePath) };
+      void previous?.lookup.close();
+    }
+    const [label] = await current.lookup.lookup([{ lat: pin.latitude, lng: pin.longitude }]);
+    return pin.expiresAtMs > Date.now() ? label || null : null;
+  } catch { return null; }
+}

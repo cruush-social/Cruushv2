@@ -1,4 +1,5 @@
 import { useId, useRef, useState } from 'react';
+import { Link, useInRouterContext } from 'react-router';
 import purgatoryMemberApproved from '../assets/ui-icons/purgatory-member-approved.png';
 import { Tooltip, TooltipContent, TooltipTrigger } from './ui/tooltip';
 
@@ -12,9 +13,15 @@ export default function PurgatoryMemberBadge({ size = 'profile' }: {
   size?: keyof typeof glyphSizes;
 }) {
   const [open, setOpen] = useState(false);
+  const inRouter = useInRouterContext();
   const triggerRef = useRef<HTMLButtonElement>(null);
   const touchFocusRef = useRef(false);
+  const guideLinkRef = useRef<HTMLAnchorElement>(null);
   const backgroundMaskId = `purgatory-background-${useId().replace(/:/g, '')}`;
+  const explanation = <>
+    <span className="block">This is a Purgatory member. They are </span>
+    <span className="block">currently outside cruush’s service area.</span>
+  </>;
 
   return (
     <Tooltip open={open} onOpenChange={setOpen}>
@@ -33,6 +40,18 @@ export default function PurgatoryMemberBadge({ size = 'profile' }: {
             // Mobile browsers may focus after pointerup but before click.
             // Let that tap open once; keep keyboard focus opening unchanged.
             if (touchFocusRef.current) event.preventDefault();
+          }}
+          onBlur={(event) => {
+            if (guideLinkRef.current?.contains(event.relatedTarget as Node)) event.preventDefault();
+          }}
+          onKeyDown={(event) => {
+            if (event.key === 'Tab' && !event.shiftKey && open) {
+              const link = guideLinkRef.current;
+              if (link) {
+                event.preventDefault();
+                link.focus();
+              }
+            }
           }}
           onPointerLeave={(event) => {
             // Touch pointers leave after lifting the finger, before the click.
@@ -70,9 +89,19 @@ export default function PurgatoryMemberBadge({ size = 'profile' }: {
         </button>
       </TooltipTrigger>
       <TooltipContent
+        onBlur={(event) => {
+          if (!guideLinkRef.current?.contains(event.relatedTarget as Node) && event.relatedTarget !== triggerRef.current) setOpen(false);
+        }}
+        onKeyDown={(event) => {
+          if (event.key !== 'Tab') return;
+          triggerRef.current?.focus();
+          if (event.shiftKey) event.preventDefault();
+          else setOpen(false);
+        }}
+        aria-label="This is a Purgatory member. They are currently outside cruush’s service area."
         side="top"
         sideOffset={6}
-        className="max-w-[calc(100vw-1rem)]"
+        className="max-w-[calc(100vw-1rem)] pr-2 text-left [text-wrap:wrap]"
         onPointerDownOutside={(event) => {
           // The trigger is outside the portaled content. Let its click toggle
           // the current state instead of dismissing first and reopening it.
@@ -81,7 +110,11 @@ export default function PurgatoryMemberBadge({ size = 'profile' }: {
           }
         }}
       >
-        This is a Purgatory member. They are currently outside cruush’s service area.
+        {inRouter ? (
+          <Link ref={guideLinkRef} to="/purgatory" className="block text-inherit no-underline" onClick={(event) => { event.stopPropagation(); setOpen(false); }}>{explanation}</Link>
+        ) : (
+          <a ref={guideLinkRef} href="/purgatory" className="block text-inherit no-underline" onClick={(event) => event.stopPropagation()}>{explanation}</a>
+        )}
       </TooltipContent>
     </Tooltip>
   );

@@ -22,6 +22,10 @@ vi.mock("web-push", () => ({
 }));
 
 const query = vi.fn();
+const deliveryVisibilityQuery = vi.fn();
+// Keep the existing delivery/preferences sequence independent of the new dispatch-time gate.
+const notificationDbQuery = (sql: string, values?: unknown[]) => sql.includes("select notification.id::text as id from app_notifications notification")
+  ? deliveryVisibilityQuery(sql, values) : query(sql, values);
 const end = vi.fn().mockResolvedValue(undefined);
 const rateLimiter = createMemoryRateLimiter();
 
@@ -115,6 +119,7 @@ function buildNotificationsApp(overrides: Partial<AppConfig> = {}) {
 
 beforeEach(() => {
   query.mockReset();
+  deliveryVisibilityQuery.mockReset().mockResolvedValue({ rows: [{ id: notificationId }] });
   end.mockClear();
   rateLimiter.reset?.();
   sendNotification.mockReset();
@@ -130,7 +135,7 @@ describe("notification service", () => {
 
     const notification = await createAppNotification({
       config: baseConfig,
-      db: { query, end },
+      db: { query: notificationDbQuery, end },
       log: { warn: vi.fn(), error: vi.fn(), info: vi.fn() }
     } as never, {
       userId: recipientUserId,
@@ -184,7 +189,7 @@ describe("notification service", () => {
         WEB_PUSH_VAPID_PUBLIC_KEY: "public-key",
         WEB_PUSH_VAPID_PRIVATE_KEY: "private-key"
       },
-      db: { query, end },
+      db: { query: notificationDbQuery, end },
       log: { warn: vi.fn(), error: vi.fn(), info: vi.fn() }
     } as never, {
       userId: recipientUserId,
@@ -206,7 +211,7 @@ describe("notification service", () => {
   it("does not create a notification for the actor", async () => {
     const notification = await createAppNotification({
       config: baseConfig,
-      db: { query, end },
+      db: { query: notificationDbQuery, end },
       log: { warn: vi.fn(), error: vi.fn(), info: vi.fn() }
     } as never, {
       userId: actorUserId,
@@ -220,6 +225,20 @@ describe("notification service", () => {
 
     expect(notification).toBeNull();
     expect(query).not.toHaveBeenCalled();
+  });
+
+  it.each([false, true])("does not dispatch a newly hidden source while preserving its queued row (deferred=%s)", async deferPush => {
+    query.mockResolvedValueOnce({ rows: [notificationRow()] });
+    deliveryVisibilityQuery.mockResolvedValueOnce({ rows: [] });
+    const result = await createAppNotificationAndPush({
+      config: baseConfig, db: { query: notificationDbQuery, end }, log: { warn: vi.fn() }
+    } as never, { userId: recipientUserId, actorUserId, type: "direct_message", title: "Activity", deferPush });
+    expect(result?.id).toBe(notificationId);
+    await vi.waitFor(() => expect(deliveryVisibilityQuery).toHaveBeenCalledTimes(1));
+    expect(deliveryVisibilityQuery.mock.calls[0][0]).toContain("account_status = 'banned'");
+    expect(deliveryVisibilityQuery.mock.calls[0][1]).toEqual([notificationId, recipientUserId]);
+    expect(sendNotification).not.toHaveBeenCalled();
+    expect(query).toHaveBeenCalledTimes(1);
   });
 
   it("keeps the saved notification when push delivery fails and prunes expired subscriptions", async () => {
@@ -245,7 +264,7 @@ describe("notification service", () => {
         WEB_PUSH_VAPID_PUBLIC_KEY: "public-key",
         WEB_PUSH_VAPID_PRIVATE_KEY: "private-key"
       },
-      db: { query, end },
+      db: { query: notificationDbQuery, end },
       log: { warn, error: vi.fn(), info: vi.fn() }
     } as never, {
       userId: recipientUserId,
@@ -301,7 +320,7 @@ describe("notification service", () => {
         WEB_PUSH_VAPID_PUBLIC_KEY: "public-key",
         WEB_PUSH_VAPID_PRIVATE_KEY: "private-key"
       },
-      db: { query, end },
+      db: { query: notificationDbQuery, end },
       log: { warn: vi.fn(), error: vi.fn(), info: vi.fn() }
     } as never, {
       userId: recipientUserId,
@@ -359,7 +378,7 @@ describe("notification service", () => {
         WEB_PUSH_VAPID_PUBLIC_KEY: "public-key",
         WEB_PUSH_VAPID_PRIVATE_KEY: "private-key"
       },
-      db: { query, end },
+      db: { query: notificationDbQuery, end },
       log: { warn: vi.fn(), error: vi.fn(), info: vi.fn() }
     } as never, {
       userId: recipientUserId,
@@ -426,7 +445,7 @@ describe("notification service", () => {
         WEB_PUSH_VAPID_PUBLIC_KEY: "public-key",
         WEB_PUSH_VAPID_PRIVATE_KEY: "private-key"
       },
-      db: { query, end },
+      db: { query: notificationDbQuery, end },
       log: { warn: vi.fn(), error: vi.fn(), info: vi.fn() }
     } as never, {
       userId: recipientUserId,
@@ -486,7 +505,7 @@ describe("notification service", () => {
         WEB_PUSH_VAPID_PUBLIC_KEY: "public-key",
         WEB_PUSH_VAPID_PRIVATE_KEY: "private-key"
       },
-      db: { query, end },
+      db: { query: notificationDbQuery, end },
       log: { warn: vi.fn(), error: vi.fn(), info: vi.fn() }
     } as never, {
       userId: recipientUserId,
@@ -540,7 +559,7 @@ describe("notification service", () => {
         WEB_PUSH_VAPID_PUBLIC_KEY: "public-key",
         WEB_PUSH_VAPID_PRIVATE_KEY: "private-key"
       },
-      db: { query, end },
+      db: { query: notificationDbQuery, end },
       log: { warn: vi.fn(), error: vi.fn(), info: vi.fn() }
     } as never, {
       userId: recipientUserId,

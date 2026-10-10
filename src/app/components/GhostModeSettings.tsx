@@ -20,6 +20,7 @@ import { CruushIcon } from './CruushIconImage';
 import CruushPlusWord from './CruushPlusWord';
 import DarkRoomMark from './DarkRoomMark';
 import AppPageHeader from './AppPageHeader';
+import { useMapServiceArea } from './MapServiceAreaContext';
 import { CRUUSH_PLUS_CHANGED_EVENT, getMyBillingStatus } from '../lib/billingApi';
 import { DEBUG_CRUUSH_PLUS_EVENT } from '../lib/debugApi';
 import {
@@ -49,6 +50,7 @@ function formatCountdown(remainingMs: number) {
 
 export default function GhostModeSettings() {
   const navigate = useNavigate();
+  const { outsideServiceArea, profilePinsAllowed } = useMapServiceArea();
   const [privacySettings, setPrivacySettings] = useState<PrivacySettings>(DEFAULT_PRIVACY_SETTINGS);
   const [privacyStatus, setPrivacyStatus] = useState<'idle' | 'loading' | 'saving'>('loading');
   const [privacyError, setPrivacyError] = useState<string | null>(null);
@@ -203,6 +205,7 @@ export default function GhostModeSettings() {
       .catch(() => undefined);
   }, [nowMs, privacySettings.baseMode, privacySettings.ghostRotationExpiresAtMs]);
   const persistGhostPulse = async (enabled: boolean) => {
+    if (!profilePinsAllowed) return;
     const previousEnabled = ghostPulseEnabled;
 
     setGhostPulseEnabled(enabled);
@@ -221,7 +224,7 @@ export default function GhostModeSettings() {
   };
 
   const persistPrivacySettings = async (nextSettings: PrivacySettings) => {
-    if (privacySavePendingRef.current) return;
+    if (!profilePinsAllowed || privacySavePendingRef.current) return;
     privacySavePendingRef.current = true;
     const previousPrivacySettings = privacySettings;
 
@@ -267,6 +270,20 @@ export default function GhostModeSettings() {
             </div>
           ) : null}
 
+          {outsideServiceArea ? (
+            <div className="space-y-3">
+              <p className="text-sm text-muted-foreground">Ghost Mode is unavailable outside the service area. Enter the service area or use Mile High Club to use Ghost Mode.</p>
+              <button
+                type="button"
+                className="flex w-full items-center justify-between gap-4 rounded-lg border border-white/10 bg-white/[0.025] p-4 text-left transition hover:bg-white/[0.05]"
+                onClick={() => navigate('/settings/travel')}
+              >
+                <span>Mile High Club</span>
+                <ChevronRight className="h-5 w-5 shrink-0 text-white/60" />
+              </button>
+            </div>
+          ) : null}
+
           <div className="flex items-center justify-between gap-4">
             <div className="flex items-start gap-3">
               <CruushIcon name="ghost" variant={privacySettings.ghostModeEnabled ? 'colored' : 'white'} className="mt-1 h-5 w-5 opacity-80" />
@@ -281,10 +298,11 @@ export default function GhostModeSettings() {
               </div>
             </div>
             <Switch
+              style={!profilePinsAllowed ? { background: 'var(--cruush-gradient)', opacity: 0.5 } : undefined}
               aria-label="Toggle Ghost Mode"
               checked={privacySettings.ghostModeEnabled}
               data-tutorial-target="ghost"
-              disabled={privacyStatus === 'loading' || privacyStatus === 'saving'}
+              disabled={!profilePinsAllowed || privacyStatus === 'loading' || privacyStatus === 'saving'}
               onCheckedChange={(ghostModeEnabled) => {
                 void persistPrivacySettings({
                   ...privacySettings,
@@ -298,9 +316,10 @@ export default function GhostModeSettings() {
           <div className="mt-4 flex items-center justify-between gap-4 border-t border-white/10 pt-4">
             <p>Show leash between your real and decoy pins</p>
             <Switch
+              style={!profilePinsAllowed ? { background: 'var(--cruush-gradient)', opacity: 0.5 } : undefined}
               aria-label="Show leash between your real and decoy pins"
               checked={privacySettings.ghostLeashVisible}
-              disabled={privacyStatus === 'loading' || privacyStatus === 'saving'}
+              disabled={!profilePinsAllowed || privacyStatus === 'loading' || privacyStatus === 'saving'}
               onCheckedChange={(ghostLeashVisible) => {
                 void persistPrivacySettings({ ...privacySettings, ghostLeashVisible });
               }}
@@ -318,9 +337,10 @@ export default function GhostModeSettings() {
               </div>
               {hasCruushPlus ? (
                 <Switch
+                  style={!profilePinsAllowed ? { background: 'var(--cruush-gradient)', opacity: 0.5 } : undefined}
                   aria-label="Toggle Dark Room"
                   checked={privacySettings.baseMode === 'STEALTH'}
-                  disabled={privacyStatus === 'loading' || privacyStatus === 'saving'}
+                  disabled={!profilePinsAllowed || privacyStatus === 'loading' || privacyStatus === 'saving'}
                   onCheckedChange={(enabled) => {
                     void persistPrivacySettings({
                       ...privacySettings,
@@ -352,9 +372,10 @@ export default function GhostModeSettings() {
               <div className="mt-4 flex items-center justify-between gap-4 border-t border-white/10 pt-4">
                 <p>Show Dark Room instead of a distance label across the app</p>
                 <Switch
+                  style={!profilePinsAllowed ? { background: 'var(--cruush-gradient)', opacity: 0.5 } : undefined}
                   aria-label="Show Dark Room instead of a distance label across the app"
                   checked={privacySettings.darkRoomDistanceLabel}
-                  disabled={privacyStatus === 'loading' || privacyStatus === 'saving'}
+                  disabled={!profilePinsAllowed || privacyStatus === 'loading' || privacyStatus === 'saving'}
                   onCheckedChange={(enabled) => {
                     void persistPrivacySettings({
                       ...privacySettings,
@@ -382,7 +403,7 @@ export default function GhostModeSettings() {
               max={GHOST_RADIUS_OPTIONS.length - 1}
               step={1}
               value={[Math.max(0, GHOST_RADIUS_OPTIONS.findIndex((option) => option.meters === privacySettings.ghostRadiusMeters))]}
-              disabled={privacyStatus === 'loading' || privacyStatus === 'saving'}
+              disabled={!profilePinsAllowed || privacyStatus === 'loading' || privacyStatus === 'saving'}
               onValueChange={([index]) => {
                 const option = GHOST_RADIUS_OPTIONS[index] ?? GHOST_RADIUS_OPTIONS[3];
                 void persistPrivacySettings({
@@ -404,12 +425,12 @@ export default function GhostModeSettings() {
             <p id="ghost-rotation-label">Rotation interval</p>
             <Select
               value={String(privacySettings.ghostRotationMinutes ?? 15)}
-              disabled={privacyStatus === 'loading' || privacyStatus === 'saving'}
+              disabled={!profilePinsAllowed || privacyStatus === 'loading' || privacyStatus === 'saving'}
               onValueChange={(value) => {
                 void persistPrivacySettings({ ...privacySettings, ghostRotationMinutes: Number(value) });
               }}
             >
-              <SelectTrigger aria-labelledby="ghost-rotation-label" className="w-full">
+              <SelectTrigger aria-labelledby="ghost-rotation-label" className="w-full" style={!profilePinsAllowed ? { background: 'var(--cruush-gradient)', opacity: 0.5 } : undefined}>
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -429,9 +450,10 @@ export default function GhostModeSettings() {
                 </p>
               </div>
               <Switch
+                style={!profilePinsAllowed ? { background: 'var(--cruush-gradient)', opacity: 0.5 } : undefined}
                 aria-label="Show a countdown before your pin moves"
                 checked={ghostPulseEnabled}
-                disabled={privacyStatus === 'loading' || ghostPulseSaving}
+                disabled={!profilePinsAllowed || privacyStatus === 'loading' || ghostPulseSaving}
                 onCheckedChange={(checked) => {
                   void persistGhostPulse(checked === true);
                 }}
@@ -470,7 +492,7 @@ export default function GhostModeSettings() {
                     ? ghostSettingsSelectedChoiceClassName
                     : ghostSettingsIdleChoiceClassName,
                 ].join(' ')}
-                disabled={privacyStatus === 'loading' || privacyStatus === 'saving'}
+                disabled={!profilePinsAllowed || privacyStatus === 'loading' || privacyStatus === 'saving'}
                 onClick={() => {
                   if (privacySettings.baseMode === 'GHOST') {
                     setPublicPreciseConfirmationOpen(true);
@@ -485,7 +507,7 @@ export default function GhostModeSettings() {
                     });
                   }
                 }}
-                style={privacySettings.baseMode === 'PUBLIC_PRECISE' ? { background: 'var(--cruush-gradient)' } : undefined}
+                style={!profilePinsAllowed ? { background: 'var(--cruush-gradient)', opacity: 0.5 } : privacySettings.baseMode === 'PUBLIC_PRECISE' ? { background: 'var(--cruush-gradient)' } : undefined}
               >
                 <span>Public</span>
                 <span className="text-xs">{privacySettings.baseMode === 'PUBLIC_PRECISE' ? 'On' : 'Off'}</span>
@@ -501,7 +523,7 @@ export default function GhostModeSettings() {
                     ? ghostSettingsSelectedChoiceClassName
                     : ghostSettingsIdleChoiceClassName,
                 ].join(' ')}
-                disabled={privacyStatus === 'loading' || privacyStatus === 'saving'}
+                disabled={!profilePinsAllowed || privacyStatus === 'loading' || privacyStatus === 'saving'}
                 onClick={() => {
                   const enabled = !privacySettings.preciseToMutualCruushes;
                   void persistPrivacySettings({
@@ -510,7 +532,7 @@ export default function GhostModeSettings() {
                     preciseLocationVisibility: enabled ? 'mutual_cruushes' : 'none',
                   });
                 }}
-                style={privacySettings.preciseToMutualCruushes ? { background: 'var(--cruush-gradient)' } : undefined}
+                style={!profilePinsAllowed ? { background: 'var(--cruush-gradient)', opacity: 0.5 } : privacySettings.preciseToMutualCruushes ? { background: 'var(--cruush-gradient)' } : undefined}
               >
                 <span>Cruushes</span>
                 <span className="text-xs">{privacySettings.preciseToMutualCruushes ? 'On' : 'Off'}</span>
@@ -530,14 +552,14 @@ export default function GhostModeSettings() {
                         ? ghostSettingsSelectedChoiceClassName
                         : ghostSettingsIdleChoiceClassName,
                     ].join(' ')}
-                    disabled={privacyStatus === 'loading' || privacyStatus === 'saving'}
+                    disabled={!profilePinsAllowed || privacyStatus === 'loading' || privacyStatus === 'saving'}
                     onClick={() => {
                       void persistPrivacySettings({
                         ...privacySettings,
                         preciseToMutualCrowds: upsertCrowdPolicy(crowd as CrowdPrecisionPolicy['crowdId'], !selected),
                       });
                     }}
-                    style={selected ? { background: 'var(--cruush-gradient)' } : undefined}
+                    style={!profilePinsAllowed ? { background: 'var(--cruush-gradient)', opacity: 0.5 } : selected ? { background: 'var(--cruush-gradient)' } : undefined}
                   >
                     <span>{crowd}</span>
                     <span className="text-xs">{selected ? 'On' : 'Off'}</span>

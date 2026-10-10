@@ -1,7 +1,9 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import NotificationCenter from './NotificationCenter';
+const visibilityRefresh = vi.hoisted(() => vi.fn());
+vi.mock('../lib/contentVisibilityRevision', () => ({ useContentVisibilityRefresh: visibilityRefresh }));
 
 const {
   clearNotifications,
@@ -216,4 +218,21 @@ describe('NotificationCenter', () => {
 
     expect(await screen.findByText('Network down')).toBeInTheDocument();
   });
+});
+
+// A ban refresh must replace already-rendered actor content without navigation.
+it('removes stale notifications when content visibility changes', async () => {
+  getNotifications.mockResolvedValue({ notifications: [{
+    id: 'ban-refresh-note', userId: 'viewer', type: 'direct_message',
+    title: 'Visible member message', body: 'Test content', linkUrl: '/messages',
+    actorUserId: 'peer', conversationId: null, metadata: {}, readAt: null,
+    createdAt: '2026-10-10T12:00:00Z',
+  }], nextCursor: null });
+  render(<MemoryRouter><NotificationCenter /></MemoryRouter>);
+  expect(await screen.findByText('Visible member message')).toBeInTheDocument();
+  getNotifications.mockResolvedValue({ notifications: [], nextCursor: null });
+  const refresh = visibilityRefresh.mock.calls.at(-1)?.[0];
+  await act(async () => { await refresh(() => true); });
+  expect(screen.queryByText('Visible member message')).not.toBeInTheDocument();
+  expect(screen.getByRole('heading', { name: 'Notifications' })).toBeInTheDocument();
 });

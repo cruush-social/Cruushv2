@@ -96,6 +96,7 @@ export function profileVisibilityNarrowed(
     exclusionRuleNarrowed(previous.timing, next.timing) ||
     exclusionRuleNarrowed(previous.hosting, next.hosting) ||
     exclusionRuleNarrowed(previous.vibes, next.vibes) ||
+    exclusionRuleNarrowed(previous.tags ?? [], next.tags ?? []) ||
     exclusionRuleNarrowed(previous.crowds, next.crowds) ||
     exclusionRuleNarrowed(previous.hobbies, next.hobbies) ||
     exclusionRuleNarrowed(previous.positions, next.positions) ||

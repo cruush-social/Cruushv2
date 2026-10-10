@@ -148,6 +148,7 @@ function normalizeVisibilityRules(rules: ProfileVisibilityRules): ProfileVisibil
     hosting: rules.hosting ?? [],
     preferred_spots: rules.preferred_spots ?? [],
     vibes: rules.vibes ?? [],
+    tags: rules.tags ?? [],
     crowds: rules.crowds ?? [],
     hobbies: rules.hobbies ?? [],
     positions: rules.positions ?? [],
@@ -185,6 +186,7 @@ export function visibilityRulesArePublic(rules: ProfileVisibilityRules | null | 
     normalizedRules.hosting.length === 0 &&
     normalizedRules.preferred_spots.length === 0 &&
     normalizedRules.vibes.length === 0 &&
+    normalizedRules.tags.length === 0 &&
     normalizedRules.crowds.length === 0 &&
     normalizedRules.hobbies.length === 0 &&
     normalizedRules.positions.length === 0 &&
@@ -221,6 +223,7 @@ export function countVisibilityExclusionFilters(rules: ProfileVisibilityRules | 
     normalizedRules.hosting.length > 0,
     normalizedRules.preferred_spots.length > 0,
     normalizedRules.vibes.length > 0,
+    normalizedRules.tags.length > 0,
     normalizedRules.crowds.length > 0,
     normalizedRules.hobbies.length > 0,
     normalizedRules.positions.length > 0,
@@ -307,6 +310,7 @@ export function canSubjectViewProfile(
       ...(subject.scenes ?? []),
       ...(subject.archetypes ?? [])
     ]) &&
+    excludesAny(normalizedRules.tags, (subject.tags ?? []).map((tag) => tag.normalize("NFKC").trim().replace(/^#+/, ""))) &&
     excludesAny(normalizedRules.crowds, subject.crowds) &&
     excludesAny(normalizedRules.hobbies, subject.hobbies) &&
     excludesAny(normalizedRules.positions, subject.positions) &&

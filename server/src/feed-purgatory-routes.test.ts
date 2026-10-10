@@ -33,6 +33,7 @@ const post = (author: string, order: number, audience = "public") => ({
   id: author, user_id: author, content: "Synthetic Feed post", expires_in: "never", expires_at: "infinity",
   created_at: new Date(Date.UTC(2026, 9, 9, 12, 0, 30 - order)).toISOString(),
   scan_created_at: undefined as string | undefined,
+  distance_miles: 10,
   display_name: "Synthetic member", pronouns: [], photos: [], audience, travelling: author === outside
 });
 
@@ -61,6 +62,7 @@ describe("Feed Purgatory author filters and viewer restriction", () => {
         const timestamp = (row: ReturnType<typeof post>) => normalized(row.scan_created_at ?? row.created_at);
         const cursor = before && normalized(before);
         return { rows: [...posts].sort((a, b) => timestamp(b).localeCompare(timestamp(a)) || b.id.localeCompare(a.id))
+          .filter(row => values[4] === null || values[2] === null || values[3] === null || row.distance_miles <= Number(values[4]))
           .filter(row => !cursor || timestamp(row) < cursor || (timestamp(row) === cursor && beforeId !== null && row.id < beforeId)).slice(0, limit) };
       }
       if (sql.includes("feed_hide_from_purgatory = true")) {
@@ -91,6 +93,38 @@ describe("Feed Purgatory author filters and viewer restriction", () => {
     const result = await get("/api/posts");
     expect(result.statusCode).toBe(200);
     expect(result.json().data.map((row: { id: string }) => row.id)).toEqual([outside, inside, unknown]);
+  });
+  it.each(["", "&distanceMiles=global"])("defaults to Global and keeps label coordinates while bypassing only the radius %s", async distanceQuery => {
+    posts[0].distance_miles = 250;
+    posts[1].distance_miles = 75;
+    const result = await get(`/api/posts?lat=40.7&lng=-74${distanceQuery}`);
+    expect(result.statusCode).toBe(200);
+    expect(result.json().data).toHaveLength(3);
+    const [sql, values] = query.mock.calls.find(call => call[0].includes("from posts p"))!;
+    expect(values.slice(2, 5)).toEqual([40.7, -74, null]);
+    expect(sql).toContain("$5::double precision is null");
+    for (const guard of ["p.expires_at > now()", "p.created_at >=", "account_status", "user_blocks", "feed_post_crowd_targets"]) expect(sql).toContain(guard);
+  });
+  it("uses the selected finite radius through 100 miles instead of Global", async () => {
+    posts[0].distance_miles = 250;
+    posts[1].distance_miles = 75;
+    expect((await get("/api/posts?lat=40.7&lng=-74&distanceMiles=50")).json().data.map((row: { id: string }) => row.id)).toEqual([unknown]);
+    expect((await get("/api/posts?lat=40.7&lng=-74&distanceMiles=100")).json().data.map((row: { id: string }) => row.id)).toEqual([inside, unknown]);
+    expect(query.mock.calls.filter(call => call[0].includes("from posts p")).map(call => call[1][4])).toEqual([50, 100]);
+  });
+  it("keeps mutual-audience and Purgatory exclusions when Global includes distant authors", async () => {
+    posts[0].distance_miles = 500;
+    posts[0].audience = "mutuals";
+    posts[1].distance_miles = 300;
+    restricted.add(inside);
+    const result = await get("/api/posts?distanceMiles=global&lat=40.7&lng=-74");
+    expect(result.statusCode).toBe(200);
+    expect(result.json().data.map((row: { id: string }) => row.id)).toEqual([unknown]);
+  });
+  it.each(["0", "101", "Infinity", "everywhere"])("rejects invalid Feed distance %s", async distance => {
+    const result = await get(`/api/posts?distanceMiles=${distance}`);
+    expect(result.statusCode).toBe(400);
+    expect(query).not.toHaveBeenCalled();
   });
   it("counts include-only as one existing seeking category without charging for privacy exclusions", () => {
     expect(hasPremiumDiscoveryFilters({ identities: ["one"], vibes: ["two"], purgatoryMembers: true })).toBe(false);
@@ -131,6 +165,35 @@ describe("Feed Purgatory author filters and viewer restriction", () => {
     expect(scans[0][0]).toContain("p.created_at::text as scan_created_at");
     expect(scans[1][1][5]).toBe("2026-10-09 12:00:30.123456+00");
     expect(scans[1][1][6]).toBe(unknown);
+  });
+  it("round-trips exact timestamps and ID tie-breakers across public pages", async () => {
+    posts = [post(unknown, 0), post(inside, 0), post(outside, 0)].map(row => ({
+      ...row, created_at: "2026-10-09T12:00:30.123Z", scan_created_at: "2026-10-09 12:00:30.123456+00"
+    }));
+    const first = (await get("/api/posts?limit=1")).json().data[0];
+    expect(first.id).toBe(unknown);
+    expect(first.createdAt).toBe("2026-10-09T12:00:30.123Z");
+    const second = await get(`/api/posts?limit=1&before=${first.createdAt}&cursor=${first.paginationCursor}`);
+    expect(second.statusCode).toBe(200);
+    expect(second.json().data[0].id).toBe(inside);
+    const scans = query.mock.calls.filter(call => call[0].includes("from posts p"));
+    expect(scans[1][1][5]).toBe("2026-10-09 12:00:30.123456+00");
+    expect(scans[1][1][6]).toBe(unknown);
+    const third = await get(`/api/posts?limit=1&cursor=${second.json().data[0].paginationCursor}`);
+    expect(third.json().data[0].id).toBe(outside);
+  });
+  it("retains legacy timestamp pagination when no cursor is supplied", async () => {
+    const result = await get(`/api/posts?before=${posts[0].created_at}`);
+    expect(result.statusCode).toBe(200);
+    expect(result.json().data.map((row: { id: string }) => row.id)).toEqual([inside, unknown]);
+  });
+  it.each([
+    "!invalid", "a".repeat(513), Buffer.from("not json").toString("base64url"),
+    Buffer.from(JSON.stringify({ at: "yesterday", id: inside })).toString("base64url"),
+    Buffer.from(JSON.stringify({ at: "2026-10-09T12:00:00Z", id: "invalid" })).toString("base64url"),
+  ])("rejects malformed pagination cursors before querying", async (cursor) => {
+    expect((await get(`/api/posts?cursor=${cursor}`)).statusCode).toBe(400);
+    expect(query).not.toHaveBeenCalled();
   });
   it("intersects author filters with existing profile visibility and mutual audiences", async () => {
     mocks.hidden.mockResolvedValue(new Set([outside]));

@@ -3,6 +3,9 @@ import { buildServer } from "./app.js";
 import { loadConfig } from "./config.js";
 import type { DbClient } from "./db.js";
 import { ApiError } from "./errors.js";
+import QRCode from "qrcode";
+import * as referralService from "./referrals-service.js";
+import * as rewardService from "./rewards-service.js";
 
 const twoFactor = vi.hoisted(() => ({
   completeTwoFactorSetup: vi.fn()
@@ -42,6 +45,7 @@ function testConfig() {
 }
 
 afterEach(async () => {
+  vi.restoreAllMocks();
   await Promise.all(apps.splice(0).map((app) => app.close()));
   twoFactor.completeTwoFactorSetup.mockReset();
   referrals.qualifyPendingReferrals.mockReset();
@@ -92,6 +96,33 @@ describe("rewards and 2FA routes", () => {
     expect(query).toHaveBeenCalledWith(
       expect.stringContaining("where reward.user_id = $1 and reward.id = $2"), [userId, grantId]
     );
+  });
+
+  it("generates the referral QR from the exact existing link without changing summary values", async () => {
+    const link = "https://cruush.test/join?ref=member-code";
+    const summary = { referrals: { total: 4, qualified: 2 }, recentGrants: [], streak: { count: 3 } };
+    const summarySpy = vi.spyOn(rewardService, "getRewardSummary").mockResolvedValue(summary as never);
+    const referralSpy = vi.spyOn(referralService, "getReferralInfo").mockResolvedValue({
+      code: "member-code", link, underReviewCount: 1
+    } as never);
+    const qr = vi.spyOn(QRCode, "toDataURL");
+    const query = vi.fn();
+    const app = buildServer(testConfig(), { logger: false, db: { query, end: vi.fn() } });
+    apps.push(app);
+    const response = await app.inject({ method: "GET", url: "/api/rewards/summary", headers: { "x-user-id": userId } });
+    expect(response.statusCode).toBe(200);
+    expect(summarySpy.mock.calls[0]?.[1]).toBe(userId);
+    expect(referralSpy.mock.calls[0]?.[1]).toBe(userId);
+    expect(qr).toHaveBeenCalledWith(link, expect.objectContaining({ errorCorrectionLevel: "M", margin: 2, width: 256 }));
+    const data = response.json().data;
+    expect(data.referrals.qrCodeDataUrl).toMatch(/^data:image\/png;base64,/);
+    const { qrCodeDataUrl: _qr, ...referralsData } = data.referrals;
+    expect(referralsData).toEqual({ ...summary.referrals, code: "member-code", link, underReview: 1 });
+    expect(data.recentGrants).toEqual(summary.recentGrants);
+    expect(data.streak).toEqual(summary.streak);
+    expect(query).not.toHaveBeenCalled();
+    expect(rewards.recordMeaningfulActivity).not.toHaveBeenCalled();
+    expect(referrals.qualifyPendingReferrals).not.toHaveBeenCalled();
   });
 
   it("requires authentication for reward summaries", async () => {

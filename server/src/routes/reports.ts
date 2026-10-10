@@ -1,3 +1,4 @@
+import { loadCheckinMutualIds, boardAudienceCondition } from "../place-audience.js";
 import type { FastifyInstance } from "fastify";
 import type { DbClient } from "../db.js";
 import { ApiError } from "../errors.js";
@@ -259,12 +260,24 @@ async function validatePlaceReport(app: FastifyInstance, payload: CreateReportPa
 async function validatePlaceMessageReport(app: FastifyInstance, reporterUserId: string, payload: CreateReportPayload): Promise<ReportTarget> {
   const placeMessageId = payload.placeMessageId ?? payload.targetId ?? null;
   if (!placeMessageId) throw new ApiError(400, "VALIDATION_ERROR", "Spot-message reports require placeMessageId.");
-  const row = (await app.db.query<{ id: string; place_id: string; target_user_id: string }>(
-    `select m.id::text, m.place_id::text, m.user_id::text as target_user_id
+  const row = (await app.db.query<{ id: string; place_id: string; target_user_id: string; visibility_scope?: string }>(
+    `select m.id::text, m.place_id::text, m.user_id::text as target_user_id, m.visibility_scope
      from place_board_messages m where m.id = $1 limit 1`,
     [placeMessageId]
   )).rows[0];
   if (!row) throw new ApiError(404, "NOT_FOUND", "Spot message not found.");
+  if (row.visibility_scope === "mutuals" || row.visibility_scope === "crowd") {
+    const mutualIds = await loadCheckinMutualIds(app, reporterUserId);
+    const readable = await app.db.query<{ id: string }>(
+      `select m.id::text from place_board_messages m where m.id = $1
+       and ${boardAudienceCondition("$2", "$3")}
+       and (m.user_id = $2 or exists (
+         select 1 from place_checkins viewer_checkin where viewer_checkin.user_id = $2
+           and viewer_checkin.place_id = m.place_id and viewer_checkin.expires_at > now()
+       ))`, [placeMessageId, reporterUserId, mutualIds]);
+    if (!readable.rows.length) throw new ApiError(404, "NOT_FOUND", "Spot message not found.");
+  }
+
   if (row.target_user_id === reporterUserId) throw new ApiError(400, "VALIDATION_ERROR", "Choose another place message to report.");
   return { targetUserId: row.target_user_id, conversationId: null, messageId: null, postId: null, mediaObjectId: null, profilePhotoUrl: null, placeId: row.place_id, placeMessageId: row.id };
 }

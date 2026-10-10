@@ -3,7 +3,8 @@ import {
   ageFromDateOfBirth,
   emptyProfile,
   profileLocationPayloadSchema,
-  profilePayloadSchema
+  profilePayloadSchema,
+  profileVisibilityRulesSchema
 } from "./profile-schema.js";
 
 describe("profile schema", () => {
@@ -211,5 +212,15 @@ describe("profile schema", () => {
       display_name: "Cruusher",
       date_of_birth: "2012-06-15"
     })).toThrow();
+  });
+});
+
+
+describe("visibility tag validation", () => {
+  it("defaults legacy tags, normalizes/deduplicates and bounds dedicated tags", () => {
+    expect(profileVisibilityRulesSchema.parse({}).tags).toEqual([]);
+    expect(profileVisibilityRulesSchema.parse({ tags: ["#ROPE", "rope", " ＲＯＰＥ "] }).tags).toEqual(["rope"]);
+    expect(profileVisibilityRulesSchema.safeParse({ tags: ["two words"] }).success).toBe(false);
+    expect(profileVisibilityRulesSchema.safeParse({ tags: Array.from({ length: 51 }, (_, index) => `tag${index}`) }).success).toBe(false);
   });
 });

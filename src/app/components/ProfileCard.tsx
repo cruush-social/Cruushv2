@@ -1,3 +1,4 @@
+import { showPurgatoryPresentation } from '../lib/purgatoryPresentation';
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router';
 import { Eye, RefreshCw, X } from 'lucide-react';
@@ -91,9 +92,10 @@ export default function ProfileCard({
   const [carouselPhotoRelationship, setCarouselPhotoRelationship] = useState<DlModePhotoRelationship | undefined>(user.photoRelationship ?? user.photo_relationship);
   const [activeCarouselPhotoIndex, setActiveCarouselPhotoIndex] = useState(0);
   const [membership, setMembership] = useState<{ id: string; outOfSight: boolean } | null>(null);
-  const outOfSight = typeof user.outOfSight === 'boolean'
-    ? user.outOfSight
-    : membership?.id === user.id && membership.outOfSight;
+  const outOfSight = showPurgatoryPresentation(
+    typeof user.outOfSight === 'boolean' ? user.outOfSight : membership?.id === user.id && membership.outOfSight,
+    user.travelling,
+  );
   const isAlreadyMutual = !mutualRevoked && (cruushBecameMutual || user.relationship?.mutualCruush === true);
   const hasSentCruush = !isAlreadyMutual && !outgoingRevoked && (cruushed || user.relationship?.outgoingCruush === true);
   const hasRevocableCruush = isAlreadyMutual || hasSentCruush;
@@ -433,7 +435,8 @@ export default function ProfileCard({
                     ? 'border-white/25 text-white/55'
                     : 'border-transparent text-white'}`}
                 style={{
-                  background: cruushDisabled
+                  opacity: isAlreadyMutual && !cruushDisabled ? 0.5 : undefined,
+                  background: isAlreadyMutual && !cruushDisabled ? 'var(--cruush-gradient)' : cruushDisabled
                     ? '#151021'
                     : hasRevocableCruush
                       ? 'var(--cruush-gradient-soft-28), #0A0A12'
@@ -452,7 +455,7 @@ export default function ProfileCard({
                 type="button"
                 size="icon"
                 className="size-11 shrink-0 rounded-xl border-0 text-white transition hover:brightness-110"
-                style={{ background: canCenterCarouselPin ? 'var(--cruush-gradient)' : 'var(--cruush-gradient-soft-28), #0A0A12' }}
+                style={{ background: 'var(--cruush-gradient)', opacity: canCenterCarouselPin ? undefined : 0.5 }}
                 aria-label={!profilePinsAllowed ? 'Map location unavailable' : canCenterCarouselPin ? `Center the map on ${user.name}` : `${user.name} does not share a precise location with you`}
                 disabled={!canCenterCarouselPin}
                 onClick={canCenterCarouselPin ? () => navigate('/map', { state: { focusUserId: user.id } }) : undefined}
@@ -462,7 +465,7 @@ export default function ProfileCard({
               <Button
                 type="button"
                 className={`cruush-action-sheen flex-1 rounded-xl disabled:opacity-100 ${canMessage ? 'border border-[#6F00FF] text-white' : 'border-0 text-white/55'}`}
-                style={{ background: canMessage ? 'var(--cruush-gradient)' : 'var(--cruush-gradient-soft-28)' }}
+                style={{ background: 'var(--cruush-gradient)', opacity: canMessage ? undefined : 0.5 }}
                 disabled={openingMessage}
                 onClick={() => {
                   void handleMessage();
@@ -603,7 +606,7 @@ export default function ProfileCard({
 
         <div className="flex gap-2 pt-2">
           <Button
-            className={`${actionButtonClassName} rounded-xl border ${hasRevocableCruush
+            className={`${isAlreadyMutual && !cruushDisabled ? 'cruush-action-sheen ' : ''}${actionButtonClassName} rounded-xl border ${hasRevocableCruush
               ? 'border-transparent text-white hover:brightness-125'
               : cruushDisabled
                 ? 'border-white/10 bg-white/[0.06] text-white/45'
@@ -614,7 +617,8 @@ export default function ProfileCard({
             disabled={cruushDisabled}
             aria-label={revokingCruush ? (isAlreadyMutual ? 'Uncruushing' : 'Unsending cruush') : isAlreadyMutual ? 'Uncruush' : hasSentCruush ? 'Unsend cruush' : sendingCruush ? 'sending cruush' : 'send cruush'}
             style={{
-              background: cruushDisabled
+              opacity: isAlreadyMutual && !cruushDisabled ? 0.5 : undefined,
+              background: isAlreadyMutual && !cruushDisabled ? 'var(--cruush-gradient)' : cruushDisabled
                 ? undefined
                 : hasRevocableCruush
                   ? 'var(--cruush-gradient-soft-28)'
@@ -625,6 +629,7 @@ export default function ProfileCard({
             {revokingCruush ? (isAlreadyMutual ? 'uncruushing...' : 'unsending...') : isAlreadyMutual ? 'uncruush' : hasSentCruush ? 'unsend' : sendingCruush ? 'sending...' : 'cruush'}
           </Button>
           <Button
+            style={canMessage ? undefined : { background: 'var(--cruush-gradient)', opacity: 0.5 }}
             className={`${actionButtonClassName} rounded-xl text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] hover:bg-[var(--cruush-gradient-soft-28)] ${canMessage
               ? 'border border-[#6F00FF]/55 bg-[var(--cruush-gradient-soft-18)]'
               : 'border-0 bg-[var(--cruush-gradient-soft-28)] text-white/55'}`}

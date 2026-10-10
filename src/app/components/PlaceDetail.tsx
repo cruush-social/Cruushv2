@@ -1,3 +1,5 @@
+import { ApiClientError } from '../lib/apiClient';
+import { useContentVisibilityRefresh } from '../lib/contentVisibilityRevision';
 import { getNsfwPhotoRestriction } from '../lib/dlMode';
 import { useTrustRestrictions } from '../lib/trustRestrictions';
 import TrustRestrictionNotice from './TrustRestrictionNotice';
@@ -11,6 +13,11 @@ import { Slider } from './ui/slider';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from './ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 import HeartPhoto from './HeartPhoto';
+import MultiSelect from './MultiSelect';
+import { CRUUSH_PLUS_CHANGED_EVENT, getMyBillingStatus } from '../lib/billingApi';
+import { getMyProfile } from '../lib/profileApi';
+import { CROWDS, normalizeCrowdValues } from '../lib/profileOptions';
+import { buildCruushPlusStorePath } from '../lib/cruushPlusConversion';
 import CruushBadge from './CruushBadge';
 import ReportAction from './ReportAction';
 import ReportPage from './ReportPage';
@@ -98,7 +105,10 @@ export default function PlaceDetail({ embedded = false, onBack, onClose, placeId
   const [detailAmenities, setDetailAmenities] = useState<PlaceAmenity[]>([]);
   const [detailAccess, setDetailAccess] = useState('');
   const [sendingDetails, setSendingDetails] = useState(false);
-  const [checkinVisibility, setCheckinVisibility] = useState<'hidden' | 'public' | 'checked_in'>('hidden');
+  const [checkinVisibility, setCheckinVisibility] = useState<'hidden' | 'public' | 'checked_in' | 'mutuals' | 'crowd'>('hidden');
+  const [hasCruushPlus, setHasCruushPlus] = useState(false);
+  const [availableCrowdTargets, setAvailableCrowdTargets] = useState<string[]>([]);
+  const [selectedCrowdTargets, setSelectedCrowdTargets] = useState<string[]>([]);
   const [postingCheckin, setPostingCheckin] = useState(false);
   const [postingBoard, setPostingBoard] = useState(false);
   const [status, setStatus] = useState<string | null>(null);
@@ -113,8 +123,34 @@ export default function PlaceDetail({ embedded = false, onBack, onClose, placeId
   const [mutating, setMutating] = useState(false);
   const mutationRef = useRef<object | null>(null);
   const currentUserId = getStoredUserId();
+  useEffect(() => {
+    let active = true;
+    let generation = 0;
+    const load = async () => {
+      const current = ++generation;
+      try {
+        const [billing, profile] = await Promise.all([getMyBillingStatus(), getMyProfile()]);
+        if (!active || current !== generation) return;
+        const crowds = normalizeCrowdValues(profile.crowds ?? []);
+        const allowed = CROWDS.filter(crowd => crowds.includes(crowd) && (crowd !== 'T4T' || profile.is_trans === true));
+        setHasCruushPlus(billing.cruushPlus === true);
+        setAvailableCrowdTargets(allowed);
+        setSelectedCrowdTargets(values => values.filter(value => allowed.includes(value)));
+        if (!billing.cruushPlus) setCheckinVisibility(value => value === 'crowd' ? 'hidden' : value);
+      } catch {
+        if (!active || current !== generation) return;
+        setHasCruushPlus(false);
+        setCheckinVisibility(value => value === 'crowd' ? 'hidden' : value);
+      }
+    };
+    void load();
+    window.addEventListener(CRUUSH_PLUS_CHANGED_EVENT, load);
+    return () => { active = false; window.removeEventListener(CRUUSH_PLUS_CHANGED_EVENT, load); };
+  }, [currentUserId]);
+
   const dlModeActive = useDlMode();
   const loadGeneration = useRef(0);
+  const visibilityGeneration = useRef(0);
   const checkinGeneration = useRef(0);
   const activePlaceId = useRef(placeId);
   activePlaceId.current = placeId;
@@ -122,7 +158,8 @@ export default function PlaceDetail({ embedded = false, onBack, onClose, placeId
   const refresh = async () => {
     if (!placeId || activePlaceId.current !== placeId) return;
     const generation = ++loadGeneration.current;
-    const isCurrent = () => generation === loadGeneration.current && activePlaceId.current === placeId;
+    const visibility = visibilityGeneration.current;
+    const isCurrent = () => generation === loadGeneration.current && visibility === visibilityGeneration.current && activePlaceId.current === placeId;
     setLoading(true);
     setLoadingMoreBoard(false);
     setError(null);
@@ -155,6 +192,7 @@ export default function PlaceDetail({ embedded = false, onBack, onClose, placeId
     setCheckinVibes([]);
     setCheckinAmenities([]);
     setCheckinVisibility('hidden');
+    setSelectedCrowdTargets([]);
     setDetailsOpen(false);
     setDetailVibes([]);
     setDetailAmenities([]);
@@ -170,6 +208,39 @@ export default function PlaceDetail({ embedded = false, onBack, onClose, placeId
       mutationRef.current = null;
     };
   }, [placeId]);
+
+  useContentVisibilityRefresh(async (isCurrent) => {
+    if (!placeId) return;
+    const generation = loadGeneration.current;
+    const visibility = ++visibilityGeneration.current;
+    setLoadingMoreBoard(false);
+    const current = () => isCurrent() && generation === loadGeneration.current && visibility === visibilityGeneration.current && activePlaceId.current === placeId;
+    try {
+      const [placeResult, firstPage] = await Promise.all([
+        getPlace(placeId), getPlaceBoard(placeId, { limit: BOARD_PAGE_SIZE, offset: 0 }),
+      ]);
+      const boardResult = [...firstPage];
+      let pageSize = firstPage.length;
+      while (boardResult.length < messages.length && pageSize === BOARD_PAGE_SIZE) {
+        if (!current()) return;
+        const nextPage = await getPlaceBoard(placeId, { limit: BOARD_PAGE_SIZE, offset: boardResult.length });
+        pageSize = nextPage.length;
+        boardResult.push(...nextPage);
+      }
+      if (!current()) return;
+      setPlace(placeResult);
+      setMessages(boardResult);
+      setBoardHasMore(pageSize === BOARD_PAGE_SIZE);
+    } catch (error) {
+      if (current() && error instanceof ApiClientError && [403, 404].includes(error.status)) {
+        setPlace(null);
+        setMessages([]);
+        setError(error.message);
+      } else if (isCurrent()) throw error;
+    } finally {
+      if (current()) setLoading(false);
+    }
+  }, placeId);
 
   useEffect(() => {
     const expiresAt = place?.viewerCheckin?.expiresAt;
@@ -192,7 +263,7 @@ export default function PlaceDetail({ embedded = false, onBack, onClose, placeId
   }, [place]);
 
   const handlePostCheckin = () => {
-    if (!placeId || place?.id !== placeId || checkinVibes.length === 0 || (Boolean(message.trim()) && trust.restricted('pink_book')) || postingCheckin || postingBoard || mutationRef.current) return;
+    if (!placeId || place?.id !== placeId || (checkinVisibility === 'crowd' && (!hasCruushPlus || selectedCrowdTargets.length === 0)) || checkinVibes.length === 0 || (Boolean(message.trim()) && trust.restricted('pink_book')) || postingCheckin || postingBoard || mutationRef.current) return;
     const generation = ++checkinGeneration.current;
     const isCurrent = () => generation === checkinGeneration.current && activePlaceId.current === placeId;
     if (!navigator.geolocation) {
@@ -211,6 +282,7 @@ export default function PlaceDetail({ embedded = false, onBack, onClose, placeId
         durationHours: checkinDurationHours,
         visible: checkinVisibility !== 'hidden',
         visibility: checkinVisibility,
+        ...(checkinVisibility === 'crowd' ? { crowdTargets: selectedCrowdTargets } : {}),
         latitude: position.coords.latitude,
         longitude: position.coords.longitude,
         accuracyMeters: position.coords.accuracy,
@@ -254,7 +326,8 @@ export default function PlaceDetail({ embedded = false, onBack, onClose, placeId
   const handleLoadMoreBoard = async () => {
     if (!placeId || loadingMoreBoard || !boardHasMore) return;
     const generation = loadGeneration.current;
-    const isCurrent = () => generation === loadGeneration.current && activePlaceId.current === placeId;
+    const visibility = visibilityGeneration.current;
+    const isCurrent = () => generation === loadGeneration.current && visibility === visibilityGeneration.current && activePlaceId.current === placeId;
     setLoadingMoreBoard(true);
     setError(null);
     try {
@@ -520,12 +593,7 @@ export default function PlaceDetail({ embedded = false, onBack, onClose, placeId
           <TabsContent value="feed" className="space-y-4 mt-4">
             <TrustRestrictionNotice message={trust.message('pink_book', 'Pink Book posting')} />
             <Card className="gap-0">
-              <Accordion type="single" collapsible key={place.id}>
-                <AccordionItem className="border-0" value="pink-book-composer">
-                  <AccordionTrigger className="px-6 py-5 text-base hover:no-underline">
-                    {place.viewerCheckin ? 'Post to Pink Book' : 'Check in'}
-                  </AccordionTrigger>
-                  <AccordionContent className="px-6 pb-6">
+              <div className="px-6 pb-6">
             {place.viewerCheckin ? (
               <div className="p-3">
                 <textarea disabled={trust.restricted('pink_book')} aria-label="Write a Pink Book post" className="min-h-20 w-full resize-none bg-transparent text-sm text-white outline-none disabled:opacity-50" placeholder="Write a Pink Book post" value={message} onChange={(event) => setMessage(event.target.value)} maxLength={1000} />
@@ -541,46 +609,58 @@ export default function PlaceDetail({ embedded = false, onBack, onClose, placeId
               <div className="p-3">
                 <p className="mb-3 text-base text-white/70">Check in to read other members' Pink Book posts. Your posts stay until you delete them.</p>
                 <textarea disabled={trust.restricted('pink_book')} aria-label="Pink Book post for check-in" className="mb-4 min-h-20 w-full resize-none rounded-md border border-white/10 bg-black/30 p-3 text-base text-white outline-none focus:border-primary/45 disabled:opacity-50" placeholder="Write a Pink Book post (optional)" value={message} onChange={(event) => setMessage(event.target.value)} maxLength={1000} />
-                <fieldset className="mb-4 space-y-2">
-                  <legend className="text-sm text-white/60">Spot vibes</legend>
-                  <div className="flex flex-wrap gap-2">
-                    {PLACE_VIBES.map((vibe) => {
-                      const selected = checkinVibes.includes(vibe);
-                      const selectionFull = checkinVibes.length >= 3 && !selected;
-                      return (
-                        <button
-                          key={vibe}
-                          type="button"
-                          aria-pressed={selected}
-                          disabled={selectionFull}
-                          className={`rounded-full border px-3 py-1 text-sm disabled:opacity-35 ${selected ? 'border-primary bg-primary/20 text-white' : 'border-white/10 text-white/65'}`}
-                          onClick={() => setCheckinVibes((current) => selected ? current.filter((item) => item !== vibe) : [...current, vibe])}
-                        >
-                          {PLACE_VIBE_LABELS[vibe]}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </fieldset>
-                <fieldset className="mb-4 space-y-2">
-                  <legend className="text-sm text-white/60">Amenities (optional)</legend>
-                  <div className="flex flex-wrap gap-2">
-                    {PLACE_AMENITIES.map((amenity) => {
-                      const selected = checkinAmenities.includes(amenity);
-                      return (
-                        <button
-                          key={amenity}
-                          type="button"
-                          aria-pressed={selected}
-                          className={`rounded-full border px-3 py-1 text-sm ${selected ? 'border-primary bg-primary/20 text-white' : 'border-white/10 text-white/65'}`}
-                          onClick={() => setCheckinAmenities((current) => selected ? current.filter((item) => item !== amenity) : [...current, amenity])}
-                        >
-                          {PLACE_AMENITY_LABELS[amenity]}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </fieldset>
+                <Accordion type="single" collapsible className="mb-4">
+                  <AccordionItem value="spot-vibes">
+                    <AccordionTrigger className="px-3 py-2 text-sm text-white/60 hover:no-underline">Spot vibes</AccordionTrigger>
+                    <AccordionContent className="px-3 pb-3">
+                      <fieldset aria-label="Spot vibes" className="space-y-2">
+                        <div className="flex flex-wrap gap-2">
+                          {PLACE_VIBES.map((vibe) => {
+                            const selected = checkinVibes.includes(vibe);
+                            const selectionFull = checkinVibes.length >= 3 && !selected;
+                            return (
+                              <button
+                                key={vibe}
+                                type="button"
+                                aria-pressed={selected}
+                                disabled={selectionFull}
+                                className={`rounded-full border px-3 py-1 text-sm disabled:opacity-35 ${selected ? 'border-primary bg-primary/20 text-white' : 'border-white/10 text-white/65'}`}
+                                onClick={() => setCheckinVibes((current) => selected ? current.filter((item) => item !== vibe) : [...current, vibe])}
+                              >
+                                {PLACE_VIBE_LABELS[vibe]}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </fieldset>
+                    </AccordionContent>
+                  </AccordionItem>
+                </Accordion>
+                <Accordion type="single" collapsible className="mb-4">
+                  <AccordionItem value="spot-amenities">
+                    <AccordionTrigger className="px-3 py-2 text-sm text-white/60 hover:no-underline">Amenities (optional)</AccordionTrigger>
+                    <AccordionContent className="px-3 pb-3">
+                      <fieldset aria-label="Amenities (optional)" className="space-y-2">
+                        <div className="flex flex-wrap gap-2">
+                          {PLACE_AMENITIES.map((amenity) => {
+                            const selected = checkinAmenities.includes(amenity);
+                            return (
+                              <button
+                                key={amenity}
+                                type="button"
+                                aria-pressed={selected}
+                                className={`rounded-full border px-3 py-1 text-sm ${selected ? 'border-primary bg-primary/20 text-white' : 'border-white/10 text-white/65'}`}
+                                onClick={() => setCheckinAmenities((current) => selected ? current.filter((item) => item !== amenity) : [...current, amenity])}
+                              >
+                                {PLACE_AMENITY_LABELS[amenity]}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </fieldset>
+                    </AccordionContent>
+                  </AccordionItem>
+                </Accordion>
                 {/* An ordered scale from one hour to a day, so it slides like
                     distance does rather than opening a menu of five items. */}
                 <div className="w-full">
@@ -607,32 +687,29 @@ export default function PlaceDetail({ embedded = false, onBack, onClose, placeId
                 <div className="flex flex-wrap items-end justify-between gap-3">
                   <fieldset>
                     <legend className="mb-2 text-sm text-white/60">Who can see this check-in?</legend>
-                    <div className="flex flex-wrap gap-2" role="radiogroup" aria-label="Check-in visibility">
-                      {([
-                        ['hidden', 'Hidden'],
-                        ['public', 'Public'],
-                        ['checked_in', 'Only people checked in'],
-                      ] as const).map(([value, label]) => (
-                        <button
-                          key={value}
-                          type="button"
-                          role="radio"
-                          aria-checked={checkinVisibility === value}
-                          className={`rounded-full border px-3 py-1.5 text-sm ${checkinVisibility === value ? 'border-primary bg-primary/20 text-white' : 'border-white/10 text-white/65'}`}
-                          onClick={() => setCheckinVisibility(value)}
-                        >
-                          {label}
-                        </button>
-                      ))}
-                    </div>
+                    <MultiSelect
+                      ariaLabel="Check-in visibility"
+                      menuPortal
+                      options={['Hidden', 'Public', 'Only people checked in', 'Cruushes', ...(hasCruushPlus ? availableCrowdTargets : ['Crowd mode'])]}
+                      value={checkinVisibility === 'crowd' ? selectedCrowdTargets : [({ hidden: 'Hidden', public: 'Public', checked_in: 'Only people checked in', mutuals: 'Cruushes' } as const)[checkinVisibility]]}
+                      onChange={values => {
+                        const selected = values[values.length - 1];
+                        if (selected === 'Crowd mode') { navigate(buildCruushPlusStorePath('feed_plus', 'feed_plus')); return; }
+                        if (selected && availableCrowdTargets.includes(selected) && hasCruushPlus) {
+                          setCheckinVisibility('crowd');
+                          setSelectedCrowdTargets(values.filter(value => availableCrowdTargets.includes(value)));
+                          return;
+                        }
+                        setCheckinVisibility(selected === 'Public' ? 'public' : selected === 'Only people checked in' ? 'checked_in' : selected === 'Cruushes' ? 'mutuals' : 'hidden');
+                        setSelectedCrowdTargets([]);
+                      }}
+                    />
                   </fieldset>
-                  <Button size="sm" className="cruush-action-sheen text-base text-white" style={{ background: 'var(--cruush-gradient)' }} disabled={checkinVibes.length === 0 || (Boolean(message.trim()) && trust.restricted('pink_book')) || postingCheckin || postingBoard || mutating} onClick={handlePostCheckin}>{postingCheckin ? 'Checking in...' : 'Check in'}</Button>
+                  <Button size="sm" className="cruush-action-sheen text-base text-white" style={{ background: 'var(--cruush-gradient)' }} disabled={(checkinVisibility === 'crowd' && selectedCrowdTargets.length === 0) || checkinVibes.length === 0 || (Boolean(message.trim()) && trust.restricted('pink_book')) || postingCheckin || postingBoard || mutating} onClick={handlePostCheckin}>{postingCheckin ? 'Checking in...' : 'Check in'}</Button>
                 </div>
               </div>
             )}
-                  </AccordionContent>
-                </AccordionItem>
-              </Accordion>
+              </div>
             </Card>
             {place.viewerCheckin && messages.length === 0 ? <p className="py-8 text-center text-sm text-muted-foreground">No Pink Book posts yet.</p> : null}
             {messages.map((post) => (

@@ -110,6 +110,7 @@ describe("profile-sensitive encryption", () => {
       hosting: [],
       preferred_spots: [],
       vibes: [],
+      tags: ["private_visibility_tag"],
       crowds: [],
       hobbies: [],
       positions: [],
@@ -127,6 +128,7 @@ describe("profile-sensitive encryption", () => {
     const first = encryptProfileVisibility(config, visibilityRules);
     const second = encryptProfileVisibility(config, visibilityRules);
 
+    expect(first.profile_visibility_ciphertext).not.toContain("private_visibility_tag");
     expect(first.profile_visibility_key_version).toBe("v2");
     expect(first.profile_visibility_nonce).not.toBe(second.profile_visibility_nonce);
     expect(decryptProfileVisibility(config, first)).toEqual(visibilityRules);
@@ -179,7 +181,8 @@ describe("profile-sensitive encryption", () => {
       mile_high_club_members: false,
       members_without_photos: false,
       outside_service_area_members: false,
-      crowds: ["Dyke"]
+      crowds: ["Dyke"],
+      tags: []
     });
 
     const dykeCrowdTokenHashes = new Set(createCrowdTokens(config, ["Dyke"]).map((token) => token.token_hash));

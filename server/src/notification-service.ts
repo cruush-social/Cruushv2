@@ -1,3 +1,4 @@
+import { nonBannedNotificationSql } from "./banned-content.js";
 import type { FastifyInstance } from "fastify";
 import type { AppConfig } from "./config.js";
 import type { DbClient } from "./db.js";
@@ -137,7 +138,10 @@ export async function createAppNotification(
        dedupe_key,
        metadata
      )
-     values ($1, $2, $3, $4, $5, $6, $7, $8, $9::jsonb)
+     select notification.* from (
+       values ($1::uuid, $2::text, $3::text, $4::text, $5::text, $6::uuid, $7::uuid, $8::text, $9::jsonb)
+     ) as notification(user_id, type, title, body, link_url, actor_user_id, conversation_id, dedupe_key, metadata)
+     where ${nonBannedNotificationSql("notification")}
      on conflict (user_id, dedupe_key) where dedupe_key is not null do nothing
      returning
        id::text as id,
@@ -180,6 +184,14 @@ export async function createAppNotificationAndPush(
 
   const deliver = async () => {
     try {
+      // Recheck at dispatch: an actor may have been banned after the row was queued.
+      const current = await app.db.query<{ id: string }>(
+        `select notification.id::text as id from app_notifications notification
+         where notification.id = $1 and notification.user_id = $2
+           and ${nonBannedNotificationSql("notification")}`,
+        [notification.id, notification.userId]
+      );
+      if (!current.rows.length) return;
       const visible = await filterOosHiddenNotifications(app, notification.userId, [{
         type: input.type,
         actor_user_id: input.actorUserId ?? null,
@@ -225,7 +237,7 @@ export async function sendPushForPersistedNotification(
          read_at,
          created_at
        from app_notifications
-       where user_id = $1
+       where user_id = $1 and ${nonBannedNotificationSql("app_notifications")}
          and dedupe_key = $2
        limit 1`,
       [input.userId, input.dedupeKey]
@@ -248,7 +260,7 @@ export async function getNotificationSummary(app: NotificationApp, userId: strin
   const result = await app.db.query<{ unread_count: number }>(
     `select count(*)::int as unread_count
      from app_notifications notification
-     where notification.user_id = $1
+     where notification.user_id = $1 and ${nonBannedNotificationSql("notification")}
        and notification.read_at is null`,
     [userId]
   );
@@ -259,7 +271,7 @@ export async function getNotificationSummary(app: NotificationApp, userId: strin
   const activity = await app.db.query<AppNotificationRow>(
     `select type, actor_user_id::text as actor_user_id, conversation_id::text as conversation_id, metadata
        from app_notifications notification
-      where notification.user_id = $1 and notification.read_at is null
+      where notification.user_id = $1 and ${nonBannedNotificationSql("notification")} and notification.read_at is null
         and notification.type = any($2::text[])`,
     [userId, PROFILE_ACTIVITY_NOTIFICATION_TYPES]
   );

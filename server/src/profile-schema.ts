@@ -216,6 +216,9 @@ export const profileVisibilityRulesSchema = z.object({
   hosting: visibilityArrayField,
   preferred_spots: visibilityArrayField,
   vibes: visibilityArrayField,
+  tags: z.array(z.string().transform((value) => value.normalize("NFKC").trim().replace(/^#+/, "").toLowerCase())
+    .pipe(z.string().regex(/^[a-z0-9_]{1,24}$/, "Tags can use letters, numbers, and underscores.")))
+    .max(50).optional().default([]).transform((values) => [...new Set(values)]),
   crowds: z.array(crowdSchema).max(3).optional().default([]),
   hobbies: visibilityArrayField,
   positions: visibilityArrayField,
@@ -394,6 +397,7 @@ export const profilePayloadSchema = z.object({
     hosting: [],
     preferred_spots: [],
     vibes: [],
+    tags: [],
     crowds: [],
     hobbies: [],
     positions: [],
@@ -521,6 +525,7 @@ export const emptyProfile = {
     hosting: [],
     preferred_spots: [],
     vibes: [],
+    tags: [],
     crowds: [],
     hobbies: [],
     positions: [],

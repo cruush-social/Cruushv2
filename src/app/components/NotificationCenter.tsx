@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react';
+import { useContentVisibilityRefresh } from '../lib/contentVisibilityRevision';
+import { useEffect, useRef, useState } from 'react';
 import { CheckCheck, Trash2 } from 'lucide-react';
 import { useNavigate } from 'react-router';
 import {
@@ -31,6 +32,7 @@ function formatNotificationTime(value: string) {
 
 export default function NotificationCenter() {
   const navigate = useNavigate();
+  const loadRequest = useRef(0);
   const [notifications, setNotifications] = useState<NotificationRecord[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isMarkingAll, setIsMarkingAll] = useState(false);
@@ -42,25 +44,26 @@ export default function NotificationCenter() {
     let isActive = true;
 
     const loadNotifications = async () => {
+      const request = ++loadRequest.current;
       setIsLoading(true);
       setError('');
 
       try {
         const payload = await getNotifications({ limit: 30 });
 
-        if (!isActive) {
+        if (!isActive || request !== loadRequest.current) {
           return;
         }
 
         setNotifications(payload.notifications);
       } catch (error) {
-        if (!isActive) {
+        if (!isActive || request !== loadRequest.current) {
           return;
         }
 
         setError(error instanceof Error ? error.message : 'Failed to load notifications.');
       } finally {
-        if (isActive) {
+        if (isActive && request === loadRequest.current) {
           setIsLoading(false);
         }
       }
@@ -72,6 +75,16 @@ export default function NotificationCenter() {
       isActive = false;
     };
   }, []);
+
+  useContentVisibilityRefresh(async (isCurrent) => {
+    const request = ++loadRequest.current;
+    try {
+      const payload = await getNotifications({ limit: 30 });
+      if (isCurrent() && request === loadRequest.current) setNotifications(payload.notifications);
+    } finally {
+      if (isCurrent() && request === loadRequest.current) setIsLoading(false);
+    }
+  });
 
   const unreadCount = notifications.filter((notification) => !notification.readAt).length;
 

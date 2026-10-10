@@ -284,6 +284,7 @@ export function decryptProfileVisibility(
       timing: Array.isArray(parsed.timing) ? parsed.timing.filter((value): value is string => typeof value === "string") : [],
       hosting: Array.isArray(parsed.hosting) ? parsed.hosting.filter((value): value is string => typeof value === "string") : [],
       preferred_spots: Array.isArray(parsed.preferred_spots) ? parsed.preferred_spots.filter((value): value is string => typeof value === "string") : [],
+      tags: Array.isArray(parsed.tags) ? parsed.tags.filter((value): value is string => typeof value === "string") : [],
       vibes: Array.isArray(parsed.vibes) ? parsed.vibes.filter((value): value is string => typeof value === "string") : [],
       crowds: normalizeCrowdOptions(parsed.crowds),
       hobbies: Array.isArray(parsed.hobbies) ? parsed.hobbies.filter((value): value is string => typeof value === "string") : [],

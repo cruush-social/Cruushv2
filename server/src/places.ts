@@ -1,3 +1,4 @@
+import { crowdTargetsSchema } from "./post-schema.js";
 import { z } from "zod";
 import { multilineTextSchema, publicHttpsUrlSchema, singleLineTextSchema } from "./input-schema.js";
 
@@ -72,11 +73,14 @@ export const placeCheckinSchema = z.object({
     z.literal(1), z.literal(3), z.literal(6), z.literal(12), z.literal(24), z.literal(168), z.null()
   ]).optional(),
   visible: z.boolean().default(false),
-  visibility: z.enum(["hidden", "public", "checked_in"]).optional(),
+  visibility: z.enum(["hidden", "public", "checked_in", "mutuals", "crowd"]).optional(),
+  crowdTargets: crowdTargetsSchema,
   ...coordinatesSchema,
   accuracyMeters: z.number().nonnegative().max(402.336),
   observedAt: z.string().datetime()
-}).strict();
+}).strict().refine(payload => payload.visibility === "crowd" ? payload.crowdTargets.length > 0 : payload.crowdTargets.length === 0, {
+  message: "Choose Crowd targets only for Crowd visibility.", path: ["crowdTargets"]
+});
 
 export const placeBoardPostSchema = z.object({
   content: multilineTextSchema({ min: 1, max: 1000 })

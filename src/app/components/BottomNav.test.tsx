@@ -47,6 +47,24 @@ describe('BottomNav', () => {
     window.localStorage.removeItem('feed.mutual.seenAt');
   });
 
+  it('hides for the actual DM keyboard without changing the measured nav clearance, then restores', () => {
+    render(<MemoryRouter initialEntries={['/chat/test']}><BottomNav /></MemoryRouter>);
+    const nav = screen.getByRole('navigation');
+    const clearance = document.documentElement.style.getPropertyValue('--cruush-nav-clearance');
+    expect(nav).toBeVisible();
+    try {
+      document.documentElement.dataset.cruushDmKeyboardOpen = 'true';
+      fireEvent(window, new Event('cruush:dm-keyboard-changed'));
+      expect(nav).not.toBeVisible();
+      expect(document.documentElement.style.getPropertyValue('--cruush-nav-clearance')).toBe(clearance);
+      delete document.documentElement.dataset.cruushDmKeyboardOpen;
+      fireEvent(window, new Event('cruush:dm-keyboard-changed'));
+      expect(nav).toBeVisible();
+    } finally {
+      delete document.documentElement.dataset.cruushDmKeyboardOpen;
+    }
+  });
+
   it('keeps the supplied no-notch cruush logo as the canonical full-logo asset', () => {
     const logo = readFileSync(resolve(process.cwd(), 'src/app/assets/brand/cruush-logo.svg'));
 

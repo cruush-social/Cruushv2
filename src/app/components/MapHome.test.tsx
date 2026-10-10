@@ -1165,11 +1165,11 @@ describe('MapHome', () => {
 
     const shell = screen.getByTestId('map-home-shell');
     expect(shell).toHaveStyle({
-      height: '714px',
+      height: 'calc(714px - var(--cruush-sale-banner-height, 0px))',
       left: '24px',
-      maxHeight: '714px',
-      minHeight: '714px',
-      top: '52px',
+      maxHeight: 'calc(714px - var(--cruush-sale-banner-height, 0px))',
+      minHeight: 'calc(714px - var(--cruush-sale-banner-height, 0px))',
+      top: 'calc(52px + var(--cruush-sale-banner-height, 0px))',
       width: '360px',
     });
     expect(shell).not.toHaveClass('inset-0');
@@ -1187,11 +1187,11 @@ describe('MapHome', () => {
     });
 
     await waitFor(() => expect(shell).toHaveStyle({
-      height: '766px',
+      height: 'calc(766px - var(--cruush-sale-banner-height, 0px))',
       left: '0px',
-      maxHeight: '766px',
-      minHeight: '766px',
-      top: '0px',
+      maxHeight: 'calc(766px - var(--cruush-sale-banner-height, 0px))',
+      minHeight: 'calc(766px - var(--cruush-sale-banner-height, 0px))',
+      top: 'calc(0px + var(--cruush-sale-banner-height, 0px))',
       width: '384px',
     }));
 
@@ -1210,7 +1210,7 @@ describe('MapHome', () => {
     });
 
     await new Promise((resolve) => setTimeout(resolve, 20));
-    expect(shell).toHaveStyle({ height: '766px', left: '0px', top: '0px', width: '384px' });
+    expect(shell).toHaveStyle({ height: 'calc(766px - var(--cruush-sale-banner-height, 0px))', left: '0px', top: 'calc(0px + var(--cruush-sale-banner-height, 0px))', width: '384px' });
     expect(shell).not.toHaveClass('inset-0');
   });
 
@@ -1286,7 +1286,7 @@ describe('MapHome', () => {
       expect(screen.getByRole('button', { name: 'DL Mode settings' })).toBeInTheDocument();
       expect(screen.getByTestId('map-visibility-button')).toBeInTheDocument();
       expect(screen.queryByTestId('map-controls-trigger')).not.toBeInTheDocument();
-      expect(screen.queryByTestId('map-bug-button-slot')).not.toBeInTheDocument();
+      expect(screen.getByTestId('map-bug-button-slot')).toBeInTheDocument();
       await waitFor(() => expect(query).toHaveBeenCalled());
       expect(getCurrentPosition).not.toHaveBeenCalled();
     } finally {
@@ -1712,6 +1712,102 @@ describe('MapHome', () => {
     } finally {
       view.unmount();
       vi.useRealTimers();
+    }
+  });
+
+  it('keeps Spot query membership through pans, applies filters immediately, and reanchors on zoom', async () => {
+    navigator.geolocation.getCurrentPosition = vi.fn();
+    getPlaces.mockResolvedValue([placeRecord('anchor')]);
+    const handlers = new Map<string, Set<() => void>>();
+    const eventfulMap = mapControls as typeof mapControls & {
+      on?: (event: string, handler: () => void) => void;
+      off?: (event: string, handler: () => void) => void;
+      getBounds?: () => { getNorth(): number; getSouth(): number; getEast(): number; getWest(): number };
+    };
+    eventfulMap.on = (event, handler) => {
+      if (!handlers.has(event)) handlers.set(event, new Set());
+      handlers.get(event)!.add(handler);
+    };
+    eventfulMap.off = (event, handler) => { handlers.get(event)?.delete(handler); };
+    eventfulMap.getBounds = () => ({ getNorth: () => 40.9, getSouth: () => 40.5, getEast: () => -73.5, getWest: () => -74.3 });
+    const view = render(<MemoryRouter initialEntries={['/map']}><MapHome /></MemoryRouter>);
+    try {
+      await screen.findByRole('button', { name: 'Pin Spot anchor' });
+      await screen.findByRole('button', { name: 'Pin Jordan' });
+      const initialQuery = getPlaces.mock.calls.at(-1)![0];
+      const initialCount = getPlaces.mock.calls.length;
+      await act(async () => {
+        mapControls.getCenter.mockReturnValue({ lat: 40.75, lng: -73.95 });
+        handlers.get('moveend')?.forEach((handler) => handler());
+      });
+      expect(getPlaces).toHaveBeenCalledTimes(initialCount);
+      expect(screen.getByRole('button', { name: 'Pin Spot anchor' })).toBeInTheDocument();
+
+      // A same-zoom filter refresh is authoritative: absent records disappear.
+      getPlaces.mockResolvedValue([]);
+      await openMapControls();
+      fireEvent.click(screen.getByTestId('map-places-button'));
+      fireEvent.click(await screen.findByText(/^Spot filters/));
+      fireEvent.click(await screen.findByRole('switch', { name: 'Show Park' }));
+      fireEvent.click(screen.getByRole('button', { name: 'Apply' }));
+      await waitFor(() => expect(getPlaces).toHaveBeenCalledWith(expect.objectContaining({
+        latitude: initialQuery.latitude, longitude: initialQuery.longitude,
+        excludedFacilityTypes: expect.arrayContaining(['park']),
+      })));
+      await waitFor(() => expect(screen.queryByRole('button', { name: 'Pin Spot anchor' })).not.toBeInTheDocument());
+      const afterFilter = getPlaces.mock.calls.length;
+      await act(async () => {
+        mapControls.getZoom.mockReturnValue(15);
+        handlers.get('zoomend')?.forEach((handler) => handler());
+        handlers.get('moveend')?.forEach((handler) => handler());
+      });
+      await waitFor(() => expect(getPlaces.mock.calls.length).toBeGreaterThan(afterFilter));
+      expect(getPlaces.mock.calls.at(-1)![0]).toEqual(expect.objectContaining({ latitude: 40.75, longitude: -73.95 }));
+    } finally {
+      view.unmount();
+      delete eventfulMap.on;
+      delete eventfulMap.off;
+      delete eventfulMap.getBounds;
+    }
+  });
+
+  it('reanchors Spots for a same-zoom MHC location change without arming the next manual pan', async () => {
+    navigator.geolocation.getCurrentPosition = vi.fn();
+    const travel = deferred<{ pin: { userId: string; latitude: number; longitude: number; label: string; setAtMs: number; movableAtMs: number } }>();
+    getMyTravelPin.mockReturnValue(travel.promise);
+    const handlers = new Map<string, Set<() => void>>();
+    const eventfulMap = mapControls as typeof mapControls & {
+      on?: (event: string, handler: () => void) => void;
+      off?: (event: string, handler: () => void) => void;
+      getBounds?: () => { getNorth(): number; getSouth(): number; getEast(): number; getWest(): number };
+    };
+    eventfulMap.on = (event, handler) => {
+      if (!handlers.has(event)) handlers.set(event, new Set());
+      handlers.get(event)!.add(handler);
+    };
+    eventfulMap.off = (event, handler) => { handlers.get(event)?.delete(handler); };
+    eventfulMap.getBounds = () => ({ getNorth: () => 40.9, getSouth: () => 40.5, getEast: () => -73.5, getWest: () => -74.3 });
+    const view = render(<MemoryRouter initialEntries={['/map']}><MapHome /></MemoryRouter>);
+    try {
+      await waitFor(() => expect(getPlaces).toHaveBeenCalledWith(expect.objectContaining({ latitude: 40.73, longitude: -73.97 })));
+      await act(async () => {
+        // Model MapView's synchronous setCenter for the newly loaded MHC pin.
+        mapControls.getCenter.mockReturnValue({ lat: 40.8, lng: -73.95 });
+        travel.resolve({ pin: { userId: 'me', latitude: 40.8, longitude: -73.95, label: 'Harlem', setAtMs: 0, movableAtMs: 0 } });
+      });
+      await waitFor(() => expect(getPlaces.mock.calls.at(-1)![0]).toEqual(expect.objectContaining({ latitude: 40.8, longitude: -73.95 })));
+      const afterLocationChange = getPlaces.mock.calls.length;
+      await act(async () => {
+        handlers.get('moveend')?.forEach((handler) => handler());
+        mapControls.getCenter.mockReturnValue({ lat: 40.85, lng: -73.9 });
+        handlers.get('moveend')?.forEach((handler) => handler());
+      });
+      expect(getPlaces).toHaveBeenCalledTimes(afterLocationChange);
+    } finally {
+      view.unmount();
+      delete eventfulMap.on;
+      delete eventfulMap.off;
+      delete eventfulMap.getBounds;
     }
   });
 
@@ -2598,12 +2694,15 @@ describe('MapHome', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /^visibility$/i }));
     fireEvent.click(screen.getByRole('switch', { name: 'Distance' }));
+    fireEvent.change(screen.getByRole('textbox', { name: 'Tags' }), { target: { value: 'reviewtag' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Add', exact: true }));
     fireEvent.click(screen.getByRole('button', { name: /^apply$/i }));
 
     await waitFor(() => expect(saveMyVisibilityRules).toHaveBeenCalledWith(expect.objectContaining({
       active_crowd_modes: [],
       distance: 100,
       age_range: null,
+      tags: ['reviewtag'],
     })));
     expect(screen.queryByText('Request validation failed')).not.toBeInTheDocument();
   });
@@ -2627,7 +2726,7 @@ describe('MapHome', () => {
     expect(screen.getByTestId('recently-active-panel')).toHaveClass('pointer-events-auto');
   });
 
-  it('only shows the cruush gradient on active seeking and visibility controls', async () => {
+  it.each([{ distance: 25 }, { tags: ['reviewtag'] }])('only shows the cruush gradient on active seeking and visibility controls: %j', async (visibilityRules) => {
     useIsMobile.mockReturnValue(false);
 
     const { unmount } = render(
@@ -2659,9 +2758,7 @@ describe('MapHome', () => {
     getMyProfile.mockResolvedValue({
       photos: ['https://example.com/me.jpg'],
       position: ['Bottom'],
-      visibility_rules: {
-        distance: 25,
-      },
+      visibility_rules: visibilityRules,
     });
 
     render(
@@ -2676,6 +2773,10 @@ describe('MapHome', () => {
     await waitFor(() => {
       expect(screen.getByRole('button', { name: /^visibility$/i }).style.background).toBe('var(--cruush-gradient)');
     });
+    if ('tags' in visibilityRules) {
+      fireEvent.click(screen.getByRole('button', { name: /^visibility$/i }));
+      expect(screen.getByRole('button', { name: 'Remove #reviewtag' })).toBeInTheDocument();
+    }
   });
 
   it('opens the desktop popup instead of navigating immediately', async () => {
@@ -2694,7 +2795,7 @@ describe('MapHome', () => {
     fireEvent.click(await screen.findByRole('button', { name: 'Open Jordan profile' }));
 
     expect(screen.queryByText('nyc open beta')).not.toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /message now/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'message', exact: true })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /send cruush/i })).toBeInTheDocument();
     expect(screen.getByRole('complementary')).toHaveClass('fixed');
     // Stacking is per panel so a click raises the pressed panel above the other,
@@ -2735,7 +2836,7 @@ describe('MapHome', () => {
 
     fireEvent.click(await screen.findByRole('button', { name: 'Show recently active bar' }));
     fireEvent.click(await screen.findByRole('button', { name: 'Open Jordan profile' }));
-    expect(await screen.findByRole('button', { name: /message now/i })).toBeInTheDocument();
+    expect(await screen.findByRole('button', { name: 'message', exact: true })).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: 'Block Jordan' }));
     fireEvent.click(screen.getByRole('button', { name: 'Block' }));
@@ -3278,7 +3379,7 @@ describe('MapHome', () => {
     expect(navigator.geolocation.getCurrentPosition).not.toHaveBeenCalled();
   });
 
-  it('shows the owner Ghost leash by default and removes only the leash when the saved option turns off', async () => {
+  it('shows the owner Ghost leash by default and hides its line and radius while retaining pins when off', async () => {
     useIsMobile.mockReturnValue(false);
     vi.useFakeTimers({ shouldAdvanceTime: true });
     vi.setSystemTime(new Date('2026-08-12T20:00:00.000Z'));
@@ -3415,6 +3516,8 @@ describe('MapHome', () => {
     await waitFor(() => {
       expect(screen.getByTestId('marker-me-ghost-decoy')).toHaveAttribute('data-lat', '40.718');
       expect(screen.getByTestId('map-focus')).toHaveAttribute('data-ghost-leash-to-lng', '');
+      expect(screen.getByTestId('map-focus')).toHaveAttribute('data-radius-circle', '');
+      expect(screen.getByTestId('marker-me')).toHaveAttribute('data-lat', '40.7128');
     });
     expect(decryptDisplayLocationToken).toHaveBeenCalledWith(rotatedGhostToken);
     vi.useRealTimers();
@@ -3526,7 +3629,7 @@ describe('MapHome', () => {
     expect(fallback).toBeInTheDocument();
     expect(fallback.querySelector('img')).toHaveClass('h-14', 'w-14');
     fireEvent.click(recentTile);
-    expect(await screen.findByRole('button', { name: /message now/i })).toBeInTheDocument();
+    expect(await screen.findByRole('button', { name: 'message', exact: true })).toBeInTheDocument();
     expect(screen.getByRole('complementary')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Close profile preview' }));
     expect(recentTray).toHaveAttribute('data-scrollable', 'false');

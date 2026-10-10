@@ -16,6 +16,25 @@ describe('sale countdown', () => {
     expect(screen.queryByRole('complementary')).not.toBeInTheDocument();
   });
 
+  it('hides exactly at expiry even when mounted between second ticks', () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-10-12T03:58:59.750Z'));
+    render(<SaleBanner percentOff={50} endsAt="2026-10-12T03:59:00Z" onClick={() => {}} />);
+    act(() => { vi.advanceTimersByTime(249); });
+    expect(screen.getByRole('complementary')).toBeInTheDocument();
+    act(() => { vi.advanceTimersByTime(1); });
+    expect(screen.queryByRole('complementary')).not.toBeInTheDocument();
+  });
+
+  it.each(['focus', 'visibilitychange'])('removes expired sale on %s after suspended timers', (event) => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-10-12T03:58:00Z'));
+    render(<SaleBanner percentOff={50} endsAt="2026-10-12T03:59:00Z" onClick={() => {}} />);
+    vi.setSystemTime(new Date('2026-10-12T04:00:00Z'));
+    act(() => { (event === 'focus' ? window : document).dispatchEvent(new Event(event)); });
+    expect(screen.queryByRole('complementary')).not.toBeInTheDocument();
+  });
+
   it('keeps hours above 24 and resumes from the deadline after remount', () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date('2026-10-10T03:59:00Z'));

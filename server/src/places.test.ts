@@ -126,6 +126,15 @@ describe("Spot check-in contract", () => {
     })).toMatchObject({ visibility });
   });
 
+  it("validates normalized Crowd targets and keeps legacy choices unchanged", () => {
+    const payload = { durationHours: 3, latitude: 40.72, longitude: -73.98, accuracyMeters: 10, observedAt: "2026-08-31T20:00:00.000Z" };
+    expect(placeCheckinSchema.parse({ ...payload, visibility: "crowd", crowdTargets: ["Gay", "Gay"] }).crowdTargets).toEqual(["Gay"]);
+    expect(placeCheckinSchema.safeParse({ ...payload, visibility: "crowd" }).success).toBe(false);
+    expect(placeCheckinSchema.safeParse({ ...payload, visibility: "public", crowdTargets: ["Gay"] }).success).toBe(false);
+    expect(placeCheckinSchema.safeParse({ ...payload, visibility: "crowd", crowdTargets: ["Not a Crowd"] }).success).toBe(false);
+    expect(placeCheckinSchema.parse({ ...payload, visibility: "mutuals" }).visibility).toBe("mutuals");
+  });
+
   it("rejects unsupported duration and imprecise location values", () => {
     expect(placeCheckinSchema.safeParse({
       content: "Meet by the entrance",

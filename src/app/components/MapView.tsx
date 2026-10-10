@@ -1,6 +1,8 @@
+import { excludeOwnerPinOverlaps } from '../lib/ownerPinExclusion';
+import { showPurgatoryPresentation } from '../lib/purgatoryPresentation';
 import { useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import SignalBadge from './SignalBadge';
-import DlModePhotoPlaceholder from './DlModePhotoPlaceholder';
+import DlModeMark from './DlModeMark';
 import MileHighContrail from './MileHighContrail';
 import { flushSync } from 'react-dom';
 import { createRoot, type Root } from 'react-dom/client';
@@ -74,7 +76,7 @@ import {
   DARK_ROOM_KEYHOLE_PATH,
   DarkRoomKeyholeEyeGraphic,
 } from './DarkRoomMark';
-import { useDlMode, shouldMaskPhoto, getNsfwPhotoRestriction } from '../lib/dlMode';
+import { useDlMode, shouldMaskPhoto, getNsfwPhotoRestriction, getNsfwPhotoRestrictionLabel } from '../lib/dlMode';
 import {
   addAccessibilityPreferencesChangedListener,
   getAccessibilityPreferences,
@@ -191,6 +193,7 @@ const MAP_HOVER_TITLE_FONT_SIZE_PX = 15;
 const MAP_HEART_HOVER_TITLE_FONT_SIZE_PX = MAP_HOVER_TITLE_FONT_SIZE_PX / 1.38;
 export const MAP_PIN_UNIT_SCALE = 1;
 export const MAP_MARKER_VIEWPORT_OVERSCAN = 0.15;
+export const OWNER_PIN_EXCLUSION_MIN_ZOOM = 14.5;
 const MARKER_INTERACTION_SUPPRESS_MS = 350;
 // Clustering hides individual people, so it starts later and gives up sooner:
 // pins only merge when they are nearly on top of one another.
@@ -664,6 +667,7 @@ type SpiderfiedCluster = {
 };
 
 type DisplayMapMarker = MapMarker & {
+  ownerExclusionOffset?: [number, number];
   spiderfy?: {
     offset: [number, number];
     index: number;
@@ -870,13 +874,52 @@ function mercatorPixelPoint(marker: MapMarker, zoom: number) {
   };
 }
 
-/**
- * Member coordinates are authoritative geographic display locations. Clustering
- * may replace nearby members, but individual pins never move to avoid overlap.
- * Members fan out with temporary screen offsets only after opening a cluster.
- */
-export function separateOverlappingMarkers(markers: MapMarker[], _zoom: number) {
-  return markers;
+/** Camera-only offsets must not tear down artwork or rebuild geographic layers. */
+export function mapMarkerSemanticSignature(marker: DisplayMapMarker) {
+  const { ownerExclusionOffset: _offset, ...semanticMarker } = marker;
+  return JSON.stringify(semanticMarker);
+}
+
+function updateMarkerDisplayOffset(marker: MapLibreMarker, display: DisplayMapMarker) {
+  const offset = display.ownerExclusionOffset ?? display.spiderfy?.offset ?? [0, 0];
+  if (typeof marker.setOffset !== 'function') return;
+  const current = typeof marker.getOffset === 'function' ? marker.getOffset() : null;
+  if (current && current.x === offset[0] && current.y === offset[1]) return;
+  marker.setOffset(offset);
+}
+
+/** Keep geographic positions intact; only owner collisions gain screen offsets. */
+export function separateOverlappingMarkers(
+  markers: DisplayMapMarker[], zoom: number,
+  project: (marker: MapMarker) => { x: number; y: number } = marker => mercatorPixelPoint(marker, zoom),
+  viewport?: { width: number; height: number },
+  previewedIds: ReadonlySet<string> = new Set(),
+): DisplayMapMarker[] {
+  const people = markers.filter(marker => (marker.kind ?? 'person') === 'person' || isPersonCluster(marker));
+  const footprints = people.map(marker => {
+    const point = project(marker);
+    const offset = marker.spiderfy?.offset ?? [0, 0];
+    const previewed = previewedIds.has(marker.id);
+    const scale = previewed ? 1.38 : 1;
+    const caption = Boolean((marker.activePing || previewed) && marker.signal);
+    const halfWidth = Math.max(caption ? SIGNAL_CLEARANCE_PX / 2 : 0, (marker.badge || marker.roleBadge ? 62 : 51.5) * scale);
+    return { id: marker.id, owner: marker.isCurrentUser === true || marker.id === 'me' || marker.id === 'me-ghost-decoy',
+      x: point.x + offset[0], y: point.y + offset[1], left: halfWidth, right: halfWidth,
+      top: 64 + 80 * (scale - 1) + (showPurgatoryPresentation(marker.outOfSight, marker.travelling) ? 10 * scale : 0) + (caption ? 40 : 0), bottom: 24 };
+  });
+  const moved = zoom >= OWNER_PIN_EXCLUSION_MIN_ZOOM
+    ? excludeOwnerPinOverlaps(footprints, viewport) : new Map<string, { x: number; y: number }>();
+  if (!moved.size && !markers.some(marker => marker.ownerExclusionOffset)) return markers;
+  return markers.map(marker => {
+    const target = moved.get(marker.id);
+    if (!target) {
+      if (!marker.ownerExclusionOffset) return marker;
+      const { ownerExclusionOffset: _offset, ...rest } = marker;
+      return rest;
+    }
+    const point = project(marker);
+    return { ...marker, ownerExclusionOffset: [target.x - point.x, target.y - point.y] as [number, number] };
+  });
 }
 
 function canClusterMarker(marker: MapMarker, focusCoordinates: MapViewProps['focusCoordinates']) {
@@ -1073,10 +1116,8 @@ function applyPersonMarkerClusters(
     .sort((a, b) => a.id.localeCompare(b.id));
   const clusters: MapMarker[] = [];
 
-  // Grouping is purely by real-world same-building overlap, never by a
-  // zoom-scaled pixel radius. Two people either share a building or they
-  // don't; that fact does not change as the map zooms in or out, so this
-  // must not either.
+  // Keep the existing same-building grouping at wider views. At close zoom,
+  // let distinct geographic pins separate once their screen footprints clear.
   const visited = new Set<string>();
   clusterableMarkers.forEach((marker) => {
     if (visited.has(marker.id)) return;
@@ -1095,8 +1136,13 @@ function applyPersonMarkerClusters(
       });
     }
     if (group.length < 2) return;
-    group.forEach((groupMarker) => clusteredIds.add(groupMarker.id));
-    clusters.push(buildPeopleCluster(group, 'spiderfy'));
+    const displayGroups = zoom >= OWNER_PIN_EXCLUSION_MIN_ZOOM
+      ? groupNearbyMarkers(group, zoom, 124, true, true, areInSameBuildingDisplayArea)
+      : [group];
+    displayGroups.filter(displayGroup => displayGroup.length >= 2).forEach(displayGroup => {
+      displayGroup.forEach(groupMarker => clusteredIds.add(groupMarker.id));
+      clusters.push(buildPeopleCluster(displayGroup, 'spiderfy'));
+    });
   });
 
   // Keep the same cluster button at its anchor during expansion so a
@@ -1715,7 +1761,7 @@ function MarkerHeart({ marker, isCurrentUser }: { marker: MapMarker; isCurrentUs
   return (
     <svg
       aria-hidden="true"
-      className={`relative z-10 h-20 w-20${marker.outOfSight === true && !isNpcGhostDemo ? ' overflow-visible' : ''}`}
+      className={`relative z-10 h-20 w-20${showPurgatoryPresentation(marker.outOfSight, marker.travelling) && !isNpcGhostDemo ? ' overflow-visible' : ''}`}
       data-testid={`marker-heart-${marker.id}`}
       data-has-photo={hasPhoto ? 'true' : 'false'}
       data-marker-theme={isNpcGhostDemo ? 'npc-ghost-demo' : theme}
@@ -1877,9 +1923,14 @@ function MarkerHeart({ marker, isCurrentUser }: { marker: MapMarker; isCurrentUs
         />
       )}
       {photoMasked ? (
-        <foreignObject x="22" y="19" width="20" height="26">
-          <DlModePhotoPlaceholder className="h-full w-full" showLabel={false} restriction={getNsfwPhotoRestriction(marker.photoExplicit, marker.photoRelationship)} />
-        </foreignObject>
+        <g
+          aria-label={getNsfwPhotoRestrictionLabel(getNsfwPhotoRestriction(marker.photoExplicit, marker.photoRelationship)) ?? 'DL MODE ON'}
+          role="img"
+          data-testid="dl-mode-photo-placeholder"
+          opacity={0.75}
+        >
+          <DlModeMark active={false} className="" svgBounds={{ x: 22, y: 19, width: 20, height: 26 }} />
+        </g>
       ) : null}
       {travellerActive ? (
         <MileHighContrail
@@ -1889,7 +1940,7 @@ function MarkerHeart({ marker, isCurrentUser }: { marker: MapMarker; isCurrentUs
         />
       ) : null}
       {pingActive && !travellerActive ? <PulseEkgHeartTrace clipId={clipId} /> : null}
-      {marker.outOfSight === true && !isNpcGhostDemo ? (
+      {showPurgatoryPresentation(marker.outOfSight, marker.travelling) && !isNpcGhostDemo ? (
         <image
           data-testid={`marker-purgatory-heart-overlay-${marker.id}`}
           height="72"
@@ -2554,18 +2605,23 @@ function MapView({
       // Clustering can collapse nearby members, but individual member
       // coordinates stay exactly where the API placed them at every zoom.
       const withPlaceClusters = applyPlaceMarkerClusters(clusteredMarkers, currentZoom);
-      return separateOverlappingMarkers(withPlaceClusters, currentZoom);
+      return separateOverlappingMarkers(withPlaceClusters, currentZoom,
+        mapInstance && typeof mapInstance.project === 'function'
+          ? marker => mapInstance.project([marker.approximateLongitude, marker.approximateLatitude]) : undefined,
+        mapInstance && typeof mapInstance.project === 'function' && containerRef.current?.clientWidth && containerRef.current?.clientHeight
+          ? { width: containerRef.current.clientWidth, height: containerRef.current.clientHeight } : undefined);
+
     },
-    [currentZoom, denseMarkerResult.markers, focusCoordinates, spiderfiedCluster, ghostClusterVisibilityTick],
+    [currentZoom, denseMarkerResult.markers, focusCoordinates, spiderfiedCluster, ghostClusterVisibilityTick, mapInstance, viewportBounds],
   );
-  const renderedMarkerSignature = useMemo(() => JSON.stringify(renderedMarkers), [renderedMarkers]);
+  const renderedMarkerSignature = useMemo(() => JSON.stringify(renderedMarkers.map(mapMarkerSemanticSignature)), [renderedMarkers]);
   const renderedMarkersRef = useRef(renderedMarkers);
   renderedMarkersRef.current = renderedMarkers;
   const mountedMarkers = useMemo(
     () => renderedMarkers.filter((marker) => isMarkerWithinViewportOverscan(marker, viewportBounds)),
     [renderedMarkers, viewportBounds],
   );
-  const mountedMarkerSignature = useMemo(() => JSON.stringify(mountedMarkers), [mountedMarkers]);
+  const mountedMarkerSignature = useMemo(() => JSON.stringify(mountedMarkers.map(mapMarkerSemanticSignature)), [mountedMarkers]);
   const mountedMarkersRef = useRef(mountedMarkers);
   mountedMarkersRef.current = mountedMarkers;
   const viewportMarkerSignature = useMemo(() => renderedMarkers
@@ -3127,7 +3183,7 @@ function MapView({
     const visibleMarkers = mountedMarkersRef.current.filter(isMapMarker);
     // Diff against the markers already on the map so a zoom step or one
     // changed pin no longer tears down and rebuilds every marker element.
-    const nextSignatures = new Map(visibleMarkers.map((marker) => [marker.id, JSON.stringify(marker)]));
+    const nextSignatures = new Map(visibleMarkers.map((marker) => [marker.id, mapMarkerSemanticSignature(marker)]));
     const survivors = new Map<string, RenderedMapMarker>();
     markersRef.current.forEach((renderedMarker) => {
       const signature = nextSignatures.get(renderedMarker.id);
@@ -3148,6 +3204,7 @@ function MapView({
       markersRef.current = visibleMarkers.map((marker) => {
         const survivor = survivors.get(marker.id);
         if (survivor) {
+          updateMarkerDisplayOffset(survivor.marker, marker);
           return survivor;
         }
         const { dispose, element, root, setPreviewed } = createMarkerElement(
@@ -3287,7 +3344,8 @@ function MapView({
         const mapMarker = new maplibregl.Marker({
           element,
           subpixelPositioning: true,
-          ...(displayMarker.spiderfy ? { offset: displayMarker.spiderfy.offset } : {}),
+          ...(displayMarker.ownerExclusionOffset || displayMarker.spiderfy
+            ? { offset: displayMarker.ownerExclusionOffset ?? displayMarker.spiderfy!.offset } : {}),
         })
           .setLngLat([marker.approximateLongitude, marker.approximateLatitude])
           .addTo(map);
@@ -3297,7 +3355,7 @@ function MapView({
           marker: mapMarker,
           root,
           setPreviewed,
-          signature: nextSignatures.get(marker.id) ?? JSON.stringify(marker),
+          signature: nextSignatures.get(marker.id) ?? mapMarkerSemanticSignature(marker),
         };
         return renderedMarker;
       });
@@ -3307,6 +3365,38 @@ function MapView({
       cancelled = true;
     };
   }, [currentZoom, mapInstance, mountedMarkerSignature]);
+
+  // Keep display-only clearances current during camera gestures and existing
+  // hover/hold previews without rebuilding pins or changing their coordinates.
+  useEffect(() => {
+    const map = mapInstance;
+    if (!map || typeof map.project !== 'function') return;
+    const refreshOffsets = () => {
+      const previewedIds = new Set(markersRef.current.filter(item =>
+        item.marker.getElement().dataset.markerPreviewed === 'true').map(item => item.id));
+      const cleared = separateOverlappingMarkers(renderedMarkersRef.current, map.getZoom(),
+        marker => map.project([marker.approximateLongitude, marker.approximateLatitude]),
+        containerRef.current ? { width: containerRef.current.clientWidth, height: containerRef.current.clientHeight } : undefined,
+        previewedIds);
+      const byId = new Map(cleared.map(marker => [marker.id, marker]));
+      for (const item of markersRef.current) {
+        const marker = byId.get(item.id);
+        if (marker) updateMarkerDisplayOffset(item.marker, marker);
+      }
+    };
+    map.on('move', refreshOffsets);
+    map.on('resize', refreshOffsets);
+    const observer = new MutationObserver(refreshOffsets);
+    if (containerRef.current) observer.observe(containerRef.current, {
+      subtree: true, attributes: true, attributeFilter: ['data-marker-previewed'],
+    });
+    refreshOffsets();
+    return () => {
+      map.off('move', refreshOffsets);
+      map.off('resize', refreshOffsets);
+      observer.disconnect();
+    };
+  }, [mapInstance, mountedMarkerSignature]);
 
   // A pinch on the map belongs to the map. Safari zooms the whole page on its
   // own gesture events, and a two-finger move can still reach the page where a

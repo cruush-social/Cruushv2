@@ -5,5 +5,9 @@ export function androidPushPromptSessionKey(userId: string) {
 // A fresh sign-in should offer Android push again if it is still off, while
 // navigation and page reloads retain the current login's dismissal.
 export function resetPushPromptForLogin(userId: string) {
-  window.sessionStorage.removeItem(androidPushPromptSessionKey(userId));
+  try {
+    window.sessionStorage.removeItem(androidPushPromptSessionKey(userId));
+  } catch {
+    // A blocked reminder store must not interrupt a successful sign-in.
+  }
 }

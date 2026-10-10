@@ -1,3 +1,5 @@
+import { nonBannedAccountSql } from "../banned-content.js";
+import { getMhcLocationLabel } from "../mhc-location-label.js";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { z } from "zod";
 import { loadPhotoViewerRelationships, type PhotoViewerRelationship } from "../nsfw-photo-audience.js";
@@ -1408,7 +1410,7 @@ async function loadProfileData(
             ) as attending_launch_party,
             updated_at
      from profiles
-     where id = $1`,
+     where id = $1 and ${nonBannedAccountSql("profiles.id")}`,
     [userId]
   );
 
@@ -1586,6 +1588,8 @@ async function loadViewerDistanceLabel(
   if (policy?.baseMode === "STEALTH") {
     return null;
   }
+  const mhcLabel = await getMhcLocationLabel(app, targetUserId, relationship?.distanceLabelMode ?? "approximate");
+  if (mhcLabel) return mhcLabel;
 
   const displayMode = relationship?.canRevealPreciseLocation === true
     ? "PRECISE" as const
@@ -1709,7 +1713,7 @@ export async function assertProfileVisibleToViewer(app: FastifyInstance, viewerU
             fuzzy_lng,
             updated_at
      from profiles
-     where id = $1`,
+     where id = $1 and ${nonBannedAccountSql("profiles.id")}`,
     [targetUserId]
   );
   const row = result.rows[0];

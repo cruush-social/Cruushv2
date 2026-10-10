@@ -46,6 +46,7 @@ describe("media read validators", () => {
 
   async function buildMediaServer(config: AppConfig, options: {
     surface?: "profile_photo" | "feed_photo";
+    ownerStatus?: () => "active" | "banned" | "suspended";
     feedAccess?: {
       owner_user_id: string;
       audience: "public" | "mutuals" | "crowd";
@@ -57,6 +58,9 @@ describe("media read validators", () => {
     await writeEncryptedMediaObject(config, objectKey, encrypted.ciphertext);
 
     const query = vi.fn(async (sql: string) => {
+      if (sql.includes("from app_users") && sql.includes("account_status = 'banned'")) {
+        return { rows: options.ownerStatus?.() === "banned" ? [{ id: ownerId }] : [] };
+      }
       if (sql.includes("from media_objects media")) {
         return {
           rows: [{
@@ -137,6 +141,30 @@ describe("media read validators", () => {
     expect(revalidated.headers.etag).toBe(entityTag);
 
     await app.close();
+  });
+
+  it("revokes an approved body and matching cache validator on ban, preserving suspended and unban reads", async () => {
+    const config = await testConfig();
+    let ownerStatus: "active" | "banned" | "suspended" = "active";
+    const { app, plaintext } = await buildMediaServer(config, { ownerStatus: () => ownerStatus });
+    const read = (etag?: string) => app.inject({
+      method: "GET", url: `/api/media/assets/${assetId}/display`,
+      headers: { "x-user-id": ownerId, ...(etag ? { "if-none-match": etag } : {}) }
+    });
+    const initial = await read();
+    expect(initial.statusCode).toBe(200);
+    const etag = initial.headers.etag as string;
+    ownerStatus = "banned";
+    for (const validator of [undefined, etag]) {
+      const denied = await read(validator);
+      expect(denied.statusCode).toBe(404);
+      expect(denied.headers.etag).toBeUndefined();
+      expect(denied.rawPayload.equals(plaintext)).toBe(false);
+    }
+    ownerStatus = "suspended";
+    expect((await read(etag)).statusCode).toBe(304);
+    ownerStatus = "active";
+    expect((await read()).rawPayload.equals(plaintext)).toBe(true);
   });
 
   it("still requires authentication when a validator is supplied", async () => {

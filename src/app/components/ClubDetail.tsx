@@ -1,3 +1,5 @@
+import { ApiClientError } from '../lib/apiClient';
+import { useContentVisibilityRefresh } from '../lib/contentVisibilityRevision';
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router';
 import { getClub, requestClubJoin, type ClubDetailRecord } from '../lib/clubsApi';
@@ -17,9 +19,11 @@ export default function ClubDetail() {
   const [error, setError] = useState<string | null>(null);
   const [shareOpen, setShareOpen] = useState(false);
   const routeGeneration = useRef(0);
+  const detailLoadGeneration = useRef(0);
 
   useEffect(() => {
     const generation = ++routeGeneration.current;
+    const detailRequest = ++detailLoadGeneration.current;
     setClub(null);
     setRequesting(false);
     if (!clubId) {
@@ -32,7 +36,7 @@ export default function ClubDetail() {
     setError(null);
     void getClub(clubId)
       .then((item) => {
-        if (routeGeneration.current !== generation) return;
+        if (routeGeneration.current !== generation || detailLoadGeneration.current !== detailRequest) return;
         if (item.conversationId) {
           navigate(`/chat/${item.conversationId}`, { replace: true });
           return;
@@ -40,14 +44,34 @@ export default function ClubDetail() {
         setClub(item);
       })
       .catch((loadError) => {
-        if (routeGeneration.current === generation) setError(loadError instanceof Error ? loadError.message : 'Coven could not load.');
+        if (routeGeneration.current === generation && detailLoadGeneration.current === detailRequest) setError(loadError instanceof Error ? loadError.message : 'Coven could not load.');
       })
       .finally(() => {
-        if (routeGeneration.current === generation) setLoading(false);
+        if (routeGeneration.current === generation && detailLoadGeneration.current === detailRequest) setLoading(false);
       });
 
     return () => { routeGeneration.current += 1; };
   }, [clubId, navigate]);
+
+  useContentVisibilityRefresh(async (isCurrent) => {
+    if (!clubId) return;
+    const generation = routeGeneration.current;
+    const detailRequest = ++detailLoadGeneration.current;
+    try {
+      const item = await getClub(clubId);
+      if (isCurrent() && generation === routeGeneration.current && detailRequest === detailLoadGeneration.current) {
+        if (item.conversationId) navigate(`/chat/${item.conversationId}`, { replace: true });
+        else setClub(item);
+      }
+    } catch (error) {
+      if (isCurrent() && generation === routeGeneration.current && detailRequest === detailLoadGeneration.current && error instanceof ApiClientError && [403, 404].includes(error.status)) {
+        setClub(null);
+        setShareOpen(false);
+      } else if (isCurrent()) throw error;
+    } finally {
+      if (isCurrent() && generation === routeGeneration.current && detailRequest === detailLoadGeneration.current) setLoading(false);
+    }
+  }, clubId);
 
   const join = async () => {
     if (!clubId || !club || club.id !== clubId || loading || club.joinRequestStatus !== 'none' || requesting) return;

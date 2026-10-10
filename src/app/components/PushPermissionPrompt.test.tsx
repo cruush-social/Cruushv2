@@ -1,6 +1,6 @@
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { resetExclusivePopupsForTest } from '../lib/popupQueue';
+import { resetExclusivePopupsForTest, useExclusivePopup } from '../lib/popupQueue';
 import { androidPushPromptSessionKey, resetPushPromptForLogin } from '../lib/pushPromptSession';
 
 const { enablePushNotifications, getNotificationPreferences } = vi.hoisted(() => ({
@@ -11,7 +11,7 @@ const { enablePushNotifications, getNotificationPreferences } = vi.hoisted(() =>
 vi.mock('../lib/pushNotifications', () => ({ enablePushNotifications }));
 vi.mock('../lib/notificationsApi', () => ({ getNotificationPreferences }));
 
-import PushPermissionPrompt, { pushPromptHandledKey } from './PushPermissionPrompt';
+import PushPermissionPrompt, { pushPromptHandledKey, PUSH_PREFERENCE_TIMEOUT_MS } from './PushPermissionPrompt';
 
 function setPermission(permission: NotificationPermission) {
   vi.stubGlobal('Notification', { permission });
@@ -19,6 +19,10 @@ function setPermission(permission: NotificationPermission) {
 
 function setUserAgent(value: string) {
   Object.defineProperty(window.navigator, 'userAgent', { configurable: true, value });
+}
+
+function LaterPrompt() {
+  return useExclusivePopup('purgatory-info', true) ? <div data-testid="later-prompt" /> : null;
 }
 
 const dialog = () => screen.queryByRole('dialog', { name: 'Enable notifications' });
@@ -89,6 +93,54 @@ describe('PushPermissionPrompt', () => {
     expect(await screen.findByRole('dialog', { name: 'Enable notifications' })).toBeInTheDocument();
     expect(getNotificationPreferences).toHaveBeenCalledTimes(1);
     expect(enablePushNotifications).not.toHaveBeenCalled();
+  });
+
+  it.each(['Android', 'desktop'])('dismisses when %s prompt storage reads and writes throw', (platform) => {
+    if (platform === 'desktop') setUserAgent('Mozilla/5.0 (Macintosh)');
+    const get = vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => { throw new Error('Storage blocked'); });
+    const set = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => { throw new Error('Storage blocked'); });
+    try {
+      render(<><PushPermissionPrompt userId="storage-blocked" /><LaterPrompt /></>);
+      fireEvent.click(screen.getByRole('button', { name: 'Not now' }));
+      expect(dialog()).not.toBeInTheDocument();
+      expect(screen.getByTestId('later-prompt')).toBeInTheDocument();
+      expect(enablePushNotifications).not.toHaveBeenCalled();
+    } finally { get.mockRestore(); set.mockRestore(); }
+  });
+
+  it('releases later prompts after a stalled preference lookup and ignores its late response', async () => {
+    vi.useFakeTimers();
+    setPermission('granted');
+    let resolvePreference!: (value: { pushEnabled: boolean }) => void;
+    getNotificationPreferences.mockImplementationOnce(() => new Promise((resolve) => { resolvePreference = resolve; }));
+    try {
+      render(<><PushPermissionPrompt userId="stalled" /><LaterPrompt /></>);
+      expect(screen.queryByTestId('later-prompt')).not.toBeInTheDocument();
+      await act(async () => { vi.advanceTimersByTime(PUSH_PREFERENCE_TIMEOUT_MS); });
+      expect(screen.getByTestId('later-prompt')).toBeInTheDocument();
+      expect(dialog()).not.toBeInTheDocument();
+      await act(async () => { resolvePreference({ pushEnabled: false }); });
+      expect(dialog()).not.toBeInTheDocument();
+      expect(screen.getByTestId('later-prompt')).toBeInTheDocument();
+      expect(sessionStorage.getItem(androidPushPromptSessionKey('stalled'))).toBeNull();
+      expect(enablePushNotifications).not.toHaveBeenCalled();
+    } finally { vi.useRealTimers(); }
+  });
+
+  it.each([true, false])('holds later prompts until Android preference resolves (enabled: %s)', async (pushEnabled) => {
+    setPermission('granted');
+    let resolvePreference!: (value: { pushEnabled: boolean }) => void;
+    getNotificationPreferences.mockImplementationOnce(() => new Promise((resolve) => { resolvePreference = resolve; }));
+    render(<><LaterPrompt /><PushPermissionPrompt userId="member-1" /></>);
+    expect(screen.queryByTestId('later-prompt')).not.toBeInTheDocument();
+    expect(dialog()).not.toBeInTheDocument();
+    await act(async () => { resolvePreference({ pushEnabled }); });
+    if (!pushEnabled) {
+      expect(dialog()).toBeInTheDocument();
+      expect(screen.queryByTestId('later-prompt')).not.toBeInTheDocument();
+      fireEvent.click(screen.getByRole('button', { name: 'Not now' }));
+    }
+    expect(screen.getByTestId('later-prompt')).toBeInTheDocument();
   });
 
   it('does not prompt Android accounts whose browser and account push are enabled', async () => {

@@ -5,6 +5,7 @@ import {
   getNotificationPreferences,
   getNotificationSummary,
   getNotifications,
+  getVisibleNotificationIds,
   markAllNotificationsRead,
   markNotificationRead,
   normalizeLegacyNotificationCopy,
@@ -144,6 +145,19 @@ describe('notificationsApi', () => {
     vi.stubGlobal('fetch', vi.fn().mockImplementation(() => Promise.resolve(new Response(JSON.stringify({
       data: { accepted: true },
     }), { status: 200 }))));
+  });
+
+  it('checks exact popup IDs in bounded batches without consulting a notification page', async () => {
+    const ids = Array.from({ length: 51 }, (_, index) => `00000000-0000-4000-8000-${String(index + 1).padStart(12, '0')}`);
+    vi.mocked(fetch).mockResolvedValueOnce(new Response(JSON.stringify({ data: { ids: [ids[0]] } }), { status: 200 }));
+    vi.mocked(fetch).mockResolvedValueOnce(new Response(JSON.stringify({ data: { ids: [ids[50]] } }), { status: 200 }));
+    expect(await getVisibleNotificationIds([...ids, ids[0]])).toEqual([ids[0], ids[50]]);
+    expect(fetch).toHaveBeenCalledTimes(2);
+    const requested = vi.mocked(fetch).mock.calls.map(([url]) => new URL(String(url), 'https://cruush.test'));
+    expect(requested.map(url => url.pathname)).toEqual(['/api/notifications/visible-ids', '/api/notifications/visible-ids']);
+    expect(requested.map(url => url.searchParams.get('ids')?.split(',').length)).toEqual([50, 1]);
+    expect(await getVisibleNotificationIds([])).toEqual([]);
+    expect(fetch).toHaveBeenCalledTimes(2);
   });
 
   it('calls notification list, summary, and read endpoints', async () => {

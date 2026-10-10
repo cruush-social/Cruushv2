@@ -20,6 +20,8 @@ import MapView, {
   getMapStyle,
   isMarkerWithinViewportOverscan,
   separateOverlappingMarkers,
+  mapMarkerSemanticSignature,
+  OWNER_PIN_EXCLUSION_MIN_ZOOM,
 } from './MapView';
 import {
   MAP_SERVICE_CENTER,
@@ -186,6 +188,12 @@ describe('MapView', () => {
     expect(overlay).toHaveAttribute('height', '72');
     expect(overlay).toHaveAttribute('href', purgatoryHeartOverlay);
     expect(overlay).toHaveAttribute('pointer-events', 'none');
+
+    for (const activePing of [undefined, { id: 'mhc-ping', expiresAt: '2099-01-01T00:00:00.000Z' }]) {
+      rerender(<MapMarkerPin marker={{ ...marker, outOfSight: true, travelling: true, activePing }} />);
+      expect(screen.queryByTestId('marker-purgatory-heart-overlay-subject')).not.toBeInTheDocument();
+      expect(screen.getByTestId('marker-heart-subject')).not.toHaveClass('overflow-visible');
+    }
 
     rerender(<MapMarkerPin marker={{ ...marker, outOfSight: true, npcGhostDemo: true }} />);
     expect(screen.queryByTestId('marker-purgatory-heart-overlay-subject')).not.toBeInTheDocument();
@@ -2100,6 +2108,45 @@ describe('MapView', () => {
     }
   });
 
+  it('naturally separates distinct same-building pins at close zoom while coincident pins retain spiderfy', async () => {
+    render(<MapView onPinClick={vi.fn()} markers={[
+      { id: 'spread-a', displayName: 'Spread A', approximateLatitude: 40.7128, approximateLongitude: -73.99 },
+      { id: 'spread-b', displayName: 'Spread B', approximateLatitude: 40.7128 + 50 / 111195, approximateLongitude: -73.99 },
+      { id: 'same-a', displayName: 'Same A', approximateLatitude: 40.72, approximateLongitude: -73.99 },
+      { id: 'same-b', displayName: 'Same B', approximateLatitude: 40.72, approximateLongitude: -73.99 },
+    ]} />);
+    await waitFor(() => expect(screen.getAllByRole('button', { name: 'Open 2 nearby people sharing this map spot' })).toHaveLength(2));
+    act(() => { mapInstances[0].getZoom.mockReturnValue(20); mapInstances[0].trigger('zoomend'); });
+    expect(await screen.findByRole('button', { name: 'Open Spread A on map' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Open Spread B on map' })).toBeInTheDocument();
+    expect(screen.getAllByRole('button', { name: 'Open 2 nearby people sharing this map spot' })).toHaveLength(1);
+    fireEvent.click(screen.getByRole('button', { name: 'Open 2 nearby people sharing this map spot' }));
+    expect(await screen.findByRole('button', { name: 'Open Same A on map' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Open Same B on map' })).toBeInTheDocument();
+  });
+
+  it('updates close-view owner clearance without remounting the existing peer artwork', async () => {
+    render(<MapView onPinClick={vi.fn()} markers={[
+      { id: 'me', displayName: 'You', isCurrentUser: true, approximateLatitude: 40.7128, approximateLongitude: -73.99 },
+      { id: 'near-owner', displayName: 'Near owner', approximateLatitude: 40.71285, approximateLongitude: -73.99 },
+    ]} />);
+    const element = await screen.findByRole('button', { name: 'Open Near owner on map' });
+    const peer = markerInstances.find(marker => marker.element === element)!;
+    (peer as any).getOffset = () => ({ x: peer.offset?.[0] ?? 0, y: peer.offset?.[1] ?? 0 });
+    (peer as any).setOffset = vi.fn((offset: [number, number]) => { peer.offset = offset; return peer; });
+    for (const zoom of [16, 18, 16, 10]) {
+      act(() => { mapInstances[0].getZoom.mockReturnValue(zoom); mapInstances[0].trigger('zoomend'); });
+      await waitFor(() => {
+        if (zoom < OWNER_PIN_EXCLUSION_MIN_ZOOM) expect(peer.offset).toEqual([0, 0]);
+        else expect(Math.hypot(...(peer.offset ?? [0, 0]))).toBeGreaterThan(0);
+      });
+      expect(screen.getByRole('button', { name: 'Open Near owner on map' })).toBe(element);
+      expect(peer.remove).not.toHaveBeenCalled();
+    }
+    expect((peer as any).setOffset).toHaveBeenCalled();
+    expect(peer.offset).toEqual([0, 0]);
+  });
+
   it('keeps unclustered people at their anchors through zoom and metadata changes', async () => {
     const markers: MapMarker[] = [
       { id: 'me', displayName: 'You', isCurrentUser: true, approximateLatitude: 40.7128, approximateLongitude: -73.99 },
@@ -2886,7 +2933,7 @@ describe('stable Spot clusters', () => {
 });
 
 describe('separateOverlappingMarkers', () => {
-  const zoom = 14;
+  const zoom = 16;
   const me = {
     id: 'me',
     displayName: 'Julien',
@@ -2895,6 +2942,39 @@ describe('separateOverlappingMarkers', () => {
     isCurrentUser: true,
   } as any;
 
+  it('clears scaled previews and removes stale offsets after live projected positions separate', () => {
+    const peer = { ...me, id: 'peer', isCurrentUser: false };
+    const close = (marker: any) => ({ x: marker.id === 'me' ? 200 : 310, y: 200 });
+    expect(separateOverlappingMarkers([me, peer], zoom, close)[1].ownerExclusionOffset).toBeUndefined();
+    const preview = separateOverlappingMarkers([me, peer], zoom, close, undefined, new Set(['peer']));
+    expect(preview[1].ownerExclusionOffset).toBeDefined();
+    const far = (marker: any) => ({ x: marker.id === 'me' ? 200 : 600, y: 200 });
+    expect(separateOverlappingMarkers(preview, zoom, far)[1].ownerExclusionOffset).toBeUndefined();
+    expect(preview[0]).toBe(me);
+  });
+
+  it('composes spiderfy with current projected geometry instead of accumulating prior avoidance', () => {
+    const peer = { ...me, id: 'peer', isCurrentUser: false, spiderfy: { offset: [-200, 0] as [number, number], index: 0, count: 2 } };
+    const projected = (marker: any) => ({ x: marker.id === 'me' ? 200 : 400, y: 200 });
+    const first = separateOverlappingMarkers([me, peer], zoom, projected);
+    const repeat = separateOverlappingMarkers(first, zoom, projected);
+    expect(first[1].ownerExclusionOffset).toEqual(repeat[1].ownerExclusionOffset);
+    expect(first[1].spiderfy).toEqual(peer.spiderfy);
+    expect(first[1].approximateLatitude).toBe(peer.approximateLatitude);
+  });
+
+  it('keeps wide-view spiderfy unchanged and excludes only camera offsets from semantic signatures', () => {
+    const peer = { ...me, id: 'peer', isCurrentUser: false, spiderfy: { offset: [0, 0] as [number, number], index: 0, count: 2 } };
+    const projected = () => ({ x: 200, y: 200 });
+    const close = separateOverlappingMarkers([me, peer], OWNER_PIN_EXCLUSION_MIN_ZOOM, projected);
+    const wide = separateOverlappingMarkers(close, OWNER_PIN_EXCLUSION_MIN_ZOOM - 0.01, projected);
+    expect(close[1].ownerExclusionOffset).toBeDefined();
+    expect(wide[1].ownerExclusionOffset).toBeUndefined();
+    expect(wide[1].spiderfy).toEqual(peer.spiderfy);
+    expect(mapMarkerSemanticSignature(close[1])).toBe(mapMarkerSemanticSignature(wide[1]));
+    expect(mapMarkerSemanticSignature({ ...peer, displayName: 'Changed' })).not.toBe(mapMarkerSemanticSignature(peer));
+  });
+
   it('keeps every member at the same coordinates across zoom levels', () => {
     const other = { ...me, id: 'other', displayName: 'Someone', isCurrentUser: false };
     const far = { ...me, id: 'far', isCurrentUser: false, approximateLatitude: 40.7 };
@@ -2902,8 +2982,10 @@ describe('separateOverlappingMarkers', () => {
     const zoomedOut = separateOverlappingMarkers(markers, 10);
     const zoomedIn = separateOverlappingMarkers(markers, 18);
 
-    expect(zoomedOut).toBe(markers);
-    expect(zoomedIn).toBe(markers);
+    expect(zoomedOut[0]).toBe(me);
+    expect(zoomedIn[0]).toBe(me);
+    expect(zoomedOut[1].ownerExclusionOffset).toBeUndefined();
+    expect(zoomedIn[1].ownerExclusionOffset).toBeDefined();
     expect(zoomedOut.map(({ approximateLatitude, approximateLongitude }) => [approximateLatitude, approximateLongitude]))
       .toEqual(zoomedIn.map(({ approximateLatitude, approximateLongitude }) => [approximateLatitude, approximateLongitude]));
   });

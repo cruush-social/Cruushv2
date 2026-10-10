@@ -1,3 +1,7 @@
+import { nonBannedAccountSql } from "../banned-content.js";
+import { loadCheckinMutualIds, restrictedCheckinAudience, boardAudienceCondition } from "../place-audience.js";
+import { getCruushEntitlement } from "../match-relationships.js";
+import { createCrowdTokens } from "../profile-sensitive.js";
 import { randomUUID } from "node:crypto";
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
@@ -200,7 +204,7 @@ function mapPlaceForModerator(app: FastifyInstance, row: PlaceRow) {
   };
 }
 
-function basePlaceSelect(viewerParam: string, latParam: string, lngParam: string, includeTransit = false) {
+function basePlaceSelect(viewerParam: string, latParam: string, lngParam: string, includeTransit = false, mutualsParam = "'{}'") {
   return `
     p.id::text, p.slug, p.name, p.description, p.access_instructions,
     ${includeTransit ? 'p.transit_details' : 'null::jsonb'} as transit_details, p.latitude, p.longitude, p.address,
@@ -214,7 +218,7 @@ function basePlaceSelect(viewerParam: string, latParam: string, lngParam: string
          select report.vibe, count(distinct report.user_id)::int as report_count,
                 max(report.reported_at) as last_reported_at
          from place_vibe_reports report
-         where report.place_id = p.id
+         where report.place_id = p.id and ${nonBannedAccountSql("report.user_id")}
          group by report.vibe
          order by report_count desc, last_reported_at desc, report.vibe
          limit 2
@@ -228,7 +232,7 @@ function basePlaceSelect(viewerParam: string, latParam: string, lngParam: string
          select report.amenity, count(distinct report.user_id)::int as report_count,
                 max(report.reported_at) as last_reported_at
          from place_amenity_reports report
-         where report.place_id = p.id
+         where report.place_id = p.id and ${nonBannedAccountSql("report.user_id")}
          group by report.amenity
          order by report_count desc, last_reported_at desc, report.amenity
        ) ranked),
@@ -243,10 +247,11 @@ function basePlaceSelect(viewerParam: string, latParam: string, lngParam: string
       )) end as distance_miles,
     (select count(*)::int
      from place_checkins c
-     where c.place_id = p.id
+     where c.place_id = p.id and ${nonBannedAccountSql("c.user_id")}
        and c.expires_at > now()
        and (
          c.visibility_scope = 'public'
+         ${restrictedCheckinAudience(viewerParam, mutualsParam)}
          or (
            c.visibility_scope = 'checked_in'
            and exists (
@@ -257,10 +262,11 @@ function basePlaceSelect(viewerParam: string, latParam: string, lngParam: string
            )
          )
        )) as active_checkins,
-    (select max(m.created_at) from place_board_messages m where m.place_id = p.id and (m.expires_at is null or m.expires_at > now())) as recent_activity_at,
-    (select avg(r.stars)::float from place_ratings r where r.place_id = p.id and r.category = 'overall') as rating_average,
-    (select count(*)::int from place_ratings r where r.place_id = p.id and r.category = 'overall') as rating_count,
-    (select r.stars::int from place_ratings r where r.place_id = p.id and r.user_id = ${viewerParam}::uuid and r.category = 'overall') as viewer_rating`;
+    (select max(m.created_at) from place_board_messages m where m.place_id = p.id and ${nonBannedAccountSql("m.user_id")} and (m.expires_at is null or m.expires_at > now())
+      and ${boardAudienceCondition(viewerParam, mutualsParam)}) as recent_activity_at,
+    (select avg(r.stars)::float from place_ratings r where r.place_id = p.id and ${nonBannedAccountSql("r.user_id")} and r.category = 'overall') as rating_average,
+    (select count(*)::int from place_ratings r where r.place_id = p.id and ${nonBannedAccountSql("r.user_id")} and r.category = 'overall') as rating_count,
+    (select r.stars::int from place_ratings r where r.place_id = p.id and ${nonBannedAccountSql("r.user_id")} and r.user_id = ${viewerParam}::uuid and r.category = 'overall') as viewer_rating`;
 }
 
 function placeOrder(sort: string) {
@@ -347,7 +353,7 @@ export async function registerPlaceRoutes(app: FastifyInstance) {
     const amenities = query.amenities.split(",").map((value) => value.trim()).filter(Boolean);
     const result = await app.db.query<PlaceRow>(
       `select * from (
-         select ${basePlaceSelect("$1", "$2", "$3")}
+         select ${basePlaceSelect("$1", "$2", "$3", false, "$14")}
          from places p
          where p.status = 'published'
            and ($4::text = '' or p.name ilike '%' || $4 || '%' or p.description ilike '%' || $4 || '%')
@@ -356,7 +362,7 @@ export async function registerPlaceRoutes(app: FastifyInstance) {
            and (cardinality($6::text[]) = 0 or exists (select 1 from place_tags filter_tag where filter_tag.place_id = p.id and filter_tag.tag = any($6::text[])))
            and (cardinality($8::text[]) = 0
              or exists (select 1 from place_amenities filter_amenity where filter_amenity.place_id = p.id and filter_amenity.amenity = any($8::text[]))
-             or exists (select 1 from place_amenity_reports filter_report where filter_report.place_id = p.id and filter_report.amenity = any($8::text[])))
+             or exists (select 1 from place_amenity_reports filter_report where filter_report.place_id = p.id and ${nonBannedAccountSql("filter_report.user_id")} and filter_report.amenity = any($8::text[])))
            -- Follow the settled map center as the viewport changes.
            and 3958.7613 * 2 * asin(sqrt(
              power(sin(radians((p.latitude - $2::double precision) / 2)), 2)
@@ -385,7 +391,8 @@ export async function registerPlaceRoutes(app: FastifyInstance) {
         query.limit,
         query.offset,
         query.activity,
-        excludedFacilityTypes
+        excludedFacilityTypes,
+        await loadCheckinMutualIds(app, userId)
       ]
     );
     return reply.send({ data: result.rows.map(mapPlace), page: { limit: query.limit, offset: query.offset, hasMore: result.rows.length === query.limit } });
@@ -395,9 +402,10 @@ export async function registerPlaceRoutes(app: FastifyInstance) {
     await cleanupExpiredPlaceData(app);
     const userId = await getAuthenticatedUserId(request);
     const { placeId } = placeParamsSchema.parse(request.params);
+    const checkinMutualIds = await loadCheckinMutualIds(app, userId);
     const placeResult = await app.db.query<PlaceRow>(
-      `select ${basePlaceSelect("$1", "null", "null", true)} from places p where p.id = $2 and p.status = 'published' limit 1`,
-      [userId, placeId]
+      `select ${basePlaceSelect("$1", "null", "null", true, "$3")} from places p where p.id = $2 and p.status = 'published' limit 1`,
+      [userId, placeId, checkinMutualIds]
     );
     const place = placeResult.rows[0];
     if (!place) throw new ApiError(404, "NOT_FOUND", "Spot not found.");
@@ -453,9 +461,10 @@ export async function registerPlaceRoutes(app: FastifyInstance) {
          from place_checkins c
          join app_users u on u.id = c.user_id
          join profiles pr on pr.id = c.user_id
-         where c.place_id = $1 and c.visible = true and c.expires_at > now()
+         where c.place_id = $1 and ${nonBannedAccountSql("c.user_id")} and c.visible = true and c.expires_at > now()
            and (
              c.visibility_scope = 'public'
+             ${restrictedCheckinAudience("$2", "$3")}
              or (
                c.visibility_scope = 'checked_in'
                and exists (
@@ -472,7 +481,7 @@ export async function registerPlaceRoutes(app: FastifyInstance) {
                 or (b.blocker_user_id = c.user_id and b.blocked_user_id = $2)
            )
          order by c.checked_in_at desc limit 100`,
-        [placeId, userId]
+        [placeId, userId, checkinMutualIds]
       ),
       app.db.query<{ category: string; average: number; count: number; viewer_rating: number | null }>(
         `select categories.category,
@@ -480,12 +489,12 @@ export async function registerPlaceRoutes(app: FastifyInstance) {
                 count(r.stars)::int as count,
                 (max(r.stars) filter (where r.user_id = $2))::int as viewer_rating
          from unnest(array['overall', 'gender_inclusivity', 'lgbtq_friendliness', 'safety', 'accessibility', 'cleanliness']) as categories(category)
-         left join place_ratings r on r.place_id = $1 and r.category = categories.category
+         left join place_ratings r on r.place_id = $1 and r.category = categories.category and ${nonBannedAccountSql("r.user_id")}
          group by categories.category
          order by array_position(array['overall', 'gender_inclusivity', 'lgbtq_friendliness', 'safety', 'accessibility', 'cleanliness'], categories.category)`,
         [placeId, userId]
       ),
-      app.db.query<{ visible: boolean; visibility_scope: "hidden" | "public" | "checked_in"; checked_in_at: string | Date; expires_at: string | Date }>(
+      app.db.query<{ visible: boolean; visibility_scope: "hidden" | "public" | "checked_in" | "mutuals" | "crowd"; checked_in_at: string | Date; expires_at: string | Date }>(
         `select visible, visibility_scope, checked_in_at, expires_at from place_checkins
          where place_id = $1 and user_id = $2 and expires_at > now() limit 1`,
         [placeId, userId]
@@ -624,6 +633,7 @@ export async function registerPlaceRoutes(app: FastifyInstance) {
     const query = boardQuerySchema.parse(request.query);
     await requirePublishedPlace(app, placeId);
     const viewerHasActiveCheckin = await hasActivePlaceCheckin(app, userId, placeId);
+    const audienceMutualIds = await loadCheckinMutualIds(app, userId);
     const [result, mutualUserIds] = await Promise.all([
       app.db.query<BoardRow>(
         `select m.id::text, m.user_id::text, m.content, m.content_ciphertext, m.content_nonce,
@@ -648,15 +658,16 @@ export async function registerPlaceRoutes(app: FastifyInstance) {
               ) as travelling
        from place_board_messages m
        join profiles pr on pr.id = m.user_id
-       where m.place_id = $1
+       where m.place_id = $1 and ${nonBannedAccountSql("m.user_id")}
          and ($5::boolean or m.user_id = $2)
+         and ${boardAudienceCondition("$2", "$6")}
          and not exists (
            select 1 from user_blocks b
            where (b.blocker_user_id = $2 and b.blocked_user_id = m.user_id)
               or (b.blocker_user_id = m.user_id and b.blocked_user_id = $2)
          )
          order by m.created_at desc limit $3 offset $4`,
-        [placeId, userId, query.limit, query.offset, viewerHasActiveCheckin]
+        [placeId, userId, query.limit, query.offset, viewerHasActiveCheckin, audienceMutualIds]
       ),
       loadActiveMutualUserIds(app, userId)
     ]);
@@ -734,6 +745,12 @@ export async function registerPlaceRoutes(app: FastifyInstance) {
     const { placeId } = placeParamsSchema.parse(request.params);
     const payload = placeCheckinSchema.parse(request.body);
     const checkinVisibility = payload.visibility ?? (payload.visible ? "public" : "hidden");
+    const crowdTokens = payload.crowdTargets.flatMap(crowd => createCrowdTokens(app.config, [crowd]).map(token => ({ crowd, token_hash: token.token_hash, token_key_version: token.token_key_version })));
+    if (checkinVisibility === "crowd") {
+      if (!(await getCruushEntitlement(app, userId)).cruushPlus) throw new ApiError(402, "CRUUSH_PLUS_REQUIRED", "Crowd mode is part of cruush+.");
+
+    }
+
     await app.rateLimiter.assert({
       key: `place-checkin:${userId}`,
       max: 12,
@@ -770,6 +787,16 @@ export async function registerPlaceRoutes(app: FastifyInstance) {
       legacyBoardPost = encryptTextContent(app.config, "feed", payload.content);
     }
     const result = await runTransaction(app.db, async (db) => {
+      if (checkinVisibility === "crowd") {
+      const membership = await db.query<{ crowd: string }>(
+        `select target.crowd from jsonb_to_recordset($2::jsonb) as target(crowd text, token_hash text, token_key_version text)
+         join profile_sensitive_tokens author_crowd_token on author_crowd_token.user_id = $1
+           and author_crowd_token.token_hash = target.token_hash and author_crowd_token.token_key_version = target.token_key_version
+         for share of author_crowd_token`,
+        [userId, JSON.stringify(crowdTokens)]);
+      if (payload.crowdTargets.some(crowd => !membership.rows.some(row => row.crowd === crowd))) throw new ApiError(403, "CROWD_TARGET_NOT_MEMBER", "Choose one of your Crowds.");
+      }
+
       const bucketStart = new Date();
       bucketStart.setUTCMinutes(0, 0, 0);
       const event = await db.query(
@@ -778,13 +805,13 @@ export async function registerPlaceRoutes(app: FastifyInstance) {
         [placeId, userId, bucketStart]
       );
       const checkin = await db.query<{ expires_at: Date }>(
-        `insert into place_checkins (user_id, place_id, visible, visibility_scope, checked_in_at, expires_at)
-         values ($1, $2, $3, $4, now(), now() + ($5::int * interval '1 hour'))
+        `insert into place_checkins (user_id, place_id, visible, visibility_scope, crowd_targets, checked_in_at, expires_at)
+         values ($1, $2, $3, $4, $6::jsonb, now(), now() + ($5::int * interval '1 hour'))
          on conflict (user_id) do update set place_id = excluded.place_id, visible = excluded.visible,
-           visibility_scope = excluded.visibility_scope, checked_in_at = excluded.checked_in_at,
+           visibility_scope = excluded.visibility_scope, crowd_targets = excluded.crowd_targets, checked_in_at = excluded.checked_in_at,
            expires_at = excluded.expires_at
          returning expires_at`,
-        [userId, placeId, checkinVisibility !== "hidden", checkinVisibility, payload.durationHours]
+        [userId, placeId, checkinVisibility !== "hidden", checkinVisibility, payload.durationHours, JSON.stringify(crowdTokens.map(({ token_hash, token_key_version }) => ({ token_hash, token_key_version })))]
       );
       if (payload.vibes.length > 0) {
         await db.query(`delete from place_vibe_reports where place_id = $1 and user_id = $2`, [placeId, userId]);
@@ -811,8 +838,8 @@ export async function registerPlaceRoutes(app: FastifyInstance) {
         const boardPost = await db.query<{ id: string }>(
           `insert into place_board_messages (
              place_id, user_id, content, content_ciphertext, content_nonce, content_auth_tag, content_key_version,
-             expires_at
-           ) values ($1, $2, '[encrypted]', $3, $4, $5, $6, null)
+             expires_at, visibility_scope, crowd_targets
+           ) values ($1, $2, '[encrypted]', $3, $4, $5, $6, null, $7, $8::jsonb)
            returning id::text`,
           [
             placeId,
@@ -820,13 +847,15 @@ export async function registerPlaceRoutes(app: FastifyInstance) {
             legacyBoardPost.ciphertext,
             legacyBoardPost.nonce,
             legacyBoardPost.authTag,
-            legacyBoardPost.keyVersion
+            legacyBoardPost.keyVersion,
+            checkinVisibility === "mutuals" || checkinVisibility === "crowd" ? checkinVisibility : "public",
+            JSON.stringify(crowdTokens.map(({ token_hash, token_key_version }) => ({ token_hash, token_key_version })))
           ]
         );
         boardPostId = boardPost.rows[0].id;
       }
       if (event.rowCount) {
-        await db.query(
+        if (checkinVisibility !== "mutuals" && checkinVisibility !== "crowd") await db.query(
           `insert into place_activity_hourly (place_id, bucket_start, checkin_count)
            values ($1, $2, 1)
            on conflict (place_id, bucket_start) do update set checkin_count = place_activity_hourly.checkin_count + 1`,
@@ -901,7 +930,7 @@ export async function registerPlaceRoutes(app: FastifyInstance) {
              $4,
              $5,
              $6,
-             'public',
+             $16,
              feed_preferences.expires_in,
              case feed_preferences.expires_in
                when '1h' then now() + interval '1 hour'
@@ -928,9 +957,16 @@ export async function registerPlaceRoutes(app: FastifyInstance) {
             feedModeration.flaggedReason ?? null,
             JSON.stringify(feedModeration.providerResult.raw_result ?? {}),
             JSON.stringify({ source: "place_checkin", placeId }),
-            ownerFullAccess
+            ownerFullAccess,
+            checkinVisibility === "crowd" || checkinVisibility === "mutuals" ? checkinVisibility : "public"
           ]
         );
+      }
+      if (event.rowCount && checkinVisibility === "crowd") {
+        await db.query(`insert into feed_post_crowd_targets (post_id, crowd, token_hash, token_key_version)
+          select post.id, target.crowd, target.token_hash, target.token_key_version from posts post
+          cross join jsonb_to_recordset($2::jsonb) as target(crowd text, token_hash text, token_key_version text)
+          where post.id = $1`, [feedPostId, JSON.stringify(crowdTokens)]);
       }
       await db.query(`delete from place_checkin_events where expires_at <= now()`);
       await db.query(`delete from place_activity_hourly where bucket_start < now() - interval '90 days'`);

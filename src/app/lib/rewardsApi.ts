@@ -30,6 +30,7 @@ export type RewardSummary = {
     underReview: number;
     code: string;
     link: string;
+    qrCodeDataUrl?: string;
   };
   recentGrants: RewardGrant[];
   timezone: string;

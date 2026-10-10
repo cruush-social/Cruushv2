@@ -1,3 +1,4 @@
+import { refreshContentVisibility } from '../lib/contentVisibilityRevision';
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import {
   CheckCircle2,
@@ -724,6 +725,7 @@ export default function ModeratorReview() {
           ...(subject.reportId ? { reportId: subject.reportId } : {}),
         });
         receipt = result.moderationAction;
+        if (actionDialog.status === 'banned') refreshContentVisibility();
         label = actionDialog.status === 'banned'
           ? 'Account permanently banned'
           : `Account set to ${accountStatusLabels[actionDialog.status].toLowerCase()}`;

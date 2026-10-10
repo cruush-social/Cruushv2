@@ -10,6 +10,7 @@ import { Switch } from './ui/switch';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 import MultiSelect, { type MultiSelectOptionGroup } from './MultiSelect';
 import SingleSelect from './SingleSelect';
+import TagInput from './TagInput';
 import {
   AVAILABILITY,
   BODY_TYPES,
@@ -34,6 +35,7 @@ import CruushPlusGateNotice from './CruushPlusGateNotice';
 
 export interface VisibilityControlState extends FilterState {
   activeCrowdModes: string[];
+  tags: string[];
   outsideServiceAreaMembers: boolean;
   restrictAge: boolean;
   restrictDistance: boolean;
@@ -42,6 +44,7 @@ export interface VisibilityControlState extends FilterState {
 export const DEFAULT_VISIBILITY_STATE: VisibilityControlState = {
   ...DEFAULT_FILTER_STATE,
   activeCrowdModes: [],
+  tags: [],
   outsideServiceAreaMembers: false,
   restrictAge: false,
   restrictDistance: false,
@@ -76,6 +79,7 @@ const VISIBILITY_LIST_KEYS: VisibilityListKey[] = [
   'hosting',
   'preferredSpots',
   'vibes',
+  'tags',
   'crowds',
   'hobbies',
   'positions',
@@ -102,7 +106,7 @@ export function countVisibilityExclusionFilters(value: VisibilityControlState) {
     value.restrictDistance,
     value.mileHighClub,
     value.outsideServiceAreaMembers,
-    ...VISIBILITY_LIST_KEYS.map((key) => value[key].length > 0),
+    ...VISIBILITY_LIST_KEYS.map((key) => (value[key]?.length ?? 0) > 0),
   ].filter(Boolean).length;
 }
 
@@ -241,6 +245,7 @@ export default function MapVisibilitySurface({
 
           {!hasCruushPlus && onUpgrade ? (
             <CruushPlusGateNotice
+                compactMobileText
               description="Basic includes up to 3 hidden filters."
               surface="map_visibility"
               benefit="seeking_visibility"
@@ -315,7 +320,7 @@ export default function MapVisibilitySurface({
 
               {showOutsideServiceAreaControl ? (
                 <div className="flex items-center justify-between gap-4 rounded-2xl border border-white/10 bg-white/[0.035] p-4">
-                  <Label htmlFor="visibility-outside-service-area-members">Purgatory members</Label>
+                  <Label htmlFor="visibility-outside-service-area-members">Hide me from Purgatory members</Label>
                   <Switch
                     id="visibility-outside-service-area-members"
                     checked={value.outsideServiceAreaMembers}
@@ -374,6 +379,19 @@ export default function MapVisibilitySurface({
                 </p>
               </div>
 
+              <FieldGroup searchable label="Vibes" optionGroups={VISIBILITY_VIBE_GROUPS} stateKey="vibes" value={value} limitReached={freeLimitReached} onLimitReached={showLimitNotice} onChange={handleLimitedChange} />
+              <div className="space-y-2">
+                <Label htmlFor="visibility-tags">Tags</Label>
+                <TagInput
+                  ariaLabel="Tags"
+                  id="visibility-tags"
+                  tags={value.tags ?? []}
+                  maxTags={50}
+                  disabled={freeLimitReached && !(value.tags?.length)}
+                  onChange={(tags) => handleLimitedChange({ ...value, tags })}
+                  onError={setLimitNotice}
+                />
+              </div>
               <FieldGroup searchable label="Gender Identity" options={IDENTITIES} stateKey="identities" value={value} limitReached={freeLimitReached} onLimitReached={showLimitNotice} onChange={handleLimitedChange} />
               <FieldGroup label="Presentation" options={PRESENTATIONS} stateKey="presentations" value={value} limitReached={freeLimitReached} onLimitReached={showLimitNotice} onChange={handleLimitedChange} />
               <FieldGroup label="Crowds" options={CROWDS} stateKey="crowds" value={value} limitReached={freeLimitReached} onLimitReached={showLimitNotice} onChange={handleLimitedChange} />
@@ -383,7 +401,6 @@ export default function MapVisibilitySurface({
               <FieldGroup label="Body Type" options={BODY_TYPES} stateKey="bodyTypes" value={value} limitReached={freeLimitReached} onLimitReached={showLimitNotice} onChange={handleLimitedChange} />
               <FieldGroup label="Sexuality" options={SEXUALITY} stateKey="sexuality" value={value} limitReached={freeLimitReached} onLimitReached={showLimitNotice} onChange={handleLimitedChange} />
               <FieldGroup label="Zodiac" options={ZODIAC} stateKey="zodiac" selectionMode="single" value={value} limitReached={freeLimitReached} onLimitReached={showLimitNotice} onChange={handleLimitedChange} />
-              <FieldGroup searchable label="Vibes" optionGroups={VISIBILITY_VIBE_GROUPS} stateKey="vibes" value={value} limitReached={freeLimitReached} onLimitReached={showLimitNotice} onChange={handleLimitedChange} />
               <FieldGroup label="Hobbies" options={HOBBIES} stateKey="hobbies" value={value} limitReached={freeLimitReached} onLimitReached={showLimitNotice} onChange={handleLimitedChange} />
             </TabsContent>
 

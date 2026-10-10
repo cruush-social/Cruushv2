@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import PurgatoryMemberBadge from './PurgatoryMemberBadge';
 
@@ -27,6 +27,24 @@ describe('PurgatoryMemberBadge', () => {
     tap(trigger);
     await waitFor(() => expect(screen.queryByRole('tooltip')).not.toBeInTheDocument());
     expect(trigger).toHaveAttribute('aria-expanded', 'false');
+  });
+
+  it('lets Tab reach the guide link and Shift+Tab return to the badge', async () => {
+    render(<PurgatoryMemberBadge />);
+    const trigger = screen.getByRole('button', { name: 'This is a Purgatory member.' });
+    act(() => trigger.focus());
+    await screen.findByRole('tooltip');
+    fireEvent.keyDown(trigger, { key: 'Tab' });
+    const link = screen.getByRole('link');
+    expect(link).toHaveFocus();
+    expect(link).toHaveAttribute('href', '/purgatory');
+    expect(screen.getByRole('tooltip')).toBeInTheDocument();
+    fireEvent.keyDown(link, { key: 'Tab', shiftKey: true });
+    expect(trigger).toHaveFocus();
+    expect(screen.getByRole('tooltip')).toBeInTheDocument();
+    fireEvent.keyDown(trigger, { key: 'Tab' });
+    fireEvent.keyDown(link, { key: 'Tab' });
+    await waitFor(() => expect(screen.queryByRole('tooltip')).not.toBeInTheDocument());
   });
 
   it('opens on keyboard focus and dismisses with Escape', async () => {

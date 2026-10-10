@@ -1,3 +1,4 @@
+import { refreshContentVisibility } from '../lib/contentVisibilityRevision';
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -17,6 +18,7 @@ const {
   updateFeedSettings,
   getCurrentUserId,
   getMyProfile,
+  getProfileById,
 } = vi.hoisted(() => ({
   createFeedPost: vi.fn(),
   deleteFeedPost: vi.fn(),
@@ -25,6 +27,7 @@ const {
   updateFeedSettings: vi.fn(),
   getCurrentUserId: vi.fn(),
   getMyProfile: vi.fn(),
+  getProfileById: vi.fn(),
 }));
 
 const { getMyBillingStatus } = vi.hoisted(() => ({
@@ -83,6 +86,7 @@ vi.mock('../lib/profileApi', async () => {
   return {
     ...actual,
     getMyProfile,
+    getProfileById,
   };
 });
 
@@ -185,13 +189,14 @@ describe('LocalFeed', () => {
     });
   });
 
-  it('loads more posts while scrolling and stops at 100 loaded posts', async () => {
+  it('continues scrolling beyond 100 posts until the matching results are exhausted', async () => {
     let nextPostIndex = 0;
     getFeedPosts.mockImplementation(async ({ limit = 30 }) => {
-      const posts = Array.from({ length: limit }, (_, offset) => {
+      const posts = Array.from({ length: Math.min(limit, 125 - nextPostIndex) }, (_, offset) => {
         const index = nextPostIndex + offset + 1;
         return {
           id: `scroll-post-${index}`,
+          paginationCursor: `cursor-${index}`,
           content: `scroll post ${index}`,
           expiresIn: 'never' as const,
           expiresAt: null,
@@ -222,19 +227,20 @@ describe('LocalFeed', () => {
       scrollTop: { configurable: true, value: 590 },
     });
 
-    for (const expectedCalls of [2, 3, 4]) {
+    for (const expectedCalls of [2, 3, 4, 5]) {
       fireEvent.scroll(scrollArea);
       await waitFor(() => expect(getFeedPosts).toHaveBeenCalledTimes(expectedCalls));
       await waitFor(() => expect(screen.queryByText('Loading more posts...')).not.toBeInTheDocument());
     }
 
-    expect(getFeedPosts.mock.calls.map(([options]) => options.limit)).toEqual([30, 30, 30, 10]);
-    expect(screen.getByText('scroll post 100')).toBeInTheDocument();
-    expect(screen.getAllByTestId(/^feed-post-scroll-post-/)).toHaveLength(100);
+    expect(getFeedPosts.mock.calls.map(([options]) => options.limit)).toEqual([30, 30, 30, 30, 30]);
+    expect(getFeedPosts.mock.calls.map(([options]) => options.cursor)).toEqual([undefined, 'cursor-30', 'cursor-60', 'cursor-90', 'cursor-120']);
+    expect(screen.getByText('scroll post 125')).toBeInTheDocument();
+    expect(screen.getAllByTestId(/^feed-post-scroll-post-/)).toHaveLength(125);
 
     fireEvent.scroll(scrollArea);
     await act(async () => Promise.resolve());
-    expect(getFeedPosts).toHaveBeenCalledTimes(4);
+    expect(getFeedPosts).toHaveBeenCalledTimes(5);
   });
 
   afterEach(() => {
@@ -429,6 +435,25 @@ describe('LocalFeed', () => {
     expect(within(page).queryByText('Never')).not.toBeInTheDocument();
   });
 
+  it('defaults and resets Feed distance to Global while allowing a finite distance', async () => {
+    getFeedPosts.mockResolvedValue([]);
+    render(<MemoryRouter><LocalFeed /></MemoryRouter>);
+    await waitFor(() => expect(getFeedPosts).toHaveBeenLastCalledWith(expect.objectContaining({ distanceMiles: 'global' })));
+    fireEvent.click(screen.getByRole('button', { name: 'Confessional seeking' }));
+    expect(screen.getByText('Global')).toBeInTheDocument();
+    const distance = screen.getByRole('slider', { name: 'Distance' });
+    expect(distance).toHaveAttribute('aria-valuenow', '101');
+    fireEvent.keyDown(distance, { key: 'ArrowLeft' });
+    expect(screen.getByText('Up to 100 miles')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Apply' }));
+    await waitFor(() => expect(getFeedPosts).toHaveBeenLastCalledWith(expect.objectContaining({ distanceMiles: 100 })));
+    fireEvent.click(screen.getByRole('button', { name: 'Confessional seeking' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Clear' }));
+    expect(screen.getByText('Global')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Apply' }));
+    await waitFor(() => expect(getFeedPosts).toHaveBeenLastCalledWith(expect.objectContaining({ distanceMiles: 'global' })));
+  });
+
   it('filters Feed posts against active Mile High Club members', async () => {
     getFeedPosts.mockResolvedValue([]);
     render(<MemoryRouter><LocalFeed /></MemoryRouter>);
@@ -514,6 +539,53 @@ describe('LocalFeed', () => {
 
     fireEvent.keyDown(slider, { key: 'End' });
     await waitFor(() => expect(updateFeedSettings).toHaveBeenCalledWith(expect.objectContaining({ feedWindow: '30d' })));
+  });
+
+  it('preserves two loaded pages while removing banned-author posts after a visibility refresh', async () => {
+    const posts = Array.from({ length: 60 }, (_, index) => ({
+      id: `visible-${index}`, content: `visible post ${index}`, paginationCursor: `cursor-${index}`,
+      expiresIn: 'never', expiresAt: null, createdAt: new Date(1760000000000 - index * 60000).toISOString(),
+      distance: 'Nearby', user: { id: `member-${index}`, name: `member ${index}`, pronouns: '', photo: null },
+    }));
+    let banned = false;
+    getFeedPosts.mockImplementation(async ({ cursor, limit = 30 }) => {
+      const start = cursor ? Number(cursor.replace('cursor-', '')) + 1 : 0;
+      return posts.filter((post, index) => index >= start && (!banned || index !== 5)).slice(0, limit);
+    });
+    render(<MemoryRouter><LocalFeed /></MemoryRouter>);
+    expect(await screen.findByText('visible post 29')).toBeInTheDocument();
+    const scrollArea = screen.getByTestId('local-feed-posts-scroll');
+    Object.defineProperties(scrollArea, {
+      clientHeight: { configurable: true, value: 400 },
+      scrollHeight: { configurable: true, value: 1000 },
+      scrollTop: { configurable: true, value: 590 },
+    });
+    fireEvent.scroll(scrollArea);
+    expect(await screen.findByText('visible post 59')).toBeInTheDocument();
+    banned = true;
+    await act(async () => refreshContentVisibility());
+    await waitFor(() => expect(screen.queryByText('visible post 5')).not.toBeInTheDocument());
+    expect(screen.getByText('visible post 59')).toBeInTheDocument();
+    expect(screen.getAllByTestId(/^feed-post-visible-/)).toHaveLength(59);
+    expect(screen.getByTestId('local-feed-posts-scroll')).toBe(scrollArea);
+    expect(scrollArea.scrollTop).toBe(590);
+  });
+
+  it('evicts loaded banned content on a visibility change while retaining the composer draft', async () => {
+    getFeedPosts.mockResolvedValueOnce([{
+      id: 'removed-author-post', content: 'Post before author ban', expiresIn: 'never',
+      expiresAt: null, createdAt: '2026-10-08T16:00:00.000Z', distance: 'Nearby',
+      user: { id: 'user-2', name: 'river', pronouns: 'they/them', photo: null },
+    }]).mockResolvedValue([]);
+    render(<MemoryRouter><LocalFeed /></MemoryRouter>);
+    expect(await screen.findByText('Post before author ban')).toBeInTheDocument();
+    openComposer();
+    const input = screen.getByPlaceholderText('Share something with nearby people...');
+    fireEvent.change(input, { target: { value: 'Unsent draft' } });
+    act(() => refreshContentVisibility());
+    await waitFor(() => expect(screen.queryByText('Post before author ban')).not.toBeInTheDocument());
+    expect(input).toHaveValue('Unsent draft');
+    expect(input).toBeInTheDocument();
   });
 
   it('keeps the newest Feed request when an older response arrives late', async () => {
@@ -727,6 +799,7 @@ describe('LocalFeed', () => {
   });
 
   it('renders three Feed photos in one row and opens the shared full photo viewer', async () => {
+    getProfileById.mockResolvedValue({ id: 'user-2' });
     getFeedPosts.mockResolvedValue([{
       id: 'post-with-three-photos',
       content: 'three photos',
@@ -766,6 +839,11 @@ describe('LocalFeed', () => {
     expect(screen.getByRole('img', { name: 'Confessional photo 3 by river' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Report Confessional photo' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Close Confessional photo' })).toBeInTheDocument();
+
+    await act(async () => refreshContentVisibility());
+    await waitFor(() => expect(getProfileById).toHaveBeenCalledWith('user-2'));
+    expect(screen.getByRole('dialog', { name: 'Confessional photo viewer' })).toBeInTheDocument();
+    expect(screen.getByRole('img', { name: 'Confessional photo 3 by river' })).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: 'Next Confessional photo' }));
     expect(screen.getByRole('img', { name: 'Confessional photo 1 by river' })).toBeInTheDocument();
@@ -905,7 +983,7 @@ describe('LocalFeed', () => {
     expect(screen.getByTestId('feed-post-author-post-other')).not.toHaveClass('max-w-[32%]');
     expect(screen.getByTestId('feed-post-meta-post-other')).toHaveClass('flex', 'h-11', 'flex-col');
     expect(screen.getByText('he/him')).toBeInTheDocument();
-    expect(screen.getByTestId('activity-vibes')).toHaveClass('flex-wrap', 'overflow-visible');
+    expect(screen.getByTestId('activity-vibes')).toHaveClass('flex-nowrap', 'w-max');
     expect(screen.getByText('Service')).toHaveClass('flex-shrink-0', 'truncate');
 
     // Report sits on the action row between the date and the other buttons.

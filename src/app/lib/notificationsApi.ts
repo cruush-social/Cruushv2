@@ -158,6 +158,18 @@ export function normalizeLegacyNotificationCopy(notification: NotificationRecord
     : notification;
 }
 
+/** Validate specific live popups without inferring visibility from a paginated list. */
+export async function getVisibleNotificationIds(ids: string[]): Promise<string[]> {
+  const unique = [...new Set(ids)];
+  const visible: string[] = [];
+  for (let offset = 0; offset < unique.length; offset += 50) {
+    const query = new URLSearchParams({ ids: unique.slice(offset, offset + 50).join(',') });
+    const result = await requestApi<{ ids: string[] }>(`/api/notifications/visible-ids?${query}`);
+    visible.push(...result.ids);
+  }
+  return visible;
+}
+
 export function getNotifications(input: {
   filter?: 'all' | 'unread';
   cursor?: string | null;

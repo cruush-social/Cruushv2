@@ -214,8 +214,8 @@ describe('ProfileView', () => {
     await waitFor(() => expect(getMutualCruushMap).toHaveBeenCalled());
     expect(blocked).toBeDisabled();
     expect(blocked).toHaveAttribute('title', 'Map location unavailable');
-    expect(blocked).toHaveStyle({ background: 'var(--cruush-gradient-soft-28), #0A0A12' });
-    expect(blocked.style.getPropertyValue('--profile-center-pin-mobile-background')).toBe('var(--cruush-gradient-soft-28), #0A0A12');
+    expect(blocked).toHaveStyle({ background: 'var(--cruush-gradient)' });
+    expect(blocked.style.getPropertyValue('--profile-center-pin-mobile-background')).toBe('var(--cruush-gradient)');
 
     serviceArea.profilePinsAllowed = true;
     rerender(profileRoute());
@@ -293,6 +293,43 @@ describe('ProfileView', () => {
     expect(await screen.findByText('Nearby')).toBeInTheDocument();
     expect(screen.queryByText(/\d\s*mi\b/i)).not.toBeInTheDocument();
     expect(screen.getByText(/10m ago/)).toBeInTheDocument();
+  });
+
+  it('shows permitted last activity without a distance or a location icon', async () => {
+    getProfileById.mockResolvedValue(createProfileFixture({
+      distance_label: null,
+      last_active: '10m ago',
+    }));
+
+    render(
+      <MemoryRouter initialEntries={['/profile/user-1']}>
+        <Routes>
+          <Route path="/profile/:userId" element={<ProfileView />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    const activity = await screen.findByText('10m ago', { exact: true });
+    expect(activity.parentElement?.textContent).toBe('10m ago');
+    expect(activity.parentElement?.children).toHaveLength(1);
+  });
+
+  it('does not invent activity when the profile supplies neither distance nor activity', async () => {
+    getProfileById.mockResolvedValue(createProfileFixture({
+      distance_label: null,
+      last_active: null,
+    }));
+
+    render(
+      <MemoryRouter initialEntries={['/profile/user-1']}>
+        <Routes>
+          <Route path="/profile/:userId" element={<ProfileView />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    await screen.findByRole('heading', { name: /Jordan/ });
+    expect(screen.queryByText(/ago|last active|online now/i)).not.toBeInTheDocument();
   });
 
   it('shows the relationship status the editor already saved', async () => {
@@ -426,17 +463,24 @@ describe('ProfileView', () => {
     expect(placeholder.querySelector('text')).toHaveTextContent('DL MODE ON');
   });
 
-  it('shows Purgatory independently of MHC and opens its explanation on tap', async () => {
-    getProfileById.mockResolvedValue(createProfileFixture({ outOfSight: true, travelling: true }));
+  it('shows Purgatory and opens its explanation when MHC is inactive', async () => {
+    getProfileById.mockResolvedValue(createProfileFixture({ outOfSight: true, travelling: false }));
     render(
       <MemoryRouter initialEntries={['/profile/user-1']}>
         <Routes><Route path="/profile/:userId" element={<ProfileView />} /></Routes>
       </MemoryRouter>,
     );
     const badge = await screen.findByRole('button', { name: 'This is a Purgatory member.' });
-    expect(screen.getByRole('button', { name: 'This is a Mile High Club member.' })).toBeInTheDocument();
     fireEvent.click(badge);
     expect(await screen.findByRole('tooltip')).toHaveTextContent('currently outside cruush’s service area');
+  });
+
+  it('shows MHC instead of Purgatory while an MHC pin is active', async () => {
+    getProfileById.mockResolvedValue(createProfileFixture({ outOfSight: true, travelling: true }));
+    render(<MemoryRouter initialEntries={['/profile/user-1']}><Routes><Route path="/profile/:userId" element={<ProfileView />} /></Routes></MemoryRouter>);
+    expect(await screen.findByRole('button', { name: 'This is a Mile High Club member.' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'This is a Purgatory member.' })).not.toBeInTheDocument();
+    expect(screen.queryByTestId('purgatory-heart-overlay')).not.toBeInTheDocument();
   });
 
   it('does not carry Purgatory membership into another profile while its request is pending', async () => {

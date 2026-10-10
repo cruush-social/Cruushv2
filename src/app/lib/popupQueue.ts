@@ -14,7 +14,7 @@ import { useEffect, useState } from 'react';
  * open its buttons sat inside that dialog's outside-click layer and did
  * nothing when tapped. Holding the slot keeps the two from ever overlapping.
  */
-const PRIORITY = ['map-tutorial', 'push-permission', 'dl-mode-default', 'first-feed-post', 'mobile-install', 'pulse-gesture'] as const;
+const PRIORITY = ['map-tutorial', 'push-permission', 'dl-mode-default', 'first-feed-post', 'mobile-install', 'purgatory-info', 'pulse-gesture', 'affiliate-login'] as const;
 
 export type ExclusivePopupId = (typeof PRIORITY)[number];
 

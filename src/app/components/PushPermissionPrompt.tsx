@@ -8,6 +8,12 @@ import { getNotificationPreferences } from '../lib/notificationsApi';
 import { androidPushPromptSessionKey } from '../lib/pushPromptSession';
 
 const PUSH_PROMPT_VERSION = 'v1';
+export const PUSH_PREFERENCE_TIMEOUT_MS = 10_000;
+
+function wasHandled(storage: 'localStorage' | 'sessionStorage', key: string) {
+  try { return window[storage].getItem(key) === 'true'; }
+  catch { return false; }
+}
 
 export function pushPromptHandledKey(userId: string) {
   return `cruush:first-entry-push:${PUSH_PROMPT_VERSION}:${userId}`;
@@ -31,14 +37,14 @@ function canOfferAndroidPush(userId: string) {
     && 'Notification' in window
     && Boolean(navigator.serviceWorker)
     && 'PushManager' in window
-    && window.sessionStorage.getItem(androidPushPromptSessionKey(userId)) !== 'true';
+    && !wasHandled('sessionStorage', androidPushPromptSessionKey(userId));
 }
 
 function canOfferPush(userId: string) {
   if (isAndroidBrowser()) {
     return canOfferAndroidPush(userId) && Notification.permission !== 'granted';
   }
-  if (window.localStorage.getItem(pushPromptHandledKey(userId)) === 'true') {
+  if (wasHandled('localStorage', pushPromptHandledKey(userId))) {
     return false;
   }
 
@@ -57,35 +63,51 @@ export default function PushPermissionPrompt({ userId }: { userId: string }) {
   const [visible, setVisible] = useState(() => canOfferPush(userId));
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
+  const [checkingPreference, setCheckingPreference] = useState(() => canOfferAndroidPush(userId) && Notification.permission === 'granted');
   const enableGeneration = useRef(0);
-  const showing = useExclusivePopup('push-permission', visible);
+  const ownsSlot = useExclusivePopup('push-permission', visible || checkingPreference);
+  const showing = visible && ownsSlot;
 
   useEffect(() => {
     let active = true;
+    let preferencePending = true;
+    let timeout: number | undefined;
     setVisible(canOfferPush(userId));
     setError('');
     setSaving(false);
-
-    if (canOfferAndroidPush(userId) && Notification.permission === 'granted') {
+    const needsPreference = canOfferAndroidPush(userId) && Notification.permission === 'granted';
+    setCheckingPreference(needsPreference);
+    if (needsPreference) {
+      timeout = window.setTimeout(() => {
+        preferencePending = false;
+        if (active) setCheckingPreference(false);
+      }, PUSH_PREFERENCE_TIMEOUT_MS);
       void getNotificationPreferences().then((preferences) => {
-        if (active) setVisible(!preferences.pushEnabled);
+        if (active && preferencePending) setVisible(!preferences.pushEnabled);
       }).catch(() => {
         // An unavailable preference is not evidence that push is off.
+      }).finally(() => {
+        window.clearTimeout(timeout);
+        preferencePending = false;
+        if (active) setCheckingPreference(false);
       });
     }
 
     return () => {
       active = false;
+      window.clearTimeout(timeout);
       enableGeneration.current += 1;
     };
   }, [userId]);
 
   const markHandledAndClose = () => {
-    if (isAndroidBrowser()) {
-      window.sessionStorage.setItem(androidPushPromptSessionKey(userId), 'true');
-    } else {
-      window.localStorage.setItem(pushPromptHandledKey(userId), 'true');
-    }
+    try {
+      if (isAndroidBrowser()) {
+        window.sessionStorage.setItem(androidPushPromptSessionKey(userId), 'true');
+      } else {
+        window.localStorage.setItem(pushPromptHandledKey(userId), 'true');
+      }
+    } catch { /* Storage may be blocked; dismissal still works for this mount. */ }
     setVisible(false);
   };
 

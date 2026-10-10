@@ -39,6 +39,31 @@ export default function AppViewport({ children, topBanner }: { children: ReactNo
   useLayoutEffect(() => { content.current?.scrollTo(0, 0); }, [location.pathname]);
 
   const onMap = location.pathname.startsWith('/map');
+  const [dmKeyboardViewport, setDmKeyboardViewport] = useState<{ top: number; height: number } | null>(null);
+
+  useLayoutEffect(() => {
+    const viewport = window.visualViewport;
+    const update = () => {
+      // iOS may pan the layout viewport to the focused textarea. Match only
+      // the active DM keyboard's visual viewport so its header stays visible.
+      if (document.documentElement.dataset.cruushDmKeyboardOpen !== 'true' || !viewport) {
+        setDmKeyboardViewport(null);
+        return;
+      }
+      setDmKeyboardViewport({ top: viewport.offsetTop, height: viewport.height });
+    };
+    update();
+    window.addEventListener('cruush:dm-keyboard-changed', update);
+    viewport?.addEventListener('resize', update);
+    viewport?.addEventListener('scroll', update);
+    return () => {
+      window.removeEventListener('cruush:dm-keyboard-changed', update);
+      viewport?.removeEventListener('resize', update);
+      viewport?.removeEventListener('scroll', update);
+    };
+  }, []);
+
+
 
   useEffect(() => {
     const isMapGesture = (target: EventTarget | null) => target instanceof Element && Boolean(target.closest('[data-map-gesture-surface]'));
@@ -68,7 +93,7 @@ export default function AppViewport({ children, topBanner }: { children: ReactNo
 
   return (
     // A pinch belongs to the map when it starts on the map; elsewhere the page itself never zooms.
-    <div data-testid="app-viewport" className="fixed inset-0 overflow-hidden bg-background text-foreground" style={{ touchAction: 'pan-x pan-y' }}>
+    <div data-testid="app-viewport" className="fixed inset-0 overflow-hidden bg-background text-foreground" style={{ touchAction: 'pan-x pan-y', ...(dmKeyboardViewport ? { top: dmKeyboardViewport.top, height: dmKeyboardViewport.height, bottom: 'auto' } : {}) }}>
       <div ref={banner} className="absolute inset-x-0 top-0 z-30">{topBanner}</div>
       <div ref={content} data-testid="app-page-content" className={`scrollbar-hide absolute inset-0 overflow-y-auto overscroll-contain${onMap ? '' : ' cruush-app-page-content'}`} style={{ top: 'var(--cruush-sale-banner-height, 0px)', bottom: onMap ? 0 : 'var(--cruush-nav-clearance, 6rem)' }}>
         {children}

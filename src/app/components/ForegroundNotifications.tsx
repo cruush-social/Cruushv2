@@ -1,3 +1,5 @@
+import { useContentVisibilityRefresh } from '../lib/contentVisibilityRevision';
+import './ForegroundNotifications.css';
 import { useCallback, useEffect, useRef, type MutableRefObject } from 'react';
 import { X } from 'lucide-react';
 import { useLocation, useNavigate } from 'react-router';
@@ -8,6 +10,7 @@ import {
   getNotificationPreferences,
   getNotificationSummary,
   getNotifications,
+  getVisibleNotificationIds,
   markNotificationRead,
   resolveNotificationNavigationPath,
   type NotificationPreferences,
@@ -182,6 +185,8 @@ export default function ForegroundNotifications({ showLatestRewardOnFirstPoll = 
   const latestCreatedAtRef = useRef(0);
   const hasBaselineRef = useRef(false);
   const isPollingRef = useRef(false);
+  const visibilityGenerationRef = useRef(0);
+  const popupIdsRef = useRef(new Set<string>());
 
   useEffect(() => {
     pathnameRef.current = location.pathname;
@@ -223,9 +228,10 @@ export default function ForegroundNotifications({ showLatestRewardOnFirstPoll = 
 
   const showPopup = useCallback((notification: NotificationRecord) => {
     const theme = notificationPopupTheme();
+    popupIdsRef.current.add(notification.id);
 
     toast.custom((toastId) => (
-      <div className={`relative flex w-full max-w-[22rem] rounded-lg border bg-background/95 text-white shadow-[0_18px_48px_rgba(0,0,0,0.46)] backdrop-blur-md ${theme.popup}`}>
+      <div className={`relative flex w-full rounded-lg border bg-background/95 text-white shadow-[0_18px_48px_rgba(0,0,0,0.46)] backdrop-blur-md ${theme.popup}`}>
       <button
         type="button"
         className="flex w-full items-start gap-3 rounded-lg border-0 bg-transparent p-4 pr-10 text-left text-white transition-colors hover:bg-muted/80"
@@ -268,6 +274,9 @@ export default function ForegroundNotifications({ showLatestRewardOnFirstPoll = 
     ), {
       id: `notification-${notification.id}`,
       duration: 9000,
+      onDismiss: () => { popupIdsRef.current.delete(notification.id); },
+      onAutoClose: () => { popupIdsRef.current.delete(notification.id); },
+      className: 'cruush-foreground-notification w-full',
       unstyled: true,
     });
   }, [openNotification]);
@@ -281,6 +290,7 @@ export default function ForegroundNotifications({ showLatestRewardOnFirstPoll = 
       }
 
       isPollingRef.current = true;
+      const generation = visibilityGenerationRef.current;
 
       try {
         const [payload, summary, preferences] = await Promise.all([
@@ -289,7 +299,7 @@ export default function ForegroundNotifications({ showLatestRewardOnFirstPoll = 
           getNotificationPreferences(),
         ]);
 
-        if (!isActive) {
+        if (!isActive || generation !== visibilityGenerationRef.current) {
           return;
         }
 
@@ -373,6 +383,23 @@ export default function ForegroundNotifications({ showLatestRewardOnFirstPoll = 
       document.removeEventListener('visibilitychange', pollWhenVisible);
     };
   }, [showLatestRewardOnFirstPoll, showPopup]);
+
+  useContentVisibilityRefresh(async (isCurrent) => {
+    ++visibilityGenerationRef.current;
+    const candidateIds = [...popupIdsRef.current];
+    const [visibleNotificationIds, summary] = await Promise.all([
+      getVisibleNotificationIds(candidateIds), getNotificationSummary(),
+    ]);
+    if (!isCurrent()) return;
+    const visibleIds = new Set(visibleNotificationIds);
+    for (const id of candidateIds) {
+      if (!visibleIds.has(id)) {
+        toast.dismiss(`notification-${id}`);
+        popupIdsRef.current.delete(id);
+      }
+    }
+    emitNotificationsChanged(summary);
+  });
 
   return null;
 }

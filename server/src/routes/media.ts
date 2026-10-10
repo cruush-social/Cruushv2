@@ -1,3 +1,4 @@
+import { loadBannedUserIds } from "../banned-content.js";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { loadFeedHiddenAuthorIds } from "../feed-visibility.js";
 import { createHash } from "node:crypto";
@@ -132,6 +133,9 @@ async function sendEncryptedMedia(
   mediaObject: EncryptedMediaRow,
   viewerUserId: string
 ) {
+  if ((await loadBannedUserIds(app.db, [mediaObject.owner_user_id])).has(mediaObject.owner_user_id)) {
+    throw new ApiError(404, "NOT_FOUND", "Media not found.");
+  }
   if (mediaObject.owner_user_id !== viewerUserId
       && mediaObject.surface !== "message_photo"
       && (await loadOosHiddenProfileIds(app, viewerUserId, [mediaObject.owner_user_id])).has(mediaObject.owner_user_id)) {

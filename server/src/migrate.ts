@@ -245,7 +245,8 @@ const migrationFiles = [
   "219_encrypted_service_area_email_outbox.sql",
   "220_removed_feed_post_report_targets.sql",
   "221_club_join_approval.sql",
-  "222_feed_purgatory_visibility.sql"
+  "222_feed_purgatory_visibility.sql",
+  "223_place_checkin_audiences.sql"
 ];
 const rewardSafetyPreflightFiles = [
   "079_daily_check_in_rewards.sql",

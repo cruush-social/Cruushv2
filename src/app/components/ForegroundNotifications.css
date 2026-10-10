@@ -1,0 +1,7 @@
+/* Keep only foreground notification cards within the window's existing gutters. */
+@media (min-width: 601px) {
+  [data-sonner-toast].cruush-foreground-notification {
+    width: calc(100vw - 32px);
+    left: calc(50% - 50vw + 16px);
+  }
+}

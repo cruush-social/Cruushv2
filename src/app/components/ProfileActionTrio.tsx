@@ -66,7 +66,8 @@ export default function ProfileActionTrio({
         variant="secondary"
         className={`cruush-action-sheen ${sizeClass} shrink-0 rounded-full border-0 text-white disabled:opacity-100`}
         style={{
-          background: cruushTone === 'dark'
+          opacity: cruushState !== 'sending' && (cruushState === 'mutual' || cruushDisabled) ? 0.5 : undefined,
+          background: cruushState !== 'sending' && (cruushState === 'mutual' || cruushDisabled) ? 'var(--cruush-gradient)' : cruushTone === 'dark'
             ? 'var(--cruush-gradient-soft-28)'
             : (cruushState === 'available' && !cruushDisabled) || cruushTone === 'bright'
             ? 'var(--cruush-gradient)'
@@ -87,7 +88,7 @@ export default function ProfileActionTrio({
           size="icon"
           variant="secondary"
           className={`cruush-action-sheen ${sizeClass} shrink-0 rounded-full border-0 text-white disabled:opacity-100`}
-          style={{ background: pinActionable ? 'var(--cruush-gradient)' : 'var(--cruush-gradient-soft-28), #0A0A12' }}
+          style={{ background: 'var(--cruush-gradient)', opacity: pinActionable ? undefined : 0.5 }}
           aria-label={!profilePinsAllowed
             ? 'Map location unavailable'
             : pinActionable
@@ -111,7 +112,7 @@ export default function ProfileActionTrio({
           size="icon"
           variant="secondary"
           className={`cruush-action-sheen ${sizeClass} shrink-0 rounded-full border-0 text-white disabled:opacity-100`}
-          style={{ background: canMessage ? 'var(--cruush-gradient)' : 'var(--cruush-gradient-soft-28), #0A0A12' }}
+          style={{ background: 'var(--cruush-gradient)', opacity: canMessage ? undefined : 0.5 }}
           aria-label={canMessage ? `Message ${userName}` : `${userName} is not accepting messages from you`}
           title={canMessage ? `Message ${userName}` : `${userName} is not accepting messages from you`}
           onClick={onMessage}

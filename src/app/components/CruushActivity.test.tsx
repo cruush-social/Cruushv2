@@ -534,7 +534,7 @@ describe('CruushActivity', () => {
     const mutualButton = screen.getByRole('button', { name: 'Uncruush luna' });
     expect(mutualButton).toBeEnabled();
     expect(mutualButton).toHaveAttribute('data-cruush-state', 'mutual');
-    expect(mutualButton).toHaveStyle({ background: 'var(--cruush-gradient-soft-28)' });
+    expect(mutualButton).toHaveStyle({ background: 'var(--cruush-gradient)', opacity: 0.5 });
 
     fireEvent.click(mutualButton);
     await waitFor(() => expect(revokeMutualCruush).toHaveBeenCalledWith('user-luna'));

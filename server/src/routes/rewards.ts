@@ -1,5 +1,6 @@
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
+import QRCode from "qrcode";
 import { ApiError } from "../errors.js";
 import { getModeratorUser } from "../moderator-auth.js";
 import { getActiveAccountUserId, getAuthenticatedUserId } from "../request-auth.js";
@@ -112,6 +113,7 @@ export async function registerRewardRoutes(app: FastifyInstance) {
           ...summary.referrals,
           code: referral.code,
           link: referral.link,
+          qrCodeDataUrl: await QRCode.toDataURL(referral.link, { errorCorrectionLevel: "M", margin: 2, width: 256 }),
           underReview: referral.underReviewCount
         }
       }

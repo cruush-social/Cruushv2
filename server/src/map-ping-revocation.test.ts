@@ -25,6 +25,7 @@ const publicProfileRules: ProfileVisibilityRules = {
   timing: [],
   hosting: [],
   vibes: [],
+  tags: [],
   crowds: [],
   hobbies: [],
   positions: [],
@@ -269,4 +270,12 @@ describe("map Ping privacy revocation", () => {
     })).toBe(false);
     expect(profileVisibilityNarrowed(publicProfileRules, publicProfileRules)).toBe(false);
   });
+});
+
+
+it("revokes active Pulse when a dedicated tag exclusion is added but not removed", () => {
+  const tagged = { ...publicProfileRules, tags: ["rope"] };
+  expect(profileVisibilityNarrowed(publicProfileRules, tagged)).toBe(true);
+  expect(profileVisibilityNarrowed(tagged, publicProfileRules)).toBe(false);
+  expect(profileVisibilityNarrowed(tagged, tagged)).toBe(false);
 });

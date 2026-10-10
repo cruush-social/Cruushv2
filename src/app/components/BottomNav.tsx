@@ -101,6 +101,14 @@ export default function BottomNav({
 }: { outsideServiceArea?: boolean; mapSurface?: boolean } = {}) {
   const navigate = useNavigate();
   const navRef = useRef<HTMLElement>(null);
+  const [dmKeyboardOpen, setDmKeyboardOpen] = useState(() => document.documentElement.dataset.cruushDmKeyboardOpen === 'true');
+
+  useEffect(() => {
+    const update = () => setDmKeyboardOpen(document.documentElement.dataset.cruushDmKeyboardOpen === 'true');
+    update();
+    window.addEventListener('cruush:dm-keyboard-changed', update);
+    return () => window.removeEventListener('cruush:dm-keyboard-changed', update);
+  }, []);
 
   useLayoutEffect(() => {
     const nav = navRef.current;
@@ -146,6 +154,7 @@ export default function BottomNav({
   };
   const isMapRoute = location.pathname === '/map' || location.pathname.startsWith('/map/');
   const isCruiseCarouselRoute = location.pathname === '/lucky' || location.pathname.startsWith('/lucky/');
+  const isChatComposerRoute = location.pathname.startsWith('/chat/') && !location.pathname.endsWith('/settings');
   const desktopSidePanelViews: Record<string, 'feed' | 'activity' | 'messages'> = {
     '/feed': 'feed',
     '/cruush': 'activity',
@@ -238,11 +247,12 @@ export default function BottomNav({
   };
 
   return (
-    <nav ref={navRef} className="pointer-events-none fixed bottom-0 left-0 right-0 z-[60] px-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] pt-2">
+    <nav ref={navRef} style={dmKeyboardOpen ? { visibility: 'hidden' } : undefined} className="pointer-events-none fixed bottom-0 left-0 right-0 z-[60] px-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] pt-2">
       {!outsideServiceArea && !isMapRoute && !isCruiseCarouselRoute && !mapSurface ? (
         <div
           aria-hidden="true"
           className="pointer-events-none absolute inset-x-0 bottom-0 h-28 bg-gradient-to-t from-background from-[68%] via-background/96 via-[82%] to-background/0"
+          style={isChatComposerRoute ? { height: 'var(--cruush-nav-clearance, calc(6rem + env(safe-area-inset-bottom)))' } : undefined}
         />
       ) : null}
       <div

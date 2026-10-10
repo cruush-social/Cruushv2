@@ -63,8 +63,6 @@ const PAYMENT_METHOD_GUIDES: Partial<Record<CryptoPaymentRailId, readonly Paymen
       'Open Bitcoin in your payment app and choose Send to an external Bitcoin address.',
       'Paste the order address from cruush or scan its QR code. Use the Bitcoin network, not Lightning.',
       'Enter the BTC amount shown by cruush. The amount stays fixed for this order.',
-      'Cash App requires at least 0.00005 BTC for an on-chain send. Its free Standard option requires at least 0.001 BTC and can take up to 24 hours.',
-      'PayPal and Venmo require at least 0.001 BTC for an external send. For smaller orders, choose another available method.',
       'Check the app’s sending fee and total before sending. Keep enough Bitcoin in your balance to cover both the payment and that fee.',
       'Payment must arrive on-chain before the order timer ends. Checkout then tracks 0/6 through 6/6 confirmations; six averages about an hour after broadcast with prompt inclusion, but can take longer.',
     ],

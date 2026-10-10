@@ -38,6 +38,7 @@ const FiltersPanel = lazyRoute(() => import('./components/FiltersPanel'));
 const GroupDetail = lazyRoute(() => import('./components/GroupDetail'));
 const ClubDetail = lazyRoute(() => import('./components/ClubDetail'));
 const EventPassGuide = lazyRoute(() => import('./components/EventPassGuide'));
+const PurgatoryGuide = lazyRoute(() => import('./components/PurgatoryGuide'));
 const PlaceDetail = lazyRoute(() => import('./components/PlaceDetail'));
 const PrivateGroupChat = lazyRoute(() => import('./components/PrivateGroupChat'));
 const DirectMessages = lazyRoute(() => import('./components/DirectMessages'));
@@ -46,6 +47,8 @@ const NotificationSettings = lazyRoute(() => import('./components/NotificationSe
 const ForegroundNotifications = lazyRoute(() => import('./components/ForegroundNotifications'));
 const MobileInstallPrompt = lazyRoute(() => import('./components/MobileInstallPrompt'));
 const PushPermissionPrompt = lazyRoute(() => import('./components/PushPermissionPrompt'));
+const AffiliateLoginReminder = lazyRoute(() => import('./components/AffiliateLoginReminder'));
+const PurgatoryInfoPrompt = lazyRoute(() => import('./components/PurgatoryInfoPrompt'));
 const PulseGesturePrompt = lazyRoute(() => import('./components/PulseGesturePrompt'));
 const ReportPage = lazyRoute(() => import('./components/ReportPage'));
 const ModeratorReview = lazyRoute(() => import('./components/ModeratorReview'));
@@ -671,6 +674,7 @@ export default function App({
               <Route path="/groups/:groupId" element={<GroupDetail />} />
               <Route path="/clubs/:clubId" element={<ClubDetail />} />
               <Route path="/events/:eventId/pass-guide" element={<EventPassGuide />} />
+              <Route path="/purgatory" element={<PurgatoryGuide />} />
               <Route path="/places/:placeId" element={<PlaceDetail />} />
               <Route path="/chat/:chatId" element={<PrivateGroupChat />} />
               <Route path="/chat/:chatId/settings" element={<PrivateGroupChat />} />
@@ -715,11 +719,13 @@ export default function App({
               <Route path="*" element={<Navigate to="/map" replace />} />
             </Routes>
             <MobileInstallPrompt userId={session.user.id} />
-            <PushPermissionPrompt key={session.user.id} userId={session.user.id} />
+            <PushPermissionPrompt key={`push:${session.user.id}`} userId={session.user.id} />
+            <PurgatoryInfoPrompt key={`purgatory:${session.user.id}`} userId={session.user.id} />
+            <AffiliateLoginReminder key={`affiliate:${session.user.id}`} userId={session.user.id} />
             <DlModeDefaultNotice />
             <PulseGesturePrompt pending={showPulseGestureIntro} userId={session.user.id} />
             <ForegroundNotifications showLatestRewardOnFirstPoll={showOnboardingReward} />
-            <EarnedCruushPlusCards key={session.user.id} userId={session.user.id} />
+            <EarnedCruushPlusCards key={`earned:${session.user.id}`} userId={session.user.id} />
             <DebugCruushPlusToggle />
             {alphaBugControl}
           </Suspense>

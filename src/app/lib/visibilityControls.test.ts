@@ -21,3 +21,17 @@ describe('Out of Sight visibility rule', () => {
     expect(visibilityRulesToState(rules).outsideServiceAreaMembers).toBe(true);
   });
 });
+
+
+describe('independent visibility tags', () => {
+  it('round-trips tags separately from general search and counts one category', () => {
+    const state = { ...DEFAULT_VISIBILITY_STATE, tags: ['rope', 'leather'], searchQuery: 'different text' };
+    const rules = visibilityStateToRules(state);
+    expect(rules.tags).toEqual(['rope', 'leather']);
+    expect(rules.search_query).toBe('different text');
+    expect(visibilityRulesToState(rules).tags).toEqual(state.tags);
+    expect(countVisibilityExclusionFilters(state)).toBe(2);
+    const legacy = { ...rules }; delete legacy.tags;
+    expect(visibilityRulesToState(legacy).tags).toEqual([]);
+  });
+});

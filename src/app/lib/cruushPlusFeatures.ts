@@ -8,7 +8,7 @@ export const CRUUSH_PLUS_FEATURES = [
   },
   {
     title: 'More Pulses',
-    description: 'Send up to 5 Pulses per day.',
+    description: 'Send up to 5 Pulses per day. Lifetime includes unlimited Pulses.',
   },
   {
     title: 'Mile High Club',
@@ -16,7 +16,7 @@ export const CRUUSH_PLUS_FEATURES = [
   },
   {
     title: 'Confessional+',
-    description: 'Add up to three photo hearts, post to a specific Crowd, and choose when your post expires.',
+    description: 'Add up to three photo hearts and ten tags, post to a specific Crowd, and choose when your post expires.',
   },
   {
     title: 'Carousel',
@@ -24,7 +24,7 @@ export const CRUUSH_PLUS_FEATURES = [
   },
   {
     title: 'All seeking and visibility controls',
-    description: 'Use all seeking filters, combine more visibility controls, save visibility sets, add up to 10 searchable profile tags, and add as many profile kinks as fit you. Basic includes 3 tags and 3 kinks.',
+    description: 'Use all seeking filters, combine more visibility controls, save visibility sets, add up to 10 searchable profile tags and 10 hobbies, and add as many profile kinks as fit you. Basic includes 3 tags, 3 hobbies and 3 kinks.',
   },
   {
     title: 'Dark Room',

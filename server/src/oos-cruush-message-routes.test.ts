@@ -124,6 +124,7 @@ describe("OOS cruush activity and new contacts", () => {
   let app: FastifyInstance;
   let profiles: ReturnType<typeof profile>[];
   let existingDm: boolean;
+  let accountStatuses: Map<string, string>;
   let existingGroupMember: "plain" | "encrypted" | false;
   let savedStates: Map<string, EncryptedOosState & { user_id: string }>;
   const query = vi.fn();
@@ -142,6 +143,7 @@ describe("OOS cruush activity and new contacts", () => {
     vi.resetAllMocks();
     profiles = [profile(hiddenId, { outside_service_area_members: true }), profile(publicId), profile(viewerId)];
     existingDm = false;
+    accountStatuses = new Map();
     existingGroupMember = false;
     savedStates = new Map([
       [viewerId, savedState(viewerId, true)],
@@ -178,9 +180,12 @@ describe("OOS cruush activity and new contacts", () => {
         const ids = values[0] as string[];
         return { rows: ids.flatMap(id => savedStates.has(id) ? [savedStates.get(id)!] : []) };
       }
+      if (sql.includes("from app_users") && sql.includes("account_status = 'banned'") && sql.includes("where id = any")) {
+        return { rows: (values[0] as string[]).filter(id => accountStatuses.get(id) === "banned").map(id => ({ id })) };
+      }
       if (sql.includes("from profiles")) {
         const ids = Array.isArray(values[0]) ? values[0] : [values[0]];
-        return { rows: profiles.filter((row) => ids.includes(row.id)) };
+        return { rows: profiles.filter((row) => ids.includes(row.id) && (!sql.includes("banned_content_account") || accountStatuses.get(row.id) !== "banned")) };
       }
       if (sql.includes("from app_users") && sql.includes("where id::text")) return { rows: [{ id: values[0] }] };
       if (sql.includes("where kind = 'dm' and dm_key")) return { rows: existingDm ? [{ id: conversationId }] : [] };
@@ -230,6 +235,20 @@ describe("OOS cruush activity and new contacts", () => {
       record("public-mutual", "mutual_cruush", viewerId, publicId)
     ]);
   }
+
+  it.each(["active", "suspended", "banned"])("excludes only banned activity, including stored Sent snapshots (%s)", async accountStatus => {
+    seedActivity();
+    accountStatuses.set(publicId, accountStatus);
+    const response = await app.inject({ method: "GET", url: "/api/cruush/me", headers });
+    expect(response.statusCode).toBe(200);
+    const data = response.json().data;
+    expect(data.counts).toEqual(accountStatus === "banned"
+      ? { incoming: 0, sent: 0, mutual: 0, views: 0 }
+      : { incoming: 1, sent: 2, mutual: 1, views: 1 });
+    if (accountStatus === "banned") {
+      for (const key of ["incoming", "sent", "mutual", "views"]) expect(data[key]).toEqual([]);
+    }
+  });
 
   it("hides incoming, sent (including dismissed snapshots), mutuals, views and their counts", async () => {
     seedActivity();

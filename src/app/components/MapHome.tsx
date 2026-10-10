@@ -1,7 +1,8 @@
+import { useContentVisibilityRefresh } from '../lib/contentVisibilityRevision';
 // Vite env type declaration for TypeScript
 /// <reference types="vite/client" />
 import type { FormEvent, MouseEvent, PointerEvent, WheelEvent } from 'react';
-import { lazy, Suspense, useState, useEffect, useMemo, useRef, useCallback } from 'react';
+import { lazy, Suspense, useState, useEffect, useLayoutEffect, useMemo, useRef, useCallback } from 'react';
 import { useLocation, useNavigate, useSearchParams } from 'react-router';
 import { ExternalLink, Mail, MapPin, MessageCircle, X } from 'lucide-react';
 import { Button } from './ui/button';
@@ -57,6 +58,8 @@ import {
   emptyProfilePayload,
   addProfileChangedListener,
   getMyProfile,
+  getProfileById,
+  ProfileApiError,
   saveMySignal,
   saveMyVisibilityRules,
   type ProfileRecord,
@@ -147,6 +150,7 @@ export function MileHighClubBrowseLimit({
   return (
     <Button
       className="h-11 rounded-full border border-[#77B9DA]/65 bg-black/88 px-4 text-white shadow-[0_12px_36px_rgba(0,0,0,0.55)] backdrop-blur-xl hover:bg-black/92"
+      style={{ boxShadow: 'inset 0 0 0 2.2px rgb(119 185 218 / 0.65), 0 12px 36px rgb(0 0 0 / 0.55)' }}
       onClick={onActivate}
       type="button"
     >
@@ -209,9 +213,9 @@ export function isCoordinateInViewport(
 // one hundred rows at a time. Against the imported public Spot set that meant
 // over a hundred sequential requests and ten thousand markers for one view.
 const SPOT_MAP_PAGE_SIZE = 100;
-// The map shows the nearest Spots to the current view and re-queries as the
-// view moves, so zooming in reveals the rest instead of drawing every Spot in
-// the radius at once.
+// The map shows the nearest Spots to the view captured at the last zoom.
+// Panning retains that query anchor so cluster membership stays fixed;
+// zooming reveals the new area's Spots without drawing every Spot at once.
 export const SPOT_MAP_VIEW_LIMIT = 300;
 
 export async function getAllPlacesForMap(options: Parameters<typeof getPlaces>[0]) {
@@ -424,6 +428,7 @@ function normalizeVisibilityRules(rules?: ProfileVisibilityRules): ProfileVisibi
     hosting: uniqueValues(rules?.hosting ?? defaults.hosting),
     preferred_spots: uniqueValues(rules?.preferred_spots ?? defaults.preferred_spots),
     vibes: uniqueValues(rules?.vibes ?? defaults.vibes),
+    tags: uniqueValues(rules?.tags ?? defaults.tags ?? []),
     crowds: normalizeCrowdValues(rules?.crowds ?? defaults.crowds),
     hobbies: uniqueValues(rules?.hobbies ?? defaults.hobbies),
     positions: uniqueValues(rules?.positions ?? defaults.positions),
@@ -460,6 +465,7 @@ function visibilityRulesToState(rules?: ProfileVisibilityRules): VisibilityContr
     hosting: normalizedRules.hosting,
     preferredSpots: normalizedRules.preferred_spots,
     vibes: normalizedRules.vibes,
+    tags: normalizedRules.tags ?? [],
     crowds: normalizedRules.crowds,
     hobbies: normalizedRules.hobbies,
     positions: normalizedRules.positions,
@@ -489,6 +495,7 @@ function visibilityStateToRules(state: VisibilityControlState): ProfileVisibilit
     hosting: uniqueValues(state.hosting),
     preferred_spots: uniqueValues(state.preferredSpots),
     vibes: uniqueValues(state.vibes),
+    tags: uniqueValues(state.tags ?? []),
     crowds: normalizeCrowdValues(state.crowds),
     hobbies: uniqueValues(state.hobbies),
     positions: uniqueValues(state.positions),
@@ -626,6 +633,7 @@ function hasActiveVisibilityControls(visibility: VisibilityControlState) {
       visibility.hosting,
       visibility.preferredSpots,
       visibility.vibes,
+      visibility.tags ?? [],
       visibility.crowds,
       visibility.hobbies,
       visibility.positions,
@@ -966,9 +974,14 @@ export default function MapHome(_props: MapHomeProps = {}) {
   );
   const [locationStatus, setLocationStatus] = useState<'idle' | 'locating' | 'ready' | 'error'>('idle');
   const [locationError, setLocationError] = useState<string | null>(null);
+  const locationNoticeRef = useRef<HTMLDivElement>(null);
+  const browseLimitRef = useRef<HTMLDivElement>(null);
+  const [browseLimitTop, setBrowseLimitTop] = useState<number>();
+  const [locationNoticeTop, setLocationNoticeTop] = useState<number>();
   const [loading, setLoading] = useState(true);
   const [mapInstance, setMapInstance] = useState<CruushMapInstance | null>(null);
   const [mapViewport, setMapViewport] = useState<SettledMapViewport | null>(null);
+  const [spotQueryViewport, setSpotQueryViewport] = useState<SettledMapViewport | null>(null);
   const [mapControlsOpen, setMapControlsOpen] = useState(false);
 
   const [placesOpen, setPlacesOpen] = useState(false);
@@ -1395,6 +1408,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
 
       if (nextViewport) {
         setMapViewport((current) => current?.signature === nextViewport.signature ? current : nextViewport);
+        setSpotQueryViewport((current) => current?.zoom === nextViewport.zoom ? current : nextViewport);
       }
     };
     eventfulMap.on('moveend', handleMoveEnd);
@@ -1633,6 +1647,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
     limit: DISCOVERY_MAP_LIMIT,
   });
 
+  const discoveryVisibilityEpoch = useRef(0);
   const flushDiscoveryRefresh = async () => {
     const refresh = discoveryRefreshRef.current;
     const request = refresh.pending;
@@ -1654,7 +1669,8 @@ export default function MapHome(_props: MapHomeProps = {}) {
     refresh.pending = null;
     refresh.inFlight = request;
     refresh.lastStartedAtMs = Date.now();
-    const isCurrentRequest = () => !refresh.disposed
+    const visibilityEpoch = discoveryVisibilityEpoch.current;
+    const isCurrentRequest = () => visibilityEpoch === discoveryVisibilityEpoch.current && !refresh.disposed
       && (!refresh.pending || refresh.pending.key === request.key);
     if (!request.background) {
       setLoading(true);
@@ -1727,11 +1743,11 @@ export default function MapHome(_props: MapHomeProps = {}) {
   const fetchUsers = async (
     coordinates: { lat: number; lng: number } | null,
     filterParams?: FilterState,
-    options: { background?: boolean } = {},
+    options: { background?: boolean; force?: boolean } = {},
   ) => {
     const refresh = discoveryRefreshRef.current;
     const key = JSON.stringify([isMutualMapMode, coordinates, filterParams ?? null]);
-    if (options.background && refresh.inFlight?.key === key) {
+    if (options.background && !options.force && refresh.inFlight?.key === key) {
       if (refresh.pending?.background) refresh.pending = null;
       return;
     }
@@ -1763,6 +1779,21 @@ export default function MapHome(_props: MapHomeProps = {}) {
 
     return () => window.clearTimeout(refreshTimeoutId);
   }, [filters, isMutualMapMode, mapViewport?.signature]);
+
+  useContentVisibilityRefresh(async (isCurrent) => {
+    if (!hasFetchedInitialUsersRef.current) return;
+    discoveryVisibilityEpoch.current += 1;
+    const selectedId = selectedUser?.isDemo ? null : selectedUser?.id;
+    const refreshSelection = selectedId ? getProfileById(selectedId).catch(error => {
+      if (isCurrent() && error instanceof ProfileApiError && error.status === 404) {
+        setSelectedUser(current => current?.id === selectedId ? null : current);
+      } else if (isCurrent()) throw error;
+    }) : Promise.resolve();
+    await Promise.all([
+      fetchUsers(getCurrentFetchCoordinates(), filters, { background: true, force: true }),
+      refreshSelection,
+    ]);
+  });
 
   const nextGhostRotationAtMs = useMemo(() => users.reduce<number | null>((next, user) => {
     const deadline = user.ghostRotationExpiresAtMs;
@@ -2265,6 +2296,13 @@ export default function MapHome(_props: MapHomeProps = {}) {
   const restoredViewportApplies = Boolean(
     restoredMapViewport && (!travelMapLocation || restoredMapViewport.travelPinKey === travelPinKey),
   );
+  useEffect(() => {
+    // Location/account changes are not a manual pan. The map's location-focus
+    // effect synchronously sets its center before this parent effect runs.
+    // Read that current camera once, without leaving a future-pan reset armed.
+    const viewport = readSettledMapViewport(mapInstance);
+    if (viewport) setSpotQueryViewport(viewport);
+  }, [mapInstance, currentProfile?.id, currentUserMapLocation?.approximateLatitude, currentUserMapLocation?.approximateLongitude]);
   const outsideBrowseArea = useMemo(() => {
     if (!currentUserMapLocation || !mapViewport) {
       return false;
@@ -2286,14 +2324,14 @@ export default function MapHome(_props: MapHomeProps = {}) {
     let cancelled = false;
 
     void getAllPlacesForMap({
-      latitude: mapViewport?.center.latitude ?? currentUserMapLocation?.approximateLatitude,
-      longitude: mapViewport?.center.longitude ?? currentUserMapLocation?.approximateLongitude,
+      latitude: spotQueryViewport?.center.latitude ?? currentUserMapLocation?.approximateLatitude,
+      longitude: spotQueryViewport?.center.longitude ?? currentUserMapLocation?.approximateLongitude,
       query: spotMapFilters.query || undefined,
       excludedFacilityTypes: spotMapFilters.excludedFacilityTypes,
       tags: spotMapFilters.tags,
       vibes: spotMapFilters.vibes,
       amenities: spotMapFilters.amenities,
-      radiusMiles: Math.min(mapViewport?.radiusMiles ?? spotMapFilters.radiusMiles, spotMapFilters.radiusMiles),
+      radiusMiles: Math.min(spotQueryViewport?.radiusMiles ?? spotMapFilters.radiusMiles, spotMapFilters.radiusMiles),
     }).then((nextPlaces) => {
       if (!cancelled) {
         setPlaces(nextPlaces);
@@ -2308,7 +2346,8 @@ export default function MapHome(_props: MapHomeProps = {}) {
   }, [
     currentUserMapLocation?.approximateLatitude,
     currentUserMapLocation?.approximateLongitude,
-    mapViewport?.signature,
+    spotQueryViewport?.signature,
+    currentProfile?.id,
     spotMapFilters.excludedFacilityTypes,
     spotMapFilters.amenities,
     spotMapFilters.query,
@@ -2681,7 +2720,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
       // beyond the canvas in the cluster input. Clipping the input to the exact
       // viewport made a small pan rebuild nearby Spot groups around a different
       // edge set, so count markers jumped even though those Spots had not moved.
-      .filter((place) => !fitToMapMarkers || isCoordinateInViewport(place.latitude, place.longitude, mapViewport))
+      .filter((place) => !fitToMapMarkers || isCoordinateInViewport(place.latitude, place.longitude, spotQueryViewport))
       .map((place) => ({
       id: `place-${place.id}`,
       kind: 'place',
@@ -2774,7 +2813,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
       ...eventMarkers,
       ...placeMarkers,
     ];
-  }, [activeEvents, currentProfile, currentUserMapLocation, displayedUsers, fitToMapMarkers, mapPingClock, mapPingStatus, mapViewport?.signature, ownerGhostMapLocation, places, privacySettings, spotsVisible, travelPin]);
+  }, [activeEvents, currentProfile, currentUserMapLocation, displayedUsers, fitToMapMarkers, mapPingClock, mapPingStatus, mapViewport?.signature, spotQueryViewport?.signature, ownerGhostMapLocation, places, privacySettings, spotsVisible, travelPin]);
   const browseVisibleMapMarkers = useMemo(() => {
     if (!currentUserMapLocation) {
       return mapMarkers;
@@ -2897,6 +2936,43 @@ export default function MapHome(_props: MapHomeProps = {}) {
     }
   };
 
+  useLayoutEffect(() => {
+    const notice = locationNoticeRef.current;
+    const browseLimit = browseLimitRef.current;
+    const shell = (notice ?? browseLimit)?.closest('[data-testid="map-home-shell"]');
+    if (!shell) return;
+    const rightControls = shell.querySelector<HTMLElement>('[data-testid="map-right-actions"]');
+    const positionChrome = () => {
+      const shellTop = shell.getBoundingClientRect().top;
+      const rem = parseFloat(getComputedStyle(document.documentElement).fontSize);
+      const right = rightControls?.getBoundingClientRect();
+      const limit = browseLimit?.getBoundingClientRect();
+      const intersectsHorizontally = (a: DOMRect, b: DOMRect) => a.left < b.right && a.right > b.left;
+      let limitTop = 8.75 * rem;
+      if (limit && right && right.width > 0 && right.height > 0 && intersectsHorizontally(limit, right)
+        && shellTop + limitTop < right.bottom && shellTop + limitTop + limit.height > right.top) {
+        limitTop = right.bottom - shellTop + 8;
+      }
+      setBrowseLimitTop(limit ? limitTop : undefined);
+      if (notice) {
+        const bounds = notice.getBoundingClientRect();
+        let top = 10 * rem;
+        if (right && right.width > 0 && right.height > 0 && intersectsHorizontally(bounds, right)) {
+          top = Math.max(top, right.bottom - shellTop + 8);
+        }
+        if (limit && intersectsHorizontally(bounds, limit)) top = Math.max(top, limitTop + limit.height + 8);
+        setLocationNoticeTop(top);
+      }
+    };
+    const observer = new ResizeObserver(positionChrome);
+    observer.observe(shell);
+    if (notice) observer.observe(notice);
+    if (browseLimit) observer.observe(browseLimit);
+    if (rightControls) observer.observe(rightControls);
+    positionChrome();
+    return () => observer.disconnect();
+  }, [locationError, outsideBrowseArea, isMobile]);
+
   const handleWelcomeDayClaim = async () => {
     if (claimingWelcomeDay || !welcomeDayStatus?.available) return;
     setClaimingWelcomeDay(true);
@@ -2932,7 +3008,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
         <div className="relative flex w-full items-start gap-2 max-[430px]:gap-0.5 sm:gap-2.5">
           <h1 className="sr-only">cruush</h1>
           <div
-            className={`relative shrink-0 ${displayedOutsideServiceArea ? 'max-[430px]:mt-20' : ''}`}
+            className="relative shrink-0"
             data-map-control-hit-layer="true"
             data-testid="map-plus-stack"
             onPointerEnter={() => setMapControlsHovered(true)}
@@ -2958,12 +3034,11 @@ export default function MapHome(_props: MapHomeProps = {}) {
             setSidePanelView={setSidePanelView}
             notificationUnreadCount={notificationUnreadCount}
             outsideServiceArea={displayedOutsideServiceArea}
-            centerInViewport={displayedOutsideServiceArea}
           />
 
           {/* The bug control is fixed to the corner like cruush+ is, so the bar
               ends before it instead of running underneath it. */}
-            {!displayedOutsideServiceArea ? <div
+            <div
               // The whole top layer is pointer-events-none so the map underneath
               // stays draggable; every control in it opts back in. The slot had
               // not, so the bug button it holds looked tappable and was not:
@@ -2975,7 +3050,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
               onPointerEnter={() => setMapControlsHovered(true)}
               onPointerLeave={() => setMapControlsHovered(false)}
               ref={registerBugButtonSlot}
-            /> : null}
+            />
           </div>
         </div>
 
@@ -3029,7 +3104,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
               restoredMapZoom != null && !focusUserId && !travelMapLocation,
             )}
             denseVenue={denseVenue}
-            radiusCircle={privacySettings.ghostModeEnabled && currentUserMapLocation
+            radiusCircle={privacySettings.ghostModeEnabled && privacySettings.ghostLeashVisible !== false && currentUserMapLocation
               ? {
                   center: currentUserMapLocation,
                   radiusMeters: privacySettings.ghostRadiusMeters,
@@ -3052,6 +3127,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
 
         {displayedOutsideServiceArea ? (
           <OutsideServiceAreaCard
+            browseLimitVisible={Boolean(outsideBrowseArea)}
             currentUserEmail={currentUserEmail}
             onActivate={openMileHighClubFromMap}
             onRequestedCityChange={(value) => {
@@ -3081,6 +3157,8 @@ export default function MapHome(_props: MapHomeProps = {}) {
         {outsideBrowseArea ? (
           <div
             className="pointer-events-auto absolute left-1/2 top-[8.75rem] z-[120] -translate-x-1/2"
+            ref={browseLimitRef}
+            style={{ top: browseLimitTop }}
             data-testid="mile-high-club-browse-limit"
           >
             <MileHighClubBrowseLimit
@@ -3091,7 +3169,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
         ) : null}
 
         {locationError ? (
-          <div className="absolute left-4 right-20 top-40 z-20 rounded-md border border-white/10 bg-background/82 p-3 text-sm text-white/72 backdrop-blur-md">
+          <div ref={locationNoticeRef} style={{ top: locationNoticeTop }} className="absolute left-4 right-20 top-40 z-[890] rounded-md border border-white/10 bg-background/82 p-3 text-sm text-white/72 backdrop-blur-md">
             {locationError}
           </div>
         ) : null}

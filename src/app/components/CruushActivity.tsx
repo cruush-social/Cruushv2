@@ -1,5 +1,6 @@
+import { useContentVisibilityRefresh } from '../lib/contentVisibilityRevision';
 import { getNsfwPhotoRestriction } from '../lib/dlMode';
-import { useEffect, useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { useNavigate } from 'react-router';
 import {
   Lock,
@@ -131,10 +132,14 @@ function CruushActionButton({
       size="icon"
       variant="secondary"
       className={[
+        state === 'mutual' && revocable ? 'cruush-action-sheen' : '',
         'h-11 w-11 shrink-0 rounded-full text-white transition disabled:opacity-100',
         'border-0 hover:brightness-125',
       ].join(' ')}
-      style={{ background: state === 'available' ? 'var(--cruush-gradient)' : 'var(--cruush-gradient-soft-28)' }}
+      style={{
+        background: state === 'mutual' || (disabled && state !== 'sending') || state === 'available' ? 'var(--cruush-gradient)' : 'var(--cruush-gradient-soft-28)',
+        opacity: state === 'mutual' || (disabled && state !== 'sending') ? 0.5 : undefined,
+      }}
       aria-label={labels[state]}
       title={labels[state]}
       disabled={disabled}
@@ -558,13 +563,16 @@ export default function CruushActivity({
   const [matchSettingsOpen, setMatchSettingsOpen] = useState(false);
   const [directComposerOpen, setDirectComposerOpen] = useState(false);
 
-  const fetchCruushActivity = async () => {
+  const activityRequest = useRef(0);
+  const fetchCruushActivity = async (retryVisibilityFailure = false) => {
+    const request = ++activityRequest.current;
     setError(null);
     try {
       const [nextActivity, mutualMapItems] = await Promise.all([
         getMyCruushActivity(),
         getMutualCruushMap().catch(() => []),
       ]);
+      if (request !== activityRequest.current) return;
       setActivity(nextActivity);
       setValidPinUserIds(new Set(mutualMapItems
         .filter((item) => item.canRevealPreciseLocation === true
@@ -572,15 +580,20 @@ export default function CruushActivity({
           && (item.displayExpiresAtMs == null || item.displayExpiresAtMs > Date.now()))
         .map((item) => item.user.id)));
     } catch (fetchError) {
+      if (request !== activityRequest.current) return;
       console.error('Error fetching cruush activity:', fetchError);
       setError(fetchError instanceof Error ? fetchError.message : 'Failed to load cruush activity.');
+      if (retryVisibilityFailure) throw fetchError;
     } finally {
-      setLoading(false);
+      if (request === activityRequest.current) setLoading(false);
     }
   };
 
+  useContentVisibilityRefresh(() => fetchCruushActivity(true));
+
   useEffect(() => {
     void fetchCruushActivity();
+    return () => { activityRequest.current += 1; };
   }, []);
 
   useEffect(() => {

@@ -1,9 +1,10 @@
-import type { FormEvent } from 'react';
+import { useLayoutEffect, useRef, useState, type FormEvent } from 'react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import type { WelcomeDayStatus } from '../lib/rewardsApi';
 
 interface OutsideServiceAreaCardProps {
+  browseLimitVisible?: boolean;
   currentUserEmail: string;
   onActivate: () => void;
   onRequestedCityChange: (value: string) => void;
@@ -20,6 +21,7 @@ interface OutsideServiceAreaCardProps {
 }
 
 export default function OutsideServiceAreaCard({
+  browseLimitVisible = false,
   currentUserEmail,
   onActivate,
   onRequestedCityChange,
@@ -34,13 +36,50 @@ export default function OutsideServiceAreaCard({
   onClaimWelcomeDay,
   hasCruushPlus,
 }: OutsideServiceAreaCardProps) {
+  const frameRef = useRef<HTMLDivElement>(null);
+  const cardRef = useRef<HTMLDivElement>(null);
+  const [mobileScale, setMobileScale] = useState(1);
+  const [mobileTop, setMobileTop] = useState<number>();
+  useLayoutEffect(() => {
+    const frame = frameRef.current;
+    const card = cardRef.current;
+    if (!frame || !card) return;
+    const mobile = window.matchMedia('(max-width: 639px)');
+    const recentlyActive = frame.parentElement?.querySelector<HTMLElement>('[data-testid="recently-active-panel"]');
+    const browseLimit = browseLimitVisible
+      ? frame.parentElement?.querySelector<HTMLElement>('[data-testid="mile-high-club-browse-limit"]')
+      : null;
+    const fit = () => {
+      const parentTop = frame.parentElement?.getBoundingClientRect().top ?? 0;
+      const top = mobile.matches && browseLimit
+        ? Math.max(128, browseLimit.getBoundingClientRect().bottom - parentTop + 16)
+        : undefined;
+      setMobileTop(top);
+      const frameTop = top === undefined ? frame.getBoundingClientRect().top : parentTop + top;
+      const frameBottom = frame.getBoundingClientRect().bottom;
+      const availableHeight = recentlyActive
+        ? Math.min(frameBottom, recentlyActive.getBoundingClientRect().top - 16) - frameTop
+        : frameBottom - frameTop;
+      setMobileScale(mobile.matches && card.offsetHeight > 0
+        ? Math.max(0, Math.min(1, availableHeight / card.offsetHeight))
+        : 1);
+    };
+    const observer = new ResizeObserver(fit);
+    observer.observe(frame);
+    observer.observe(card);
+    if (recentlyActive) observer.observe(recentlyActive);
+    if (browseLimit) observer.observe(browseLimit);
+    mobile.addEventListener('change', fit);
+    fit();
+    return () => { observer.disconnect(); mobile.removeEventListener('change', fit); };
+  }, [browseLimitVisible]);
   const welcomeDayActive = welcomeDayStatus?.claimed === true
     && (!welcomeDayStatus.activeUntil || Date.parse(welcomeDayStatus.activeUntil) > Date.now());
   const canUseMileHighClub = hasCruushPlus || welcomeDayActive;
 
   return (
-    <div className="pointer-events-auto absolute inset-0 z-20 flex items-start justify-center px-4 pb-36 pt-32 max-[430px]:pt-36">
-      <div className="max-h-full min-h-0 w-full max-w-md overflow-y-auto rounded-3xl border border-white/10 bg-[color:var(--cruush-black-glass)] p-6 text-center text-white shadow-[0_24px_80px_rgba(0,0,0,0.68)] backdrop-blur-[var(--cruush-black-glass-blur)]">
+    <div ref={frameRef} style={{ top: mobileTop }} className="pointer-events-auto absolute inset-x-4 top-32 bottom-[calc(9rem+env(safe-area-inset-bottom))] z-20 flex items-start justify-center sm:inset-0 sm:px-4 sm:pb-36 sm:pt-32">
+      <div ref={cardRef} style={{ transform: mobileScale < 1 ? `scale(${mobileScale})` : undefined, transformOrigin: 'top center' }} className="h-fit min-h-0 w-full max-w-md shrink-0 sm:max-h-full sm:overflow-y-auto rounded-3xl border border-white/10 bg-[color:var(--cruush-black-glass)] p-6 text-center text-white shadow-[0_24px_80px_rgba(0,0,0,0.68)] backdrop-blur-[var(--cruush-black-glass-blur)]">
         <h2 className="text-2xl font-semibold">NYC open beta</h2>
         <p className="mt-3 text-sm text-white/72">
           You can still post, message, and connect on cruush. The map is available within 100 miles of the center of New York during the NYC open beta.

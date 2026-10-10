@@ -5,6 +5,7 @@ import PlaceDetail from './PlaceDetail';
 import type { PlaceBoardMessage, PlaceDetailRecord } from '../lib/placesApi';
 
 const {
+  getMyBillingStatus, getMyProfile,
   checkIntoPlace,
   checkOutOfPlace,
   deletePlaceBoardMessage,
@@ -14,6 +15,7 @@ const {
   ratePlace,
   removePlaceRating,
 } = vi.hoisted(() => ({
+  getMyBillingStatus: vi.fn(), getMyProfile: vi.fn(),
   checkIntoPlace: vi.fn(),
   checkOutOfPlace: vi.fn(),
   deletePlaceBoardMessage: vi.fn(),
@@ -24,6 +26,8 @@ const {
   removePlaceRating: vi.fn(),
 }));
 
+vi.mock('../lib/billingApi', () => ({ CRUUSH_PLUS_CHANGED_EVENT: 'cruush-plus-changed', getMyBillingStatus }));
+vi.mock('../lib/profileApi', () => ({ getMyProfile }));
 vi.mock('../lib/placesApi', async () => {
   const actual = await vi.importActual<typeof import('../lib/placesApi')>('../lib/placesApi');
 
@@ -111,6 +115,8 @@ describe('PlaceDetail request isolation', () => {
   let locationSuccess: PositionCallback | undefined;
 
   beforeEach(() => {
+    getMyBillingStatus.mockResolvedValue({ cruushPlus: false });
+    getMyProfile.mockResolvedValue({ crowds: [] });
     checkIntoPlace.mockReset();
     checkOutOfPlace.mockReset();
     deletePlaceBoardMessage.mockReset();
@@ -198,18 +204,47 @@ describe('PlaceDetail request isolation', () => {
     render(placeDetail('spot-a'));
 
     expect((await screen.findByText('Spot A address')).parentElement).toHaveClass('text-base');
-    expect(screen.getByText('Cruisy')).toHaveClass('text-base');
-    expect(screen.getByText('Drinks')).toHaveClass('text-base');
+    expect(screen.getByText('Cruisy', { selector: 'span' })).toHaveClass('text-base');
+    expect(screen.getByText('Drinks', { selector: 'span' })).toHaveClass('text-base');
     expect(screen.getByRole('button', { name: 'Add spot details' })).toHaveClass('text-base');
     expect(screen.getByText('Access')).toHaveClass('text-base');
   });
 
-  it('keeps check-in content inside the established accordion without a nested capsule', async () => {
+  it('collapses only Pink Book vibes and amenities and preserves selections and the three-vibe limit', async () => {
+    getPlace.mockResolvedValue(makePlace('spot-a', 'Spot A'));
+    getPlaceBoard.mockResolvedValue([]);
+    render(placeDetail('spot-a'));
+    await screen.findByRole('textbox', { name: 'Pink Book post for check-in' });
+    const vibes = screen.getByRole('button', { name: 'Spot vibes', exact: true });
+    const amenities = screen.getByRole('button', { name: 'Amenities (optional)', exact: true });
+    expect(vibes).toHaveAttribute('aria-expanded', 'false');
+    expect(amenities).toHaveAttribute('aria-expanded', 'false');
+    expect(screen.queryByRole('button', { name: 'Chill' })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Check-in visibility' })).toBeVisible();
+
+    fireEvent.click(vibes);
+    for (const name of ['Chill', 'Social', 'Flirty']) fireEvent.click(screen.getByRole('button', { name }));
+    expect(screen.getByRole('button', { name: 'Cruisy' })).toBeDisabled();
+    fireEvent.click(amenities);
+    fireEvent.click(screen.getByRole('button', { name: 'Restrooms', exact: true }));
+    expect(vibes).toHaveAttribute('aria-expanded', 'true');
+    fireEvent.click(vibes);
+    fireEvent.click(amenities);
+    fireEvent.click(vibes);
+    fireEvent.click(amenities);
+    expect(screen.getByRole('button', { name: 'Chill' })).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByRole('button', { name: 'Restrooms', exact: true })).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByRole('button', { name: 'Cruisy' })).toBeDisabled();
+    fireEvent.click(screen.getByRole('button', { name: 'Chill' }));
+    expect(screen.getByRole('button', { name: 'Cruisy' })).toBeEnabled();
+  });
+
+  it('keeps check-in and posting controls visible without the accordion or a nested capsule', async () => {
     getPlace.mockResolvedValue(makePlace('spot-a', 'Spot A'));
     getPlaceBoard.mockResolvedValue([]);
 
     const firstView = render(placeDetail('spot-a'));
-    fireEvent.click(await screen.findByRole('button', { name: 'Check in' }));
+    await screen.findByRole('textbox', { name: 'Pink Book post for check-in' });
     const checkinContent = screen.getByRole('textbox', { name: 'Pink Book post for check-in' }).parentElement;
     expect(checkinContent).toHaveClass('p-3');
     expect(checkinContent).not.toHaveClass('rounded-lg', 'border', 'border-border', 'bg-card');
@@ -226,7 +261,7 @@ describe('PlaceDetail request isolation', () => {
     });
 
     render(placeDetail('spot-a'));
-    fireEvent.click(await screen.findByRole('button', { name: 'Post to Pink Book' }));
+    await screen.findByRole('textbox', { name: 'Write a Pink Book post' });
     const checkedInContent = screen.getByRole('textbox', { name: 'Write a Pink Book post' }).parentElement;
     expect(checkedInContent).toHaveClass('p-3');
     expect(checkedInContent).not.toHaveClass('rounded-lg', 'border', 'border-border', 'bg-card');
@@ -260,6 +295,27 @@ describe('PlaceDetail request isolation', () => {
     expect(screen.queryByText('Late Spot A post')).not.toBeInTheDocument();
   });
 
+  it('keeps Hidden default and offers only eligible crowd choices to cruush+ members', async () => {
+    getMyBillingStatus.mockResolvedValue({ cruushPlus: true });
+    getMyProfile.mockResolvedValue({ crowds: ['Gay', 'T4T'], is_trans: false });
+    getPlace.mockResolvedValue(makePlace('spot-a', 'Spot A'));
+    getPlaceBoard.mockResolvedValue([]);
+    checkIntoPlace.mockResolvedValue({});
+    render(placeDetail('spot-a'));
+    const picker = await screen.findByRole('button', { name: 'Check-in visibility' });
+    expect(screen.getByText('Hidden', { exact: true })).toBeVisible();
+    fireEvent.click(picker);
+    expect(await screen.findByRole('option', { name: 'Gay', exact: true })).toBeVisible();
+    expect(screen.queryByRole('option', { name: 'T4T', exact: true })).not.toBeInTheDocument();
+    expect(screen.getByRole('option', { name: 'Cruushes', exact: true })).toBeVisible();
+    fireEvent.click(screen.getByRole('option', { name: 'Gay', exact: true }));
+    fireEvent.click(screen.getByRole('button', { name: 'Spot vibes', exact: true }));
+    fireEvent.click(screen.getByRole('button', { name: 'Chill', exact: true }));
+    fireEvent.click(screen.getByRole('button', { name: 'Check in', exact: true }));
+    act(() => locationSuccess?.({ coords: { latitude: 40.7, longitude: -74, accuracy: 10 }, timestamp: Date.now() } as GeolocationPosition));
+    await waitFor(() => expect(checkIntoPlace).toHaveBeenCalledWith('spot-a', expect.objectContaining({ visibility: 'crowd', crowdTargets: ['Gay'] })));
+  });
+
   it('offers public, checked-in-only, and hidden check-in visibility', async () => {
     getPlace.mockResolvedValue(makePlace('spot-a', 'Spot A'));
     getPlaceBoard.mockResolvedValue([]);
@@ -272,10 +328,12 @@ describe('PlaceDetail request isolation', () => {
     });
 
     render(placeDetail('spot-a'));
-    fireEvent.click(await screen.findByRole('button', { name: 'Check in' }));
+    await screen.findByRole('textbox', { name: 'Pink Book post for check-in' });
+    fireEvent.click(screen.getByRole('button', { name: 'Spot vibes', exact: true }));
     fireEvent.click(screen.getByRole('button', { name: 'Chill' }));
-    fireEvent.click(screen.getByRole('radio', { name: 'Only people checked in' }));
-    fireEvent.click(within(screen.getByRole('radiogroup', { name: 'Check-in visibility' }).parentElement!.parentElement!).getByRole('button', { name: 'Check in' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Check-in visibility' }));
+    fireEvent.click(screen.getByRole('option', { name: 'Only people checked in' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Check in', exact: true }));
 
     act(() => {
       locationSuccess?.({
@@ -305,10 +363,11 @@ describe('PlaceDetail request isolation', () => {
     getPlaceBoard.mockResolvedValue([]);
 
     const view = render(placeDetail('spot-a'));
-    fireEvent.click(await screen.findByRole('button', { name: 'Check in' }));
+    await screen.findByRole('textbox', { name: 'Pink Book post for check-in' });
     fireEvent.change(await screen.findByRole('textbox', { name: 'Pink Book post for check-in' }), {
       target: { value: 'Checking in' },
     });
+    fireEvent.click(screen.getByRole('button', { name: 'Spot vibes', exact: true }));
     fireEvent.click(screen.getByRole('button', { name: 'Chill' }));
     fireEvent.click(within(screen.getByRole('textbox', { name: 'Pink Book post for check-in' }).parentElement!).getByRole('button', { name: 'Check in' }));
     expect(getCurrentPosition).toHaveBeenCalledTimes(1);

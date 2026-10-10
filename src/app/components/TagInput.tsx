@@ -34,6 +34,7 @@ export default function TagInput({
   const [draft, setDraft] = useState('');
   const normalizedTags = tags.map(normalizeTag).filter(Boolean);
   const atLimit = normalizedTags.length >= maxTags;
+  const addUnavailable = disabled || atLimit || !normalizeTag(draft);
 
   const addTag = () => {
     const tag = normalizeTag(draft);
@@ -85,7 +86,7 @@ export default function TagInput({
         />
         <button
           className="text-sm font-semibold text-white/72 disabled:opacity-35"
-          disabled={disabled || atLimit || !normalizeTag(draft)}
+          disabled={addUnavailable}
           onClick={addTag}
           type="button"
         >

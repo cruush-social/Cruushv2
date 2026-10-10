@@ -6,14 +6,16 @@ import { shouldMaskPhoto, getNsfwPhotoRestriction, type DlModePhotoRelationship 
 type FeedAttachmentPreviewProps = {
   photos: readonly FeedPhoto[];
   dlModeActive: boolean;
+  borderColor?: string;
   relationship?: DlModePhotoRelationship;
   onOpen: (index: number) => void;
 };
 
-function PhotoHeart({ photo, index, dlModeActive, relationship, className, onOpen }: {
+function PhotoHeart({ photo, index, dlModeActive, borderColor, relationship, className, onOpen }: {
   photo: FeedPhoto;
   index: number;
   dlModeActive: boolean;
+  borderColor?: string;
   relationship?: DlModePhotoRelationship;
   className: string;
   onOpen: (index: number) => void;
@@ -21,6 +23,7 @@ function PhotoHeart({ photo, index, dlModeActive, relationship, className, onOpe
   const masked = shouldMaskPhoto(dlModeActive, photo.explicit, relationship);
   return (
     <HeartPhoto
+      borderColor={borderColor}
       className={className}
       fallback={<CruushIcon name="camera" className="h-3.5 w-3.5 opacity-35" />}
       label={masked ? `Confessional photo ${index + 1} hidden by DL Mode` : `Open Confessional photo ${index + 1}`}
@@ -34,7 +37,7 @@ function PhotoHeart({ photo, index, dlModeActive, relationship, className, onOpe
   );
 }
 
-export default function FeedAttachmentPreview({ photos, dlModeActive, relationship, onOpen }: FeedAttachmentPreviewProps) {
+export default function FeedAttachmentPreview({ photos, dlModeActive, borderColor, relationship, onOpen }: FeedAttachmentPreviewProps) {
   const visiblePhotos = photos.slice(0, 3);
   if (visiblePhotos.length === 0) {
     return null;
@@ -47,6 +50,7 @@ export default function FeedAttachmentPreview({ photos, dlModeActive, relationsh
     >
       {visiblePhotos.map((photo, index) => (
         <PhotoHeart
+          borderColor={borderColor}
           className="h-16 w-16 shrink-0"
           dlModeActive={dlModeActive}
           relationship={relationship}

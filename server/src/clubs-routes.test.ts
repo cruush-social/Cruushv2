@@ -56,11 +56,47 @@ function mockAdmission(options: { approval?: boolean; count?: number; account?: 
 
 describe("encrypted Club directory routes", () => {
   beforeEach(() => {
-    query.mockReset(); Object.values(mocks).forEach((mock) => mock.mockReset());
+    query.mockReset().mockResolvedValue({ rows: [] }); Object.values(mocks).forEach((mock) => mock.mockReset());
     mocks.getRelationshipPermissions.mockResolvedValue({ canMessage: true, isMutualCruush: true });
     mocks.loadLocationEnvelopes.mockResolvedValue(new Map()); mocks.moderateTextOrReject.mockResolvedValue({ decision: { decision: "allow" } });
     mocks.findClubEnrollment.mockResolvedValue(null); mocks.listClubMemberships.mockResolvedValue([enrollment(memberId, "owner")]);
     mocks.listClubJoinRequests.mockResolvedValue([]); mocks.listUserClubMemberships.mockResolvedValue([]); mocks.upsertClubEnrollment.mockResolvedValue({});
+  });
+
+  it.each([
+    { role: "owner" as const, initial: true, next: false },
+    { role: "admin" as const, initial: false, next: true },
+    { role: "owner" as const, initial: true, next: undefined },
+    { role: "admin" as const, initial: false, next: undefined },
+  ])("updates approval for $role and preserves omission ($initial → $next)", async ({ role, initial, next }) => {
+    let approval = initial;
+    mocks.findClubEnrollment.mockImplementation(async (_context, lookup) => lookup.type === "membership" ? enrollment(userId, role) : null);
+    query.mockImplementation(async (sql: string, values: unknown[]) => {
+      if (sql.includes("with updated_club as")) {
+        expect(sql).toContain("requires_join_approval = coalesce($5::boolean, requires_join_approval)");
+        approval = (values[4] ?? approval) as boolean;
+        return { rows: [] };
+      }
+      if (sql.includes("from clubs c")) return { rows: [{ ...rawClub(), requires_join_approval: approval }] };
+      return { rows: [] };
+    });
+    const response = await app.inject({ method: "PATCH", url: `/api/clubs/${clubId}`, headers: { "x-user-id": userId },
+      payload: { title: "Night Garden", summary: "", tags: ["night"], ...(next === undefined ? {} : { requiresJoinApproval: next }) } });
+    expect(response.statusCode).toBe(200);
+    expect(response.json().data.requiresJoinApproval).toBe(next ?? initial);
+    const update = query.mock.calls.find(([sql]) => String(sql).includes("with updated_club as"));
+    expect(update?.[1]).toEqual([clubId, "Night Garden", "", ["night"], next ?? null]);
+    expect(mocks.upsertClubEnrollment).not.toHaveBeenCalled();
+  });
+
+  it.each(["member", "moderator", null] as const)("does not let %s change approval", async (role) => {
+    mocks.findClubEnrollment.mockResolvedValue(role ? enrollment(userId, role) : null);
+    const response = await app.inject({ method: "PATCH", url: `/api/clubs/${clubId}`, headers: { "x-user-id": userId },
+      payload: { title: "Night Garden", summary: "", tags: ["night"], requiresJoinApproval: false } });
+    expect(response.statusCode).toBe(403);
+    expect(query).not.toHaveBeenCalled();
+    expect(mocks.moderateTextOrReject).not.toHaveBeenCalled();
+    expect(mocks.upsertClubEnrollment).not.toHaveBeenCalled();
   });
 
   it("browses published Clubs and exposes membership only after encrypted lookup", async () => {
@@ -72,6 +108,17 @@ describe("encrypted Club directory routes", () => {
     expect(query.mock.calls[0]?.[0]).not.toMatch(/club_memberships|club_join_requests|owner_user_id/);
     expect(query.mock.calls[0]?.[1]).toEqual([["techno"], ""]);
     expect(response.json().data[0]).toMatchObject({ id: clubId, currentUserRole: "admin", conversationId, pendingJoinRequestCount: 1, memberCount: 1, requiresJoinApproval: true });
+  });
+
+  it("hides banned member and applicant counts without removing the Coven or its enrollments", async () => {
+    query.mockImplementation(async (sql: string) => ({ rows: sql.includes("from clubs c") ? [rawClub()] : sql.includes("account_status = 'banned'") ? [{ id: memberId }] : [] }));
+    mocks.listUserClubMemberships.mockResolvedValue([enrollment(userId, "admin")]);
+    mocks.listClubJoinRequests.mockResolvedValue([enrollment(memberId, "member", "join_request")]);
+    const response = await app.inject({ method: "GET", url: "/api/clubs", headers: { "x-user-id": userId } });
+    expect(response.statusCode).toBe(200);
+    expect(response.json().data[0]).toMatchObject({ id: clubId, memberCount: 0, pendingJoinRequestCount: 0 });
+    expect(mocks.deleteClubEnrollment).not.toHaveBeenCalled();
+    expect(mocks.deleteClubEnrollmentsForClub).not.toHaveBeenCalled();
   });
 
   it("creates encrypted enrollments and opaque Club conversation members", async () => {

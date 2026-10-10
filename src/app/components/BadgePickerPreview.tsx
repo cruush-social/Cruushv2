@@ -946,7 +946,10 @@ export default function BadgePickerPreview({
               color={option.hanky.color}
               label={option.hanky.meaning}
             />
-            <span className="min-w-0 break-words">{option.hanky.meaning}</span>
+            <span
+              className="w-full min-w-0 [overflow-wrap:anywhere]"
+              style={option.hanky.meaning.length > 10 ? { fontSize: '0.75em' } : undefined}
+            >{option.hanky.meaning}</span>
           </>
         ) : (
           <>

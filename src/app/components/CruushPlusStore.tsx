@@ -63,9 +63,11 @@ function formatPrice(amountCents: number, currency = 'USD') {
 
 function formatPaymentTimeRemaining(expiresAt: string, nowMs: number) {
   const remainingSeconds = Math.max(0, Math.ceil((Date.parse(expiresAt) - nowMs) / 1000));
-  const minutes = Math.floor(remainingSeconds / 60);
+  const days = Math.floor(remainingSeconds / 86400);
+  const hours = Math.floor((remainingSeconds % 86400) / 3600);
+  const minutes = Math.floor((remainingSeconds % 3600) / 60);
   const seconds = remainingSeconds % 60;
-  return `${minutes}:${seconds.toString().padStart(2, '0')}`;
+  return `${days}:${[hours, minutes, seconds].map((value) => value.toString().padStart(2, '0')).join(':')}`;
 }
 
 function termLabel(plan: StorePlan) {
@@ -441,8 +443,17 @@ export default function CruushPlusStore({ product = 'cruush_plus' }: { product?:
         : plan));
       setBitcoinEligibilityRevision(current => current + 1);
     };
+    const checkExpiry = () => {
+      if (!Number.isFinite(expiresAt) || Date.now() >= expiresAt) expire();
+    };
     const timer = window.setTimeout(expire, Math.max(0, expiresAt - Date.now()));
-    return () => window.clearTimeout(timer);
+    window.addEventListener('focus', checkExpiry);
+    document.addEventListener('visibilitychange', checkExpiry);
+    return () => {
+      window.clearTimeout(timer);
+      window.removeEventListener('focus', checkExpiry);
+      document.removeEventListener('visibilitychange', checkExpiry);
+    };
   }, [checkoutSale?.endsAt]);
 
   const discountedAmountCents = useCallback((amountCents: number) => (
@@ -814,7 +825,7 @@ export default function CruushPlusStore({ product = 'cruush_plus' }: { product?:
               Crypto lets cruush offer one-time payments while keeping the app built for the whole
               queer community.
             </p>
-            <p className="bg-[linear-gradient(90deg,rgba(255,255,255,0.62),rgba(164,164,174,0.74),rgba(255,255,255,0.5))] bg-clip-text text-transparent">
+            <p>
               It also lets us offer NSFW content from adult users.
             </p>
             <p>
@@ -949,7 +960,7 @@ export default function CruushPlusStore({ product = 'cruush_plus' }: { product?:
                     >
                       <span className="block text-sm font-medium">{source.label}</span>
                       <span className="mt-0.5 block text-sm leading-5 text-muted-foreground sm:text-xs">
-                        {belowMinimum ? `Minimum ${source.sendingApp === 'cash_app' ? '0.00005' : '0.001'} BTC` : checkingMinimum ? 'Checking minimum' : `${source.asset} · ${source.network}`}
+                        {belowMinimum ? `Minimum ${source.sendingApp === 'cash_app' ? '0.00005' : '0.001'} BTC` : checkingMinimum ? 'Checking minimum' : source.rail === 'btc_bitcoin' && source.sendingApp === 'cash_app' ? 'Minimum 0.00005 BTC' : `${source.asset} · ${source.network}`}
                       </span>
                     </button>
                   );
@@ -1015,14 +1026,26 @@ export default function CruushPlusStore({ product = 'cruush_plus' }: { product?:
                   ) : null}
                   {!paymentWindowClosed && intent.expiresAt && isOpenCryptoPayment(intent.status) ? (
                     <div className="rounded-lg border border-border bg-muted/40 p-3">
-                      <p className="text-sm font-semibold uppercase tracking-wide text-foreground sm:text-xs">Protected order</p>
-                      <p className="mt-1 text-sm font-semibold">
-                        Order timer: {formatPaymentTimeRemaining(intent.expiresAt, clockMs)}
-                      </p>
-                      <p className="mt-1 text-sm leading-5 text-muted-foreground sm:text-xs">
-                        This address is unique to your order. Send the exact amount in {intent.asset} on{' '}
-                        {CRYPTO_NETWORK_LABELS[intent.network]} and allow time for it to arrive on-chain before the timer reaches 0. Network confirmation can finish afterward.
-                      </p>
+                      <Accordion collapsible type="single" key={intent.id}>
+                        <AccordionItem className="rounded-none border-0 data-[state=open]:rounded-none" value="protected-order">
+                          <AccordionTrigger className="w-full p-0 hover:no-underline">
+                            <span>
+                              <span className="block text-sm font-semibold uppercase tracking-wide text-foreground sm:text-xs">Protected order</span>
+                              <span className="mt-1 block text-sm font-semibold">
+                                Order timer: {formatPaymentTimeRemaining(intent.expiresAt, clockMs)}
+                              </span>
+                            </span>
+                          </AccordionTrigger>
+                          <AccordionContent className="pb-0">
+                            {intent.paymentAddress && intent.quotedAmountAtomic ? (
+                              <p className="mt-1 text-sm leading-5 text-muted-foreground sm:text-xs">
+                                This address is unique to your order. Send the exact amount in {intent.asset} on{' '}
+                                {CRYPTO_NETWORK_LABELS[intent.network]} and allow time for it to arrive on-chain before the timer reaches 0. Network confirmation can finish afterward.
+                              </p>
+                            ) : null}
+                          </AccordionContent>
+                        </AccordionItem>
+                      </Accordion>
                     </div>
                   ) : null}
                   {intent.paymentAddress && intent.quotedAmountAtomic && isOpenCryptoPayment(intent.status) && !paymentWindowClosed ? (
@@ -1064,11 +1087,29 @@ export default function CruushPlusStore({ product = 'cruush_plus' }: { product?:
                         <p className="text-sm text-muted-foreground sm:text-xs">on {CRYPTO_NETWORK_LABELS[intent.network]} to this address</p>
                       </div>
                       {intent.qrCodeDataUrl ? (
-                        <img
-                          src={intent.qrCodeDataUrl}
-                          alt={`${intent.asset} payment address QR code`}
-                          className="mx-auto h-40 w-40"
-                        />
+                        <>
+                          <Card className="gap-0 sm:hidden">
+                            <Accordion collapsible type="single">
+                              <AccordionItem className="border-0" value="payment-qr-code">
+                                <AccordionTrigger className="px-3 py-2 text-sm hover:no-underline">
+                                  QR code
+                                </AccordionTrigger>
+                                <AccordionContent className="px-3 pb-3">
+                                  <img
+                                    src={intent.qrCodeDataUrl}
+                                    alt={`${intent.asset} payment address QR code`}
+                                    className="mx-auto h-40 w-40"
+                                  />
+                                </AccordionContent>
+                              </AccordionItem>
+                            </Accordion>
+                          </Card>
+                          <img
+                            src={intent.qrCodeDataUrl}
+                            alt={`${intent.asset} payment address QR code`}
+                            className="mx-auto hidden h-40 w-40 sm:block"
+                          />
+                        </>
                       ) : null}
                       <code className="block break-all rounded-lg bg-muted p-3 text-sm leading-5 sm:text-xs">
                         {intent.paymentAddress}

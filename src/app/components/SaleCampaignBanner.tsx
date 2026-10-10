@@ -7,9 +7,18 @@ export function SaleBanner({ percentOff, endsAt = null, onClick }: { percentOff:
 
   useEffect(() => {
     if (deadline === null || !Number.isFinite(deadline)) return;
-    setNow(Date.now());
-    const timer = setInterval(() => setNow(Date.now()), 1000);
-    return () => clearInterval(timer);
+    const refresh = () => setNow(Date.now());
+    refresh();
+    const timer = setInterval(refresh, 1000);
+    const expiry = setTimeout(refresh, Math.max(0, deadline - Date.now()));
+    window.addEventListener('focus', refresh);
+    document.addEventListener('visibilitychange', refresh);
+    return () => {
+      clearInterval(timer);
+      clearTimeout(expiry);
+      window.removeEventListener('focus', refresh);
+      document.removeEventListener('visibilitychange', refresh);
+    };
   }, [deadline]);
   const [flickering, setFlickering] = useState(false);
 

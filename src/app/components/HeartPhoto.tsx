@@ -1,6 +1,7 @@
-import type { NsfwPhotoRestriction } from '../lib/dlMode';
+import { showPurgatoryPresentation } from '../lib/purgatoryPresentation';
+import { getNsfwPhotoRestrictionLabel, type NsfwPhotoRestriction } from '../lib/dlMode';
 import type { KeyboardEvent, MouseEvent, ReactNode } from 'react';
-import DlModePhotoPlaceholder from './DlModePhotoPlaceholder';
+import DlModeMark from './DlModeMark';
 import { useId } from 'react';
 import profileEditIconWhite from '../assets/ui-icons/humanity-profile-selected-winged-heart-symmetric.png';
 import { resolveMediaUrl } from '../lib/apiClient';
@@ -14,6 +15,7 @@ interface HeartPhotoProps {
   borderColor?: string;
   borderTone?: UserBorderTone;
   staticMileHigh?: boolean;
+  hideMileHighContrail?: boolean;
   className?: string;
   fallback?: ReactNode;
   hideDefaultMark?: boolean;
@@ -31,6 +33,7 @@ export default function HeartPhoto({
   borderColor,
   borderTone,
   staticMileHigh = false,
+  hideMileHighContrail = false,
   className = '',
   fallback = null,
   hideDefaultMark = false,
@@ -116,9 +119,9 @@ export default function HeartPhoto({
             existing cruush mark; masked photos never get a competing fallback. */}
         {!resolvedPhoto ? (
           masked ? (
-            <foreignObject x="22" y="19" width="20" height="26">
-              <DlModePhotoPlaceholder className="h-full w-full" showLabel={false} restriction={restriction} />
-            </foreignObject>
+            <g role="img" aria-label={getNsfwPhotoRestrictionLabel(restriction) ?? 'DL MODE ON'} data-testid="dl-mode-photo-placeholder" className="opacity-75">
+              <DlModeMark active={false} className="" svgBounds={{ x: 22, y: 19, width: 20, height: 26 }} />
+            </g>
           ) : hideDefaultMark ? null : (
             <image
               href={profileEditIconWhite}
@@ -131,7 +134,7 @@ export default function HeartPhoto({
             />
           )
         ) : null}
-        {showMileHighContrail ? (
+        {showMileHighContrail && !hideMileHighContrail ? (
           <MileHighContrail
             gradientId={`${gradientId}-mile-high`}
             marker={{ id: patternId }}
@@ -144,7 +147,7 @@ export default function HeartPhoto({
           {fallback}
         </div>
       ) : null}
-      {outOfSight === true ? (
+      {showPurgatoryPresentation(outOfSight, showMileHighContrail) ? (
         <img
           alt=""
           aria-hidden="true"

@@ -449,15 +449,15 @@ describe('CruushPlusStore', () => {
     expect(await screen.findByText('Full activity')).toBeInTheDocument();
     expect(screen.getByText('See your full incoming cruush and profile-view lists.')).toBeInTheDocument();
     expect(screen.getByText('More Pulses')).toBeInTheDocument();
-    expect(screen.getByText('Send up to 5 Pulses per day.')).toBeInTheDocument();
+    expect(screen.getByText('Send up to 5 Pulses per day. Lifetime includes unlimited Pulses.')).toBeInTheDocument();
     expect(screen.getByText('Mile High Club')).toBeInTheDocument();
     expect(screen.getByText('Drop a pin where you are visiting and cruise from there.')).toBeInTheDocument();
     expect(screen.getByText('Confessional+')).toBeInTheDocument();
-    expect(screen.getByText('Add up to three photo hearts, post to a specific Crowd, and choose when your post expires.')).toBeInTheDocument();
+    expect(screen.getByText('Add up to three photo hearts and ten tags, post to a specific Crowd, and choose when your post expires.')).toBeInTheDocument();
     expect(screen.getByText('Carousel')).toBeInTheDocument();
     expect(screen.getByText('Spin through nearby profiles and browse again.')).toBeInTheDocument();
     expect(screen.getByText('All seeking and visibility controls')).toBeInTheDocument();
-    expect(screen.getByText('Use all seeking filters, combine more visibility controls, save visibility sets, add up to 10 searchable profile tags, and add as many profile kinks as fit you. Basic includes 3 tags and 3 kinks.')).toBeInTheDocument();
+    expect(screen.getByText('Use all seeking filters, combine more visibility controls, save visibility sets, add up to 10 searchable profile tags and 10 hobbies, and add as many profile kinks as fit you. Basic includes 3 tags, 3 hobbies and 3 kinks.')).toBeInTheDocument();
     expect(screen.getByText('Dark Room')).toBeInTheDocument();
     expect(screen.getByText('Browse the map without appearing on it.')).toBeInTheDocument();
     const benefits = screen.getByRole('list', { name: 'cruush+ features' });
@@ -472,7 +472,7 @@ describe('CruushPlusStore', () => {
     expect(screen.getByRole('button', { name: 'Cash App' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'PayPal' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'A crypto wallet' })).toBeInTheDocument();
-    expect(screen.getAllByText('BTC · Bitcoin')).toHaveLength(4);
+    expect(screen.getAllByText('BTC · Bitcoin')).toHaveLength(3);
     expect(screen.queryByRole('button', { name: 'Something else' })).not.toBeInTheDocument();
     expect(screen.queryByText(/stablecoin transfers are not available/i)).not.toBeInTheDocument();
 
@@ -1116,7 +1116,7 @@ describe('Bitcoin through Cash App, PayPal, Venmo or a wallet', () => {
     expect(picker).toHaveClass('grid-cols-2');
     const buttons = within(picker).getAllByRole('button');
     expect(buttons.map((button) => button.getAttribute('aria-label'))).toEqual(['Cash App', 'PayPal', 'Venmo', 'A crypto wallet']);
-    expect(within(picker).getAllByText('BTC · Bitcoin')).toHaveLength(4);
+    expect(within(picker).getAllByText('BTC · Bitcoin')).toHaveLength(3);
     expect(within(picker).queryByText(/USDC|PYUSD/)).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: /why cruush takes crypto/i }));
     expect(await screen.findByText(/Pay with Bitcoin from Cash App/)).toBeInTheDocument();
@@ -1136,7 +1136,7 @@ describe('Bitcoin through Cash App, PayPal, Venmo or a wallet', () => {
     renderStore();
 
     const picker = await screen.findByLabelText('Where you are paying from');
-    expect(within(picker).getAllByText('BTC · Bitcoin')).toHaveLength(4);
+    expect(within(picker).getAllByText('BTC · Bitcoin')).toHaveLength(3);
     expect(screen.queryByText(/crypto payment is not available yet/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/stablecoin transfers are not available/i)).not.toBeInTheDocument();
 
@@ -1376,7 +1376,18 @@ describe('Bitcoin through Cash App, PayPal, Venmo or a wallet', () => {
     expect(within(paymentProgress).getByText('0/6 confirmations')).toBeInTheDocument();
     expect(screen.getByText(/waiting for your payment to arrive/i)).toBeInTheDocument();
     expect(screen.getByText('Protected order')).toBeInTheDocument();
-    expect(screen.getByText(/^Order timer:/)).toBeInTheDocument();
+    expect(screen.getByText(/^Order timer: \d+:\d{2}:\d{2}:\d{2}$/)).toBeInTheDocument();
+    const protectedOrder = screen.getByRole('button', { name: /Protected order.*Order timer:/ });
+    expect(protectedOrder).toHaveAttribute('aria-expanded', 'false');
+    expect(screen.queryByText(/This address is unique to your order/)).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Copy address' })).toBeVisible();
+    expect(screen.getByRole('button', { name: 'Copy amount' })).toBeVisible();
+    fireEvent.click(protectedOrder);
+    expect(protectedOrder).toHaveAttribute('aria-expanded', 'true');
+    expect(screen.getByText(/This address is unique to your order/)).toBeVisible();
+    fireEvent.click(protectedOrder);
+    expect(screen.queryByText(/This address is unique to your order/)).not.toBeInTheDocument();
+    expect(screen.getByText(/^Order timer:/)).toBeVisible();
     expect(screen.getByRole('button', { name: 'PayPal' })).toHaveAttribute('aria-pressed', 'true');
     expect(screen.getByRole('button', { name: 'Cash App' })).toHaveAttribute('aria-pressed', 'false');
     expect(screen.getByRole('button', { name: 'Venmo' })).toHaveAttribute('aria-pressed', 'false');
@@ -1398,7 +1409,7 @@ describe('Bitcoin through Cash App, PayPal, Venmo or a wallet', () => {
       'Cash App', 'PayPal', 'Venmo', 'A crypto wallet',
     ]);
     expect(buttons.map((button) => button.textContent)).toEqual([
-      'Cash AppBTC · Bitcoin', 'PayPalBTC · Bitcoin', 'VenmoBTC · Bitcoin', 'A crypto walletBTC · Bitcoin',
+      'Cash AppMinimum 0.00005 BTC', 'PayPalBTC · Bitcoin', 'VenmoBTC · Bitcoin', 'A crypto walletBTC · Bitcoin',
     ]);
     for (const button of buttons) {
       expect(button).toBeEnabled();
@@ -1424,7 +1435,11 @@ describe('sale expiry keeps catalogue and issued-order prices separate', () => {
     { product: 'ping_pack' as const, hasOrder: true, lateInitial: false },
     { product: 'cruush_plus' as const, hasOrder: false, lateInitial: true },
     { product: 'ping_pack' as const, hasOrder: false, lateInitial: true },
-  ])('$product restores catalogue pricing at expiry while preserving an issued order ($hasOrder, late sample: $lateInitial)', async ({ product, hasOrder, lateInitial }) => {
+    { product: 'cruush_plus' as const, hasOrder: false, lateInitial: false, wake: 'focus' },
+    { product: 'ping_pack' as const, hasOrder: false, lateInitial: false, wake: 'visibilitychange' },
+    { product: 'cruush_plus' as const, hasOrder: false, lateInitial: false, wake: 'focus', refreshFails: true },
+    { product: 'ping_pack' as const, hasOrder: false, lateInitial: false, wake: 'visibilitychange', refreshFails: true },
+  ])('$product restores catalogue pricing at expiry while preserving an issued order ($hasOrder, late sample: $lateInitial)', async ({ product, hasOrder, lateInitial, wake, refreshFails }) => {
     const deadline = Date.parse('2026-10-12T03:59:00Z');
     const isPulse = product === 'ping_pack';
     const amountUsdCents = isPulse ? 500 : 950;
@@ -1455,6 +1470,7 @@ describe('sale expiry keeps catalogue and issued-order prices separate', () => {
       vi.mocked(getBitcoinSendingEligibility).mockReset()
         .mockReturnValueOnce(initialSample)
         .mockResolvedValue({ rail: 'btc_bitcoin', products: { [productId]: ['Cash App'] } });
+      if (refreshFails) vi.mocked(getBitcoinSendingEligibility).mockRejectedValue(new Error('Offline'));
       const order = hasOrder ? {
         id: 'expiry-locked-order', userId: 'member', planId: isPulse ? 'ping_3' : 'plus_monthly', productType: product,
         asset: 'BTC' as const, network: 'bitcoin' as const, rail: 'btc_bitcoin' as const, chainId: 0, tokenAddress: '',
@@ -1472,7 +1488,14 @@ describe('sale expiry keeps catalogue and issued-order prices separate', () => {
       expect(prices.getByText(discountedText)).toBeInTheDocument();
       expect(prices.getByText(listText)).toHaveClass('line-through');
       expect(screen.getByRole('button', { name: 'Cash App' })).toBeDisabled();
-      await act(async () => { await vi.advanceTimersByTimeAsync(1000); });
+      await act(async () => {
+        if (wake) {
+          vi.setSystemTime(deadline);
+          (wake === 'focus' ? window : document).dispatchEvent(new Event(wake));
+        } else {
+          await vi.advanceTimersByTimeAsync(1000);
+        }
+      });
       expect(getBitcoinSendingEligibility).toHaveBeenCalledTimes(2);
       if (hasOrder) {
         expect(prices.getByText(discountedText)).toBeInTheDocument();
@@ -1480,7 +1503,7 @@ describe('sale expiry keeps catalogue and issued-order prices separate', () => {
         expect(screen.getByRole('button', { name: 'Payment started' })).toBeDisabled();
         expect(screen.getByRole('button', { name: 'Cash App' })).toBeDisabled();
       } else {
-        expect(screen.getByRole('button', { name: 'Cash App' })).toBeEnabled();
+        if (!refreshFails) expect(screen.getByRole('button', { name: 'Cash App' })).toBeEnabled();
         expect(prices.queryByText(discountedText)).not.toBeInTheDocument();
         expect(prices.getByText(listText)).not.toHaveClass('line-through');
         expect(screen.getByLabelText('Coupon code')).toBeInTheDocument();

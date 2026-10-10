@@ -131,6 +131,7 @@ export default function ProfilePhotoGallery({
             >
               <HeartPhoto
                 borderTone={borderTone}
+                hideMileHighContrail
                 outOfSight={outOfSight}
                 label={`${fallbackLabel} ${index + 1}`}
                 restriction={getNsfwPhotoRestriction(photoMetadataByUrl.get(photo), relationship)}

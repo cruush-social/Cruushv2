@@ -86,6 +86,7 @@ export const DEFAULT_FILTER_STATE: FilterState = {
 };
 
 interface MapFiltersSurfaceProps {
+  allowGlobalDistance?: boolean;
   purgatoryFilter?: 'all' | 'only' | 'exclude';
   onPurgatoryFilterChange?: (filter: 'all' | 'only' | 'exclude') => void;
   mutualCruushesOnly?: boolean;
@@ -152,6 +153,7 @@ function FieldGroup({
 }
 
 export default function MapFiltersSurface({
+  allowGlobalDistance = false,
   purgatoryFilter = 'all',
   onPurgatoryFilterChange,
   mutualCruushesOnly = false,
@@ -192,6 +194,7 @@ export default function MapFiltersSurface({
           {!hasCruushPlus && onUpgrade ? (
             <div className="mb-5">
               <CruushPlusGateNotice
+                compactMobileText
                 description="Basic includes up to 3 seeking filter categories."
                 surface={conversionSurface}
                 benefit="seeking_visibility"
@@ -255,11 +258,13 @@ export default function MapFiltersSurface({
                 <Slider
                   value={[value.distance]}
                   min={1}
-                  max={100}
+                  max={allowGlobalDistance ? 101 : 100}
                   step={1}
+                  aria-label="Distance"
+                  aria-valuetext={allowGlobalDistance && value.distance === 101 ? 'Global' : `${value.distance} miles`}
                   onValueChange={([distance]) => onChange({ ...value, distance })}
                 />
-                <p className="text-sm text-muted-foreground">Up to {value.distance} miles</p>
+                <p className="text-sm text-muted-foreground">{allowGlobalDistance && value.distance === 101 ? 'Global' : `Up to ${value.distance} miles`}</p>
               </div>
 
               <div className="space-y-4">
