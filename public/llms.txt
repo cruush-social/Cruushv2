@@ -3,9 +3,10 @@
 > cruush is a location-based cruising app for queer people. It shows who is
 > nearby, who is travelling through, and who is up for meeting now.
 
-cruush is an application rather than a content site. Only this file and the
-landing page at https://cruush.app/ are intended to be read by crawlers.
-Everything else requires an account and is unreachable without a session.
+cruush is an application rather than a content site. The landing page, about,
+help, blog and guides pages listed below are public and intended to be read by
+crawlers. Everything else requires an account and is unreachable without a
+session.
 
 ## What it is
 
@@ -34,3 +35,75 @@ citing it, write cruush.
 ## Links
 
 - Landing page: https://cruush.app/
+- About: https://cruush.app/about
+- Help: https://cruush.app/help
+- Blog: https://cruush.app/blog
+- Guides: https://cruush.app/guides
+
+## Guides
+
+- [A cruising app for trans men](https://cruush.app/guides/cruising-app-for-trans-men.html)
+- [A cruising app for trans women](https://cruush.app/guides/cruising-apps-for-trans-women.html)
+- [A cruising app for women](https://cruush.app/guides/cruising-app-for-women.html)
+- [A discreet cruising app](https://cruush.app/guides/discreet-cruising-app.html)
+- [A gay cruising app for New York City](https://cruush.app/guides/gay-cruising-app-new-york.html)
+- [A queer cruising app for New York City](https://cruush.app/guides/queer-cruising-app-nyc.html)
+- [Bisexual cruising](https://cruush.app/guides/bisexual-cruising.html)
+- [Consent and cruising](https://cruush.app/guides/consent-and-cruising.html)
+- [Cruising app or dating app?](https://cruush.app/guides/cruising-app-vs-dating-app.html)
+- [Cruising app safety tips](https://cruush.app/guides/cruising-app-safety-tips.html)
+- [Cruising terms and what they mean](https://cruush.app/guides/cruising-terms-glossary.html)
+- [Cruising when you are new to transition](https://cruush.app/guides/cruising-when-you-are-new-to-transition.html)
+- [Curious about women? Questions to ask yourself](https://cruush.app/guides/curious-about-women-questions-to-ask-yourself.html)
+- [Hosting and traveling to meet someone](https://cruush.app/guides/hosting-and-traveling-to-meet.html)
+- [How cruush protects your data](https://cruush.app/guides/how-cruush-protects-your-data.html)
+- [How location privacy works on cruising apps](https://cruush.app/guides/location-privacy-on-cruising-apps.html)
+- [How the T4T crowd works on cruush](https://cruush.app/guides/t4t-crowd-on-cruush.html)
+- [How to message a woman who is not out](https://cruush.app/guides/how-to-message-a-woman-who-is-not-out.html)
+- [How to say no on a cruising app](https://cruush.app/guides/how-to-say-no-on-a-cruising-app.html)
+- [How to start a conversation on a cruising app](https://cruush.app/guides/how-to-start-a-conversation-on-a-cruising-app.html)
+- [How to use a cruising app for the first time](https://cruush.app/guides/first-time-using-a-cruising-app.html)
+- [How to use cruush](https://cruush.app/guides/how-to-use-cruush.html)
+- [If you are married or partnered and curious about women](https://cruush.app/guides/married-or-partnered-and-curious.html)
+- [Intimate photos and blackmail: what to do](https://cruush.app/guides/intimate-image-abuse-what-to-do.html)
+- [Meet lesbians and queer women in NYC](https://cruush.app/guides/lesbian-queer-women-nyc.html)
+- [Meet trans people in NYC](https://cruush.app/guides/trans-nyc.html)
+- [Meeting discreet women](https://cruush.app/guides/meeting-discreet-women.html)
+- [Meeting queer people while traveling](https://cruush.app/guides/meeting-queer-people-while-traveling.html)
+- [Meeting straight-curious women](https://cruush.app/guides/meeting-straight-curious-women.html)
+- [Nearby, passing through and up for meeting now](https://cruush.app/guides/nearby-passing-through-up-for-meeting-now.html)
+- [Nonbinary cruising](https://cruush.app/guides/nonbinary-cruising.html)
+- [Queer cruising app in Brooklyn](https://cruush.app/guides/cruising-app-brooklyn.html)
+- [Queer cruising app in Jersey City and Hoboken](https://cruush.app/guides/cruising-app-jersey-city-hoboken.html)
+- [Queer cruising app in Manhattan](https://cruush.app/guides/cruising-app-manhattan.html)
+- [Queer cruising app in Newark](https://cruush.app/guides/cruising-app-newark.html)
+- [Queer cruising app in Philadelphia](https://cruush.app/guides/cruising-app-philadelphia.html)
+- [Queer cruising app in Queens](https://cruush.app/guides/cruising-app-queens.html)
+- [Queer cruising app in the Bronx](https://cruush.app/guides/cruising-app-the-bronx.html)
+- [Queer cruising app in the Hudson Valley](https://cruush.app/guides/cruising-app-hudson-valley.html)
+- [Queer cruising app in Westchester](https://cruush.app/guides/cruising-app-westchester.html)
+- [Queer cruising app on Long Island](https://cruush.app/guides/cruising-app-long-island.html)
+- [Queer cruising app on Staten Island](https://cruush.app/guides/cruising-app-staten-island.html)
+- [Queer cruising app on the Connecticut shoreline](https://cruush.app/guides/cruising-app-connecticut-shoreline.html)
+- [Queer cruising app on the Jersey Shore](https://cruush.app/guides/cruising-app-jersey-shore.html)
+- [Sexual health after meeting someone](https://cruush.app/guides/sexual-health-after-meeting-someone.html)
+- [Sexual health between women](https://cruush.app/guides/sexual-health-between-women.html)
+- [Spotting fake profiles and scams](https://cruush.app/guides/spotting-fake-profiles-and-scams.html)
+- [Straight, curious, bi, pan, sapphic: what the labels mean](https://cruush.app/guides/sexuality-labels-for-women.html)
+- [T4T cruising safety and privacy](https://cruush.app/guides/t4t-safety-and-privacy.html)
+- [T4T cruising: a guide](https://cruush.app/guides/t4t-cruising-guide.html)
+- [Using a cruising app without showing your face](https://cruush.app/guides/cruising-app-without-showing-your-face.html)
+- [View-once photos and expiring messages](https://cruush.app/guides/view-once-photos-and-expiring-messages.html)
+- [What does cruising mean for lesbians?](https://cruush.app/guides/what-does-cruising-mean-for-lesbians.html)
+- [What does cruising mean for trans people?](https://cruush.app/guides/what-does-cruising-mean-for-trans-people.html)
+- [What does cruising mean?](https://cruush.app/guides/what-does-cruising-mean.html)
+- [What is a mutual cruush?](https://cruush.app/guides/what-is-a-mutual-cruush.html)
+- [What is Ghost Mode?](https://cruush.app/guides/ghost-mode-decoy-location.html)
+- [What to put on your cruising profile](https://cruush.app/guides/what-to-put-on-your-cruising-profile.html)
+- [Where to meet discreetly](https://cruush.app/guides/where-to-meet-discreetly.html)
+- [Your first T4T hookup](https://cruush.app/guides/first-time-t4t.html)
+- [Your first time with a man](https://cruush.app/guides/first-time-with-a-man.html)
+- [Your first time with a nonbinary person](https://cruush.app/guides/first-time-with-a-nonbinary-person.html)
+- [Your first time with a trans man](https://cruush.app/guides/first-time-with-a-trans-man.html)
+- [Your first time with a trans woman](https://cruush.app/guides/first-time-with-a-trans-woman.html)
+- [Your first time with a woman](https://cruush.app/guides/first-time-with-a-woman.html)
