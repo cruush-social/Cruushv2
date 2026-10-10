@@ -11524,7 +11524,7 @@ describe("server", () => {
         locationPinVisibility: "mutuals",
         showDistanceLabels: true,
         postExpiryDefault: "24h",
-        feedWindow: "7d",
+        feedWindow: "30d",
         hideFromPurgatory: false
       }
     });
@@ -11640,7 +11640,7 @@ describe("server", () => {
         locationPinVisibility: "off",
         showDistanceLabels: false,
         postExpiryDefault: "7d",
-        feedWindow: "7d",
+        feedWindow: "30d",
         hideFromPurgatory: false
       }
     });

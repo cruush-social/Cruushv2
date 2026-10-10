@@ -157,7 +157,7 @@ const DEFAULT_FEED_SETTINGS: FeedSettings = {
   hideFromPurgatory: false,
   showDistanceLabels: true,
   postExpiryDefault: 'never',
-  feedWindow: '7d',
+  feedWindow: '30d',
 };
 type FeedCoordinates = {
   lat: number;
@@ -214,7 +214,7 @@ export default function LocalFeed({ embedded = false, onClose }: { embedded?: bo
   const [availableCrowdTargets, setAvailableCrowdTargets] = useState<string[]>([]);
   const [selectedCrowdTargets, setSelectedCrowdTargets] = useState<string[]>([]);
   const [feedSettings, setFeedSettings] = useState<FeedSettings>(DEFAULT_FEED_SETTINGS);
-  const [feedWindow, setFeedWindow] = useState<FeedPostWindow>('7d');
+  const [feedWindow, setFeedWindow] = useState<FeedPostWindow>(DEFAULT_FEED_SETTINGS.feedWindow);
   const [feedCoordinates, setFeedCoordinates] = useState<FeedCoordinates | null>(null);
   const [hasMorePosts, setHasMorePosts] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -888,7 +888,7 @@ export default function LocalFeed({ embedded = false, onClose }: { embedded?: bo
               <div className="flex items-center justify-between gap-3">
                 <p className="text-sm font-semibold text-white">Posted within</p>
                 <span className="rounded-full border border-white/10 bg-white/[0.025] px-2.5 py-1 text-xs text-white/70">
-                  {FEED_WINDOW_OPTIONS[feedWindowIndex]?.label ?? '7d'}
+                  {FEED_WINDOW_OPTIONS[feedWindowIndex]?.label ?? '30d'}
                 </span>
               </div>
               <Slider

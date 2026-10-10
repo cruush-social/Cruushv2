@@ -466,7 +466,7 @@ const feedCursorSchema = z.string().max(512).regex(/^[A-Za-z0-9_-]+$/).transform
 });
 
 const feedPostQuerySchema = z.object({
-  within: feedWindowSchema.default("7d"),
+  within: feedWindowSchema.default("30d"),
   distanceMiles: z.union([z.literal("global"), z.coerce.number().min(1).max(100)]).default("global"),
   limit: z.coerce.number().int().min(1).max(50).default(30),
   before: z.string().datetime().optional(),
@@ -852,7 +852,7 @@ export async function registerPostRoutes(app: FastifyInstance) {
         locationPinVisibility: row?.feed_location_pin_visibility ?? "mutuals",
         showDistanceLabels: row?.feed_show_distance_labels ?? true,
         postExpiryDefault: row?.feed_post_expiry_default ?? "never",
-        feedWindow: feedWindowSchema.parse(row?.feed_window_default ?? "7d"),
+        feedWindow: feedWindowSchema.parse(row?.feed_window_default ?? "30d"),
         hideFromPurgatory: row?.feed_hide_from_purgatory ?? false
       }
     });
@@ -876,7 +876,7 @@ export async function registerPostRoutes(app: FastifyInstance) {
          feed_window_default,
          feed_hide_from_purgatory
        )
-       values ($1, $2, $3, coalesce($4::text, 'never'), coalesce($5::text, '7d'), coalesce($6::boolean, false))
+       values ($1, $2, $3, coalesce($4::text, 'never'), coalesce($5::text, '30d'), coalesce($6::boolean, false))
        on conflict (user_id) do update
        set feed_location_pin_visibility = excluded.feed_location_pin_visibility,
            feed_show_distance_labels = excluded.feed_show_distance_labels,
@@ -905,7 +905,7 @@ export async function registerPostRoutes(app: FastifyInstance) {
         locationPinVisibility: row?.feed_location_pin_visibility ?? "mutuals",
         showDistanceLabels: row?.feed_show_distance_labels ?? true,
         postExpiryDefault: row?.feed_post_expiry_default ?? "never",
-        feedWindow: feedWindowSchema.parse(row?.feed_window_default ?? "7d"),
+        feedWindow: feedWindowSchema.parse(row?.feed_window_default ?? "30d"),
         hideFromPurgatory: row?.feed_hide_from_purgatory ?? false
       }
     });

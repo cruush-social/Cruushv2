@@ -89,6 +89,16 @@ describe("Feed Purgatory author filters and viewer restriction", () => {
   afterEach(async () => { await app.close(); });
   const get = (url: string) => app.inject({ method: "GET", url, headers });
 
+  it("defaults to 30 days in newest-first order while honoring an explicit window", async () => {
+    expect((await get("/api/posts")).statusCode).toBe(200);
+    const [sql, values] = query.mock.calls.find(call => call[0].includes("from posts p"))!;
+    expect(values[1]).toBe("30d");
+    expect(sql).toContain("order by p.created_at desc, p.id desc");
+    query.mockClear();
+    expect((await get("/api/posts?within=24h")).statusCode).toBe(200);
+    expect(query.mock.calls.find(call => call[0].includes("from posts p"))![1][1]).toBe("24h");
+  });
+
   it("keeps all author classes with filters off", async () => {
     const result = await get("/api/posts");
     expect(result.statusCode).toBe(200);

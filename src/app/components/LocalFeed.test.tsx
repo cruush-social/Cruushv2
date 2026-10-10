@@ -163,6 +163,7 @@ describe('LocalFeed', () => {
       locationPinVisibility: 'mutuals',
       showDistanceLabels: true,
       postExpiryDefault: 'never',
+      feedWindow: '7d', // Existing saved preference, independent of the new default.
     });
     updateFeedSettings.mockImplementation(async (settings) => settings);
     getMyProfile.mockResolvedValue({
@@ -422,6 +423,17 @@ describe('LocalFeed', () => {
     expect(section).toHaveAttribute('aria-disabled', 'true');
     expect(section).toHaveClass('grayscale', 'opacity-40');
     expect(within(section).getByRole('button', { name: /off/i })).toBeDisabled();
+  });
+
+  it('uses 30 days when settings have no saved window and preserves saved choices', async () => {
+    getFeedPosts.mockResolvedValue([]);
+    getFeedSettings.mockResolvedValue({ locationPinVisibility: 'mutuals', showDistanceLabels: true, postExpiryDefault: 'never' });
+    const first = render(<MemoryRouter><LocalFeed /></MemoryRouter>);
+    await waitFor(() => expect(getFeedPosts).toHaveBeenLastCalledWith(expect.objectContaining({ within: '30d' })));
+    first.unmount();
+    getFeedSettings.mockResolvedValue({ locationPinVisibility: 'mutuals', showDistanceLabels: true, postExpiryDefault: 'never', feedWindow: '24h' });
+    render(<MemoryRouter><LocalFeed /></MemoryRouter>);
+    await waitFor(() => expect(getFeedPosts).toHaveBeenLastCalledWith(expect.objectContaining({ within: '24h' })));
   });
 
   it('normalizes a saved Never filter to 30d without changing post expiry', async () => {

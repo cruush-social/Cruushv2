@@ -691,3 +691,8 @@ October 10 clarification: Julien answered “with selected, reduce fade and gap�
 
 - Julien: “as opposed to overhang on 2 lines, can we make vibe tags shrink to fit on one line?” Shared card vibe rows scale their existing composition to fit one line; preserve full labels, order, colors and capsule proportions.
 - Julien: “remove banned user's content from app upon ban, i see a banned user stilli n the app”. Normal member-facing reads exclude banned accounts and their content, and mounted views refresh after a ban. Keep internal moderation evidence and existing privacy rules; this does not authorize deleting records or changing suspended-account policy.
+
+
+## Confessional default posted window — October 10, 2026
+
+Julien: “show mostly recently posted feed posts in the past 30days by default and update changelog/settings ver number”. Confessional defaults to posts created within the past 30 days, newest first. Preserve explicitly saved time-window choices and existing audience/privacy filters. This changes the default browsing window, not post expiration.

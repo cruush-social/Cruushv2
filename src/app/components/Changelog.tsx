@@ -3,6 +3,21 @@ import AppPageHeader from './AppPageHeader';
 
 const changelogReleases = [
   {
+    version: 'v2.1',
+    items: [
+      "Long message previews stay inside their cards, and Vibe capsules fit on one line.",
+      "Chat has less space between the message composer and bottom navigation, with a shorter lower fade.",
+      "Confessional shows newest posts first, defaults to the past 30 days and Global distance, and keeps loading while matching posts remain.",
+      "Nearby and expanded map pins clear your own pin at close zoom; Spot clusters stay fixed while panning at the same zoom.",
+      "Mile High Club profiles use their selected location, and the Purgatory screen fits better on mobile.",
+      "cruush+ check-ins can target Crowds, with optional Pink Book messages following the selected audience.",
+      "Coven settings now let owners choose whether joining requires approval.",
+      "Mobile checkout QR codes and protected-order explanations can collapse while the countdown and payment controls stay available.",
+      "Unavailable controls use the approved dimmed gradient, and notification banners fit the window more consistently.",
+      "Banned accounts and their content are excluded from member-facing views; connected open screens refresh to remove them.",
+    ],
+  },
+  {
     version: 'v2.0',
     items: [
       'Use cruush from anywhere; the map remains limited to supported locations.',
