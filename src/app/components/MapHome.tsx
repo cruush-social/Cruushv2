@@ -2435,34 +2435,8 @@ export default function MapHome(_props: MapHomeProps = {}) {
     lastEventCenterRequestKeyRef.current = requestKey;
   }, [activeEvents, location.key, mapInstance, routeState?.centerEventSlug]);
 
-  const showLuckySlot = (nextSlot: Omit<LuckySlotState, 'nonce'>) => {
-    setSelectedUser(null);
-    setLuckySlot((currentSlot) => ({
-      ...nextSlot,
-      nonce: (currentSlot?.nonce ?? 0) + 1,
-    } as LuckySlotState));
-  };
-
   const handleFeelingLucky = () => {
-    if (isMobile) {
-      navigate('/lucky');
-      return;
-    }
-
-    if (billingStatus?.cruushPlus !== true) {
-      showLuckySlot({ mode: 'locked' });
-      return;
-    }
-
-    const eligibleUsers = displayedUsers.filter((user) => !user.isDemo && !user.isCurrentUser);
-
-    if (eligibleUsers.length === 0) {
-      showLuckySlot({ mode: 'empty' });
-      return;
-    }
-
-    const luckyUser = eligibleUsers[Math.floor(Math.random() * eligibleUsers.length)];
-    showLuckySlot({ mode: 'profile', targetUser: luckyUser });
+    navigate('/lucky');
   };
 
   const handleToggleDlMode = () => {

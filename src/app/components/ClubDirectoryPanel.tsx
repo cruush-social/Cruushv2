@@ -55,7 +55,7 @@ export default function ClubDirectoryPanel({
       .catch((loadError) => {
         if (active) {
           setClubs([]);
-          setError(loadError instanceof Error ? loadError.message : 'Clubs could not load.');
+          setError(loadError instanceof Error ? loadError.message : 'Covens could not load.');
         }
       })
       .finally(() => {
@@ -84,7 +84,7 @@ export default function ClubDirectoryPanel({
 
   const handleDeleteClub = async (club: ClubDirectoryRecord) => {
     if (deletingClubId || !['owner', 'admin'].includes(club.currentUserRole ?? '')) return;
-    if (!window.confirm(`Delete ${club.title} Club for everyone? This removes the Club and its messages for all members.`)) return;
+    if (!window.confirm(`Delete ${club.title} Coven for everyone? This removes the Coven and its messages for all members.`)) return;
 
     setDeletingClubId(club.id);
     setError(null);
@@ -93,7 +93,7 @@ export default function ClubDirectoryPanel({
       setClubs((current) => current.filter((item) => item.id !== club.id));
       onClubDeleted(club.conversationId);
     } catch (deleteError) {
-      setError(deleteError instanceof Error ? deleteError.message : 'Failed to delete Club.');
+      setError(deleteError instanceof Error ? deleteError.message : 'Failed to delete Coven.');
     } finally {
       setDeletingClubId(null);
     }
@@ -102,13 +102,13 @@ export default function ClubDirectoryPanel({
   return (
     <div className="space-y-3">
       <div
-        aria-label="Club views"
+        aria-label="Coven views"
         className="grid h-auto w-full grid-cols-2 rounded-lg border border-white/10 bg-background/25 p-1"
         role="tablist"
       >
         {([
-          ['mine', 'My Clubs'],
-          ['browse', 'Browse Clubs'],
+          ['mine', 'My Covens'],
+          ['browse', 'Browse Covens'],
         ] as const).map(([value, label]) => (
           <button
             aria-selected={view === value}
@@ -127,7 +127,7 @@ export default function ClubDirectoryPanel({
       {view === 'browse' ? (
         <div className="space-y-3">
           <Select value={browseSort} onValueChange={(value) => setBrowseSort(value as 'recent' | 'nearby')}>
-            <SelectTrigger aria-label="Sort Browse Clubs" className="h-11 w-full rounded-2xl border-white/12 bg-card/82 px-4 text-sm text-foreground">
+            <SelectTrigger aria-label="Sort Browse Covens" className="h-11 w-full rounded-2xl border-white/12 bg-card/82 px-4 text-sm text-foreground">
               <SelectValue />
             </SelectTrigger>
             <SelectContent align="start" className="rounded-2xl border-white/12 bg-card/95 p-1 text-foreground">
@@ -138,11 +138,11 @@ export default function ClubDirectoryPanel({
         </div>
       ) : null}
 
-      {loading ? <p className="py-8 text-center text-sm text-muted-foreground">Loading Clubs...</p> : null}
+      {loading ? <p className="py-8 text-center text-sm text-muted-foreground">Loading Covens...</p> : null}
       {error ? <p className="py-8 text-center text-sm text-destructive" role="alert">{error}</p> : null}
       {!loading && !error && visibleClubs.length === 0 ? (
         <Card className="gap-0 border-white/10 bg-card/70 p-8 text-center">
-          <p className="text-muted-foreground">{view === 'mine' ? "You haven't joined any Clubs." : 'No Clubs found.'}</p>
+          <p className="text-muted-foreground">{view === 'mine' ? "You haven't joined any Covens." : 'No Covens found.'}</p>
         </Card>
       ) : null}
       {visibleClubs.map((club) => {
@@ -160,7 +160,7 @@ export default function ClubDirectoryPanel({
             heart={(
               <HeartPhoto
                 className="w-20 shrink-0"
-                label={`${club.title} Club`}
+                label={`${club.title} Coven`}
                 masked={false}
                 hideDefaultMark
                 onClick={() => openClub(club)}
@@ -185,7 +185,7 @@ export default function ClubDirectoryPanel({
             )}
             actions={(
               <Button
-                aria-label={`Open ${club.title} Club`}
+                aria-label={`Open ${club.title} Coven`}
                 className="cruush-action-sheen size-10 shrink-0 rounded-full border-0 text-white hover:brightness-110"
                 onClick={(event) => { event.stopPropagation(); openClub(club); }}
                 size="icon"
@@ -203,8 +203,8 @@ export default function ClubDirectoryPanel({
                 type="button"
                 variant="ghost"
                 size="icon"
-                aria-label={`Delete ${club.title} Club for everyone`}
-                title={`Delete ${club.title} Club for everyone`}
+                aria-label={`Delete ${club.title} Coven for everyone`}
+                title={`Delete ${club.title} Coven for everyone`}
                 disabled={deletingClubId === club.id}
                 onClick={(event) => { event.stopPropagation(); void handleDeleteClub(club); }}
                 className="size-8 text-white/55 hover:bg-white/10 hover:text-white"
@@ -214,7 +214,7 @@ export default function ClubDirectoryPanel({
             ) : null}
             mutual={Boolean(club.conversationId)}
             onSelect={() => openClub(club)}
-            selectLabel={`Open ${club.title} Club`}
+            selectLabel={`Open ${club.title} Coven`}
             content={(
               <div className="space-y-1.5">
                 {club.summary ? <p className="line-clamp-2 text-sm text-muted-foreground">{club.summary}</p> : null}

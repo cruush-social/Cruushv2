@@ -4,6 +4,13 @@ export const CRUUSH_PLUS_CHANGED_EVENT = 'cruush-plus-changed';
 
 export type CruushBadge = 'founder' | 'lifetime_founder';
 
+export type CruushPlusSale = {
+  id: 'cruush-plus-50';
+  percentOff: 50;
+  endsAt: null;
+  couponStacking: false;
+};
+
 export type CruushPlusPlanId =
   | 'plus_weekly'
   | 'plus_monthly'
@@ -19,6 +26,8 @@ export type CruushPlusPlan = {
   name: string;
   description: string;
   amountCents: number;
+  originalAmountCents?: number;
+  sale?: CruushPlusSale | null;
   currency: 'USD';
   interval: 'week' | 'month' | '3_months' | '6_months' | 'year' | 'lifetime';
   durationMonths?: number;
@@ -36,6 +45,7 @@ export type BillingPlansResponse = {
   testWarning: string;
   currency: 'USD';
   plans: CruushPlusPlan[];
+  sale?: CruushPlusSale | null;
 };
 
 export type BillingStatus = {

@@ -75,9 +75,9 @@ describe('BottomNav', () => {
     );
 
     expect(screen.getByRole('button', { name: /map/i })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /feed/i })).toHaveAttribute('data-tutorial-target', 'feed');
+    expect(screen.getByRole('button', { name: /Confessional/i })).toHaveAttribute('data-tutorial-target', 'feed');
     expect(screen.queryByText('Map')).not.toBeInTheDocument();
-    expect(screen.queryByText('Feed')).not.toBeInTheDocument();
+    expect(screen.queryByText('Confessional')).not.toBeInTheDocument();
     expect(screen.queryByText('cruush')).not.toBeInTheDocument();
     expect(screen.queryByText('Messages')).not.toBeInTheDocument();
     expect(screen.queryByText('Profile')).not.toBeInTheDocument();
@@ -100,7 +100,7 @@ describe('BottomNav', () => {
       </MemoryRouter>
     );
 
-    await waitFor(() => expect(screen.getByRole('button', { name: /feed/i }))
+    await waitFor(() => expect(screen.getByRole('button', { name: /Confessional/i }))
       .toHaveAttribute('aria-description', 'New posts from mutual cruushes'));
   });
 
@@ -151,7 +151,7 @@ describe('BottomNav', () => {
     );
 
     expect(screen.queryByRole('button', { name: /map/i })).not.toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /feed/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Confessional/i })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /^cruush$/i })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /messages/i })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /profile/i })).toBeInTheDocument();
@@ -166,9 +166,9 @@ describe('BottomNav', () => {
     );
 
     const nav = screen.getByRole('navigation');
-    const feed = screen.getByRole('button', { name: /feed/i });
+    const feed = screen.getByRole('button', { name: /Confessional/i });
 
-    await waitFor(() => expect(feed).toHaveAttribute('aria-description', 'Open Feed'));
+    await waitFor(() => expect(feed).toHaveAttribute('aria-description', 'Open Confessional'));
     expect(nav.querySelector('.bg-gradient-to-t')).toBeNull();
 
     fireEvent.click(feed);
@@ -183,7 +183,7 @@ describe('BottomNav', () => {
       </MemoryRouter>
     );
 
-    const activeButton = screen.getByRole('button', { name: /feed/i });
+    const activeButton = screen.getByRole('button', { name: /Confessional/i });
     const activeIcon = activeButton.querySelector('img');
 
     expect(activeButton).toHaveClass('rounded-full', 'bg-transparent');
@@ -199,7 +199,7 @@ describe('BottomNav', () => {
       </MemoryRouter>
     );
 
-    const activeButton = screen.getByRole('button', { name: /feed/i });
+    const activeButton = screen.getByRole('button', { name: /Confessional/i });
     const mapIcon = screen.getByTestId('bottom-nav-map-icon');
     const buttons = screen.getAllByRole('button');
 
@@ -243,10 +243,10 @@ describe('BottomNav', () => {
       </MemoryRouter>
     );
 
-    const activeFeedIcon = screen.getByRole('button', { name: /feed/i }).querySelector('img');
+    const activeFeedIcon = screen.getByRole('button', { name: /Confessional/i }).querySelector('img');
     expect(activeFeedIcon?.getAttribute('src')).toContain('cruush-colored');
     expect(activeFeedIcon).toHaveClass('h-[4.25rem]', 'w-[4.25rem]', 'max-w-none', 'object-contain');
-    expect(screen.getByRole('button', { name: /feed/i })).toHaveClass('h-[3.75rem]', 'w-[3.75rem]');
+    expect(screen.getByRole('button', { name: /Confessional/i })).toHaveClass('h-[3.75rem]', 'w-[3.75rem]');
   });
 
   it('uses the notch-free cruush logo in white when inactive and its gradient with white text when active', () => {

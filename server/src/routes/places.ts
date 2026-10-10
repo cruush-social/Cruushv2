@@ -841,7 +841,8 @@ export async function registerPlaceRoutes(app: FastifyInstance) {
                and (
                  $15::boolean
                  or (
-                   coalesce(trust.is_suspended, false) = false
+                   coalesce(account.account_status, 'active') = 'active'
+                   and coalesce(trust.is_suspended, false) = false
                    and coalesce(trust.trust_score, 50) > 20
                    and not exists (
                      select 1
@@ -858,6 +859,7 @@ export async function registerPlaceRoutes(app: FastifyInstance) {
                    )
                  )
                )
+             for update of account
            ), feed_preferences as (
              select coalesce(
                (select settings.feed_post_expiry_default from user_privacy_settings settings where settings.user_id = $1),

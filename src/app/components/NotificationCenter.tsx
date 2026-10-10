@@ -145,7 +145,7 @@ export default function NotificationCenter() {
   };
 
   return (
-    <div className="min-h-screen overflow-hidden rounded-2xl border border-white/25 bg-black/48 pb-28 text-foreground backdrop-blur-xl backdrop-saturate-150">
+    <div className="flex h-full min-h-0 flex-col overflow-hidden rounded-2xl border border-white/25 bg-black/48 pb-4 text-foreground backdrop-blur-xl backdrop-saturate-150">
       <AppPageHeader
         title="Notifications"
         onBack={() => navigate(-1)}
@@ -190,7 +190,7 @@ export default function NotificationCenter() {
         )}
       />
 
-      <main className="mx-auto flex w-full max-w-2xl flex-col gap-3 px-4 py-5">
+      <main className="scrollbar-hide mx-auto flex min-h-0 w-full max-w-2xl flex-1 flex-col gap-3 overflow-y-auto overscroll-contain px-4 py-5">
         {error ? (
           <div className="rounded-md border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">
             {error}

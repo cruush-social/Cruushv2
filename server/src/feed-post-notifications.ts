@@ -93,8 +93,8 @@ export async function notifyNearbyUsersForFeedPost(app: FastifyInstance, input: 
       const notification = await createAppNotificationAndPush(app, {
         userId: recipient.user_id,
         type: "nearby_feed_post",
-        title: "New Feed post nearby",
-        body: "Open Feed to see what’s happening in your area.",
+        title: "New Confessional post nearby",
+        body: "Open Confessional to see what’s happening in your area.",
         linkUrl: "/feed?view=nearby#latest",
         dedupeKey: `nearby-feed-post:${input.postId}:${recipient.user_id}`,
         metadata: { postId: input.postId },
@@ -179,8 +179,8 @@ export async function notifyMutualCruushesForFeedPost(app: FastifyInstance, inpu
       const notification = await createAppNotificationAndPush(app, {
         userId: recipient.user_id,
         type: "mutual_feed_post",
-        title: "New Feed post",
-        body: "Open Feed to see it.",
+        title: "New Confessional post",
+        body: "Open Confessional to see it.",
         linkUrl: "/feed#latest",
         dedupeKey: `mutual-feed-post:${input.postId}:${recipient.user_id}`,
         metadata: { postId: input.postId },

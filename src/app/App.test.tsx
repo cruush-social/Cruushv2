@@ -10,7 +10,7 @@ import App, { getInitialAppEntries } from './App';
 // src/test/setup.ts stubs scrollIntoView the same way for the same reason.
 Element.prototype.scrollTo ??= function scrollTo() {};
 
-const { getRewardSummary, getSideQuests, loadCurrentSession, persistSessionUser, recordDailyRewardCheckIn, routeModuleLoads, updateRewardTimezone } = vi.hoisted(() => ({
+const { getRewardSummary, getSideQuests, loadCurrentSession, persistSessionUser, recordDailyRewardCheckIn, refreshExistingPushSubscription, routeModuleLoads, updateRewardTimezone } = vi.hoisted(() => ({
   getRewardSummary: vi.fn(),
   // The Side Quest prompt mounts inside the authenticated shell and reads this
   // on every route. Leaving it off the mock threw during the first effect and
@@ -20,9 +20,12 @@ const { getRewardSummary, getSideQuests, loadCurrentSession, persistSessionUser,
   loadCurrentSession: vi.fn(),
   persistSessionUser: vi.fn(),
   recordDailyRewardCheckIn: vi.fn(),
+  refreshExistingPushSubscription: vi.fn(),
   updateRewardTimezone: vi.fn(),
   routeModuleLoads: [] as string[],
 }));
+
+vi.mock('./lib/pushNotifications', () => ({ refreshExistingPushSubscription }));
 
 vi.mock('./lib/sessionUser', () => ({
   loadCurrentSession,
@@ -304,6 +307,8 @@ describe('App', () => {
     recordDailyRewardCheckIn.mockResolvedValue({ credited: false, grants: [] });
     updateRewardTimezone.mockReset();
     updateRewardTimezone.mockResolvedValue({ timezone: 'America/New_York' });
+    refreshExistingPushSubscription.mockReset();
+    refreshExistingPushSubscription.mockResolvedValue(undefined);
   });
 
   it('seeds direct authenticated routes with their expected Back destination', () => {
@@ -468,6 +473,56 @@ describe('App', () => {
     expect(screen.getByTestId('mock-mobile-install-prompt')).toHaveTextContent('user-1');
     expect(screen.getByTestId('mock-push-permission-prompt')).toHaveTextContent('user-1');
     expect(screen.getByTestId('mock-dl-mode-default-notice')).toBeInTheDocument();
+  });
+
+  it('retries failed push registration when the signed-in app reconnects or returns to the foreground', async () => {
+    loadCurrentSession.mockResolvedValue({
+      user: { id: 'user-1', email: 'test@example.com', displayName: 'Test User', emailVerifiedAt: '2026-04-28T12:00:00.000Z', createdAt: '2026-04-28T12:00:00.000Z' },
+      profile: { displayName: 'Test User', yearOfBirth: 1998 },
+      needsOnboarding: false,
+      ...acceptedConductSession,
+    });
+    refreshExistingPushSubscription.mockRejectedValueOnce(new Error('Offline'));
+    const visibility = vi.spyOn(document, 'visibilityState', 'get').mockReturnValue('visible');
+    const { unmount } = render(<App />);
+    await screen.findByText('Mock Map');
+    await waitFor(() => expect(refreshExistingPushSubscription).toHaveBeenCalledTimes(1));
+
+    fireEvent(window, new Event('online'));
+    await waitFor(() => expect(refreshExistingPushSubscription).toHaveBeenCalledTimes(2));
+    visibility.mockReturnValue('hidden');
+    fireEvent(document, new Event('visibilitychange'));
+    expect(refreshExistingPushSubscription).toHaveBeenCalledTimes(2);
+    visibility.mockReturnValue('visible');
+    fireEvent(document, new Event('visibilitychange'));
+    await waitFor(() => expect(refreshExistingPushSubscription).toHaveBeenCalledTimes(3));
+
+    let finishRefresh!: () => void;
+    refreshExistingPushSubscription.mockImplementationOnce(() => new Promise<void>((resolve) => { finishRefresh = resolve; }));
+    fireEvent(window, new Event('focus'));
+    fireEvent(window, new Event('online'));
+    fireEvent(document, new Event('visibilitychange'));
+    expect(refreshExistingPushSubscription).toHaveBeenCalledTimes(4);
+    const activeSignal = refreshExistingPushSubscription.mock.calls.at(-1)?.[0] as AbortSignal;
+    expect(activeSignal.aborted).toBe(false);
+    unmount();
+    expect(activeSignal.aborted).toBe(true);
+    finishRefresh();
+    fireEvent(window, new Event('online'));
+    fireEvent(window, new Event('focus'));
+    fireEvent(document, new Event('visibilitychange'));
+    expect(refreshExistingPushSubscription).toHaveBeenCalledTimes(4);
+    visibility.mockRestore();
+  });
+
+  it('does not register push on reconnect while signed out', async () => {
+    loadCurrentSession.mockResolvedValue(null);
+    render(<App />);
+    await screen.findByRole('button', { name: 'Mock Auth' });
+    fireEvent(window, new Event('online'));
+    fireEvent(window, new Event('focus'));
+    fireEvent(document, new Event('visibilitychange'));
+    expect(refreshExistingPushSubscription).not.toHaveBeenCalled();
   });
 
   it('records one daily reward check-in after a verified session loads', async () => {
@@ -642,7 +697,7 @@ describe('App', () => {
       render(<App />);
 
       expect(await screen.findByRole('heading', { name: 'Brooklyn techno' }, { timeout: 10_000 })).toBeInTheDocument();
-      expect(screen.getByRole('button', { name: 'Share Club' })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Share Coven' })).toBeInTheDocument();
       fireEvent.click(screen.getByRole('button', { name: 'Request to join' }));
       expect(await screen.findByRole('button', { name: 'Request sent' })).toBeDisabled();
     } finally {

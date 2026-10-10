@@ -31,6 +31,7 @@ import { notifyMutualCruushesForFeedPost, notifyNearbyUsersForFeedPost } from ".
 import { getViewerOutsideServiceArea, loadOosHiddenProfileIds } from "../profile-oos-visibility.js";
 import { loadOutOfSightStatuses, resolveOutOfSightLocationLabel, type OutOfSightStatus } from "../out-of-sight-location.js";
 import { loadCurrentTownLabels } from "../current-town-labels.js";
+import { loadFeedHiddenAuthorIds } from "../feed-visibility.js";
 
 type PostRow = {
   id: string;
@@ -74,6 +75,7 @@ type PostRow = {
 };
 
 type FeedSettingsRow = {
+  feed_hide_from_purgatory: boolean | null;
   feed_location_pin_visibility: FeedLocationPinVisibility | null;
   feed_show_distance_labels: boolean | null;
   feed_post_expiry_default: PostRow["expires_in"] | null;
@@ -453,6 +455,8 @@ const feedPostQuerySchema = z.object({
   q: z.string().trim().min(1).max(320).optional(),
   mileHighClub: feedBooleanQueryFlag,
   excludeMileHighClub: feedBooleanQueryFlag,
+  purgatoryMembers: feedBooleanQueryFlag,
+  excludePurgatoryMembers: feedBooleanQueryFlag,
   minAge: z.coerce.number().int().min(18).max(99).optional(),
   maxAge: z.coerce.number().int().min(18).max(99).optional(),
   identities: feedQueryArrayField,
@@ -473,6 +477,13 @@ const feedPostQuerySchema = z.object({
   substanceBoundaries: feedQueryArrayField,
   protectionBoundaries: feedQueryArrayField
 }).strict().superRefine((query, context) => {
+  if (query.purgatoryMembers && query.excludePurgatoryMembers) {
+    context.addIssue({
+      code: "custom",
+      message: "Choose one Purgatory filter.",
+      path: ["excludePurgatoryMembers"]
+    });
+  }
   if (query.mileHighClub && query.excludeMileHighClub) {
     context.addIssue({
       code: "custom",
@@ -626,7 +637,8 @@ export async function registerPostRoutes(app: FastifyInstance) {
       query.lat ?? null,
       query.lng ?? null,
       query.distanceMiles,
-      query.before ?? null
+      query.before ?? null,
+      null // Internal scan tie-breaker; the public before parameter stays unchanged.
     ];
     const where = [
       "p.expires_at > now()",
@@ -653,7 +665,7 @@ export async function registerPostRoutes(app: FastifyInstance) {
           )) <= $5::double precision
         )
       )`,
-      "($6::timestamptz is null or p.created_at < $6::timestamptz)",
+      "($6::timestamptz is null or p.created_at < $6::timestamptz or (p.created_at = $6::timestamptz and p.id < $7::uuid))",
       `not exists (
         select 1
         from user_blocks block
@@ -724,22 +736,24 @@ export async function registerPostRoutes(app: FastifyInstance) {
     values.push(query.limit);
     const limitPlaceholder = `$${values.length}`;
 
-    const feedQuery = `select ${POST_COLUMNS}
+    const feedQuery = `select ${POST_COLUMNS}, p.created_at::text as scan_created_at
        from posts p
        join app_users author on author.id = p.user_id
        join profiles pr on pr.id = p.user_id
        left join user_privacy_settings pin_settings on pin_settings.user_id = p.user_id
        where ${where.join("\n         and ")}
-       order by p.created_at desc
+       order by p.created_at desc, p.id desc
        limit ${limitPlaceholder}`;
     const visibleRows: PostRow[] = [];
     let scanBefore = query.before ?? null;
+    let scanBeforeId: string | null = null;
     const viewerOutsideServiceArea = await getViewerOutsideServiceArea(app, userId);
 
     while (visibleRows.length < query.limit) {
       const scanValues = [...values];
       scanValues[5] = scanBefore;
-      const result = await app.db.query<PostRow>(feedQuery, scanValues);
+      scanValues[6] = scanBeforeId;
+      const result = await app.db.query<PostRow & { scan_created_at?: string }>(feedQuery, scanValues);
 
       if (result.rows.length === 0) {
         break;
@@ -747,10 +761,16 @@ export async function registerPostRoutes(app: FastifyInstance) {
 
       const hiddenAuthors = await loadOosHiddenProfileIds(app, userId,
         result.rows.map((row) => row.user_id), viewerOutsideServiceArea);
+      const feedHiddenAuthors = await loadFeedHiddenAuthorIds(app, userId,
+        result.rows.map((row) => row.user_id), viewerOutsideServiceArea);
+      const authorStatuses = query.purgatoryMembers || query.excludePurgatoryMembers
+        ? await loadOutOfSightStatuses(app, result.rows.map((row) => row.user_id)) : null;
       const audienceVisibility = await Promise.all(
         result.rows.map(async (row) => ({
           row,
-          visible: !hiddenAuthors.has(row.user_id) && await canViewPostAudience(app, userId, row)
+          visible: !hiddenAuthors.has(row.user_id) && !feedHiddenAuthors.has(row.user_id)
+            && (!authorStatuses || authorStatuses.get(row.user_id) === (query.purgatoryMembers ? "out_of_sight" : "in_area"))
+            && await canViewPostAudience(app, userId, row)
         }))
       );
       visibleRows.push(...audienceVisibility.filter(({ visible }) => visible).map(({ row }) => row));
@@ -759,11 +779,15 @@ export async function registerPostRoutes(app: FastifyInstance) {
         break;
       }
 
-      const nextScanBefore = new Date(result.rows[result.rows.length - 1].created_at).toISOString();
-      if (nextScanBefore === scanBefore) {
+      // Keep PostgreSQL's precision for equal-timestamp batches; Date drops microseconds.
+      const nextScanBefore = result.rows[result.rows.length - 1].scan_created_at
+        ?? new Date(result.rows[result.rows.length - 1].created_at).toISOString();
+      const nextScanBeforeId = result.rows[result.rows.length - 1].id;
+      if (nextScanBefore === scanBefore && nextScanBeforeId === scanBeforeId) {
         break;
       }
       scanBefore = nextScanBefore;
+      scanBeforeId = nextScanBeforeId;
     }
 
     const pageRows = visibleRows.slice(0, query.limit);
@@ -787,7 +811,8 @@ export async function registerPostRoutes(app: FastifyInstance) {
          feed_location_pin_visibility,
          feed_show_distance_labels,
          feed_post_expiry_default,
-         feed_window_default
+         feed_window_default,
+         feed_hide_from_purgatory
        from user_privacy_settings
        where user_id = $1
        limit 1`,
@@ -799,7 +824,8 @@ export async function registerPostRoutes(app: FastifyInstance) {
         locationPinVisibility: row?.feed_location_pin_visibility ?? "mutuals",
         showDistanceLabels: row?.feed_show_distance_labels ?? true,
         postExpiryDefault: row?.feed_post_expiry_default ?? "never",
-        feedWindow: feedWindowSchema.parse(row?.feed_window_default ?? "7d")
+        feedWindow: feedWindowSchema.parse(row?.feed_window_default ?? "7d"),
+        hideFromPurgatory: row?.feed_hide_from_purgatory ?? false
       }
     });
   });
@@ -810,7 +836,7 @@ export async function registerPostRoutes(app: FastifyInstance) {
     if (payload.postExpiryDefault && payload.postExpiryDefault !== "never") {
       const entitlement = await getCruushEntitlement(app, userId);
       if (!entitlement.cruushPlus) {
-        throw new ApiError(402, "CRUUSH_PLUS_REQUIRED", "Choosing a Feed timer is part of cruush+.");
+        throw new ApiError(402, "CRUUSH_PLUS_REQUIRED", "Choosing a Confessional timer is part of cruush+.");
       }
     }
     const row = (await app.db.query<FeedSettingsRow>(
@@ -819,26 +845,30 @@ export async function registerPostRoutes(app: FastifyInstance) {
          feed_location_pin_visibility,
          feed_show_distance_labels,
          feed_post_expiry_default,
-         feed_window_default
+         feed_window_default,
+         feed_hide_from_purgatory
        )
-       values ($1, $2, $3, coalesce($4::text, 'never'), coalesce($5::text, '7d'))
+       values ($1, $2, $3, coalesce($4::text, 'never'), coalesce($5::text, '7d'), coalesce($6::boolean, false))
        on conflict (user_id) do update
        set feed_location_pin_visibility = excluded.feed_location_pin_visibility,
            feed_show_distance_labels = excluded.feed_show_distance_labels,
            feed_post_expiry_default = coalesce($4::text, user_privacy_settings.feed_post_expiry_default),
            feed_window_default = coalesce($5::text, user_privacy_settings.feed_window_default),
+           feed_hide_from_purgatory = coalesce($6::boolean, user_privacy_settings.feed_hide_from_purgatory),
            updated_at = now()
        returning
          feed_location_pin_visibility,
          feed_show_distance_labels,
          feed_post_expiry_default,
-         feed_window_default`,
+         feed_window_default,
+         feed_hide_from_purgatory`,
       [
         userId,
         payload.locationPinVisibility,
         payload.showDistanceLabels,
         payload.postExpiryDefault ?? null,
-        payload.feedWindow ?? null
+        payload.feedWindow ?? null,
+        payload.hideFromPurgatory ?? null
       ]
     )).rows[0];
 
@@ -847,7 +877,8 @@ export async function registerPostRoutes(app: FastifyInstance) {
         locationPinVisibility: row?.feed_location_pin_visibility ?? "mutuals",
         showDistanceLabels: row?.feed_show_distance_labels ?? true,
         postExpiryDefault: row?.feed_post_expiry_default ?? "never",
-        feedWindow: feedWindowSchema.parse(row?.feed_window_default ?? "7d")
+        feedWindow: feedWindowSchema.parse(row?.feed_window_default ?? "7d"),
+        hideFromPurgatory: row?.feed_hide_from_purgatory ?? false
       }
     });
   });
@@ -860,13 +891,13 @@ export async function registerPostRoutes(app: FastifyInstance) {
       throw new ApiError(402, "CRUUSH_PLUS_REQUIRED", "Posting to a specific Crowd is part of cruush+.");
     }
     if (payload.expiresIn !== "never" && !entitlement.cruushPlus) {
-      throw new ApiError(402, "CRUUSH_PLUS_REQUIRED", "Choosing a Feed timer is part of cruush+.");
+      throw new ApiError(402, "CRUUSH_PLUS_REQUIRED", "Choosing a Confessional timer is part of cruush+.");
     }
     if (payload.photoMediaIds.length > 0 && !entitlement.cruushPlus) {
       throw new ApiError(402, "CRUUSH_PLUS_REQUIRED", "Photo posts are part of cruush+.");
     }
     if (payload.tags.length > 0 && !entitlement.cruushPlus) {
-      throw new ApiError(402, "CRUUSH_PLUS_REQUIRED", "Tagging a Feed post is part of cruush+.");
+      throw new ApiError(402, "CRUUSH_PLUS_REQUIRED", "Tagging a Confessional post is part of cruush+.");
     }
     if (payload.photoMediaIds.length > 0) {
       const photoCount = (await app.db.query<{ count: number }>(
@@ -885,7 +916,7 @@ export async function registerPostRoutes(app: FastifyInstance) {
         [userId, payload.photoMediaIds]
       )).rows[0]?.count ?? 0;
       if (photoCount !== payload.photoMediaIds.length) {
-        throw new ApiError(400, "VALIDATION_ERROR", "Choose up to three approved Feed photos that you uploaded.");
+        throw new ApiError(400, "VALIDATION_ERROR", "Choose up to three approved Confessional photos that you uploaded.");
       }
     }
     const ownerFullAccess = entitlement.ownerFullAccess === true;
@@ -911,7 +942,8 @@ export async function registerPostRoutes(app: FastifyInstance) {
            and (
              $16::boolean
              or (
-               coalesce(trust.is_suspended, false) = false
+               coalesce(u.account_status, 'active') = 'active'
+               and coalesce(trust.is_suspended, false) = false
                and coalesce(trust.trust_score, 50) > 20
                and not exists (
                  select 1
@@ -955,6 +987,7 @@ export async function registerPostRoutes(app: FastifyInstance) {
                  where attachment.media_object_id = media.id
                )
            ) = cardinality($18::uuid[])
+         for update of u
        ),
        ${approvedContentReviewCte({
          userIdParam: "$1",
@@ -1232,15 +1265,15 @@ export async function registerPostRoutes(app: FastifyInstance) {
       const reason = eligibility.rows[0];
 
       if (reason?.trust_suspended || reason?.account_suspended) {
-        throw new ApiError(403, "FEED_POSTING_SUSPENDED", "Feed posting is unavailable while this account is suspended.");
+        throw new ApiError(403, "FEED_POSTING_SUSPENDED", "Confessional posting is unavailable while this account is suspended.");
       }
       if (reason?.low_trust) {
-        throw new ApiError(403, "FEED_POSTING_LOW_TRUST", "Feed posting is unavailable while this account is under trust review.");
+        throw new ApiError(403, "FEED_POSTING_LOW_TRUST", "Confessional posting is unavailable while this account is under trust review.");
       }
       if (reason?.feature_restricted) {
-        throw new ApiError(403, "FEED_POSTING_RESTRICTED", "Feed posting is unavailable for this account.");
+        throw new ApiError(403, "FEED_POSTING_RESTRICTED", "Confessional posting is unavailable for this account.");
       }
-      throw new ApiError(403, "FEED_POSTING_UNAVAILABLE", "Feed posting is unavailable for this account.");
+      throw new ApiError(403, "FEED_POSTING_UNAVAILABLE", "Confessional posting is unavailable for this account.");
     }
 
     await recordMeaningfulActivitySafely(app, {
@@ -1290,7 +1323,7 @@ export async function registerPostRoutes(app: FastifyInstance) {
     );
 
     if (!result.rows[0]) {
-      throw new ApiError(404, "NOT_FOUND", "Feed post not found.");
+      throw new ApiError(404, "NOT_FOUND", "Confessional post not found.");
     }
 
     for (const assetId of attachmentIds) {

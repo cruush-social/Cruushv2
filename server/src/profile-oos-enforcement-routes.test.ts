@@ -85,6 +85,7 @@ function location(userId: string, point: typeof nyc): LocationPayload {
 describe("Out of Sight profile, discovery and media enforcement", () => {
   let app: FastifyInstance;
   let hidden: boolean;
+  let feedHidden: boolean;
   let physical: typeof nyc | null;
   let activePin: TravelPin | null;
   let surface: "profile_photo" | "feed_photo" | "message_photo";
@@ -113,6 +114,7 @@ describe("Out of Sight profile, discovery and media enforcement", () => {
   beforeEach(async () => {
     vi.clearAllMocks();
     hidden = true; physical = oos; activePin = null;
+    feedHidden = false;
     surface = "profile_photo"; audience = "public";
     messageAuthorized = true; targetExcludesViewer = false; viewerProfileExists = true; unreadablePolicy = false;
     savedStates = new Map([[viewerId, savedState(viewerId, true)], [targetId, savedState(targetId, false)]]);
@@ -131,6 +133,7 @@ describe("Out of Sight profile, discovery and media enforcement", () => {
     mocks.canViewPhoto.mockResolvedValue(true);
     mocks.readMedia.mockResolvedValue(Buffer.from("encrypted-test-bytes"));
     query.mockImplementation(async (sql: string, params: unknown[] = []) => {
+      if (sql.includes("feed_hide_from_purgatory = true")) return { rows: feedHidden ? [{ user_id: targetId }] : [] };
       if (sql.includes("from oos_service_area_state")) {
         expect(sql).toContain("state_ciphertext");
         expect(sql).toContain("where user_id = any($1::uuid[])");
@@ -358,6 +361,25 @@ describe("Out of Sight profile, discovery and media enforcement", () => {
   it("preserves legacy authorized message photos", async () => {
     surface = "message_photo";
     expect((await request(`/api/media/message-photos/${assetId}.webp`)).statusCode).toBe(200);
+  });
+
+  it.each(["public", "crowd", "mutuals"] as const)("enforces the Feed-only restriction for %s photos before cache/bytes", async (kind) => {
+    hidden = false; feedHidden = true; surface = "feed_photo"; audience = kind;
+    expect((await request(`/api/media/assets/${assetId}/display`, true)).statusCode).toBe(404);
+    expect(mocks.readMedia).not.toHaveBeenCalled();
+  });
+  it("keeps Feed-only privacy out of profiles/messages and honors MHC expiry", async () => {
+    hidden = false; feedHidden = true;
+    expect((await request(`/api/profiles/${targetId}`)).statusCode).toBe(200);
+    surface = "message_photo";
+    expect((await request(`/api/media/assets/${assetId}/display`)).statusCode).toBe(200);
+    surface = "feed_photo";
+    enableMhc();
+    expect((await request(`/api/media/assets/${assetId}/display`)).statusCode).toBe(200);
+    activePin = null;
+    expect((await request(`/api/media/assets/${assetId}/display`)).statusCode).toBe(404);
+    physical = null;
+    expect((await request(`/api/media/assets/${assetId}/display`)).statusCode).toBe(404);
   });
   it("rechecks VC and media access after an in-area MHC pin expires", async () => {
     enableMhc();

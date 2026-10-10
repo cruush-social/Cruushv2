@@ -85,7 +85,7 @@ describe("Feed window API compatibility", () => {
     });
     expect(response.statusCode).toBe(200);
     expect(query).toHaveBeenCalledTimes(1);
-    expect(query.mock.calls[0][1]).toEqual([userId, "mutuals", true, "never", "30d"]);
+    expect(query.mock.calls[0][1]).toEqual([userId, "mutuals", true, "never", "30d", null]);
     expect(response.json().data).toMatchObject({ feedWindow: "30d", postExpiryDefault: "never" });
   });
 
@@ -97,7 +97,7 @@ describe("Feed window API compatibility", () => {
     });
     expect(response.statusCode).toBe(200);
     expect(query).toHaveBeenCalledTimes(1);
-    expect(query.mock.calls[0][1]).toEqual([userId, "mutuals", true, null, null]);
+    expect(query.mock.calls[0][1]).toEqual([userId, "mutuals", true, null, null, null]);
     expect(query.mock.calls[0][0]).toContain("feed_window_default = coalesce($5::text, user_privacy_settings.feed_window_default)");
     expect(response.json().data).toMatchObject({ feedWindow: "30d", postExpiryDefault: "never" });
   });

@@ -103,7 +103,7 @@ function LocationProbe() {
 
 async function openFeedSettings() {
   if (!screen.queryByTestId('feed-settings-page')) {
-    fireEvent.click(screen.getByRole('button', { name: 'Feed settings' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Confessional settings' }));
     await screen.findByTestId('feed-settings-page');
   }
 
@@ -250,7 +250,7 @@ describe('LocalFeed', () => {
       </MemoryRouter>,
     );
 
-    expect(await screen.findByRole('heading', { name: 'Feed' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Confessional' })).toBeInTheDocument();
     expect(screen.getByTestId('local-feed-screen')).toHaveClass(
       'flex',
       'bottom-[var(--cruush-nav-clearance,6rem)]',
@@ -345,7 +345,7 @@ describe('LocalFeed', () => {
     openComposer();
     const input = screen.getByPlaceholderText('Share something with nearby people...');
     fireEvent.change(input, { target: { value: 'Keep this draft' } });
-    const collapse = screen.getByRole('button', { name: 'Collapse Feed input' });
+    const collapse = screen.getByRole('button', { name: 'Collapse Confessional input' });
     expect(document.getElementById(collapse.getAttribute('aria-controls')!)).toContainElement(input);
     fireEvent.click(collapse);
     expect(input.parentElement).toHaveClass('hidden');
@@ -362,11 +362,11 @@ describe('LocalFeed', () => {
     await screen.findByTestId('local-feed-composer-open');
     openComposer();
 
-    const photoButton = await screen.findByRole('button', { name: 'Add Feed photo' });
+    const photoButton = await screen.findByRole('button', { name: 'Add Confessional photo' });
     expect(photoButton).toHaveTextContent('Photo 0/3');
     expect(photoButton.querySelector('img')).toBeNull();
     expect(screen.queryByText(/JPEG, PNG, HEIC\/HEIF, AVIF, WebP, TIFF, DNG, BMP or still GIF/i)).not.toBeInTheDocument();
-    expect(screen.getByLabelText('Choose Feed photo')).toHaveAttribute('type', 'file');
+    expect(screen.getByLabelText('Choose Confessional photo')).toHaveAttribute('type', 'file');
   });
 
   it('keeps the feed settings menu scrollable and tappable on mobile', async () => {
@@ -378,7 +378,7 @@ describe('LocalFeed', () => {
       </MemoryRouter>,
     );
 
-    fireEvent.click(screen.getByRole('button', { name: 'Feed settings' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Confessional settings' }));
 
     const settingsPage = await screen.findByTestId('feed-settings-page');
     expect(settingsPage).toHaveClass('overflow-y-auto', 'overscroll-contain');
@@ -391,9 +391,9 @@ describe('LocalFeed', () => {
     getFeedPosts.mockResolvedValue([]);
     const view = () => <MemoryRouter><LocalFeed /></MemoryRouter>;
     const { rerender } = render(view());
-    fireEvent.click(screen.getByRole('button', { name: 'Feed settings' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Confessional settings' }));
     const page = await screen.findByTestId('feed-settings-page');
-    const section = within(page).getByText('Who can open my map location from Feed posts').closest('section')!;
+    const section = within(page).getByText('Who can open my map location from Confessional posts').closest('section')!;
     expect(section).toHaveAttribute('aria-disabled', 'true');
     expect(section).toHaveClass('grayscale', 'opacity-40');
     expect(within(section).getByRole('button', { name: /off/i })).toBeDisabled();
@@ -410,9 +410,9 @@ describe('LocalFeed', () => {
     serviceArea.profilePinsAllowed = false;
     getFeedPosts.mockResolvedValue([]);
     render(<MemoryRouter><LocalFeed /></MemoryRouter>);
-    fireEvent.click(screen.getByRole('button', { name: 'Feed settings' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Confessional settings' }));
     const page = await screen.findByTestId('feed-settings-page');
-    const section = within(page).getByText('Who can open my map location from Feed posts').closest('section')!;
+    const section = within(page).getByText('Who can open my map location from Confessional posts').closest('section')!;
     expect(section).toHaveAttribute('aria-disabled', 'true');
     expect(section).toHaveClass('grayscale', 'opacity-40');
     expect(within(section).getByRole('button', { name: /off/i })).toBeDisabled();
@@ -423,7 +423,7 @@ describe('LocalFeed', () => {
     getFeedSettings.mockResolvedValue({ locationPinVisibility: 'mutuals', showDistanceLabels: true, postExpiryDefault: 'never', feedWindow: 'never' });
     render(<MemoryRouter><LocalFeed /></MemoryRouter>);
     await waitFor(() => expect(getFeedPosts).toHaveBeenLastCalledWith(expect.objectContaining({ within: '30d' })));
-    fireEvent.click(screen.getByRole('button', { name: 'Feed settings' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Confessional settings' }));
     const page = await screen.findByTestId('feed-settings-page');
     expect(within(page).getByRole('slider', { name: 'Posted within' })).toHaveAttribute('aria-valuenow', '27');
     expect(within(page).queryByText('Never')).not.toBeInTheDocument();
@@ -433,7 +433,7 @@ describe('LocalFeed', () => {
     getFeedPosts.mockResolvedValue([]);
     render(<MemoryRouter><LocalFeed /></MemoryRouter>);
 
-    fireEvent.click(screen.getByRole('button', { name: 'Feed seeking' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Confessional seeking' }));
     fireEvent.click(screen.getByRole('tab', { name: 'Intimacy' }));
     const exclude = screen.getByRole('switch', { name: 'Hide posts from Mile High Club members' });
     fireEvent.click(exclude);
@@ -446,11 +446,46 @@ describe('LocalFeed', () => {
     })));
   });
 
+  it('applies mutually exclusive Purgatory author filters and clears them', async () => {
+    getFeedPosts.mockResolvedValue([]);
+    render(<MemoryRouter><LocalFeed /></MemoryRouter>);
+    fireEvent.click(screen.getByRole('button', { name: 'Confessional seeking' }));
+    fireEvent.click(screen.getByRole('tab', { name: 'Intimacy' }));
+    fireEvent.click(screen.getByRole('switch', { name: 'Purgatory members only' }));
+    fireEvent.click(screen.getByRole('switch', { name: 'Hide posts from Purgatory members' }));
+    expect(screen.getByRole('switch', { name: 'Purgatory members only' })).not.toBeChecked();
+    fireEvent.click(screen.getByRole('button', { name: 'Apply' }));
+    await waitFor(() => expect(getFeedPosts).toHaveBeenLastCalledWith(expect.objectContaining({
+      seeking: expect.objectContaining({ excludePurgatoryMembers: true }),
+    })));
+    expect(getFeedPosts.mock.calls.at(-1)[0].seeking.purgatoryMembers).toBeUndefined();
+    fireEvent.click(screen.getByRole('button', { name: 'Confessional seeking' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Clear' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Apply' }));
+    await waitFor(() => expect(getFeedPosts.mock.calls.at(-1)[0].seeking.excludePurgatoryMembers).toBeUndefined());
+  });
+
+  it('keeps own-post Purgatory visibility in Feed settings and saves its independent preference', async () => {
+    getFeedPosts.mockResolvedValue([]);
+    render(<MemoryRouter><LocalFeed /></MemoryRouter>);
+    fireEvent.click(screen.getByRole('button', { name: 'Confessional settings' }));
+    const page = await screen.findByTestId('feed-settings-page');
+    const control = within(page).getByRole('switch', { name: 'Hide my Confessional posts from Purgatory members' });
+    await waitFor(() => expect(control).toBeEnabled());
+    expect(control).not.toBeChecked();
+    fireEvent.click(control);
+    await waitFor(() => expect(updateFeedSettings).toHaveBeenCalledWith(expect.objectContaining({
+      hideFromPurgatory: true, locationPinVisibility: 'mutuals',
+    })));
+    await waitFor(() => expect(control).toBeChecked());
+    expect(within(page).queryByRole('switch', { name: 'Purgatory members only' })).not.toBeInTheDocument();
+  });
+
   it('ends Posted within at 30d without offering Never', async () => {
     getFeedPosts.mockResolvedValue([]);
     render(<MemoryRouter><LocalFeed /></MemoryRouter>);
 
-    fireEvent.click(screen.getByRole('button', { name: 'Feed settings' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Confessional settings' }));
     const settingsPage = await screen.findByTestId('feed-settings-page');
     const postedWithinSlider = within(settingsPage).getByRole('slider', { name: 'Posted within' });
 
@@ -470,7 +505,7 @@ describe('LocalFeed', () => {
     getFeedPosts.mockResolvedValue([]);
     render(<MemoryRouter><LocalFeed /></MemoryRouter>);
 
-    fireEvent.click(screen.getByRole('button', { name: 'Feed settings' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Confessional settings' }));
     const slider = within(await screen.findByTestId('feed-settings-page')).getByRole('slider', { name: 'Posted within' });
     fireEvent.keyDown(slider, { key: 'ArrowRight' });
 
@@ -501,7 +536,7 @@ describe('LocalFeed', () => {
     render(<MemoryRouter><LocalFeed /></MemoryRouter>);
 
     await waitFor(() => expect(getFeedPosts).toHaveBeenCalledTimes(1));
-    fireEvent.click(screen.getByRole('button', { name: 'Feed settings' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Confessional settings' }));
     const settingsPage = await screen.findByTestId('feed-settings-page');
     fireEvent.keyDown(within(settingsPage).getByRole('slider', { name: 'Posted within' }), { key: 'End' });
 
@@ -545,7 +580,7 @@ describe('LocalFeed', () => {
     render(<MemoryRouter><LocalFeed /></MemoryRouter>);
     expect(await screen.findByText('existing feed post')).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Feed settings' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Confessional settings' }));
     const settingsPage = await screen.findByTestId('feed-settings-page');
     fireEvent.keyDown(within(settingsPage).getByRole('slider', { name: 'Posted within' }), { key: 'End' });
 
@@ -675,20 +710,20 @@ describe('LocalFeed', () => {
     );
 
     expect(await screen.findByText('two photos')).toBeInTheDocument();
-    const masked = screen.getByRole('img', { name: 'Feed photo 1 hidden by DL Mode' });
+    const masked = screen.getByRole('img', { name: 'Confessional photo 1 hidden by DL Mode' });
     // The placeholder carries the DL Mode mark, so pin the real invariant: the
     // explicit asset is never referenced from the DOM.
     expect(masked.innerHTML).not.toContain('explicit-photo');
-    expect(screen.queryByRole('button', { name: 'Feed photo 1 hidden by DL Mode' })).not.toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Open Feed photo 2' })).toBeEnabled();
+    expect(screen.queryByRole('button', { name: 'Confessional photo 1 hidden by DL Mode' })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Open Confessional photo 2' })).toBeEnabled();
 
     act(() => setDlModeShowOnlyException('mutual_crowds'));
-    fireEvent.click(screen.getByRole('button', { name: 'Open Feed photo 1' }));
-    expect(screen.getByRole('dialog', { name: 'Feed photo viewer' })).toBeInTheDocument();
-    expect(screen.getByRole('img', { name: 'Feed photo 1 by river' })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Open Confessional photo 1' }));
+    expect(screen.getByRole('dialog', { name: 'Confessional photo viewer' })).toBeInTheDocument();
+    expect(screen.getByRole('img', { name: 'Confessional photo 1 by river' })).toBeInTheDocument();
     act(() => setDlModeShowOnlyException('none'));
-    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Feed photo viewer' })).not.toBeInTheDocument());
-    expect(screen.queryByRole('button', { name: 'Open Feed photo 1' })).not.toBeInTheDocument();
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Confessional photo viewer' })).not.toBeInTheDocument());
+    expect(screen.queryByRole('button', { name: 'Open Confessional photo 1' })).not.toBeInTheDocument();
   });
 
   it('renders three Feed photos in one row and opens the shared full photo viewer', async () => {
@@ -723,19 +758,19 @@ describe('LocalFeed', () => {
 
     expect(await screen.findByText('three photos')).toBeInTheDocument();
     expect(screen.getByTestId('feed-photo-preview-three')).toHaveClass('flex', 'items-center');
-    expect(screen.getAllByRole('button', { name: /Open Feed photo/ })).toHaveLength(3);
+    expect(screen.getAllByRole('button', { name: /Open Confessional photo/ })).toHaveLength(3);
 
-    fireEvent.click(screen.getByRole('button', { name: 'Open Feed photo 3' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Open Confessional photo 3' }));
 
-    expect(screen.getByRole('dialog', { name: 'Feed photo viewer' })).toBeInTheDocument();
-    expect(screen.getByRole('img', { name: 'Feed photo 3 by river' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Report Feed photo' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Close Feed photo' })).toBeInTheDocument();
+    expect(screen.getByRole('dialog', { name: 'Confessional photo viewer' })).toBeInTheDocument();
+    expect(screen.getByRole('img', { name: 'Confessional photo 3 by river' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Report Confessional photo' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Close Confessional photo' })).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Next Feed photo' }));
-    expect(screen.getByRole('img', { name: 'Feed photo 1 by river' })).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: 'Close Feed photo' }));
-    expect(screen.queryByRole('dialog', { name: 'Feed photo viewer' })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Next Confessional photo' }));
+    expect(screen.getByRole('img', { name: 'Confessional photo 1 by river' })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Close Confessional photo' }));
+    expect(screen.queryByRole('dialog', { name: 'Confessional photo viewer' })).not.toBeInTheDocument();
   });
 
   it('lets users delete their own feed posts without showing delete for other posts', async () => {
@@ -774,7 +809,7 @@ describe('LocalFeed', () => {
       </MemoryRouter>,
     );
 
-    expect(screen.getByRole('heading', { name: 'Feed' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Confessional' })).toBeInTheDocument();
     expect(screen.queryByText('Nearby posts expire after 24h')).not.toBeInTheDocument();
     expect(await screen.findByText('mine to delete')).toBeInTheDocument();
     expect(screen.getByText('someone else post')).toBeInTheDocument();
@@ -787,12 +822,12 @@ describe('LocalFeed', () => {
       expect(ownPreview.querySelector('path')).toHaveAttribute('stroke', HEART_PIN_THEMES.current.border);
     });
 
-    fireEvent.click(screen.getByRole('button', { name: 'Delete feed post: mine to delete' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Delete Confessional post: mine to delete' }));
 
     await waitFor(() => expect(deleteFeedPost).toHaveBeenCalledWith('post-owned'));
     await waitFor(() => expect(screen.queryByText('mine to delete')).not.toBeInTheDocument());
     expect(screen.getByText('someone else post')).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Delete feed post: someone else post' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Delete Confessional post: someone else post' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Block me' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Report post by me' })).not.toBeInTheDocument();
   });
@@ -970,7 +1005,7 @@ describe('LocalFeed', () => {
     const composer = await screen.findByTestId('local-feed-composer');
     openComposer();
 
-    const tagField = await within(composer).findByRole('textbox', { name: 'Add Feed tag' });
+    const tagField = await within(composer).findByRole('textbox', { name: 'Add Confessional tag' });
     fireEvent.change(tagField, { target: { value: '#updates' } });
     fireEvent.keyDown(tagField, { key: 'Enter' });
 
@@ -1097,7 +1132,7 @@ describe('LocalFeed', () => {
     openComposer();
     const input = within(composer).getByPlaceholderText('Share something with nearby people...');
     await waitFor(() => expect(within(composer).getByTestId('feed-expiry-slider')).toBeInTheDocument());
-    await within(composer).findByRole('button', { name: 'Add Feed photo' });
+    await within(composer).findByRole('button', { name: 'Add Confessional photo' });
 
     fireEvent.change(input, { target: { value: 'seven day post' } });
     setExpiry(composer, '7d');
@@ -1164,7 +1199,7 @@ describe('LocalFeed', () => {
     render(<MemoryRouter initialEntries={['/feed']}><LocalFeed /><LocationProbe /></MemoryRouter>);
     const composer = await screen.findByTestId('local-feed-composer');
     openComposer();
-    await within(composer).findByRole('button', { name: 'Add Feed photo' });
+    await within(composer).findByRole('button', { name: 'Add Confessional photo' });
     await waitFor(() => expect(within(composer).getByTestId('feed-expiry-value')).toHaveTextContent('Never'));
 
     setExpiry(composer, '7d');

@@ -8326,6 +8326,10 @@ describe("server", () => {
           account_status_updated_at: "2026-04-29T12:45:00.000Z"
         }]
       })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({
         rows: [{
           id: "c6c09b96-80ea-4272-a6f5-91727250c4ce",
@@ -8349,13 +8353,15 @@ describe("server", () => {
 
     expect(response.statusCode).toBe(200);
     expect(response.json().data.user.accountStatus).toBe("banned");
-    expect(query.mock.calls[3]?.[1]?.slice(4, 7)).toEqual([
+    expect(query.mock.calls[6]?.[0]).toBe("delete from posts where user_id = $1 returning id::text");
+    expect(query.mock.calls[6]?.[1]).toEqual([targetUserId]);
+    expect(query.mock.calls[7]?.[1]?.slice(4, 7)).toEqual([
       "ban_user",
       "severe_abuse_permanent_ban",
       "Confirmed severe abuse."
     ]);
-    expect(query.mock.calls[4]?.[0]).toContain("delete from app_sessions where user_id");
-    expect(query.mock.calls[4]?.[1]).toEqual([targetUserId]);
+    expect(query.mock.calls[8]?.[0]).toContain("delete from app_sessions where user_id");
+    expect(query.mock.calls[8]?.[1]).toEqual([targetUserId]);
   });
 
   it("lets an admin unban a user and clears every active enforcement row", async () => {
@@ -11512,13 +11518,14 @@ describe("server", () => {
     expect(query.mock.calls[1]?.[0]).toContain(
       "feed_post_expiry_default = coalesce($4::text, user_privacy_settings.feed_post_expiry_default)"
     );
-    expect(query.mock.calls[1]?.[1]).toEqual([userId, "mutuals", true, "24h", null]);
+    expect(query.mock.calls[1]?.[1]).toEqual([userId, "mutuals", true, "24h", null, null]);
     expect(response.json()).toEqual({
       data: {
         locationPinVisibility: "mutuals",
         showDistanceLabels: true,
         postExpiryDefault: "24h",
-        feedWindow: "7d"
+        feedWindow: "7d",
+        hideFromPurgatory: false
       }
     });
   });
@@ -11545,7 +11552,7 @@ describe("server", () => {
     });
 
     expect(response.statusCode).toBe(200);
-    expect(query.mock.calls[0]?.[1]).toEqual([userId, "mutuals", true, null, "30d"]);
+    expect(query.mock.calls[0]?.[1]).toEqual([userId, "mutuals", true, null, "30d", null]);
     expect(response.json().data.feedWindow).toBe("30d");
     expect(response.json().data.postExpiryDefault).toBe("never");
   });
@@ -11568,7 +11575,7 @@ describe("server", () => {
     });
 
     expect(response.statusCode).toBe(200);
-    expect(query.mock.calls[0]?.[1]).toEqual([userId, "mutuals", true, null, "30d"]);
+    expect(query.mock.calls[0]?.[1]).toEqual([userId, "mutuals", true, null, "30d", null]);
     expect(response.json().data.feedWindow).toBe("30d");
   });
 
@@ -11633,7 +11640,8 @@ describe("server", () => {
         locationPinVisibility: "off",
         showDistanceLabels: false,
         postExpiryDefault: "7d",
-        feedWindow: "7d"
+        feedWindow: "7d",
+        hideFromPurgatory: false
       }
     });
   });
@@ -11663,7 +11671,7 @@ describe("server", () => {
     expect(query.mock.calls[0]?.[0]).toContain(
       "feed_post_expiry_default = coalesce($4::text, user_privacy_settings.feed_post_expiry_default)"
     );
-    expect(query.mock.calls[0]?.[1]).toEqual([userId, "public", false, null, null]);
+    expect(query.mock.calls[0]?.[1]).toEqual([userId, "public", false, null, null, null]);
     expect(response.json().data.postExpiryDefault).toBe("24h");
   });
 
@@ -11785,7 +11793,7 @@ describe("server", () => {
     expect(response.statusCode).toBe(402);
     expect(response.json().error).toMatchObject({
       code: "CRUUSH_PLUS_REQUIRED",
-      message: "Choosing a Feed timer is part of cruush+."
+      message: "Choosing a Confessional timer is part of cruush+."
     });
     expect(query).toHaveBeenCalledTimes(1);
   });
@@ -11837,7 +11845,7 @@ describe("server", () => {
     expect(response.statusCode).toBe(400);
     expect(response.json().error).toMatchObject({
       code: "VALIDATION_ERROR",
-      message: "Choose up to three approved Feed photos that you uploaded."
+      message: "Choose up to three approved Confessional photos that you uploaded."
     });
     expect(query.mock.calls[1]?.[0]).toContain("media.owner_user_id = $1");
     expect(query.mock.calls[1]?.[0]).toContain("media.moderation_status = 'approved'");
@@ -11993,6 +12001,8 @@ describe("server", () => {
 
     expect(sevenDayResponse.statusCode).toBe(201);
     expect(neverResponse.statusCode).toBe(201);
+    expect(query.mock.calls[2]?.[0]).toContain("coalesce(u.account_status, 'active') = 'active'");
+    expect(query.mock.calls[2]?.[0]).toContain("for update of u");
     expect(query.mock.calls[2]?.[0]).toContain("when $2 = '7d' then interval '7 days'");
     expect(query.mock.calls[2]?.[0]).toContain("when $2 = '30m' then interval '30 minutes'");
     expect(query.mock.calls[2]?.[0]).toContain("when $2 = '3h' then interval '3 hours'");
@@ -12230,7 +12240,7 @@ describe("server", () => {
     expect(response.json()).toEqual({
       error: {
         code: "NOT_FOUND",
-        message: "Feed post not found.",
+        message: "Confessional post not found.",
         details: null
       }
     });
@@ -17000,6 +17010,9 @@ describe("server", () => {
     // The check-in itself still expires on the requested schedule.
     expect(checkinInsertSql).toContain("now() + ($5::int * interval '1 hour')");
     expect(checkinInsertParams).toEqual([userId, placeId, true, "public", 3]);
+    const feedInsertSql = query.mock.calls.find(([sql]) => sql.includes("with eligible_user as (") && sql.includes("insert into posts"))?.[0];
+    expect(feedInsertSql).toContain("coalesce(account.account_status, 'active') = 'active'");
+    expect(feedInsertSql).toContain("for update of account");
     expect(decryptTextContent(app.config, "feed", {
       ciphertext: String(boardInsertParams[2]),
       nonce: String(boardInsertParams[3]),
@@ -17185,10 +17198,11 @@ describe("server", () => {
     });
 
     expect(response.statusCode).toBe(404);
-    expect(query).toHaveBeenCalledTimes(3);
+    expect(query).toHaveBeenCalledTimes(4);
     expect(query.mock.calls[1]?.[0]).toContain("from feed_post_attachments attachment");
     expect(query.mock.calls[1]?.[0]).toContain("post.expires_at > now()");
     expect(query.mock.calls[1]?.[0]).toContain("viewer_token.user_id = $2");
     expect(query.mock.calls[2]?.[0]).toContain("from user_blocks");
+    expect(query.mock.calls[3]?.[0]).toContain("feed_hide_from_purgatory = true");
   });
 });

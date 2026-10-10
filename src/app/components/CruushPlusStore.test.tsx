@@ -258,6 +258,58 @@ describe('CruushPlusStore', () => {
     })));
   });
 
+  it('uses automatic server sale prices without coupon stacking or an expiry countdown', async () => {
+    const sale = { id: 'cruush-plus-50', percentOff: 50, endsAt: null, couponStacking: false } as const;
+    vi.mocked(getBillingPlans).mockResolvedValue({
+      processor: 'fake', testCheckout: true, testWarning: '', currency: 'USD', sale,
+      plans: [{ ...plans[0]!, amountCents: 950, originalAmountCents: 1899, sale }],
+    });
+    vi.mocked(getCryptoProcessorStatus).mockResolvedValue(bitcoinOnlyProcessorStatus());
+
+    renderStore();
+
+    await screen.findByText('$9.50/month');
+    expect(screen.queryByRole('complementary', { name: 'cruush+ sale' })).not.toBeInTheDocument();
+    expect(screen.getByText('$18.99/month')).toHaveClass('line-through');
+    expect(screen.getByText('$9.50/month')).toBeInTheDocument();
+    expect(screen.queryByLabelText('Coupon code')).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Cash App' }));
+
+    await waitFor(() => expect(createCryptoPaymentIntent).toHaveBeenCalled());
+    expect(vi.mocked(createCryptoPaymentIntent).mock.calls[0]?.[0]).toMatchObject({ planId: 'plus_monthly' });
+    expect(vi.mocked(createCryptoPaymentIntent).mock.calls[0]?.[0]).not.toHaveProperty('couponCode');
+    expect(validateCheckoutCoupon).not.toHaveBeenCalled();
+  });
+
+  it.each([false, true])('preserves a pre-sale active order price (coupon: %s)', async (hasCoupon) => {
+    const sale = { id: 'cruush-plus-50', percentOff: 50, endsAt: null, couponStacking: false } as const;
+    vi.mocked(getBillingPlans).mockResolvedValue({
+      processor: 'fake', testCheckout: true, testWarning: '', currency: 'USD', sale,
+      plans: [{ ...plans[0]!, amountCents: 950, originalAmountCents: 1899, sale }],
+    });
+    vi.mocked(getCryptoProcessorStatus).mockResolvedValue(bitcoinOnlyProcessorStatus());
+    vi.mocked(getCurrentCryptoPaymentIntent).mockResolvedValue({
+      id: 'pre-sale-order', userId: 'member', planId: 'plus_monthly', productType: 'cruush_plus',
+      asset: 'BTC', network: 'bitcoin', rail: 'btc_bitcoin', chainId: 0, tokenAddress: '',
+      amountUsdCents: hasCoupon ? 1519 : 1899, sale: null,
+      discount: hasCoupon ? { code: 'CLUBS20', percentOff: 20, originalAmountUsdCents: 1899, discountAmountUsdCents: 380, amountUsdCents: 1519 } : null,
+      quotedAmountAtomic: '18990000', paymentAddress: 'bc1qexistingtestorder', paymentUri: null, qrCodeDataUrl: null,
+      status: 'awaiting_payment', expiresAt: '2099-09-01T12:30:00.000Z', createdAt: null, updatedAt: null, paidAt: null,
+    });
+
+    renderStore();
+
+    await screen.findByRole('button', { name: 'Payment started' });
+    const priceList = screen.getByRole('list', { name: 'cruush+ prices' });
+    expect(within(priceList).queryByText('$9.50/month')).not.toBeInTheDocument();
+    expect(within(priceList).getByText(hasCoupon ? '$15.19/month' : '$18.99/month')).toBeInTheDocument();
+    if (hasCoupon) {
+      expect(screen.getByLabelText('Coupon code')).toBeDisabled();
+      expect(screen.getByText(/CLUBS20 applied/)).toHaveTextContent('$18.99 becomes $15.19');
+    }
+    expect(createCryptoPaymentIntent).not.toHaveBeenCalled();
+  });
+
   it('states that Lifetime includes unlimited Pulses', async () => {
     vi.mocked(getCryptoProcessorStatus).mockResolvedValue(processorStatus());
     vi.mocked(getBillingPlans).mockResolvedValue({
@@ -400,9 +452,9 @@ describe('CruushPlusStore', () => {
     expect(screen.getByText('Send up to 5 Pulses per day.')).toBeInTheDocument();
     expect(screen.getByText('Mile High Club')).toBeInTheDocument();
     expect(screen.getByText('Drop a pin where you are visiting and cruise from there.')).toBeInTheDocument();
-    expect(screen.getByText('Feed+')).toBeInTheDocument();
+    expect(screen.getByText('Confessional+')).toBeInTheDocument();
     expect(screen.getByText('Add up to three photo hearts, post to a specific Crowd, and choose when your post expires.')).toBeInTheDocument();
-    expect(screen.getByText('Cruise Carousel')).toBeInTheDocument();
+    expect(screen.getByText('Carousel')).toBeInTheDocument();
     expect(screen.getByText('Spin through nearby profiles and browse again.')).toBeInTheDocument();
     expect(screen.getByText('All seeking and visibility controls')).toBeInTheDocument();
     expect(screen.getByText('Use all seeking filters, combine more visibility controls, save visibility sets, add up to 10 searchable profile tags, and add as many profile kinks as fit you. Basic includes 3 tags and 3 kinks.')).toBeInTheDocument();
@@ -413,7 +465,7 @@ describe('CruushPlusStore', () => {
     expect(benefits).not.toHaveClass('sm:grid-cols-2');
     expect(benefitCards).toHaveLength(7);
     expect(benefitCards[0]).toHaveClass('rounded-xl', 'border');
-    expect(screen.queryByText('Post to the local feed')).not.toBeInTheDocument();
+    expect(screen.queryByText('Post to the local Confessional')).not.toBeInTheDocument();
     expect(screen.queryByText('Cruise nearby profiles')).not.toBeInTheDocument();
     expect(screen.queryByText('Stealth Mode')).not.toBeInTheDocument();
     expect(screen.queryByText('Ghost Mode')).not.toBeInTheDocument();
@@ -984,6 +1036,8 @@ describe('Pulse checkout shares the live processor', () => {
     await waitFor(() => expect(createPulsePaymentIntent).toHaveBeenCalledWith(expect.objectContaining({ packId: 'ping_3', rail: 'btc_bitcoin', sendingApp: 'cash_app' })));
     expect(await screen.findByRole('button', { name: 'Pulses added' })).toBeDisabled();
     expect(screen.getByRole('button', { name: 'cruush+ checkout' })).toBeInTheDocument();
+    expect(screen.queryByRole('complementary', { name: 'cruush+ sale' })).not.toBeInTheDocument();
+    expect(screen.getByLabelText('Coupon code')).toBeInTheDocument();
   });
 });
 

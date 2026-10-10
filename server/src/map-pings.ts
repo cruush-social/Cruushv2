@@ -36,6 +36,7 @@ import { notifyGroupPulseRecipients, notifyPulseRecipients } from "./pulse-notif
 import { getSideQuestPingBalance } from "./side-quests.js";
 import { isWithinServiceArea } from "./service-area.js";
 import { isGroupPulseEligible } from "./oos-notification-visibility.js";
+import { createClubEnrollmentUserIndex, findClubEnrollment } from "./encrypted-club-enrollments.js";
 
 export const MAP_PING_RADIUS_MILES = [1, 3, 5, 10, 15, 25, 50] as const;
 export type MapPingRadiusMiles = typeof MAP_PING_RADIUS_MILES[number];
@@ -501,7 +502,7 @@ async function loadSavedFeedExpiry(db: DbClient, userId: string) {
   const expiry = postExpirySchema.safeParse(row?.feed_post_expiry_default ?? "never");
 
   if (!expiry.success) {
-    throw new ApiError(409, "FEATURE_RESTRICTED", "Feed expiry settings are unavailable.");
+    throw new ApiError(409, "FEATURE_RESTRICTED", "Confessional expiry settings are unavailable.");
   }
 
   return expiry.data;
@@ -724,22 +725,39 @@ export async function createGroupPulse(
       return { pulse: existing, created: false, title: "Group chat" };
     }
 
-    const group = (await db.query<{ title: string | null }>(
-      `select conversation.title
+    const group = (await db.query<{ title: string | null; club_id: string | null }>(
+      `select conversation.title, club.id::text as club_id
        from conversations conversation
+       left join clubs club on club.conversation_id = conversation.id
        join conversation_members member
          on member.conversation_id = conversation.id
-        and member.user_id = $2
+        and (
+          (club.id is null and member.user_id = $2)
+          or (club.id is not null and member.user_id is null and member.member_index = $3)
+        )
        where conversation.id::text = $1
          and conversation.kind = 'group'
          and conversation.closed_at is null
-         and member.role in ('owner', 'admin')
+         and (club.id is not null or member.role in ('owner', 'admin'))
        limit 1`,
-      [input.conversationId, input.userId]
+      [input.conversationId, input.userId, createClubEnrollmentUserIndex(app.config, input.userId)]
     )).rows[0];
 
     if (!group) {
       throw new ApiError(403, "FORBIDDEN", "Only group admins can send a group Pulse.");
+    }
+
+    if (group.club_id) {
+      const membership = await findClubEnrollment(
+        { config: app.config, db },
+        { clubId: group.club_id, userId: input.userId, type: "membership" }
+      );
+      const grant = membership?.payload;
+      if (!grant || grant.clubId !== group.club_id || grant.userId !== input.userId
+        || grant.type !== "membership" || grant.status !== "active"
+        || (grant.role !== "owner" && grant.role !== "admin")) {
+        throw new ApiError(403, "FORBIDDEN", "Only group admins can send a group Pulse.");
+      }
     }
 
     const recentRows = await loadRecentPingRows(db, input.userId, now);

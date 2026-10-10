@@ -23,7 +23,7 @@ function PhotoHeart({ photo, index, dlModeActive, relationship, className, onOpe
     <HeartPhoto
       className={className}
       fallback={<CruushIcon name="camera" className="h-3.5 w-3.5 opacity-35" />}
-      label={masked ? `Feed photo ${index + 1} hidden by DL Mode` : `Open Feed photo ${index + 1}`}
+      label={masked ? `Confessional photo ${index + 1} hidden by DL Mode` : `Open Confessional photo ${index + 1}`}
       masked={masked}
       restriction={getNsfwPhotoRestriction(photo.explicit, relationship)}
       onClick={masked ? undefined : () => onOpen(index)}

@@ -15,6 +15,7 @@ import { Tabs, TabsList, TabsTrigger } from './ui/tabs';
 import { Badge } from './ui/badge';
 import { Button } from './ui/button';
 import { Card } from './ui/card';
+import { Switch } from './ui/switch';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from './ui/accordion';
 import MapFiltersSurface, { DEFAULT_FILTER_STATE, type FilterState } from './MapFiltersSurface';
 import {
@@ -345,6 +346,7 @@ export default function DirectMessages({
   const [clubName, setClubName] = useState('');
   const [clubSummary, setClubSummary] = useState('');
   const [clubTags, setClubTags] = useState<string[]>([]);
+  const [clubRequiresJoinApproval, setClubRequiresJoinApproval] = useState(true);
   const [clubSearchQuery, setClubSearchQuery] = useState('');
   const [selectedClubMemberIds, setSelectedClubMemberIds] = useState<string[]>([]);
   const [clubError, setClubError] = useState<string | null>(null);
@@ -543,6 +545,7 @@ export default function DirectMessages({
   };
 
   const openClubComposer = async () => {
+    setClubRequiresJoinApproval(true);
     setClubComposerOpen(true);
     await Promise.all([
       loadMessageableMutuals({
@@ -637,6 +640,7 @@ export default function DirectMessages({
     setClubName('');
     setClubSummary('');
     setClubTags([]);
+    setClubRequiresJoinApproval(true);
     setClubSearchQuery('');
     setSelectedClubMemberIds([]);
     setClubVisibilityOpen(false);
@@ -660,11 +664,12 @@ export default function DirectMessages({
         summary: clubSummary.trim(),
         tags: clubTags,
         memberIds: selectedClubMemberIds,
+        requiresJoinApproval: clubRequiresJoinApproval,
         visibilityRules: { ...visibilityStateToRules(clubVisibility), outside_service_area_members: false },
       });
       try {
         await createFeedPost({
-          content: `New Club: ${created.title}`,
+          content: `New Coven: ${created.title}`,
           expiresIn: 'never',
           audience: 'public',
         });
@@ -674,7 +679,7 @@ export default function DirectMessages({
       resetClubComposer();
       openConversation(created.conversationId);
     } catch (createError) {
-      setClubError(createError instanceof Error ? createError.message : 'Club could not be created.');
+      setClubError(createError instanceof Error ? createError.message : 'Coven could not be created.');
     } finally {
       setClubCreating(false);
     }
@@ -895,19 +900,19 @@ export default function DirectMessages({
             <TabsList className="grid h-auto w-full grid-cols-4 rounded-lg border border-white/10 bg-background/25 p-1 shadow-[0_20px_55px_rgba(0,0,0,0.32)] backdrop-blur-xl">
               <TabsTrigger value="all" className="relative h-10 rounded-md text-sm text-white/72">
                 All
-                {allUnreadCount > 0 ? <span aria-hidden="true" className="absolute right-2 top-1.5 size-2 rounded-full bg-red-500" data-testid="all-unread-dot" /> : null}
+                {allUnreadCount > 0 ? <span aria-hidden="true" className="absolute right-2 top-1.5 size-2 rounded-full bg-primary" data-testid="all-unread-dot" /> : null}
               </TabsTrigger>
               <TabsTrigger value="unread" className="relative h-10 rounded-md text-sm text-white/72">
                 Unread
-                {unreadCount > 0 ? <span aria-hidden="true" className="absolute right-2 top-1.5 size-2 rounded-full bg-red-500" data-testid="unread-unread-dot" /> : null}
+                {unreadCount > 0 ? <span aria-hidden="true" className="absolute right-2 top-1.5 size-2 rounded-full bg-primary" data-testid="unread-unread-dot" /> : null}
               </TabsTrigger>
               <TabsTrigger value="groups" className="relative h-10 rounded-md text-sm text-white/72" onClick={() => setActiveTab('groups')}>
                 Groups
-                {groupUnreadCount > 0 ? <span aria-hidden="true" className="absolute right-2 top-1.5 size-2 rounded-full bg-red-500" data-testid="groups-unread-dot" /> : null}
+                {groupUnreadCount > 0 ? <span aria-hidden="true" className="absolute right-2 top-1.5 size-2 rounded-full bg-primary" data-testid="groups-unread-dot" /> : null}
               </TabsTrigger>
               <TabsTrigger value="clubs" className="relative h-10 rounded-md text-sm text-white/72" onClick={() => setActiveTab('clubs')}>
-                Clubs
-                {clubUnreadCount > 0 ? <span aria-hidden="true" className="absolute right-2 top-1.5 size-2 rounded-full bg-red-500" data-testid="clubs-unread-dot" /> : null}
+                Covens
+                {clubUnreadCount > 0 ? <span aria-hidden="true" className="absolute right-2 top-1.5 size-2 rounded-full bg-primary" data-testid="clubs-unread-dot" /> : null}
               </TabsTrigger>
             </TabsList>
           </Tabs>
@@ -1127,11 +1132,11 @@ export default function DirectMessages({
         >
           <div className="mx-auto max-w-2xl space-y-5">
             <div className="flex items-center gap-2">
-              <Button type="button" variant="ghost" size="icon" className="shrink-0" aria-label="Back from new Club" onClick={resetClubComposer}>
+              <Button type="button" variant="ghost" size="icon" className="shrink-0" aria-label="Back from new Coven" onClick={resetClubComposer}>
                 <ChevronLeft className="size-4" />
               </Button>
-              <h3 className="min-w-0 flex-1 truncate text-xl">New Club</h3>
-              <Button type="button" variant="ghost" size="icon" className="shrink-0" aria-label="Close Club composer" onClick={resetClubComposer}>
+              <h3 className="min-w-0 flex-1 truncate text-xl">New Coven</h3>
+              <Button type="button" variant="ghost" size="icon" className="shrink-0" aria-label="Close Coven composer" onClick={resetClubComposer}>
                 <X className="size-4" />
               </Button>
               <div className="h-9 w-9 shrink-0" data-testid="direct-messages-club-bug-button-slot" ref={registerBugButtonSlot} />
@@ -1144,8 +1149,8 @@ export default function DirectMessages({
             ) : null}
 
             <label className="block space-y-2">
-              <span className="text-sm text-muted-foreground">Club name</span>
-              <Input aria-label="Club name" maxLength={120} value={clubName} onChange={(event) => setClubName(event.target.value)} />
+              <span className="text-sm text-muted-foreground">Coven name</span>
+              <Input aria-label="Coven name" maxLength={120} value={clubName} onChange={(event) => setClubName(event.target.value)} />
             </label>
 
             <label className="block space-y-2">
@@ -1155,14 +1160,24 @@ export default function DirectMessages({
 
             <div className="block space-y-2">
               <span className="text-sm text-muted-foreground">Tags</span>
-              <TagInput ariaLabel="Club tags" maxTags={10} onChange={setClubTags} tags={clubTags} />
+              <TagInput ariaLabel="Coven tags" maxTags={10} onChange={setClubTags} tags={clubTags} />
             </div>
+
+            <label className="flex min-w-0 items-center gap-2 text-sm text-muted-foreground">
+              <Switch
+                aria-label="Require approval to join"
+                checked={clubRequiresJoinApproval}
+                disabled={clubCreating}
+                onCheckedChange={setClubRequiresJoinApproval}
+              />
+              <span>Require approval to join</span>
+            </label>
 
             <Button type="button" variant="outline" className="w-full" onClick={() => setClubVisibilityOpen(true)}>
               Visibility Controls
             </Button>
 
-            <TrustRestrictionNotice message={trust.message('group_creation', 'Club creation')} />
+            <TrustRestrictionNotice message={trust.message('group_creation', 'Coven creation')} />
             <Button
               type="button"
               className="w-full"
@@ -1170,7 +1185,7 @@ export default function DirectMessages({
               onClick={() => void handleCreateClub()}
               style={{ background: 'var(--cruush-gradient)' }}
             >
-              Create Club
+              Create Coven
             </Button>
 
             <div className="space-y-3">
@@ -1178,7 +1193,7 @@ export default function DirectMessages({
               <div className="relative">
                 <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
                 <Input
-                  aria-label="Search cruushes for Club"
+                  aria-label="Search cruushes for Coven"
                   className="pl-9"
                   value={clubSearchQuery}
                   onChange={(event) => setClubSearchQuery(event.target.value)}
@@ -1236,7 +1251,7 @@ export default function DirectMessages({
                       sharesCrowd={(item.mutualCrowds?.length ?? 0) > 0}
                       onSelect={() => toggleSelectedClubMember(item.user.id)}
                       selected={selected}
-                      selectLabel={`${selected ? 'Remove' : 'Add'} ${item.user.name} ${selected ? 'from' : 'to'} Club`}
+                      selectLabel={`${selected ? 'Remove' : 'Add'} ${item.user.name} ${selected ? 'from' : 'to'} Coven`}
                     />
                   );
                 })}
@@ -1247,8 +1262,8 @@ export default function DirectMessages({
       ) : null}
 
       <MapVisibilitySurface
-        description="Choose who can discover this Club."
-        searchPlaceholder="Hide this Club from matching names, bios, or #tags"
+        description="Choose who can discover this Coven."
+        searchPlaceholder="Hide this Coven from matching names, bios, or #tags"
         showOutsideServiceAreaControl={false}
         open={clubVisibilityOpen}
         onOpenChange={setClubVisibilityOpen}
@@ -1413,20 +1428,6 @@ export default function DirectMessages({
                     <CruushIcon name="send" className="size-5" variant="white" />
                   </Button>
                 )}
-                cornerBadge={canDeleteConversation(conversation) ? (
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    aria-label={deleteLabel}
-                    title={deleteLabel}
-                    disabled={deletingConversationId === conversation.id}
-                    onClick={() => void handleDeleteConversation(conversation)}
-                    className="size-8 text-white/55 hover:bg-white/10 hover:text-white"
-                  >
-                    <Trash2 className="size-4" />
-                  </Button>
-                ) : null}
                 mutual={conversation.kind === 'group' || conversation.mutual === true}
                 content={(
                   <div className="space-y-2">
@@ -1447,7 +1448,20 @@ export default function DirectMessages({
                     ) : null}
                   </div>
                 )}
-                cornerAction={conversation.kind === 'group' || canDeleteConversation(conversation)
+                cornerAction={canDeleteConversation(conversation) ? (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    aria-label={deleteLabel}
+                    title={deleteLabel}
+                    disabled={deletingConversationId === conversation.id}
+                    onClick={() => void handleDeleteConversation(conversation)}
+                    className="size-8 text-white/55 hover:bg-white/10 hover:text-white"
+                  >
+                    <Trash2 className="size-4" />
+                  </Button>
+                ) : conversation.kind === 'group'
                   ? undefined
                   : <ChevronRight className="m-2 size-4 text-white/40" />}
               />
@@ -1540,7 +1554,7 @@ function ComposeChoiceOverlay({
             className="w-full rounded-2xl border border-border bg-card/80 p-4 text-left transition-colors hover:bg-accent/60"
             onClick={onStartClub}
           >
-            <span className="block">Create Club</span>
+            <span className="block">Create Coven</span>
             <span className="mt-1 block text-sm text-muted-foreground">Build a space around what brings you together.</span>
           </button>
         </div>

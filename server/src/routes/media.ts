@@ -1,4 +1,5 @@
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
+import { loadFeedHiddenAuthorIds } from "../feed-visibility.js";
 import { createHash } from "node:crypto";
 import { z } from "zod";
 import { ApiError } from "../errors.js";
@@ -271,6 +272,9 @@ async function assertFeedMediaAccess(app: FastifyInstance, userId: string, asset
   }
 
   await assertUsersNotBlocked(app, userId, access.owner_user_id);
+  if ((await loadFeedHiddenAuthorIds(app, userId, [access.owner_user_id])).has(access.owner_user_id)) {
+    throw new ApiError(404, "NOT_FOUND", "Media not found.");
+  }
   if (access.audience === "public") {
     return;
   }

@@ -1,6 +1,7 @@
 import {
   getVapidPublicKey,
   getNotificationPreferences,
+  refreshPushSubscription,
   subscribeToPushNotifications,
   unsubscribeFromPushNotifications,
   type NotificationPreferences,
@@ -44,9 +45,10 @@ function serializeSubscription(subscription: PushSubscription): PushSubscription
   };
 }
 
-async function currentSubscription(registration: ServiceWorkerRegistration, publicKey: string) {
+async function currentSubscription(registration: ServiceWorkerRegistration, publicKey: string, signal?: AbortSignal) {
   const key = urlBase64ToUint8Array(publicKey);
   const existing = await registration.pushManager.getSubscription();
+  signal?.throwIfAborted();
   const previousKey = existing?.options?.applicationServerKey;
   const bytes = previousKey ? new Uint8Array(previousKey) : null;
   if (existing && bytes && bytes.length === key.length && bytes.every((byte, index) => byte === key[index])) {
@@ -55,22 +57,28 @@ async function currentSubscription(registration: ServiceWorkerRegistration, publ
   if (existing && !(await existing.unsubscribe())) {
     throw new Error('Could not replace the previous push subscription.');
   }
+  signal?.throwIfAborted();
   return registration.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: key });
 }
 
 // Keep an opted-in device subscribed. Never request permission here: this runs
 // only when permission is already granted and the account has push turned on,
 // so a subscription the push service expired or revoked is recreated.
-export async function refreshExistingPushSubscription(): Promise<void> {
+export async function refreshExistingPushSubscription(signal?: AbortSignal): Promise<void> {
+  signal?.throwIfAborted();
   if (!('Notification' in window) || Notification.permission !== 'granted' ||
       !('serviceWorker' in navigator) || !('PushManager' in window)) return;
   const preferences = await getNotificationPreferences();
+  signal?.throwIfAborted();
   if (!preferences.pushEnabled) return;
   const registration = await navigator.serviceWorker.ready;
+  signal?.throwIfAborted();
   const vapid = await getVapidPublicKey();
+  signal?.throwIfAborted();
   if (!vapid.enabled || !vapid.publicKey) return;
-  const subscription = await currentSubscription(registration, vapid.publicKey);
-  await subscribeToPushNotifications(serializeSubscription(subscription));
+  const subscription = await currentSubscription(registration, vapid.publicKey, signal);
+  signal?.throwIfAborted();
+  await refreshPushSubscription(serializeSubscription(subscription), signal);
 }
 
 export async function enablePushNotifications(): Promise<NotificationPreferences> {

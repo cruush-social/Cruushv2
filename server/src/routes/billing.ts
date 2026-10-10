@@ -10,6 +10,7 @@ import {
 } from "../billing.js";
 import { getActiveAccountUserId, getAuthenticatedUserId } from "../request-auth.js";
 import { PING_PACKS } from "../ping-packs.js";
+import { getActiveCruushPlusSale } from "../cruush-plus-sale.js";
 
 const checkoutSessionPayloadSchema = z.object({
   planId: z.string().min(1),
@@ -41,6 +42,7 @@ export async function registerBillingRoutes(app: FastifyInstance) {
         testCheckout: true,
         testWarning: TEST_CHECKOUT_WARNING,
         currency: "USD",
+        sale: getActiveCruushPlusSale(),
         plans: await getPublicCruushPlusPlans(app)
       }
     });

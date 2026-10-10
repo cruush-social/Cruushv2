@@ -1,3 +1,4 @@
+import { getCruushPlusSalePrice, cruushPlusOrderSale } from "./cruush-plus-sale.js";
 import { quoteCollectionFee } from "./crypto-collection-fee.js";
 import { findCryptoReconciliationExceptions } from "./crypto-reconciliation.js";
 import pg from "pg";
@@ -256,7 +257,7 @@ describe("crypto purchase atomicity SQL boundaries", () => {
   });
 
   it("reuses a compatible open intent instead of allocating another address", async () => {
-    const existing = paymentRow();
+    const existing = paymentRow({ amount_usd_cents: 950, metadata: { sale: cruushPlusOrderSale(1899) } });
     const query = vi.fn(async (sql: string) => {
       if (sql.includes("pg_advisory_xact_lock")) return { rows: [] };
       if (sql.includes("set status = 'expired'")) return { rows: [] };
@@ -272,7 +273,7 @@ describe("crypto purchase atomicity SQL boundaries", () => {
       {
         userId,
         planId: "plus_monthly",
-        amountUsdCents: 1899,
+        amountUsdCents: getCruushPlusSalePrice(1899).amountCents,
         idempotencyKey: "atomicity-fresh-key"
       }
     );
@@ -315,7 +316,7 @@ describe("crypto purchase atomicity SQL boundaries", () => {
       {
         userId,
         planId,
-        amountUsdCents,
+        amountUsdCents: getCruushPlusSalePrice(amountUsdCents).amountCents,
         idempotencyKey: `atomicity-${planId}-retry`
       }
     )).rejects.toMatchObject({ statusCode: 409, code: "VALIDATION_ERROR" });
@@ -347,7 +348,7 @@ describe("crypto purchase atomicity SQL boundaries", () => {
       {
         userId,
         planId: "plus_monthly",
-        amountUsdCents: 1899,
+        amountUsdCents: getCruushPlusSalePrice(1899).amountCents,
         idempotencyKey: "atomicity-confirming-after-lifetime"
       }
     )).resolves.toMatchObject({ id: confirming.id, status: "confirming" });
@@ -389,7 +390,7 @@ describe("crypto purchase atomicity SQL boundaries", () => {
       {
         userId,
         planId,
-        amountUsdCents,
+        amountUsdCents: getCruushPlusSalePrice(amountUsdCents).amountCents,
         idempotencyKey: `atomicity-${planId}-paid`
       }
     )).resolves.toMatchObject({ id: paid.id, status: "paid" });
@@ -417,7 +418,7 @@ describe("crypto purchase atomicity SQL boundaries", () => {
       {
         userId,
         planId: "plus_monthly",
-        amountUsdCents: 1899,
+        amountUsdCents: getCruushPlusSalePrice(1899).amountCents,
         idempotencyKey: "atomicity-finite-after-lifetime"
       }
     )).rejects.toMatchObject({ statusCode: 409, code: "VALIDATION_ERROR" });
@@ -443,7 +444,7 @@ describe("crypto purchase atomicity SQL boundaries", () => {
       {
         userId,
         planId: "plus_monthly",
-        amountUsdCents: 1899,
+        amountUsdCents: getCruushPlusSalePrice(1899).amountCents,
         idempotencyKey: "atomicity-over-cap"
       }
     )).rejects.toMatchObject({ statusCode: 409, code: "VALIDATION_ERROR" });
@@ -475,7 +476,7 @@ describe("crypto purchase atomicity SQL boundaries", () => {
       {
         userId,
         planId,
-        amountUsdCents: plan.amountCents,
+        amountUsdCents: getCruushPlusSalePrice(plan.amountCents).amountCents,
         idempotencyKey: `atomicity-sold-out-${planId}`
       }
     )).rejects.toMatchObject({ statusCode: 409, code: "VALIDATION_ERROR" });
@@ -641,7 +642,7 @@ describe.skipIf(!realPostgresUrl)("crypto purchase atomicity with real PostgreSQ
 
   it("rolls back unavailable fees, persists a mandatory quote, and grants once only after the fee arrives", async () => {
     const input = {
-      userId: feeReviewUser, planId: "plus_monthly", amountUsdCents: 1899,
+      userId: feeReviewUser, planId: "plus_monthly", amountUsdCents: getCruushPlusSalePrice(1899).amountCents,
       idempotencyKey: "fee-database-rehearsal", watchStartBlock: 100n
     };
     vi.mocked(quoteCollectionFee).mockRejectedValueOnce(new Error("Price source unavailable"));
@@ -701,13 +702,13 @@ describe.skipIf(!realPostgresUrl)("crypto purchase atomicity with real PostgreSQ
       createInHouseCryptoPaymentIntent(db, cryptoConfig(), {
         userId: candidateA,
         planId: "lifetime_founder",
-        amountUsdCents: 99999,
+        amountUsdCents: getCruushPlusSalePrice(99999).amountCents,
         idempotencyKey: "atomicity-duplicate-lifetime-a"
       }),
       createInHouseCryptoPaymentIntent(db, cryptoConfig(), {
         userId: candidateA,
         planId: "lifetime_founder",
-        amountUsdCents: 99999,
+        amountUsdCents: getCruushPlusSalePrice(99999).amountCents,
         idempotencyKey: "atomicity-duplicate-lifetime-b"
       })
     ]);
@@ -723,13 +724,13 @@ describe.skipIf(!realPostgresUrl)("crypto purchase atomicity with real PostgreSQ
       createInHouseCryptoPaymentIntent(db, cryptoConfig(), {
         userId: candidateB,
         planId: "lifetime_founder",
-        amountUsdCents: 99999,
+        amountUsdCents: getCruushPlusSalePrice(99999).amountCents,
         idempotencyKey: "atomicity-final-slot-b"
       }),
       createInHouseCryptoPaymentIntent(db, cryptoConfig(), {
         userId: candidateC,
         planId: "lifetime_founder",
-        amountUsdCents: 99999,
+        amountUsdCents: getCruushPlusSalePrice(99999).amountCents,
         idempotencyKey: "atomicity-final-slot-c"
       })
     ]);
@@ -746,7 +747,7 @@ describe.skipIf(!realPostgresUrl)("crypto purchase atomicity with real PostgreSQ
     const retry = await createInHouseCryptoPaymentIntent(db, cryptoConfig(), {
       userId: winner.userId,
       planId: "lifetime_founder",
-      amountUsdCents: 99999,
+      amountUsdCents: getCruushPlusSalePrice(99999).amountCents,
       idempotencyKey: winner.userId === candidateB ? "atomicity-final-slot-b" : "atomicity-final-slot-c"
     });
     expect(retry.id).toBe(winner.id);
@@ -787,7 +788,7 @@ describe.skipIf(!realPostgresUrl)("crypto purchase atomicity with real PostgreSQ
       const intent = await createInHouseCryptoPaymentIntent(db, cryptoConfig(), {
         userId: reservedUserId,
         planId: "founder_annual",
-        amountUsdCents: 9999,
+        amountUsdCents: getCruushPlusSalePrice(9999).amountCents,
         idempotencyKey: "atomicity-window-held-original",
         watchStartBlock: 100n
       });
@@ -805,7 +806,7 @@ describe.skipIf(!realPostgresUrl)("crypto purchase atomicity with real PostgreSQ
         createInHouseCryptoPaymentIntent(db, cryptoConfig(), {
           userId: candidate,
           planId: "founder_annual",
-          amountUsdCents: 9999,
+          amountUsdCents: getCruushPlusSalePrice(9999).amountCents,
           idempotencyKey: `atomicity-window-held-later-${index}`,
           watchStartBlock: 100n
         })
@@ -885,7 +886,7 @@ describe.skipIf(!realPostgresUrl)("crypto purchase atomicity with real PostgreSQ
       const intent = await createInHouseCryptoPaymentIntent(db, cryptoConfig(), {
         userId: reservedUserId,
         planId: "founder_annual",
-        amountUsdCents: 9999,
+        amountUsdCents: getCruushPlusSalePrice(9999).amountCents,
         idempotencyKey: "atomicity-window-released-original",
         watchStartBlock: 200n
       });
@@ -902,7 +903,7 @@ describe.skipIf(!realPostgresUrl)("crypto purchase atomicity with real PostgreSQ
         createInHouseCryptoPaymentIntent(db, cryptoConfig(), {
           userId: candidate,
           planId: "founder_annual",
-          amountUsdCents: 9999,
+          amountUsdCents: getCruushPlusSalePrice(9999).amountCents,
           idempotencyKey: `atomicity-window-released-later-${index}`,
           watchStartBlock: 200n
         })
@@ -948,7 +949,7 @@ describe.skipIf(!realPostgresUrl)("crypto purchase atomicity with real PostgreSQ
       createInHouseCryptoPaymentIntent(db, cryptoConfig(), {
         userId: capUser,
         planId,
-        amountUsdCents,
+        amountUsdCents: getCruushPlusSalePrice(amountUsdCents).amountCents,
         idempotencyKey: `atomicity-cap-${index}`
       })
     ));
@@ -1030,7 +1031,7 @@ describe.skipIf(!realPostgresUrl)("crypto purchase atomicity with real PostgreSQ
       await expect(createInHouseCryptoPaymentIntent(db, cryptoConfig(), {
         userId: lifetimeOwner,
         planId,
-        amountUsdCents,
+        amountUsdCents: getCruushPlusSalePrice(amountUsdCents).amountCents,
         idempotencyKey: `atomicity-existing-lifetime-${planId}`
       })).rejects.toMatchObject({ statusCode: 409, code: "VALIDATION_ERROR" });
     }
@@ -1076,7 +1077,7 @@ describe.skipIf(!realPostgresUrl)("crypto purchase atomicity with real PostgreSQ
     const creation = createInHouseCryptoPaymentIntent(pausedDb, cryptoConfig(), {
       userId: originSnapshotUser,
       planId: "plus_monthly",
-      amountUsdCents: 1899,
+      amountUsdCents: getCruushPlusSalePrice(1899).amountCents,
       idempotencyKey: "atomicity-origin-snapshot",
       watchStartBlock: 123456n,
       watchStartBlocksByChain: {
@@ -1194,7 +1195,7 @@ describe.skipIf(!realPostgresUrl)("crypto purchase atomicity with real PostgreSQ
     const createPromise = createInHouseCryptoPaymentIntent(createDb, cryptoConfig(), {
       userId: lifetimeRaceUser,
       planId: "plus_monthly",
-      amountUsdCents: 1899,
+      amountUsdCents: getCruushPlusSalePrice(1899).amountCents,
       idempotencyKey: "atomicity-lifetime-checkout-race"
     });
     await capacityReadPromise;

@@ -3,7 +3,7 @@ import { profileVisibilityRulesSchema } from "./profile-schema.js";
 
 const clubVisibilityRulesSchema = profileVisibilityRulesSchema.refine(
   (rules) => rules.outside_service_area_members === false,
-  { path: ["outside_service_area_members"], message: "Purgatory member visibility applies to member profiles, not Clubs." }
+  { path: ["outside_service_area_members"], message: "Purgatory member visibility applies to member profiles, not Covens." }
 );
 
 const normalizeTags = (values: string[]) => Array.from(new Set(
@@ -38,6 +38,7 @@ const clubMetadataShape = {
 
 export const createClubPayloadSchema = z.object({
   ...clubMetadataShape,
+  requiresJoinApproval: z.boolean().optional().default(true),
   visibilityRules: clubVisibilityRulesSchema.optional(),
   memberIds: z.array(z.uuid()).max(999)
     .transform((ids) => Array.from(new Set(ids)))

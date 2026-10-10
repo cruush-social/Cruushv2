@@ -80,6 +80,7 @@ export default function CruushesProfileCard({
     <UserActivityCapsule
       className="bg-black/72 hover:bg-black/86 min-h-[7.5rem] content-center"
       testId={testId}
+      outOfSight={user.outOfSight === true}
       heart={(
         <HeartPhoto
           borderTone={borderTone}

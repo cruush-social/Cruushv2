@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router';
 import { getClub, requestClubJoin, type ClubDetailRecord } from '../lib/clubsApi';
 import AppPageHeader from './AppPageHeader';
@@ -16,20 +16,23 @@ export default function ClubDetail() {
   const [requesting, setRequesting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [shareOpen, setShareOpen] = useState(false);
+  const routeGeneration = useRef(0);
 
   useEffect(() => {
-    let active = true;
+    const generation = ++routeGeneration.current;
+    setClub(null);
+    setRequesting(false);
     if (!clubId) {
-      setError('Club not found.');
+      setError('Coven not found.');
       setLoading(false);
-      return () => { active = false; };
+      return () => { routeGeneration.current += 1; };
     }
 
     setLoading(true);
     setError(null);
     void getClub(clubId)
       .then((item) => {
-        if (!active) return;
+        if (routeGeneration.current !== generation) return;
         if (item.conversationId) {
           navigate(`/chat/${item.conversationId}`, { replace: true });
           return;
@@ -37,39 +40,45 @@ export default function ClubDetail() {
         setClub(item);
       })
       .catch((loadError) => {
-        if (active) setError(loadError instanceof Error ? loadError.message : 'Club could not load.');
+        if (routeGeneration.current === generation) setError(loadError instanceof Error ? loadError.message : 'Coven could not load.');
       })
       .finally(() => {
-        if (active) setLoading(false);
+        if (routeGeneration.current === generation) setLoading(false);
       });
 
-    return () => { active = false; };
+    return () => { routeGeneration.current += 1; };
   }, [clubId, navigate]);
 
   const join = async () => {
-    if (!clubId || !club || club.joinRequestStatus !== 'none' || requesting) return;
+    if (!clubId || !club || club.id !== clubId || loading || club.joinRequestStatus !== 'none' || requesting) return;
+    const generation = routeGeneration.current;
     setRequesting(true);
     setError(null);
     try {
       const result = await requestClubJoin(clubId);
+      if (routeGeneration.current !== generation) return;
+      if (result.joinRequestStatus === 'member') {
+        navigate(`/chat/${result.conversationId}`, { replace: true });
+        return;
+      }
       setClub((current) => current ? { ...current, joinRequestStatus: result.joinRequestStatus } : current);
     } catch (joinError) {
-      setError(joinError instanceof Error ? joinError.message : 'Join request could not be sent.');
+      if (routeGeneration.current === generation) setError(joinError instanceof Error ? joinError.message : 'Join request could not be sent.');
     } finally {
-      setRequesting(false);
+      if (routeGeneration.current === generation) setRequesting(false);
     }
   };
 
   return (
     <div className="min-h-screen bg-background text-foreground">
       <AppPageHeader
-        backLabel="Back to Clubs"
+        backLabel="Back to Covens"
         bugButtonTestId="club-detail-bug-button-slot"
         onBack={() => navigate('/messages?tab=clubs')}
-        title={club?.title ?? 'Clubs'}
+        title={club?.title ?? 'Covens'}
       />
       <main className="mx-auto max-w-2xl px-4 py-6">
-        {loading ? <LoadingCardSkeletons count={2} label="Loading Club" /> : null}
+        {loading ? <LoadingCardSkeletons count={2} label="Loading Coven" /> : null}
         {error ? <p className="mb-4 text-sm text-destructive" role="alert">{error}</p> : null}
         {club ? (
           <Card className="gap-5 border-white/10 bg-card/70 p-5">
@@ -79,9 +88,9 @@ export default function ClubDetail() {
               {club.tags.map((tag) => <Badge key={tag} variant="outline">#{tag}</Badge>)}
             </div>
             <div className="flex flex-wrap gap-3">
-              <Button onClick={() => setShareOpen(true)} type="button" variant="outline">Share Club</Button>
+              <Button onClick={() => setShareOpen(true)} type="button" variant="outline">Share Coven</Button>
               <Button disabled={club.joinRequestStatus === 'pending' || requesting} onClick={() => void join()} type="button">
-                {club.joinRequestStatus === 'pending' ? 'Request sent' : 'Request to join'}
+                {club.joinRequestStatus === 'pending' ? 'Request sent' : club.requiresJoinApproval === false ? 'Join Coven' : 'Request to join'}
               </Button>
             </div>
           </Card>

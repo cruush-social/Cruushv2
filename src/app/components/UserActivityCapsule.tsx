@@ -22,6 +22,7 @@ export type UserActivityCapsuleProps = {
   metadata?: ReactNode;
   actions?: ReactNode;
   mutual?: boolean;
+  outOfSight?: boolean;
   /** Vibe capsules, shown above the card body on every surface. */
   vibes?: string[];
   vibeTone?: 'current' | 'mutual' | 'nearby';
@@ -52,6 +53,7 @@ export default function UserActivityCapsule({
   metadata,
   actions,
   mutual = false,
+  outOfSight = false,
   sideBadgeTone = mutual ? 'mutual' : 'nearby',
   vibes,
   vibeTone = 'nearby',
@@ -145,7 +147,7 @@ export default function UserActivityCapsule({
       {vibeRow ? <div className="mb-2 min-w-0">{vibeRow}</div> : null}
 
       <div className="cruush-user-activity-grid grid w-full items-center">
-      <div className={`cruush-user-activity-heart flex flex-col items-center ${compactIdentityMeta ? 'row-start-1 self-center' : 'row-span-4 self-start'}`}>
+      <div className={`cruush-user-activity-heart flex flex-col items-center ${compactIdentityMeta ? 'row-start-1 self-center' : 'row-span-4 self-start'} ${outOfSight && vibeRow ? 'relative top-[6px]' : ''}`}>
         {heart}
         <SideBadgePair badges={sideBadges} tone={sideBadgeTone} />
         {heartActions}

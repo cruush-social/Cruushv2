@@ -20,6 +20,7 @@ import {
   quoteUsdCentsAsStablecoinAtomic
 } from "./crypto-wallet.js";
 import { getPingPack, PING_PACKS } from "./ping-packs.js";
+import { cruushPlusOrderSale, cruushPlusSaleFromMetadata, getCruushPlusSalePrice, type CruushPlusOrderSale } from "./cruush-plus-sale.js";
 import {
   applyCheckoutCoupon,
   getCheckoutCoupon,
@@ -271,6 +272,7 @@ export type CryptoPaymentIntent = {
   gasFeeUsdCents: number;
   totalUsdCents: number;
   discount: CheckoutDiscount | null;
+  sale: CruushPlusOrderSale | null;
   fundingEstimates?: ReturnType<typeof cryptoFundingEstimates>;
   quotedAmountAtomic: string | null;
   paymentAddress: string | null;
@@ -352,6 +354,7 @@ export function mapCryptoPaymentIntent(row: CryptoPaymentIntentRow): CryptoPayme
     gasFeeUsdCents: Number((row.metadata?.collectionFee as {feeUsdCents?:number} | undefined)?.feeUsdCents ?? 0),
     totalUsdCents: Number(row.amount_usd_cents) + Number((row.metadata?.collectionFee as {feeUsdCents?:number} | undefined)?.feeUsdCents ?? 0),
     discount: checkoutDiscountFromMetadata(row.metadata),
+    sale: cruushPlusSaleFromMetadata(row.metadata),
     fundingEstimates: cryptoFundingEstimates({ rail: railFor(row.asset, row.network), sendingApp, amountUsdCents: Number(row.amount_usd_cents), gasFeeUsdCents: Number((row.metadata?.collectionFee as { feeUsdCents?: number } | undefined)?.feeUsdCents ?? 0), quotedAmountAtomic: row.quoted_amount_atomic ?? null }),
     quotedAmountAtomic: row.quoted_amount_atomic ?? null,
     paymentAddress: row.payment_address ?? null,
@@ -852,10 +855,12 @@ export async function createInHouseCryptoPaymentIntent(
     ? getPingPack(input.planId)
     : null;
   const amountCents = cruushPlusPlan?.amountCents ?? pingPack?.amountCents;
-  const coupon = input.couponCode ? getCheckoutCoupon(input.couponCode) : null;
+  const sale = cruushPlusPlan ? cruushPlusOrderSale(cruushPlusPlan.amountCents) : null;
+  const requestedCoupon = input.couponCode ? getCheckoutCoupon(input.couponCode) : null;
+  const coupon = sale ? null : requestedCoupon;
   const expectedAmountCents = amountCents && coupon
     ? applyCheckoutCoupon(amountCents, coupon).amountUsdCents
-    : amountCents;
+    : sale?.amountUsdCents ?? amountCents;
 
   if (expectedAmountCents !== input.amountUsdCents) {
     throw new ApiError(
@@ -876,6 +881,7 @@ export async function createInHouseCryptoPaymentIntent(
       input.userId,
       input.idempotencyKey
     );
+    const matchedIdempotencyKey = reserved !== null;
 
     if (!reserved) {
       reserved = await loadCompatibleOpenCryptoPaymentIntent(client, {
@@ -901,6 +907,16 @@ export async function createInHouseCryptoPaymentIntent(
       }
       reserved = await reserveCryptoPaymentIntent(client, {
         ...input,
+        // Price adjustments are owned here. Never carry a coupon discount into
+        // a sale order or consume that coupon while the automatic sale applies.
+        metadata: (() => {
+          const { discount: _discount, sale: _sale, ...metadata } = input.metadata ?? {};
+          return {
+            ...metadata,
+            ...(sale ? { sale } : {}),
+            ...(coupon && amountCents ? { discount: applyCheckoutCoupon(amountCents, coupon) } : {})
+          };
+        })(),
         productType,
         walletXpubFingerprint,
         intentTtlMinutes: wallet.intentTtlMinutes,
@@ -915,11 +931,15 @@ export async function createInHouseCryptoPaymentIntent(
     assertIdempotentReservationMatches(reserved, {
       planId: input.planId,
       productType,
-      amountUsdCents: input.amountUsdCents,
+      // Retrying the same order keeps its original quote when a sale starts
+      // or ends. Other identity fields must still match exactly.
+      amountUsdCents: matchedIdempotencyKey && productType === "cruush_plus"
+        ? Number(reserved.amount_usd_cents) : input.amountUsdCents,
       walletXpubFingerprint,
       rail,
       sendingApp: cryptoSendingAppFromMetadata(input.metadata),
-      couponCode: coupon?.code ?? null
+      couponCode: matchedIdempotencyKey && !cruushPlusSaleFromMetadata(reserved.metadata)
+        ? requestedCoupon?.code ?? null : coupon?.code ?? null
     });
 
     if (reusedReservation && await terminalizeUnpaidCryptoIntentAfterLifetimeAccess(client, reserved)) {
@@ -938,10 +958,11 @@ export async function createInHouseCryptoPaymentIntent(
       wallet.receiveChainXpub,
       numericDerivationIndex(reserved.derivation_index)
     );
-    const bitcoinQuote = rail === "btc_bitcoin" ? await quoteBitcoinOrder(config, input.amountUsdCents) : null;
+    const reservedAmountCents = Number(reserved.amount_usd_cents);
+    const bitcoinQuote = rail === "btc_bitcoin" ? await quoteBitcoinOrder(config, reservedAmountCents) : null;
     const collectionFee = bitcoinQuote?.collectionFee ?? await quoteCollectionFee(config, cryptoRail(rail), paymentAddress,
       deriveCryptoReceivingAddress(wallet.receiveChainXpub, 0));
-    const quotedAmountAtomic = bitcoinQuote?.quotedAmountAtomic ?? quoteUsdCentsAsStablecoinAtomic(input.amountUsdCents + collectionFee.feeUsdCents);
+    const quotedAmountAtomic = bitcoinQuote?.quotedAmountAtomic ?? quoteUsdCentsAsStablecoinAtomic(reservedAmountCents + collectionFee.feeUsdCents);
     const sendingApp = cryptoSendingAppFromMetadata(input.metadata);
     if (rail === "btc_bitcoin" && sendingApp && sendingApp !== "wallet") {
       const minimum = sendingApp === "cash_app" ? 5000n : 100000n;
@@ -1216,7 +1237,7 @@ export async function listBitcoinSendingEligibility(config: AppConfig, fetcher: 
 
   const products: Record<string, string[]> = {};
   for (const plan of CRUUSH_PLUS_PLANS) {
-    products[plan.id] = sendingApps(plan.amountCents);
+    products[plan.id] = sendingApps(getCruushPlusSalePrice(plan.amountCents).amountCents);
   }
   for (const pack of PING_PACKS) {
     products[pack.id] = sendingApps(pack.amountCents);

@@ -26,12 +26,12 @@ const IMPLEMENTATION_MARKERS = [
     marker: '"Mile High Club is part of cruush+."',
   },
   {
-    title: 'Feed+',
+    title: 'Confessional+',
     file: 'server/src/routes/posts.ts',
     marker: '"Posting to a specific Crowd is part of cruush+."',
   },
   {
-    title: 'Cruise Carousel',
+    title: 'Carousel',
     file: 'src/app/components/FeelingLucky.tsx',
     marker: 'if (!billingStatus.cruushPlus)',
   },
@@ -79,7 +79,7 @@ describe('cruush+ benefits copy tracks the gates', () => {
     }
 
     expect(readFileSync(path.join(REPOSITORY_ROOT, 'server/src/routes/posts.ts'), 'utf8'))
-      .toContain('"Choosing a Feed timer is part of cruush+."');
+      .toContain('"Choosing a Confessional timer is part of cruush+."');
 
     // The "More Pulses" promise only holds while the paid limit stays above the basic one.
     const mapPings = readFileSync(path.join(REPOSITORY_ROOT, 'server/src/map-pings.ts'), 'utf8');
@@ -99,7 +99,7 @@ describe('cruush+ benefits copy tracks the gates', () => {
       'mile high club',
       'specific crowd',
       'expires',
-      'cruise carousel',
+      'carousel',
       'seeking',
       'visibility',
       'dark room',
@@ -112,6 +112,6 @@ describe('cruush+ benefits copy tracks the gates', () => {
     const copy = CRUUSH_PLUS_FEATURES.map((feature) =>
       `${feature.title} ${feature.description}`).join(' ').toLowerCase();
 
-    expect(copy).not.toMatch(/post on the local feed|create posts on the local feed|\bping\b|voyeur/);
+    expect(copy).not.toMatch(/post on the local confessional|create posts on the local confessional|\bping\b|voyeur/);
   });
 });

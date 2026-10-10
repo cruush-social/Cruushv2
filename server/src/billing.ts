@@ -5,6 +5,7 @@ import { ApiError } from "./errors.js";
 import { CRYPTO_LATE_EVIDENCE_WINDOW_DAYS } from "./crypto-settlement-policy.js";
 import { getCruushEntitlement } from "./match-relationships.js";
 import { bankActivePromotionForPaidSubscription } from "./rewards-service.js";
+import { getCruushPlusSalePrice } from "./cruush-plus-sale.js";
 
 export type CruushPlusPlanId =
   | "plus_weekly"
@@ -168,6 +169,7 @@ export const CRUUSH_PLUS_PLANS: CruushPlusPlan[] = [
 export const PREMIUM_DISCOVERY_FILTER_KEYS = [
   "identities",
   "mileHighClub",
+  "purgatoryMembers",
   "presentations",
   "lookingFor",
   "timing",
@@ -416,6 +418,7 @@ export async function getPublicCruushPlusPlans(app: FastifyInstance) {
     .filter((plan) => plan.id !== "plus_lifetime" || founderLifetimeSoldOut)
     .map((plan) => ({
       ...plan,
+      ...getCruushPlusSalePrice(plan.amountCents),
       supplyRemaining: availability.get(plan.id) ?? null
     }));
 }
@@ -659,7 +662,7 @@ export async function completeFakeCheckoutSession(app: FastifyInstance, userId: 
  */
 export type CruushPlusGrantSource =
   | { kind: "checkout_session"; sessionId: string; testMode: boolean }
-  | { kind: "crypto_payment_intent"; intentId: string };
+  | { kind: "crypto_payment_intent"; intentId: string; amountCents?: number };
 
 /**
  * Applies one cruush+ plan to a member.
@@ -888,7 +891,9 @@ export async function grantCruushPlusPlan(
            amount_cents = excluded.amount_cents,
            test_mode = excluded.test_mode,
            redeemed_at = now()`,
-      [userId, sessionId, cryptoIntentId, plan.id, plan.amountCents, testMode]
+      [userId, sessionId, cryptoIntentId, plan.id,
+        source.kind === "crypto_payment_intent" ? source.amountCents ?? plan.amountCents : plan.amountCents,
+        testMode]
     );
   }
 

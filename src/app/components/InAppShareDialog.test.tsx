@@ -173,7 +173,7 @@ describe('InAppShareDialog', () => {
     fireEvent.click(await screen.findByRole('button', { name: 'Select River' }));
     fireEvent.click(screen.getByRole('button', { name: 'Select Ash' }));
     expect(screen.queryByRole('button', { name: 'Select Grey' })).not.toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: 'Send Club' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Send Coven' }));
 
     await waitFor(() => expect(openDirectConversation).toHaveBeenCalledTimes(2));
     expect(openDirectConversation).toHaveBeenNthCalledWith(1, '22222222-2222-4222-8222-222222222222');

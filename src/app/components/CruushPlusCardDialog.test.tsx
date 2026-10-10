@@ -12,13 +12,13 @@ describe('CruushPlusCardDialog', () => {
         open
         onOpenChange={onOpenChange}
         onUpgrade={onUpgrade}
-        title="Feed+"
+        title="Confessional+"
         description="Post to a specific Crowd and choose when your post expires."
       />,
     );
 
     expect(screen.getByTestId('cruush-plus-card')).toBeInTheDocument();
-    expect(screen.getByText('Feed+')).toBeInTheDocument();
+    expect(screen.getByText('Confessional+')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: /See cruush\+/i }));
     expect(onOpenChange).toHaveBeenCalledWith(false);
     expect(onUpgrade).toHaveBeenCalledTimes(1);

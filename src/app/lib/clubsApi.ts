@@ -7,6 +7,7 @@ type ClubRecordBase = {
   summary: string;
   tags: string[];
   memberCount: number;
+  requiresJoinApproval: boolean;
 };
 
 export type ClubDirectoryRecord = ClubRecordBase & {
@@ -52,12 +53,15 @@ export function getClub(clubId: string) {
 }
 
 export function requestClubJoin(clubId: string) {
-  return requestApi<{ joinRequestStatus: 'pending' }>(`/api/clubs/${clubId}/join-requests`, {
+  return requestApi<
+    | { joinRequestStatus: 'pending' }
+    | { joinRequestStatus: 'member'; conversationId: string }
+  >(`/api/clubs/${clubId}/join-requests`, {
     method: 'POST',
   });
 }
 
-export function createClub(input: ClubMetadataInput & { memberIds: string[]; visibilityRules?: ProfileVisibilityRules }) {
+export function createClub(input: ClubMetadataInput & { memberIds: string[]; visibilityRules?: ProfileVisibilityRules; requiresJoinApproval?: boolean }) {
   return requestApi<ClubDetailRecord>('/api/clubs', {
     method: 'POST',
     body: JSON.stringify(input),

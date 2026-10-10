@@ -76,7 +76,7 @@ const TUTORIAL_STEPS: TutorialStep[] = [
   {
     id: 'cruush-plus',
     title: 'cruush+',
-    description: 'cruush+ unlocks full activity, 5 Pulses per day, Mile High Club, photo hearts and more Feed controls, the Cruise Carousel, all Seeking and Visibility controls, up to 10 profile tags, unlimited profile kinks, and Dark Room.',
+    description: 'cruush+ unlocks full activity, 5 Pulses per day, Mile High Club, photo hearts and more Confessional controls, the Carousel, all Seeking and Visibility controls, up to 10 profile tags, unlimited profile kinks, and Dark Room.',
     actionLabel: 'Open cruush+',
   },
   {
@@ -112,7 +112,7 @@ const TUTORIAL_STEPS: TutorialStep[] = [
   {
     id: 'ping',
     title: 'Pulse',
-    description: 'Pulse makes your heart beat for 30 minutes inside the radius you choose and posts your saved profile signal to Feed without moving your pin. Optional phone alerts go only to eligible cruushes. A person receives at most one Pulse alert every 4 hours and never more than one from the same sender per day. Basic includes 1 Pulse per day. cruush+ includes 5 per day.',
+    description: 'Pulse makes your heart beat for 30 minutes inside the radius you choose and posts your saved profile signal to Confessional without moving your pin. Optional phone alerts go only to eligible cruushes. A person receives at most one Pulse alert every 4 hours and never more than one from the same sender per day. Basic includes 1 Pulse per day. cruush+ includes 5 per day.',
     actionLabel: 'Open Pulse',
   },
   {
@@ -128,9 +128,9 @@ const TUTORIAL_STEPS: TutorialStep[] = [
   },
   {
     id: 'carousel',
-    title: 'Cruise Carousel',
-    description: 'Spin the Cruise Carousel to discover someone nearby. Without cruush+, the spin previews the feature and then opens the upgrade option.',
-    actionLabel: 'Open Cruise Carousel',
+    title: 'Carousel',
+    description: 'Spin the Carousel to discover someone nearby. Without cruush+, the spin previews the feature and then opens the upgrade option.',
+    actionLabel: 'Open Carousel',
   },
   {
     id: 'profile-edit',
@@ -140,9 +140,9 @@ const TUTORIAL_STEPS: TutorialStep[] = [
   },
   {
     id: 'feed',
-    title: 'Feed',
-    description: 'Share a text post with people nearby, and search the Feed by tag. cruush+ adds up to ten tags on a post, three photo hearts in a row, specific Crowd audiences, and custom expiration times. Make your first post from here.',
-    actionLabel: 'Open Feed',
+    title: 'Confessional',
+    description: 'Share a text post with people nearby, and search the Confessional by tag. cruush+ adds up to ten tags on a post, three photo hearts in a row, specific Crowd audiences, and custom expiration times. Make your first post from here.',
+    actionLabel: 'Open Confessional',
   },
 ];
 

@@ -7,6 +7,7 @@ vi.mock("./crypto-collection-fee.js", () => ({
 }));
 import { afterAll, describe, expect, it, vi } from "vitest";
 import { buildServer } from "./app.js";
+import { cruushPlusOrderSale } from "./cruush-plus-sale.js";
 import { deriveCryptoReceivingAddress, fingerprintCryptoWalletXpub } from "./crypto-wallet.js";
 import type { AppConfig } from "./config.js";
 import type { DbClient } from "./db.js";
@@ -566,12 +567,12 @@ describe("crypto payment routes", () => {
       processor: "in_house" as const,
       asset: "USDC" as const,
       network: "arbitrum" as const,
-      amount_usd_cents: 1899,
+      amount_usd_cents: 950,
       derivation_index: 1,
       wallet_xpub_fingerprint: fingerprintCryptoWalletXpub(receiveChainXpub),
       watch_start_block: null,
       idempotency_key: "checkout-route-1",
-      metadata: { source: "store", sendingApp: "cash_app" },
+      metadata: { source: "store", sendingApp: "cash_app", sale: cruushPlusOrderSale(1899) },
       expires_at: "2026-08-22T18:00:00Z",
       created_at: "2026-08-22T17:30:00Z",
       updated_at: "2026-08-22T17:30:00Z",
@@ -585,7 +586,7 @@ describe("crypto payment routes", () => {
     };
     const allocatedRow = {
       ...commonRow,
-      quoted_amount_atomic: "19000000",
+      quoted_amount_atomic: "9510000",
       payment_address: paymentAddress,
       watch_start_block: "123456",
       status: "awaiting_payment" as const
@@ -636,10 +637,10 @@ describe("crypto payment routes", () => {
         data: {
           id: intentId,
           planId: "plus_monthly",
-          amountUsdCents: 1899,
-          quotedAmountAtomic: "19000000",
+          amountUsdCents: 950,
+          quotedAmountAtomic: "9510000",
           gasFeeUsdCents: 1,
-          totalUsdCents: 1900,
+          totalUsdCents: 951,
           paymentAddress,
           asset: "USDC",
           network: "arbitrum",
@@ -657,7 +658,7 @@ describe("crypto payment routes", () => {
         expect.arrayContaining(["cash_app"])
       );
       expect(body.data.paymentUri).toBe(
-        `ethereum:0xaf88d065e77c8cC2239327C5EDb3A432268e5831@42161/transfer?address=${paymentAddress}&uint256=19000000`
+        `ethereum:0xaf88d065e77c8cC2239327C5EDb3A432268e5831@42161/transfer?address=${paymentAddress}&uint256=9510000`
       );
       expect(body.data.qrCodeDataUrl).toMatch(/^data:image\/png;base64,/);
       expect(response.body).not.toContain("walletXpub");
@@ -683,7 +684,7 @@ describe("crypto payment routes", () => {
       expect((addressAllocation as unknown as [string, unknown[]] | undefined)?.[1]).toEqual([
         intentId,
         paymentAddress,
-        "19000000",
+        "9510000",
         "123456",
         expect.any(String)
       ]);
@@ -691,7 +692,7 @@ describe("crypto payment routes", () => {
         String(sql).includes("insert into crypto_payment_intents")
       );
       expect((reservation as unknown as [string, unknown[]] | undefined)?.[1])
-        .toEqual(expect.arrayContaining([1899, JSON.stringify({ source: "store", sendingApp: "cash_app" })]));
+        .toEqual(expect.arrayContaining([950, JSON.stringify({ source: "store", sendingApp: "cash_app", sale: cruushPlusOrderSale(1899) })]));
     } finally {
       await app.close();
     }

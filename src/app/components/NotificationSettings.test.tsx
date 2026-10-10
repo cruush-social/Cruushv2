@@ -116,6 +116,39 @@ describe('NotificationSettings', () => {
 
     await waitFor(() => expect(enablePushNotifications).toHaveBeenCalledTimes(1));
     expect(await screen.findByText('Push alerts enabled.')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Disable push' })).toBeInTheDocument();
+    expect(updateNotificationPreferences).not.toHaveBeenCalled();
+  });
+
+  it('keeps push disabled when choosing in-app only without subscribing', async () => {
+    render(<MemoryRouter><NotificationSettings /></MemoryRouter>);
+
+    const inAppOnly = await screen.findByRole('button', { name: 'Allow in-app only' });
+    await waitFor(() => expect(inAppOnly).toBeEnabled());
+    fireEvent.click(inAppOnly);
+
+    await waitFor(() => expect(updateNotificationPreferences).toHaveBeenCalledExactlyOnceWith({
+      pushEnabled: false,
+    }));
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Enable push' })).toBeEnabled());
+    expect(screen.queryByRole('button', { name: 'Disable push' })).not.toBeInTheDocument();
+    expect(enablePushNotifications).not.toHaveBeenCalled();
+  });
+
+  it('pauses account push delivery without subscribing', async () => {
+    const initialPreferences = await getNotificationPreferences();
+    getNotificationPreferences.mockResolvedValue({ ...initialPreferences, pushEnabled: true });
+    render(<MemoryRouter><NotificationSettings /></MemoryRouter>);
+
+    const pause = await screen.findByRole('button', { name: 'Pause alerts' });
+    await waitFor(() => expect(pause).toBeEnabled());
+    fireEvent.click(pause);
+
+    await waitFor(() => expect(updateNotificationPreferences).toHaveBeenCalledExactlyOnceWith({
+      pushEnabled: false,
+    }));
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Enable push' })).toBeEnabled());
+    expect(enablePushNotifications).not.toHaveBeenCalled();
   });
 
   it('loads preferences and saves alert toggles', async () => {
@@ -143,7 +176,7 @@ describe('NotificationSettings', () => {
       nearbyEnabled: false,
     }));
 
-    fireEvent.click(screen.getByRole('switch', { name: 'Toggle Feed posts from cruushes' }));
+    fireEvent.click(screen.getByRole('switch', { name: 'Toggle Confessional posts from cruushes' }));
     await waitFor(() => expect(updateNotificationPreferences).toHaveBeenCalledWith({
       mutualFeedEnabled: false,
     }));

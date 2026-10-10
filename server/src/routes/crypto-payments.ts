@@ -22,6 +22,7 @@ import {
 import { getActiveAccountUserId, getAuthenticatedUserId } from "../request-auth.js";
 import { getModeratorUser } from "../moderator-auth.js";
 import { getPingPack } from "../ping-packs.js";
+import { getCruushPlusSalePrice } from "../cruush-plus-sale.js";
 import { applyCheckoutCoupon, getCheckoutCoupon, validateCheckoutCoupon } from "../checkout-coupons.js";
 import {
   findCryptoPaymentsByAddress,
@@ -211,7 +212,8 @@ export async function registerCryptoPaymentRoutes(
 
     // The plan price is always derived on the server. A client-supplied amount is never trusted.
     const plan = getCruushPlusPlan(payload.planId);
-    const discount = payload.couponCode
+    const price = getCruushPlusSalePrice(plan.amountCents);
+    const discount = payload.couponCode && !price.sale
       ? applyCheckoutCoupon(plan.amountCents, getCheckoutCoupon(payload.couponCode))
       : null;
     const rail = payload.rail as CryptoPaymentRailId;
@@ -226,9 +228,9 @@ export async function registerCryptoPaymentRoutes(
     const intent = await createInHouseCryptoPaymentIntent(app.db, app.config, {
       userId,
       planId: plan.id,
-      amountUsdCents: discount?.amountUsdCents ?? plan.amountCents,
+      amountUsdCents: discount?.amountUsdCents ?? price.amountCents,
       idempotencyKey: payload.idempotencyKey,
-      couponCode: discount?.code,
+      couponCode: payload.couponCode,
       rail,
       watchStartBlock,
       watchStartBlocksByChain,

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type Ref } from 'react';
 import { ChevronLeft, ChevronRight, Lock, RefreshCw, X } from 'lucide-react';
 import { Button } from './ui/button';
 import { CruushIcon, type CruushIconName } from './CruushIconImage';
@@ -209,13 +209,15 @@ function makeBrowseItems(
   ];
 }
 
-function CarouselTile({ item, featured, itemIndex, spinning, activePhotoIndex, onSelectPhoto }: {
+function CarouselTile({ item, featured, itemIndex, spinning, activePhotoIndex, onSelectPhoto, plusAdRef, plusAdFit }: {
   item: CarouselItem;
   featured: boolean;
   itemIndex: number;
   spinning: boolean;
   activePhotoIndex?: number;
   onSelectPhoto?: (index: number) => void;
+  plusAdRef?: Ref<HTMLDivElement>;
+  plusAdFit?: { scale: number; offsetY: number } | null;
 }) {
   const dlModeActive = useDlMode();
   const distanceMode = useDistancePreferences().mode;
@@ -238,10 +240,15 @@ function CarouselTile({ item, featured, itemIndex, spinning, activePhotoIndex, o
   if (item.kind === 'plus-ad') {
     return (
       <div
+        ref={plusAdRef}
         data-testid="cruise-carousel-plus-ad-tile"
         className={`relative flex ${profileSizeClass} shrink-0 flex-col items-center justify-center gap-2 overflow-hidden border ${tileFrameClass} ${positionClass} ${cycleClass} px-3 text-center transition-all duration-300`}
-        style={{ background: 'var(--cruush-gradient)' }}
+        style={{
+          background: 'var(--cruush-gradient)',
+          transform: plusAdFit ? `translateY(${plusAdFit.offsetY}px) scale(${plusAdFit.scale})` : undefined,
+        }}
       >
+        <p className="absolute inset-x-3 top-3 text-center text-sm font-semibold text-white"><CruushPlusWord /> unlocks this</p>
         <CruushIcon name="cruush" className="h-8 w-8" variant="white" />
         <p className="text-[11px] leading-tight text-white/85">See who the carousel finds nearby.</p>
       </div>
@@ -400,12 +407,61 @@ export default function CruiseCarouselSlot({
   const [cycleStep, setCycleStep] = useState(0);
   const [nearMiss, setNearMiss] = useState(false);
   const [activePhotoIndex, setActivePhotoIndex] = useState(0);
+  const [lockedTileFit, setLockedTileFit] = useState<{ scale: number; offsetY: number } | null>(null);
+  const windowRef = useRef<HTMLDivElement>(null);
+  const frameRef = useRef<HTMLDivElement>(null);
+  const reelViewportRef = useRef<HTMLDivElement>(null);
+  const plusAdRef = useRef<HTMLDivElement>(null);
   const onCompleteRef = useRef(onComplete);
   const profileCandidates = useMemo(
     () => uniqueProfileCandidates(candidateUsers, targetUser),
     [candidateUsers, targetUser],
   );
   const profileCandidateKey = profileCandidates.map((user) => user.id).join(':');
+
+  useLayoutEffect(() => {
+    if (mode !== 'locked' || !settled) {
+      setLockedTileFit(null);
+      return;
+    }
+    const windowElement = windowRef.current;
+    const frameElement = frameRef.current;
+    const reelElement = reelViewportRef.current;
+    const tile = plusAdRef.current;
+    if (!windowElement || !frameElement || !reelElement || !tile) return;
+
+    const fit = () => {
+      if (!tile.offsetWidth || !tile.offsetHeight) return;
+      const windowBox = windowElement.getBoundingClientRect();
+      const frameBox = frameElement.getBoundingClientRect();
+      const reelBox = reelElement.getBoundingClientRect();
+      const centerX = frameBox.left + frameBox.width / 2;
+      const centerY = frameBox.top + frameBox.height / 2;
+      // Retain the tile's existing inset from the pink frame. On short pages,
+      // fit inside both clipping ancestors without moving the frame or reel.
+      const insetX = Math.max(0, (frameBox.width - tile.offsetWidth) / 2);
+      const insetY = Math.max(0, (frameBox.height - tile.offsetHeight) / 2);
+      const left = Math.max(frameBox.left, reelBox.left, windowBox.left + windowElement.clientLeft) + insetX;
+      const right = Math.min(frameBox.right, reelBox.right, windowBox.left + windowElement.clientLeft + windowElement.clientWidth) - insetX;
+      const top = Math.max(frameBox.top, reelBox.top, windowBox.top + windowElement.clientTop) + insetY;
+      const bottom = Math.min(frameBox.bottom, reelBox.bottom, windowBox.top + windowElement.clientTop + windowElement.clientHeight) - insetY;
+      const scale = Math.max(0, Math.min(1,
+        2 * Math.min(centerX - left, right - centerX) / tile.offsetWidth,
+        2 * Math.min(centerY - top, bottom - centerY) / tile.offsetHeight,
+      ));
+      const offsetY = centerY - (reelBox.top + reelBox.height / 2);
+      setLockedTileFit((previous) => previous?.scale === scale && previous.offsetY === offsetY
+        ? previous : { scale, offsetY });
+    };
+    fit();
+    const observer = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(fit);
+    [windowElement, frameElement, reelElement, tile].forEach((element) => observer?.observe(element));
+    window.addEventListener('resize', fit);
+    return () => {
+      observer?.disconnect();
+      window.removeEventListener('resize', fit);
+    };
+  }, [mode, settled, variant]);
 
   useEffect(() => {
     setActivePhotoIndex(0);
@@ -465,7 +521,7 @@ export default function CruiseCarouselSlot({
   const title = mode === 'profile'
     ? 'browsing nearby profiles'
     : mode === 'locked'
-    ? 'cruise carousel is a cruush+ feature'
+    ? 'Carousel is a cruush+ feature'
     : 'no profiles nearby';
   const description = mode === 'profile'
     ? targetUser
@@ -486,7 +542,7 @@ export default function CruiseCarouselSlot({
             type="button"
             onClick={onClose}
             className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-white/10 bg-black/35 text-white/80 backdrop-blur-sm transition hover:text-white"
-            aria-label="Close cruise carousel"
+            aria-label="Close Carousel"
           >
             <X className="h-4 w-4" />
           </button>
@@ -494,17 +550,17 @@ export default function CruiseCarouselSlot({
       </div>
 
       <div className={`cruush-carousel-body ${variant === 'page' ? 'px-3 sm:px-6' : 'px-4'} flex min-h-0 flex-1 flex-col justify-center`}>
-        <div className="relative overflow-hidden rounded-[24px] border border-white/10 bg-black/55 p-4 shadow-[0_24px_70px_rgba(0,0,0,0.4)]">
+        <div ref={windowRef} className="relative overflow-hidden rounded-[24px] border border-white/10 bg-black/55 p-4 shadow-[0_24px_70px_rgba(0,0,0,0.4)]">
           <div className="pointer-events-none absolute inset-y-4 left-0 z-10 w-14 bg-gradient-to-r from-black/75 to-transparent" />
           <div className="pointer-events-none absolute inset-y-4 right-0 z-10 w-14 bg-gradient-to-l from-black/75 to-transparent" />
-          <div data-testid="cruise-carousel-featured-frame" className={`pointer-events-none absolute left-1/2 top-1/2 z-30 ${featuredFrameClass} -translate-x-1/2 -translate-y-1/2 rounded-[1.65rem] border border-white/18 bg-white/[0.035] shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] ${settled ? '' : 'cruise-carousel-frame-spinning'}`}>
+          <div ref={frameRef} data-testid="cruise-carousel-featured-frame" className={`pointer-events-none absolute left-1/2 top-1/2 z-30 ${featuredFrameClass} -translate-x-1/2 -translate-y-1/2 rounded-[1.65rem] border border-white/18 bg-white/[0.035] shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] ${settled ? '' : 'cruise-carousel-frame-spinning'}`}>
             {mode === 'locked' ? (
-              <p className="absolute inset-x-3 top-3 text-center text-sm font-semibold text-white"><CruushPlusWord /> unlocks this</p>
+              <p className={settled ? 'sr-only' : 'absolute inset-x-3 top-3 text-center text-sm font-semibold text-white'}><CruushPlusWord /> unlocks this</p>
             ) : null}
           </div>
           <span aria-hidden="true" className="pointer-events-none absolute left-1/2 top-2 z-20 h-2.5 w-2.5 -translate-x-1/2 rotate-45 bg-primary shadow-[0_0_14px_rgba(255,0,114,0.9)]" />
           <span aria-hidden="true" className="pointer-events-none absolute bottom-2 left-1/2 z-20 h-2.5 w-2.5 -translate-x-1/2 rotate-45 bg-primary shadow-[0_0_14px_rgba(255,0,114,0.9)]" />
-          <div className="relative flex h-[19rem] sm:h-[22rem] items-center justify-center overflow-hidden" aria-hidden="true">
+          <div ref={reelViewportRef} className="relative flex h-[19rem] sm:h-[22rem] items-center justify-center overflow-hidden" aria-hidden="true">
             <div
               key={settled ? 'settled' : `reel-${cycleStep}`}
               className={`flex items-center gap-3 sm:gap-5 ${settled ? 'cruise-carousel-reel-lock' : nearMiss ? 'cruise-carousel-reel-near-miss' : 'cruise-carousel-reel-step'}`}
@@ -518,6 +574,8 @@ export default function CruiseCarouselSlot({
                   spinning={!settled && mode === 'profile'}
                   activePhotoIndex={activePhotoIndex}
                   onSelectPhoto={setActivePhotoIndex}
+                  plusAdRef={plusAdRef}
+                  plusAdFit={lockedTileFit}
                 />
             ))}
             </div>
@@ -576,7 +634,7 @@ export default function CruiseCarouselSlot({
   if (variant === 'panel') {
     return (
       <aside
-        aria-label="cruise carousel"
+        aria-label="Carousel"
         className="fixed inset-0 z-[140] flex items-center justify-center bg-black/88 p-0 backdrop-blur-xl sm:p-6"
       >
         <div className="scrollbar-hide h-full max-h-[46rem] w-full max-w-3xl overflow-y-auto border-y border-white/10 bg-black/84 shadow-[0_24px_80px_rgba(0,0,0,0.48)] sm:rounded-[28px] sm:border">
@@ -588,7 +646,8 @@ export default function CruiseCarouselSlot({
 
   return (
     <section
-      aria-label="cruise carousel"
+      aria-label="Carousel"
+      data-carousel-scroll-page={mode === 'locked' ? '' : undefined}
       className="mx-auto h-full w-full max-w-2xl overflow-hidden border-y border-white/10 bg-black/78 shadow-[0_24px_80px_rgba(0,0,0,0.46)] backdrop-blur-xl sm:rounded-[28px] sm:border"
     >
       {content}

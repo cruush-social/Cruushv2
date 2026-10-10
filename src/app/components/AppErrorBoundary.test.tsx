@@ -15,6 +15,6 @@ describe('AppErrorBoundary', () => {
     );
 
     expect(screen.getByText('Error code: APP_SHELL_RENDER_ERROR')).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Open Feed' })).toHaveAttribute('href', '/feed');
+    expect(screen.getByRole('link', { name: 'Open Confessional' })).toHaveAttribute('href', '/feed');
   });
 });

@@ -217,6 +217,19 @@ html[data-cruush-larger-text] {
   --text-5xl: 3.75rem;
 }
 
+html[data-cruush-larger-text] [data-carousel-scroll-page] {
+  overflow-y: auto;
+}
+
+html[data-cruush-larger-text] [data-carousel-scroll-page] .cruush-carousel-content {
+  height: auto;
+  min-height: 100%;
+}
+
+html[data-cruush-larger-text] [data-carousel-scroll-page] .cruush-carousel-body {
+  flex: 1 0 auto;
+}
+
 html[data-cruush-larger-text] body {
   font-size: var(--text-base);
   line-height: var(--text-base--line-height);

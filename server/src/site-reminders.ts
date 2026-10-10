@@ -9,7 +9,7 @@ const REMINDERS_BY_UTC_DAY = {
   1: {
     kind: "nearby_feed",
     title: "See what's happening nearby",
-    body: "Open Feed to catch up on posts around you.",
+    body: "Open Confessional to catch up on posts around you.",
     linkUrl: "/feed"
   },
   2: {
@@ -26,7 +26,7 @@ const REMINDERS_BY_UTC_DAY = {
   },
   4: {
     kind: "feed_post",
-    title: "Post to Feed",
+    title: "Post to Confessional",
     body: "Share what you're up for with people nearby.",
     linkUrl: "/feed"
   },

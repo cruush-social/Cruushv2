@@ -8,6 +8,7 @@ import {
 import {
   getNotificationPreferences,
   getVapidPublicKey,
+  refreshPushSubscription,
   removePushSubscription,
   updateNotificationPreferences,
   upsertPushSubscription
@@ -262,6 +263,15 @@ export function registerNotificationRoutes(app: FastifyInstance) {
 
     return reply.send({
       data: await updateNotificationPreferences(app, userId, { pushEnabled: false })
+    });
+  });
+
+  app.post("/api/push/subscriptions/refresh", async (request, reply) => {
+    const userId = await getAuthenticatedUserId(request);
+    const payload = pushSubscriptionPayloadSchema.parse(request.body);
+
+    return reply.send({
+      data: await refreshPushSubscription(app, userId, payload, request.headers["user-agent"] ?? "")
     });
   });
 }

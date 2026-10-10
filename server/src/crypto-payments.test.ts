@@ -86,8 +86,12 @@ function newIntentQuery(
     if (sql.includes("idempotency_key = $2")) return { rows: [] };
     if (sql.includes("wallet_xpub_fingerprint = $5")) return { rows: [] };
     if (sql.includes("open_count")) return { rows: [{ open_count: 0 }] };
-    if (sql.includes("insert into crypto_payment_intents")) return { rows: [reserved] };
-    if (sql.includes("set payment_address = $2")) return { rows: updated ? [{...updated, quoted_amount_atomic: values[2], metadata: {...updated.metadata, collectionFee: JSON.parse(String(values[4]))}}] : [] };
+    if (sql.includes("insert into crypto_payment_intents")) {
+      reserved.amount_usd_cents = Number(values[5]);
+      reserved.metadata = JSON.parse(String(values[8]));
+      return { rows: [reserved] };
+    }
+    if (sql.includes("set payment_address = $2")) return { rows: updated ? [{...updated, amount_usd_cents: reserved.amount_usd_cents, quoted_amount_atomic: values[2], metadata: {...reserved.metadata, collectionFee: JSON.parse(String(values[4]))}}] : [] };
     if (sql.includes("insert into crypto_payment_watch_positions")) return { rows: [] };
     throw new Error(`Unexpected query: ${sql}`);
   });
@@ -346,7 +350,7 @@ describe("crypto payment core", () => {
     const query = newIntentQuery(
       paymentRow(),
       paymentRow({
-        quoted_amount_atomic: "19000000",
+        quoted_amount_atomic: "9510000",
         payment_address: address,
         watch_start_block: "123456",
         status: "awaiting_payment"
@@ -356,25 +360,25 @@ describe("crypto payment core", () => {
     await expect(createInHouseCryptoPaymentIntent(transactionDb(query), cryptoConfig(), {
       userId: "00000000-0000-4000-8000-000000000001",
       planId: "plus_monthly",
-      amountUsdCents: 1899,
+      amountUsdCents: 950,
       idempotencyKey: "checkout-1",
       metadata: { source: "store" },
       watchStartBlock: 123456n
     })).resolves.toMatchObject({
       paymentAddress: address,
-      quotedAmountAtomic: "19000000",
+      quotedAmountAtomic: "9510000",
       gasFeeUsdCents: 1,
-      totalUsdCents: 1900,
+      totalUsdCents: 951,
       status: "awaiting_payment"
     });
 
     expect(query).toHaveBeenCalledWith(
       expect.stringContaining("on conflict (user_id, idempotency_key) do update"),
-      expect.arrayContaining([1899, walletFingerprint, "checkout-1"])
+      expect.arrayContaining([950, walletFingerprint, "checkout-1"])
     );
     expect(query).toHaveBeenCalledWith(
       expect.stringContaining("and payment_address is null"),
-      ["00000000-0000-4000-8000-000000000010", address, "19000000", "123456", expect.any(String)]
+      ["00000000-0000-4000-8000-000000000010", address, "9510000", "123456", expect.any(String)]
     );
     expect(query).toHaveBeenCalledWith(
       expect.stringContaining("insert into crypto_payment_watch_positions"),
@@ -410,7 +414,7 @@ describe("crypto payment core", () => {
       paymentRow({ network: "base-sepolia" }),
       paymentRow({
         network: "base-sepolia",
-        quoted_amount_atomic: "19000000",
+        quoted_amount_atomic: "9510000",
         payment_address: address,
         watch_start_block: "77",
         status: "awaiting_payment"
@@ -423,7 +427,7 @@ describe("crypto payment core", () => {
     }), {
       userId: "00000000-0000-4000-8000-000000000001",
       planId: "plus_monthly",
-      amountUsdCents: 1899,
+      amountUsdCents: 950,
       idempotencyKey: "checkout-1",
       metadata: { source: "store" },
       rail: "usdc_base_sepolia",
@@ -446,7 +450,7 @@ describe("crypto payment core", () => {
     const reserved = paymentRow({
       plan_id: "ping_10",
       product_type: "ping_pack",
-      amount_usd_cents: 799,
+      amount_usd_cents: 2499,
       derivation_index: 2,
       idempotency_key: "ping-pack-10"
     });
@@ -454,7 +458,7 @@ describe("crypto payment core", () => {
       reserved,
       paymentRow({
         ...reserved,
-        quoted_amount_atomic: "8000000",
+        quoted_amount_atomic: "25000000",
         payment_address: address,
         watch_start_block: "123456",
         status: "awaiting_payment"
@@ -465,15 +469,15 @@ describe("crypto payment core", () => {
       userId: reserved.user_id,
       planId: "ping_10",
       productType: "ping_pack",
-      amountUsdCents: 799,
+      amountUsdCents: 2499,
       idempotencyKey: "ping-pack-10",
       metadata: { source: "ping_pack_store", pingCount: 10 },
       watchStartBlock: 123456n
     })).resolves.toMatchObject({
       planId: "ping_10",
       productType: "ping_pack",
-      amountUsdCents: 799,
-      quotedAmountAtomic: "8000000",
+      amountUsdCents: 2499,
+      quotedAmountAtomic: "25000000",
       paymentAddress: address
     });
 
@@ -483,7 +487,7 @@ describe("crypto payment core", () => {
     expect((reservation as unknown as [string, unknown[]] | undefined)?.[1]).toEqual(expect.arrayContaining([
       "ping_10",
       "ping_pack",
-      799,
+      2499,
       "ping-pack-10"
     ]));
     expect(query.mock.calls.some(([sql]) => String(sql).includes("reservation_count"))).toBe(false);
@@ -493,7 +497,7 @@ describe("crypto payment core", () => {
     const address = deriveCryptoReceivingAddress(receiveChainXpub, 1);
     const query = newIntentQuery(
       paymentRow({ asset: "PYUSD", network: "ethereum" }),
-      paymentRow({ asset: "PYUSD", network: "ethereum", quoted_amount_atomic: "19000000", payment_address: address, status: "awaiting_payment" })
+      paymentRow({ asset: "PYUSD", network: "ethereum", quoted_amount_atomic: "9510000", payment_address: address, status: "awaiting_payment" })
     );
 
     await expect(createInHouseCryptoPaymentIntent(transactionDb(query), cryptoConfig({
@@ -501,7 +505,7 @@ describe("crypto payment core", () => {
     }), {
       userId: "00000000-0000-4000-8000-000000000001",
       planId: "plus_monthly",
-      amountUsdCents: 1899,
+      amountUsdCents: 950,
       idempotencyKey: "checkout-pyusd",
       rail: "pyusd_ethereum"
     })).resolves.toMatchObject({ rail: "pyusd_ethereum", asset: "PYUSD", network: "ethereum", chainId: 1 });
@@ -513,7 +517,7 @@ describe("crypto payment core", () => {
     await expect(createInHouseCryptoPaymentIntent(transactionDb(query), cryptoConfig(), {
       userId: "00000000-0000-4000-8000-000000000001",
       planId: "plus_monthly",
-      amountUsdCents: 1899,
+      amountUsdCents: 950,
       idempotencyKey: "checkout-treasury-index"
     })).rejects.toThrow(/invalid wallet derivation index/);
     expect(query.mock.calls.some(([sql]) => String(sql).includes("set payment_address = $2"))).toBe(false);
@@ -532,7 +536,7 @@ describe("crypto payment core", () => {
     await expect(createInHouseCryptoPaymentIntent(transactionDb(query), cryptoConfig(), {
       userId: "00000000-0000-4000-8000-000000000001",
       planId: "plus_monthly",
-      amountUsdCents: 1899,
+      amountUsdCents: 950,
       idempotencyKey: "checkout-1"
     })).rejects.toMatchObject({ statusCode: 409, code: "VALIDATION_ERROR" });
     expect(query.mock.calls.some(([sql]) => String(sql).includes("insert into crypto_payment_intents"))).toBe(false);
@@ -545,7 +549,7 @@ describe("crypto payment core", () => {
       throw new Error(`Unexpected query: ${sql}`);
     });
     await expect(createInHouseCryptoPaymentIntent(transactionDb(query), cryptoConfig(), {
-      userId: "00000000-0000-4000-8000-000000000001", planId: "plus_monthly", amountUsdCents: 1899,
+      userId: "00000000-0000-4000-8000-000000000001", planId: "plus_monthly", amountUsdCents: 950,
       idempotencyKey: "checkout-1", metadata: { sendingApp: "paypal" }
     })).rejects.toMatchObject({ statusCode: 409 });
   });
@@ -563,7 +567,7 @@ describe("crypto payment core", () => {
           CRYPTO_PROCESSOR_BITCOIN_WALLET_XPUB: receiveChainXpub,
           CRYPTO_PROCESSOR_BITCOIN_ESPLORA_URL: 'https://example.invalid/api'
         }), {
-          userId: row.user_id, planId: row.plan_id, amountUsdCents: 1899,
+          userId: row.user_id, planId: row.plan_id, amountUsdCents: 950,
           idempotencyKey: 'checkout-1', rail: 'btc_bitcoin', metadata: { sendingApp }
         })).rejects.toThrow(/sending minimum/);
         expect(query.mock.calls.some(([sql]) => sql.includes('insert into crypto_payment_watch_positions') || sql.includes('set payment_address = $2'))).toBe(false);

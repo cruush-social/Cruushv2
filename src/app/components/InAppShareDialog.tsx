@@ -100,9 +100,9 @@ export default function InAppShareDialog({ open, onOpenChange, share }: InAppSha
         const conversation = await openDirectConversation(userId);
         await createMessage(conversation.id, createInAppShareMessage(share));
       }
-      setStatus('Club sent.');
+      setStatus('Coven sent.');
     } catch {
-      setStatus('Club could not be sent.');
+      setStatus('Coven could not be sent.');
     } finally {
       setSendingId(null);
     }
@@ -240,7 +240,7 @@ export default function InAppShareDialog({ open, onOpenChange, share }: InAppSha
               style={{ background: 'var(--cruush-gradient)' }}
               type="button"
             >
-              Send Club
+              Send Coven
             </button>
           </>
           ) : (

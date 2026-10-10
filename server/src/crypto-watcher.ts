@@ -734,7 +734,10 @@ export async function settleIntentInTransaction(
   } else if (plan) {
     await grantCruushPlusPlan({ ...app, db: tx } as never, current.user_id, plan, {
       kind: "crypto_payment_intent",
-      intentId: current.id
+      intentId: current.id,
+      // Founder bookkeeping records the stored purchase amount, including
+      // its original sale/coupon, rather than today's catalogue list price.
+      amountCents: current.amount_usd_cents
     });
   }
 

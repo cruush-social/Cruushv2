@@ -443,7 +443,7 @@ export default function MapPingSheet({
             <div className="min-w-0 space-y-0.5">
               <p className="text-sm font-medium text-white">Your heart beats for 30 minutes</p>
               <p className="text-xs leading-snug text-white/62">
-                People in your radius see it beat and your signal posts to Feed. Your pin does not move. Alerts go to cruushes only, at most one every 4 hours.
+                People in your radius see it beat and your signal posts to Confessional. Your pin does not move. Alerts go to cruushes only, at most one every 4 hours.
               </p>
             </div>
           </div>

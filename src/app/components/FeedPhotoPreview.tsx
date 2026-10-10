@@ -123,11 +123,11 @@ function PostChrome({ post, children, heartSize }: {
         <>
           <span className="text-xs text-white/58">{post.expiry}</span>
           {post.owner ? (
-            <button aria-label="Delete feed post" className="flex h-8 w-8 items-center justify-center rounded-full border-0 bg-transparent p-0 text-white/52 transition hover:bg-white/10 hover:text-white" type="button">
+            <button aria-label="Delete Confessional post" className="flex h-8 w-8 items-center justify-center rounded-full border-0 bg-transparent p-0 text-white/52 transition hover:bg-white/10 hover:text-white" type="button">
               <Trash2 className="h-4 w-4" />
             </button>
           ) : (
-            <button aria-label="Report feed post" className="flex h-8 w-8 items-center justify-center rounded-full border-0 bg-transparent p-0 text-white/52 transition hover:bg-white/10 hover:text-white" type="button">
+            <button aria-label="Report Confessional post" className="flex h-8 w-8 items-center justify-center rounded-full border-0 bg-transparent p-0 text-white/52 transition hover:bg-white/10 hover:text-white" type="button">
               <Flag className="h-4 w-4" />
             </button>
           )}
@@ -183,7 +183,7 @@ function FeedPhotoUploadPreview() {
           Choose photo
           <input
             accept={PHOTO_UPLOAD_ACCEPT}
-            aria-label="Choose feed photo"
+            aria-label="Choose Confessional photo"
             className="sr-only"
             onChange={(event) => void handleFileChange(event)}
             type="file"
@@ -204,13 +204,13 @@ function FeedPhotoUploadPreview() {
         <div className="flex items-center gap-3 rounded-2xl border border-white/10 bg-black/72 p-4">
           <HeartPhoto
             className="h-16 w-16 shrink-0"
-            label="Cropped feed photo preview"
+            label="Cropped Confessional photo preview"
             masked={false}
             photo={croppedPhoto}
             theme="mutual"
             userId="feed-photo-upload-preview"
           />
-          <p className="text-sm text-white/75">Cropped photo ready for the feed preview.</p>
+          <p className="text-sm text-white/75">Cropped photo ready for the Confessional preview.</p>
         </div>
       ) : null}
       {sourceUrl ? (
@@ -263,14 +263,14 @@ export default function FeedPhotoPreview() {
   return (
     <div className="min-h-screen bg-background pb-24 text-white">
       <AppPageHeader
-        title="Feed posts"
+        title="Confessional posts"
         onBack={() => navigate(-1)}
         bugButtonTestId="feed-photo-preview-bug-button-slot"
       />
 
       <main className="mx-auto w-full space-y-8 px-4 py-6">
         <p className="text-sm text-white/68">
-          Feed posts keep the plan card structure: identity, stacked activity details, three vibes,
+          Confessional posts keep the plan card structure: identity, stacked activity details, three vibes,
           then the post text. Basic members stay text-only; cruush+ members can attach up to three
           photos, shown as heart previews below.
         </p>

@@ -86,6 +86,8 @@ export const DEFAULT_FILTER_STATE: FilterState = {
 };
 
 interface MapFiltersSurfaceProps {
+  purgatoryFilter?: 'all' | 'only' | 'exclude';
+  onPurgatoryFilterChange?: (filter: 'all' | 'only' | 'exclude') => void;
   mutualCruushesOnly?: boolean;
   excludeMileHighClub?: boolean;
   onExcludeMileHighClubChange?: (exclude: boolean) => void;
@@ -150,6 +152,8 @@ function FieldGroup({
 }
 
 export default function MapFiltersSurface({
+  purgatoryFilter = 'all',
+  onPurgatoryFilterChange,
   mutualCruushesOnly = false,
   excludeMileHighClub = false,
   onExcludeMileHighClubChange,
@@ -313,6 +317,16 @@ export default function MapFiltersSurface({
                   />
                 </div>
               ) : null}
+              {onPurgatoryFilterChange ? <>
+                <div className="flex items-start justify-between gap-4 rounded-2xl border border-white/10 bg-white/[0.035] p-4">
+                  <div className="space-y-0.5"><Label htmlFor="seeking-purgatory">Purgatory members only</Label></div>
+                  <Switch id="seeking-purgatory" checked={purgatoryFilter === 'only'} onCheckedChange={(enabled) => onPurgatoryFilterChange(enabled ? 'only' : 'all')} />
+                </div>
+                <div className="flex items-start justify-between gap-4 rounded-2xl border border-white/10 bg-white/[0.035] p-4">
+                  <div className="space-y-0.5"><Label htmlFor="seeking-exclude-purgatory">Hide posts from Purgatory members</Label></div>
+                  <Switch id="seeking-exclude-purgatory" checked={purgatoryFilter === 'exclude'} onCheckedChange={(enabled) => onPurgatoryFilterChange(enabled ? 'exclude' : 'all')} />
+                </div>
+              </> : null}
               <FieldGroup label="Looking For" options={LOOKING_FOR} stateKey="lookingFor" value={value} onChange={onChange} />
               <FieldGroup label="Timing" options={AVAILABILITY} stateKey="timing" value={value} onChange={onChange} />
               <FieldGroup label="Hosting/Travel" options={HOSTING} stateKey="hosting" value={value} onChange={onChange} />

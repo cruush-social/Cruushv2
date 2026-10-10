@@ -187,7 +187,7 @@ describe('Rewards', () => {
       expect(within(featureList).getByText(feature.title)).toBeInTheDocument();
       expect(within(featureList).getByText(feature.description)).toBeInTheDocument();
     }
-    expect(within(featureList).queryByText(/\bPing\b|Voyeur|Create posts on the local feed/i)).not.toBeInTheDocument();
+    expect(within(featureList).queryByText(/\bPing\b|Voyeur|Create posts on the local Confessional/i)).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: 'Hide cruush+ benefits' }));
     expect(window.localStorage.getItem('cruush:rewards:benefits-open')).toBe('false');

@@ -15,11 +15,11 @@ export const CRUUSH_PLUS_FEATURES = [
     description: 'Drop a pin where you are visiting and cruise from there.',
   },
   {
-    title: 'Feed+',
+    title: 'Confessional+',
     description: 'Add up to three photo hearts, post to a specific Crowd, and choose when your post expires.',
   },
   {
-    title: 'Cruise Carousel',
+    title: 'Carousel',
     description: 'Spin through nearby profiles and browse again.',
   },
   {

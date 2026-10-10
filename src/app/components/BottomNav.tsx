@@ -23,7 +23,7 @@ const MUTUAL_FEED_SEEN_AT_KEY = 'feed.mutual.seenAt';
 
 const navItems = [
   { path: '/map', globe: true, label: 'Map' },
-  { path: '/feed', icon: cruushIconWhite, activeIcon: cruushIconColored, label: 'Feed' },
+  { path: '/feed', icon: cruushIconWhite, activeIcon: cruushIconColored, label: 'Confessional' },
   { path: '/cruush', brand: true, label: 'cruush' },
   { path: '/messages', icon: messagesIconWhite, activeIcon: messagesIconColored, label: 'Messages' },
   { path: '/profile', profile: true, label: 'Profile' },
@@ -270,7 +270,7 @@ export default function BottomNav({
                   ? 'Unread messages'
                   : item.path === '/feed'
                     ? outsideServiceAreaFeedNudge
-                      ? 'Open Feed'
+                      ? 'Open Confessional'
                       : 'New posts from mutual cruushes'
                     : 'New incoming cruushes'
                 : undefined}

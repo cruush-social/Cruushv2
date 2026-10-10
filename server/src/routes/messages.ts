@@ -4,6 +4,7 @@ import { canViewNsfwPhoto, loadSharedCrowdUserIds, loadPhotoViewerRelationships,
 import { recordMeaningfulActivitySafely } from "../rewards-service.js";
 import { decryptTextContentOrFallback, encryptTextContent } from "../content-encryption.js";
 import { runTransaction } from "../db.js";
+import { admitLockedClubMember, withLockedClubAdmission } from "../club-admission.js";
 import { decryptMediaBytes } from "../media-encryption.js";
 import { readEncryptedMediaObject } from "../media-storage.js";
 import {
@@ -1313,27 +1314,13 @@ export async function registerMessageRoutes(app: FastifyInstance) {
     await assertMutualGroupInvitees(app, userId, [payload.userId], conversationId);
 
     if (access.club_id) {
-      const context = { config: app.config, db: app.db };
-      const members = await listClubMemberships(context, access.club_id);
-      const existing = members.find((member) => member.payload.userId === payload.userId);
-      if (!existing && members.length >= 1000) {
-        throw new ApiError(409, "VALIDATION_ERROR", "This conversation has reached its member limit.");
-      }
-      if (!existing) {
-        await upsertClubEnrollment(context, buildClubEnrollmentPayload({
-          type: "membership",
-          status: "active",
-          clubId: access.club_id,
-          userId: payload.userId,
-          role: "member"
-        }));
-        await app.db.query(
-          `insert into conversation_members (conversation_id, user_id, member_index, role)
-           values ($1, null, $2, 'member')
-           on conflict (conversation_id, member_index) where member_index is not null do nothing`,
-          [conversationId, createClubEnrollmentUserIndex(app.config, payload.userId)]
-        );
-      }
+      await withLockedClubAdmission(app, access.club_id, async (context) => {
+        const actor = await findClubEnrollment(context, { clubId: context.club.id, userId, type: "membership" });
+        if (context.club.conversation_id !== conversationId || !adminRoles.has(actor?.payload.role ?? "")) {
+          throw new ApiError(403, "FORBIDDEN", "Only group admins can manage this group.");
+        }
+        await admitLockedClubMember(context, payload.userId);
+      });
       await notifyGroupMembership(app, {
         conversationId,
         actorUserId: userId,
@@ -1510,7 +1497,7 @@ export async function registerMessageRoutes(app: FastifyInstance) {
     const { role } = clubMemberRolePayloadSchema.parse(request.body);
     const access = await assertGroupAdmin(app, userId, conversationId);
     if (!access.club_id || !await setClubMemberRole(app, access.club_id, targetUserId, role)) {
-      throw new ApiError(404, "NOT_FOUND", "Club member not found.");
+      throw new ApiError(404, "NOT_FOUND", "Coven member not found.");
     }
 
     return reply.code(204).send();
@@ -1573,7 +1560,7 @@ export async function registerMessageRoutes(app: FastifyInstance) {
     const conversation = await loadConversationForUser(app, userId, conversationId);
 
     if (!conversation || conversation.kind !== "group") {
-      throw new ApiError(404, "NOT_FOUND", "Group or Club conversation not found.");
+      throw new ApiError(404, "NOT_FOUND", "Group or Coven conversation not found.");
     }
 
     const result = await app.db.query<{ id: string }>(
@@ -1604,7 +1591,7 @@ export async function registerMessageRoutes(app: FastifyInstance) {
       : null;
 
     if (!updated) {
-      throw new ApiError(404, "NOT_FOUND", "Group or Club conversation not found.");
+      throw new ApiError(404, "NOT_FOUND", "Group or Coven conversation not found.");
     }
 
     return reply.send({ data: mapConversationRow(app, updated) });

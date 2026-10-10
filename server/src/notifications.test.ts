@@ -77,7 +77,7 @@ function notificationRow(overrides: Record<string, unknown> = {}) {
   };
 }
 
-function queueVisibleActivitySource() {
+function queueVisibleActivitySource(includeFeedSettings = false) {
   // Missing viewer location fails closed to Purgatory. This source has not
   // opted into hiding from those viewers, so normal notification checks follow.
   query
@@ -92,6 +92,12 @@ function queueVisibleActivitySource() {
         profile_visibility_key_version: null
       }]
     });
+  if (includeFeedSettings) {
+    query.mockImplementationOnce(async (sql: string) => {
+      expect(sql).toContain("feed_hide_from_purgatory = true");
+      return { rows: [] };
+    });
+  }
 }
 
 function buildNotificationsApp(overrides: Partial<AppConfig> = {}) {
@@ -379,7 +385,7 @@ describe("notification service", () => {
   });
 
   it("uses generic Feed copy for nearby post pushes", async () => {
-    queueVisibleActivitySource();
+    queueVisibleActivitySource(true);
     query
       .mockResolvedValueOnce({
         rows: [notificationRow({
@@ -389,7 +395,7 @@ describe("notification service", () => {
           link_url: "/feed?view=nearby#latest"
         })]
       });
-    queueVisibleActivitySource();
+    queueVisibleActivitySource(true);
     query
       .mockResolvedValueOnce({
         rows: [{
@@ -433,8 +439,8 @@ describe("notification service", () => {
     });
 
     const pushPayload = JSON.parse(sendNotification.mock.calls[0]?.[1] as string);
-    expect(pushPayload.title).toBe("New Feed post nearby");
-    expect(pushPayload.body).toBe("Open Feed to see what’s happening in your area.");
+    expect(pushPayload.title).toBe("New Confessional post nearby");
+    expect(pushPayload.body).toBe("Open Confessional to see what’s happening in your area.");
     expect(pushPayload.url).toBe("/feed?view=nearby#latest");
     expect(JSON.stringify(pushPayload)).not.toContain("Alex");
     expect(JSON.stringify(pushPayload)).not.toContain("Sensitive post text");
@@ -503,7 +509,7 @@ describe("notification service", () => {
     ["nearby_feed_post", "nearby_enabled"],
     ["reward", "rewards_enabled"]
   ] as const)("does not query push subscriptions when %s alerts are disabled", async (type, disabledColumn) => {
-    if (type !== "reward") queueVisibleActivitySource();
+    if (type !== "reward") queueVisibleActivitySource(type === "nearby_feed_post");
     query
       .mockResolvedValueOnce({
         rows: [notificationRow({
@@ -513,7 +519,7 @@ describe("notification service", () => {
           link_url: type === "reward" ? "/rewards" : "/map?layer=nearby"
         })]
       });
-    if (type !== "reward") queueVisibleActivitySource();
+    if (type !== "reward") queueVisibleActivitySource(type === "nearby_feed_post");
     query
       .mockResolvedValueOnce({
         rows: [{
@@ -544,7 +550,7 @@ describe("notification service", () => {
       ...(type !== "reward" ? { metadata: { sourceUserId: actorUserId } } : {})
     });
 
-    expect(query).toHaveBeenCalledTimes(type === "reward" ? 2 : 8);
+    expect(query).toHaveBeenCalledTimes(type === "reward" ? 2 : type === "nearby_feed_post" ? 10 : 8);
     expect(query.mock.calls.at(-1)?.[0]).toContain("from notification_preferences");
     expect(query.mock.calls.some(([sql]) => String(sql).includes("from push_subscriptions"))).toBe(false);
     expect(sendNotification).not.toHaveBeenCalled();
@@ -552,6 +558,52 @@ describe("notification service", () => {
 });
 
 describe("notification routes", () => {
+  it.each([false, true])("background subscription refresh preserves push preference %s", async (pushEnabled) => {
+    const app = buildNotificationsApp();
+    query.mockResolvedValueOnce({ rows: [{ push_enabled: pushEnabled, sound_enabled: false }] });
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/push/subscriptions/refresh",
+      headers: { "x-user-id": recipientUserId, "user-agent": "vitest" },
+      payload: { endpoint: "https://push.example/sub", keys: { p256dh: "key", auth: "auth" } }
+    });
+    await app.close();
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json().data).toMatchObject({ pushEnabled, soundEnabled: false });
+    expect(query.mock.calls[0]?.[1]).toEqual([recipientUserId, "https://push.example/sub", "key", "auth", "vitest"]);
+    expect(sendNotification).not.toHaveBeenCalled();
+  });
+
+  it("rejects an unsafe endpoint on background refresh without a database write", async () => {
+    const app = buildNotificationsApp();
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/push/subscriptions/refresh",
+      headers: { "x-user-id": recipientUserId },
+      payload: { endpoint: "http://localhost/private", keys: { p256dh: "key", auth: "auth" } }
+    });
+    await app.close();
+
+    expect(response.statusCode).toBe(400);
+    expect(query).not.toHaveBeenCalled();
+    expect(sendNotification).not.toHaveBeenCalled();
+  });
+
+  it("requires authentication for background subscription refresh", async () => {
+    const app = buildNotificationsApp();
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/push/subscriptions/refresh",
+      payload: { endpoint: "https://push.example/sub", keys: { p256dh: "key", auth: "auth" } }
+    });
+    await app.close();
+
+    expect(response.statusCode).toBe(401);
+    expect(query).not.toHaveBeenCalled();
+    expect(sendNotification).not.toHaveBeenCalled();
+  });
+
   it("returns notifications and a next cursor", async () => {
     const app = buildNotificationsApp();
     query.mockResolvedValueOnce({ rows: [notificationRow()] });

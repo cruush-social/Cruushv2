@@ -90,10 +90,10 @@ function formatFeedExpiry(expiry: FeedPostExpiry) {
 }
 
 const FEED_LOCATION_PIN_OPTIONS: Array<{ value: FeedLocationPinVisibility; label: string; description: string }> = [
-  { value: 'mutuals', label: 'cruushes', description: 'Only cruushes see your feed pin.' },
-  { value: 'same_crowd', label: 'same crowd', description: 'People sharing one of your crowds see your feed pin.' },
+  { value: 'mutuals', label: 'cruushes', description: 'Only cruushes see your Confessional pin.' },
+  { value: 'same_crowd', label: 'same crowd', description: 'People sharing one of your crowds see your Confessional pin.' },
   { value: 'public', label: 'public', description: 'Anyone who can read your post can tap through to your map pin.' },
-  { value: 'off', label: 'off', description: 'Do not show a feed pin on your posts.' },
+  { value: 'off', label: 'off', description: 'Do not show a Confessional pin on your posts.' },
 ];
 
 const FEED_WINDOW_OPTIONS: Array<{ value: FeedPostWindow; label: string }> = [
@@ -153,6 +153,7 @@ const DEFAULT_FEED_SEEKING_FILTERS: FilterState = {
 const LAUNCH_PARTY_EVENT_SLUG = 'the-chocolate-factory-launch';
 const DEFAULT_FEED_SETTINGS: FeedSettings = {
   locationPinVisibility: 'mutuals',
+  hideFromPurgatory: false,
   showDistanceLabels: true,
   postExpiryDefault: 'never',
   feedWindow: '7d',
@@ -221,6 +222,8 @@ export default function LocalFeed({ embedded = false, onClose }: { embedded?: bo
   const [feedSeekingFilters, setFeedSeekingFilters] = useState<FilterState>(DEFAULT_FEED_SEEKING_FILTERS);
   const [excludeMileHighClubDraft, setExcludeMileHighClubDraft] = useState(false);
   const [excludeMileHighClub, setExcludeMileHighClub] = useState(false);
+  const [purgatoryFilterDraft, setPurgatoryFilterDraft] = useState<'all' | 'only' | 'exclude'>('all');
+  const [purgatoryFilter, setPurgatoryFilter] = useState<'all' | 'only' | 'exclude'>('all');
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [settingsSaving, setSettingsSaving] = useState(false);
   const [feedSettingsLoaded, setFeedSettingsLoaded] = useState(false);
@@ -281,6 +284,7 @@ export default function LocalFeed({ embedded = false, onClose }: { embedded?: bo
     within?: FeedPostWindow;
     seekingFilters?: FilterState;
     excludeMileHighClub?: boolean;
+    purgatoryFilter?: 'all' | 'only' | 'exclude';
   } = {}) => {
     const append = options.append === true;
     const requestId = ++feedRequestIdRef.current;
@@ -300,6 +304,7 @@ export default function LocalFeed({ embedded = false, onClose }: { embedded?: bo
     const nextWindow = options.within ?? feedWindow;
     const nextSeekingFilters = options.seekingFilters ?? feedSeekingFilters;
     const nextExcludeMileHighClub = options.excludeMileHighClub ?? excludeMileHighClub;
+    const nextPurgatoryFilter = options.purgatoryFilter ?? purgatoryFilter;
     const nextDistanceMiles = Math.min(
       options.distanceMiles ?? nextSeekingFilters.distance,
       DEFAULT_FEED_RADIUS_MILES,
@@ -322,9 +327,12 @@ export default function LocalFeed({ embedded = false, onClose }: { embedded?: bo
         distanceMiles: nextDistanceMiles,
         limit: requestLimit,
         within: nextWindow,
-        seeking: nextExcludeMileHighClub
-          ? { ...nextSeekingFilters, excludeMileHighClub: true }
-          : nextSeekingFilters,
+        seeking: {
+          ...nextSeekingFilters,
+          ...(nextExcludeMileHighClub ? { excludeMileHighClub: true } : {}),
+          ...(nextPurgatoryFilter === 'only' ? { purgatoryMembers: true } : {}),
+          ...(nextPurgatoryFilter === 'exclude' ? { excludePurgatoryMembers: true } : {}),
+        },
       });
 
       if (requestId !== feedRequestIdRef.current) {
@@ -347,7 +355,7 @@ export default function LocalFeed({ embedded = false, onClose }: { embedded?: bo
         return;
       }
       console.error('Error fetching posts:', error);
-      setError(error instanceof Error ? error.message : 'Failed to load the local feed.');
+      setError(error instanceof Error ? error.message : 'Failed to load the local Confessional.');
       if (!append && !hasRenderedPosts) {
         postsRef.current = [];
         setPosts([]);
@@ -364,7 +372,7 @@ export default function LocalFeed({ embedded = false, onClose }: { embedded?: bo
         setLoading(false);
       }
     }
-  }, [excludeMileHighClub, feedCoordinates, feedSeekingFilters, feedWindow]);
+  }, [excludeMileHighClub, purgatoryFilter, feedCoordinates, feedSeekingFilters, feedWindow]);
 
   useEffect(() => {
     if (!photoViewer) {
@@ -587,7 +595,7 @@ export default function LocalFeed({ embedded = false, onClose }: { embedded?: bo
       return;
     }
     if (stagedPhotos.length >= 3) {
-      setError('Feed posts can include up to three photos.');
+      setError('Confessional posts can include up to three photos.');
       return;
     }
     if (!file.type.startsWith('image/') && !PHOTO_UPLOAD_EXTENSION_TYPES.has(file.name.split('.').pop()?.toLowerCase() ?? '')) {
@@ -605,7 +613,7 @@ export default function LocalFeed({ embedded = false, onClose }: { embedded?: bo
       }
     } catch (previewError) {
       if (feedPhotoPreviewRequestRef.current === requestId) {
-        setError(previewError instanceof Error ? previewError.message : 'Failed to upload Feed photo.');
+        setError(previewError instanceof Error ? previewError.message : 'Failed to upload Confessional photo.');
       }
     } finally {
       if (feedPhotoPreviewRequestRef.current === requestId) setUploadingFeedPhoto(false);
@@ -620,7 +628,7 @@ export default function LocalFeed({ embedded = false, onClose }: { embedded?: bo
       return;
     }
     if (stagedPhotos.length >= 3) {
-      setError('Feed posts can include up to three photos.');
+      setError('Confessional posts can include up to three photos.');
       return;
     }
     setUploadingFeedPhoto(true);
@@ -636,7 +644,7 @@ export default function LocalFeed({ embedded = false, onClose }: { embedded?: bo
       setStagedPhotos((currentPhotos) => [...currentPhotos, uploaded].slice(0, 3));
       setPendingFeedPhotoUrl(null);
     } catch (uploadError) {
-      setError(uploadError instanceof Error ? uploadError.message : 'Failed to upload Feed photo.');
+      setError(uploadError instanceof Error ? uploadError.message : 'Failed to upload Confessional photo.');
     } finally {
       setUploadingFeedPhoto(false);
     }
@@ -649,7 +657,7 @@ export default function LocalFeed({ embedded = false, onClose }: { embedded?: bo
       await deleteStagedFeedPhoto(photoId);
       setStagedPhotos((currentPhotos) => currentPhotos.filter((photo) => photo.id !== photoId));
     } catch (deleteError) {
-      setError(deleteError instanceof Error ? deleteError.message : 'Failed to remove Feed photo.');
+      setError(deleteError instanceof Error ? deleteError.message : 'Failed to remove Confessional photo.');
     } finally {
       setUploadingFeedPhoto(false);
     }
@@ -685,7 +693,7 @@ export default function LocalFeed({ embedded = false, onClose }: { embedded?: bo
       void fetchPosts();
     } catch (error) {
       console.error('Error saving feed settings:', error);
-      setError(error instanceof Error ? error.message : 'Failed to save feed settings.');
+      setError(error instanceof Error ? error.message : 'Failed to save Confessional settings.');
     } finally {
       setSettingsSaving(false);
     }
@@ -697,7 +705,19 @@ export default function LocalFeed({ embedded = false, onClose }: { embedded?: bo
       await enqueueFeedSettingsUpdate({ feedWindow: nextWindow });
       await fetchPosts({ before: null, within: nextWindow });
     } catch (error) {
-      setError(error instanceof Error ? error.message : 'Failed to save feed window.');
+      setError(error instanceof Error ? error.message : 'Failed to save Confessional window.');
+    }
+  };
+
+  const handleFeedPurgatoryVisibilityChange = async (hideFromPurgatory: boolean) => {
+    setSettingsSaving(true);
+    setError(null);
+    try {
+      await enqueueFeedSettingsUpdate({ hideFromPurgatory });
+    } catch (error) {
+      setError(error instanceof Error ? error.message : 'Failed to save feed settings.');
+    } finally {
+      setSettingsSaving(false);
     }
   };
 
@@ -775,7 +795,7 @@ export default function LocalFeed({ embedded = false, onClose }: { embedded?: bo
       <AppPageHeader
         className="z-40"
         testId="local-feed-header"
-        title={settingsOpen ? 'Feed settings' : 'Feed'}
+        title={settingsOpen ? 'Confessional settings' : 'Confessional'}
         onBack={() => {
             if (settingsOpen) {
               setSettingsOpen(false);
@@ -788,18 +808,18 @@ export default function LocalFeed({ embedded = false, onClose }: { embedded?: bo
             navigate(-1);
           }}
         onClose={embedded ? onClose : undefined}
-        closeLabel="Close Feed"
+        closeLabel="Close Confessional"
         bugButtonTestId="local-feed-bug-button-slot"
         actions={!settingsOpen ? <>
         <Button
           variant="ghost"
           size="icon"
           className="rounded-full border border-white/10 bg-background/55 text-white backdrop-blur-md hover:bg-white/10"
-          aria-label="Feed seeking"
-          title="Feed seeking"
+          aria-label="Confessional seeking"
+          title="Confessional seeking"
           aria-pressed={seekingOpen}
           onClick={() => setSeekingOpen((open) => !open)}
-          style={seekingOpen || excludeMileHighClub || JSON.stringify(feedSeekingFilters) !== JSON.stringify(DEFAULT_FEED_SEEKING_FILTERS)
+          style={seekingOpen || excludeMileHighClub || purgatoryFilter !== 'all' || JSON.stringify(feedSeekingFilters) !== JSON.stringify(DEFAULT_FEED_SEEKING_FILTERS)
             ? { background: 'var(--cruush-gradient-soft-28)' }
             : undefined}
         >
@@ -810,8 +830,8 @@ export default function LocalFeed({ embedded = false, onClose }: { embedded?: bo
             variant="ghost"
             size="icon"
             className="rounded-full border border-white/10 bg-background/55 text-white backdrop-blur-md hover:bg-white/10"
-            aria-label="Feed settings"
-            title="Feed settings"
+            aria-label="Confessional settings"
+            title="Confessional settings"
             onClick={() => setSettingsOpen(true)}
           >
             <CruushIcon name="settings" className="h-5 w-5" />
@@ -820,8 +840,8 @@ export default function LocalFeed({ embedded = false, onClose }: { embedded?: bo
           variant="ghost"
           size="icon"
           className="rounded-full border border-white/10 bg-background/55 text-white backdrop-blur-md hover:bg-white/10"
-          aria-label="Feed settings"
-          title="Feed settings"
+          aria-label="Confessional settings"
+          title="Confessional settings"
           onClick={() => setSettingsOpen(true)}
         >
           <CruushIcon name="settings" className="h-5 w-5" />
@@ -864,11 +884,20 @@ export default function LocalFeed({ embedded = false, onClose }: { embedded?: bo
               </div>
             </section>
 
+            <section className="flex items-start justify-between gap-4 rounded-lg border border-white/10 bg-white/[0.025] p-4">
+              <label className="text-sm font-semibold text-white" htmlFor="feed-hide-from-purgatory">Hide my Confessional posts from Purgatory members</label>
+              <Switch
+                id="feed-hide-from-purgatory"
+                checked={feedSettings.hideFromPurgatory === true}
+                disabled={settingsSaving || !feedSettingsLoaded}
+                onCheckedChange={(enabled) => void handleFeedPurgatoryVisibilityChange(enabled)}
+              />
+            </section>
             <section
               aria-disabled={!profilePinsAllowed}
               className={`space-y-2 rounded-lg border border-white/10 bg-white/[0.025] p-4 ${!profilePinsAllowed ? 'grayscale opacity-40' : ''}`}
             >
-              <p className="text-sm font-semibold text-white">Who can open my map location from Feed posts</p>
+              <p className="text-sm font-semibold text-white">Who can open my map location from Confessional posts</p>
               {FEED_LOCATION_PIN_OPTIONS.map((option) => {
                 const active = feedSettings.locationPinVisibility === option.value;
                 return (
@@ -907,7 +936,7 @@ export default function LocalFeed({ embedded = false, onClose }: { embedded?: bo
               {error}
             </div>
           ) : null}
-          <TrustRestrictionNotice message={trust.message('feed_posting', 'Feed posting')} />
+          <TrustRestrictionNotice message={trust.message('feed_posting', 'Confessional posting')} />
           {!composerOpen ? (
             <button
               type="button"
@@ -938,7 +967,7 @@ export default function LocalFeed({ embedded = false, onClose }: { embedded?: bo
             }}
           >
             <AccordionItem className="border-0" value="composer">
-              <AccordionTrigger aria-controls={composerPanelId} aria-label="Collapse Feed input" className="mb-3 justify-end py-0" />
+              <AccordionTrigger aria-controls={composerPanelId} aria-label="Collapse Confessional input" className="mb-3 justify-end py-0" />
             </AccordionItem>
           </Accordion>
           <Textarea
@@ -951,7 +980,7 @@ export default function LocalFeed({ embedded = false, onClose }: { embedded?: bo
           />
           <div className="mb-2 space-y-2">
             <TagInput
-              ariaLabel="Add Feed tag"
+              ariaLabel="Add Confessional tag"
               disabled={trust.restricted('feed_posting') || !hasCruushPlus}
               maxTags={MAX_FEED_POST_TAGS}
               onChange={setPostTags}
@@ -967,7 +996,7 @@ export default function LocalFeed({ embedded = false, onClose }: { embedded?: bo
               <input
                 accept={PHOTO_UPLOAD_ACCEPT}
                 disabled={trust.restricted('feed_posting') || trust.restricted('photo_uploads')}
-                aria-label="Choose Feed photo"
+                aria-label="Choose Confessional photo"
                 className="sr-only"
                 onChange={handleFeedPhotoSelection}
                 ref={feedPhotoInputRef}
@@ -1062,7 +1091,7 @@ export default function LocalFeed({ embedded = false, onClose }: { embedded?: bo
               <div className="flex flex-wrap gap-2">
                 {stagedPhotos.map((photo, index) => (
                   <button
-                    aria-label={`Remove Feed photo ${index + 1}`}
+                    aria-label={`Remove Confessional photo ${index + 1}`}
                     className="inline-flex items-center gap-1 rounded-full border border-white/12 bg-black/60 px-2.5 py-1 text-xs text-white/72 transition hover:bg-white/10 hover:text-white"
                     disabled={uploadingFeedPhoto}
                     key={photo.id}
@@ -1076,20 +1105,20 @@ export default function LocalFeed({ embedded = false, onClose }: { embedded?: bo
               </div>
             </div>
           ) : null}
-          <div className="sticky bottom-0 flex flex-wrap items-center justify-between gap-3 bg-black/82 pt-2">
+          <div className="flex flex-wrap items-center justify-between gap-3 bg-black/82 pt-2">
             <label className="flex min-w-0 items-center gap-2 text-xs text-white/72">
               <Switch
-                aria-label="Show distance on feed post"
+                aria-label="Show distance on Confessional post"
                 checked={showDistanceOnPost}
                 disabled={posting || trust.restricted('feed_posting')}
                 onCheckedChange={setShowDistanceOnPost}
               />
-              <span>Show distance on feed post</span>
+              <span>Show distance on Confessional post</span>
             </label>
             <div className={`flex min-w-fit flex-1 items-center justify-end gap-2 ${hasCruushPlus !== true ? 'cruush-feed-composer-basic-actions' : ''}`}>
               <div className="cruush-feed-photo-control flex min-w-0 items-center gap-2">
                 <Button
-                  aria-label={hasCruushPlus === true ? 'Add Feed photo' : 'Feed photos require cruush+'}
+                  aria-label={hasCruushPlus === true ? 'Add Confessional photo' : 'Confessional photos require cruush+'}
                   className={[
                     'relative overflow-hidden transition before:pointer-events-none before:absolute before:inset-0 before:bg-[linear-gradient(105deg,transparent_30%,rgba(255,255,255,0.28)_50%,transparent_70%)] before:opacity-0 hover:before:opacity-100',
                     hasCruushPlus === true
@@ -1111,7 +1140,7 @@ export default function LocalFeed({ embedded = false, onClose }: { embedded?: bo
                   {`Photo${hasCruushPlus === true ? ` ${stagedPhotos.length}/3` : ' +'}`}
                 </Button>
                 {hasCruushPlus !== true ? (
-                  <p className="min-w-0 text-xs text-white/58">cruush+ users can post up to 3 photos to the Feed.</p>
+                  <p className="min-w-0 text-xs text-white/58">cruush+ users can post up to 3 photos to the Confessional.</p>
                 ) : null}
               </div>
               <Button
@@ -1121,7 +1150,7 @@ export default function LocalFeed({ embedded = false, onClose }: { embedded?: bo
                 ].join(' ')}
                 onClick={handlePost}
                 disabled={!newPost.trim() || posting || uploadingFeedPhoto || trust.restricted('feed_posting')}
-                style={{ background: 'var(--cruush-gradient-soft-28)' }}
+                style={{ background: 'var(--cruush-gradient)' }}
               >
                 <CruushIcon name="send" className="mr-2 h-4 w-4" />
                 {posting ? 'Posting...' : 'Post'}
@@ -1157,6 +1186,7 @@ export default function LocalFeed({ embedded = false, onClose }: { embedded?: bo
                   key={post.id}
                   testId={`feed-post-${post.id}`}
                   className="bg-black/72 hover:bg-black/86"
+                  outOfSight={post.user.outOfSight === true}
                   heart={(
                     <div className="-mt-1 w-20" data-testid={`feed-post-profile-stack-${post.id}`}>
                       <HeartPhoto
@@ -1282,7 +1312,7 @@ export default function LocalFeed({ embedded = false, onClose }: { embedded?: bo
                           variant="ghost"
                           size="icon"
                           className="size-7 text-muted-foreground hover:text-white"
-                          aria-label={`Delete feed post: ${post.content.slice(0, 48)}`}
+                          aria-label={`Delete Confessional post: ${post.content.slice(0, 48)}`}
                           title="Delete post"
                           disabled={deletingPostId === post.id}
                           onClick={() => void handleDeletePost(post.id)}
@@ -1319,6 +1349,8 @@ export default function LocalFeed({ embedded = false, onClose }: { embedded?: bo
     <MapFiltersSurface
       description={null}
       excludeMileHighClub={excludeMileHighClubDraft}
+      purgatoryFilter={purgatoryFilterDraft}
+      onPurgatoryFilterChange={setPurgatoryFilterDraft}
       hasCruushPlus={hasCruushPlus === true}
       onApply={() => {
         const nextFilters = {
@@ -1328,18 +1360,21 @@ export default function LocalFeed({ embedded = false, onClose }: { embedded?: bo
         setFeedSeekingDraft(nextFilters);
         setFeedSeekingFilters(nextFilters);
         setExcludeMileHighClub(excludeMileHighClubDraft);
+        setPurgatoryFilter(purgatoryFilterDraft);
         setSeekingOpen(false);
         void fetchPosts({
           before: null,
           distanceMiles: nextFilters.distance,
           seekingFilters: nextFilters,
           excludeMileHighClub: excludeMileHighClubDraft,
+          purgatoryFilter: purgatoryFilterDraft,
         });
       }}
       onChange={setFeedSeekingDraft}
       onClear={() => {
         setFeedSeekingDraft(DEFAULT_FEED_SEEKING_FILTERS);
         setExcludeMileHighClubDraft(false);
+        setPurgatoryFilterDraft('all');
       }}
       onExcludeMileHighClubChange={setExcludeMileHighClubDraft}
       onOpenChange={setSeekingOpen}
@@ -1347,7 +1382,7 @@ export default function LocalFeed({ embedded = false, onClose }: { embedded?: bo
       conversionSurface="feed_plus"
       open={seekingOpen}
       searchPlaceholder="Search #tags"
-      title="Feed Filter"
+      title="Confessional Filter"
       value={feedSeekingDraft}
     />
     {pendingFeedPhotoUrl ? (
@@ -1356,7 +1391,7 @@ export default function LocalFeed({ embedded = false, onClose }: { embedded?: bo
         onConfirm={handleConfirmFeedPhotoCrop}
         processing={uploadingFeedPhoto}
         sourceUrl={pendingFeedPhotoUrl}
-        subjectLabel="Feed photo"
+        subjectLabel="Confessional photo"
       />
     ) : null}
     {photoViewer ? (

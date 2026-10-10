@@ -98,8 +98,8 @@ describe("nearby Feed post notifications", () => {
     expect(createAppNotificationAndPush).toHaveBeenCalledWith(app, {
       userId: recipientUserId,
       type: "nearby_feed_post",
-      title: "New Feed post nearby",
-      body: "Open Feed to see what’s happening in your area.",
+      title: "New Confessional post nearby",
+      body: "Open Confessional to see what’s happening in your area.",
       linkUrl: "/feed?view=nearby#latest",
       dedupeKey: `nearby-feed-post:${postId}:${recipientUserId}`,
       metadata: { postId },
@@ -170,8 +170,8 @@ describe("nearby Feed post notifications", () => {
     expect(createAppNotificationAndPush).toHaveBeenCalledWith(app, {
       userId: recipientUserId,
       type: "mutual_feed_post",
-      title: "New Feed post",
-      body: "Open Feed to see it.",
+      title: "New Confessional post",
+      body: "Open Confessional to see it.",
       linkUrl: "/feed#latest",
       dedupeKey: `mutual-feed-post:${postId}:${recipientUserId}`,
       metadata: { postId },

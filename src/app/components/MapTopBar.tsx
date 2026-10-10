@@ -57,8 +57,8 @@ export default function MapTopBar({ setMapControlsHovered, handleFeelingLucky, n
               size="icon"
               onClick={handleFeelingLucky}
               data-tutorial-target="carousel"
-              aria-label="Cruise Carousel"
-              title="Cruise Carousel"
+              aria-label="Carousel"
+              title="Carousel"
               className="size-[3.25rem] rounded-full bg-transparent text-white/90 hover:bg-transparent focus:bg-transparent focus-visible:bg-transparent"
             >
               <CruushIconImage src={luckyIconWhite} className="h-11 w-11 scale-[1.28] object-contain" />

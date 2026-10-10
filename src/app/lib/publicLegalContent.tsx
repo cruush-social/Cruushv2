@@ -59,7 +59,7 @@ export const termsSections: PolicySection[] = [
   {
     title: "User content and adult content",
     body: [
-      "cruush allows adult users to upload profile photos, explicit photos, messages, local feed posts, and other user content. You keep your rights in your content, but you give cruush the license needed to host, store, display, transmit, process, moderate, remove, and operate that content inside the service.",
+      "cruush allows adult users to upload profile photos, explicit photos, messages, local Confessional posts, and other user content. You keep your rights in your content, but you give cruush the license needed to host, store, display, transmit, process, moderate, remove, and operate that content inside the service.",
       "You may upload nude or sexually explicit content only if every person depicted is at least 18, the content is lawful, you have all required rights and consent, the content does not involve coercion or trafficking, and the content follows cruush's safety and content rules.",
       "Profile photos may be evaluated by third-party automated photo moderation services. cruush may temporarily decrypt and securely transmit photos for this purpose, and automated results may cause cruush to automatically reject, restrict, or remove content or account features.",
       "cruush does not endorse user content and is not responsible for content posted by users, but we may review, restrict, blur, remove, preserve, or report content when needed for safety, legal compliance, moderation, abuse prevention, or product operation."
@@ -192,7 +192,7 @@ export const privacySections: PolicySection[] = [
   {
     title: "Information you provide",
     body: [
-      "We may collect your email address, optional phone number for text reminders after ticket links are unlocked, SMS opt-in status, age or date-of-birth information, waitlist city, requested city, profile fields, identity and preference fields you choose to provide, photos, explicit photos, messages, local feed posts, reports, removal requests, billing choices, customer-support messages, consent confirmations, and any files you attach to a report or removal request.",
+      "We may collect your email address, optional phone number for text reminders after ticket links are unlocked, SMS opt-in status, age or date-of-birth information, waitlist city, requested city, profile fields, identity and preference fields you choose to provide, photos, explicit photos, messages, local Confessional posts, reports, removal requests, billing choices, customer-support messages, consent confirmations, and any files you attach to a report or removal request.",
       "Ticket links can be unlocked without providing a phone number. Promotional SMS consent is optional, separate, and is not a condition of ticket access or purchase.",
       "If we later add stronger age, identity, performer-consent, or explicit-content checks, we may collect additional information needed to run those checks and comply with law."
     ]

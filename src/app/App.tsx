@@ -239,9 +239,28 @@ export default function App({
   const [session, setSession] = useState<AuthSessionPayload | null>(null);
   useSyncDistancePreferences(authStatus === 'signed_in' ? session?.user.id : null);
   useEffect(() => {
-    if (authStatus === 'signed_in') {
-      void refreshExistingPushSubscription().catch(() => undefined);
-    }
+    if (authStatus !== 'signed_in') return;
+    const controller = new AbortController();
+    let refreshing = false;
+    const refresh = () => {
+      if (refreshing || document.visibilityState === 'hidden') return;
+      refreshing = true;
+      // Reconnect after a transient/offline failure without asking permission
+      // or opting an account back in. The helper checks both existing choices.
+      void refreshExistingPushSubscription(controller.signal)
+        .catch(() => undefined)
+        .finally(() => { refreshing = false; });
+    };
+    refresh();
+    window.addEventListener('online', refresh);
+    window.addEventListener('focus', refresh);
+    document.addEventListener('visibilitychange', refresh);
+    return () => {
+      controller.abort();
+      window.removeEventListener('online', refresh);
+      window.removeEventListener('focus', refresh);
+      document.removeEventListener('visibilitychange', refresh);
+    };
   }, [authStatus, session?.user.id]);
   const [needsOnboarding, setNeedsOnboarding] = useState(false);
   const [showOnboardingReward, setShowOnboardingReward] = useState(false);

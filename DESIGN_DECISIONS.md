@@ -4,6 +4,18 @@ The notched cruush logo is rejected for every app use, including installed home-
 
 # cruush design decisions
 
+- October 9 release sale: Julien requested “we made banners for a 50% sale already, lets do this in this release for all users”, then chose “Automatic 50% off, no coupon stacking, until I end it”. Apply the server-owned sale to cruush+ for every account; preserve Pulse pricing and already-quoted orders. Reuse the approved dark-red sale banner below the Checkout header, without a countdown or an experiment gate. Do not restore the rejected sitewide top banner.
+
+- October 9 regression-review reference: Julien confirmed “4177”, then clarified “but i prefer the new mobile header size”. Use the recovered 4177 source as the review reference while preserving the newer 24px mobile app-header title size (30px with Larger text) and unchanged desktop titles.
+
+- October 9 browser page scale: Julien reported “regression: app zoomed out with finger gestures” and clarified “the app iteslf within a web browser”. Browser page pinch scaling stays at the initial scale; MapLibre's own pinch zoom, ordinary scrolling and the existing Larger text preference remain available. Browser accessibility overrides and physical-device behavior require separate verification.
+
+- October 9 payment accordion inset: Julien reported “Ui bug” and clarified “Text against accordion edges”. Both pre-order and active-order How to send this payment content use the existing `px-3` inset matching their trigger. Preserve the guide's font sizes, wording, bottom padding, outer geometry and payment behavior.
+
+- October 9 Feed composer correction: Julien said, “also i never asked for this stikcy part of the feed composer? the bright gradient should be used for the post button. you changed the gradients.” The composer action section scrolls normally with the composer, without sticky positioning. Post uses the existing bright `--cruush-gradient`, superseding the earlier dark Post gradient direction. Preserve Photo styling, action order, control geometry, copy, hover effects, and disabled behavior.
+
+- October 9 Club chat header correction: Julien said, “i asked before for no club member listing up top please refer to all ques of alll v2”. Club chat headers show no member listing or member-count subtitle. Preserve ordinary Group and DM headers, Club directory/detail counts, and member management in Club settings.
+
 - October 9 shared-card Vibes: Julien reported “vibe capsules not overflowing into 2 lines”, referring back to “make the card wrap whole vibe pills onto a second line”. The shared person card uses its existing whole-pill wrapping mode by default across Cruushes, Messages, and recipient pickers. Preserve pill presentation and the card's identity/action composition; allow the natural extra rows without a row cap.
 
 - October 9 missed queue labels: Julien requested “Put "Optional" in grey for Club description in club composer add to que” and “message button on profiles and cards ... make it lower case message too”. The Club description retains its existing grey label and adds `Optional`; idle profile/card message actions use `message`, including the desktop profile popup. Preserve all other wording, styling, and behavior.
@@ -15,6 +27,8 @@ The notched cruush logo is rejected for every app use, including installed home-
 - October 9 payment-guide typography: Julien said, “make the how to send this payemtn accordian be the same text sizes as the compare plans one”, then “make the how to send this payment its own accordian with the usual accordian style but the small font sizes add to que”. The existing standalone How to send accordion uses the Compare plans `text-sm` size for its trigger, guide heading, steps, and help link, before and after an order is opened. Preserve the instructions, accordion geometry, and payment behavior.
 
 - October 9 Feed composer graphics repair: Julien reported, “i also see a graphics bug with the feed composer post and picture buttons”. Preserve the latest queued Photo-left-of-Post order, matching dark gradients, hover sheen, white disabled Post foreground, and existing behavior. Keep their action group wide enough to show both controls; only on very narrow screens with Larger text, the existing Basic photo explanation flows below the two buttons so neither button is clipped.
+
+- October 9 member bans: Julien said, "btw when i ban a member delete their feed posts too". Banning a member also removes that member's Feed posts through the existing Feed deletion semantics. Preserve moderation evidence, other members' posts, and unrelated account/chat behavior. This records the requested future ban behavior, not authorization for a retroactive bulk cleanup.
 
 - October 9 birth year: Julien said, "also remove ability to change your birth year". Once established, members cannot edit their birth year through profile controls or member API requests. Preserve initial signup/required age verification and age-display privacy controls; do not rewrite existing birth years.
 
@@ -525,3 +539,45 @@ Julien in the email task: “look at the other agents, wire and write Sinners we
 
 Latest approved lore correction from the same task: “cruush is a techno-occult item.” The final welcome copy lists Feed, Clubs, Crowds, Cruise Carousel after Julien's corrections “change messages to Crowds” and “and Cruise Carousel as opposed to Profiles”, followed by “i approve”. Preserve the exact reviewed transactional copy; Julien owns the separate marketing-release email.
 - October 9, 2026 mobile title correction: Julien said, “The titles on this mobile release are too big”, with Notifications and direct-chat screenshots. Restore the earlier 1.5rem mobile app-header title size (24px normally, 30px with Larger text). This supersedes the broad default-text enlargement for mobile header titles only; preserve desktop title sizes, body/metadata typography, controls, and header geometry.
+
+## Confessions and Covens naming, October 9, 2026
+
+Julien: “rename feed to Confessions across app surfaces including emails and posts etc keep the url as feed, change clubs to covens across the app the same way, allow someone to make a coven just free to join withotu approval as an option on creation”. Use Confessions and Covens in member-facing copy, including posts, navigation, emails, empty states, errors, sharing, and accessibility labels. Keep `/feed`, `/clubs`, API routes, storage identifiers, migrations, and internal compatibility names unchanged. Coven creation may opt into free joining without approval; approval-required joining remains available and is the default unless the creator selects the new option. Preserve existing privacy, moderation, membership caps, and encrypted enrollment behavior.
+
+Correction, October 9, 2026: Julien specified “Covens” and “Confessional”. Use Confessional, not Confessions, for member-facing Feed copy. Use Carousel, not Cruise Carousel, for member-facing Carousel copy. Preserve the internal Feed, Club, and Cruise Carousel identifiers and routes.
+
+## Feed Purgatory controls, October 9, 2026
+
+Julien: “need a feed filter to show and hide from Purgatory members too.” Clarification: “Both”, covering posts authored by Purgatory members and visibility of one's own Feed posts to Purgatory viewers. Placement: “the purgatory show my posts to should be in feed settings”. Keep author include/exclude controls in Feed Filter and the opt-in own-post restriction in Feed settings. Existing audiences, blocks, profile visibility and effective in-area MHC exception remain enforced. Author membership uses the existing server-owned Purgatory classification independently of MHC. These controls do not change visibility outside Feed.
+
+
+## Purgatory heart clearance from Vibes, October 9, 2026
+
+Julien: “purgatory members heart pins need to be slightly lower so the halo doesnt touch their vibe capsules”. Lower the shared person-card heart column only for confirmed Purgatory members with Vibes, enough to separate its existing halo from the capsules. Preserve ordinary hearts, Purgatory hearts without Vibes, capsule positions and artwork, heart/halo/horn/photo size and shape, side-badge geometry and relative attachment, card layout, colors, interactions and privacy. This does not change Map markers or profile/gallery heart artwork. The initial6px relative vertical offset still requires rendered clearance verification.
+
+
+## Notification list scrolling, October 9, 2026
+
+Julien: “regression on notifcaitons page: only the notications should scroll, not the header.” The Notifications page keeps its existing header stationary and scrolls only its content list inside the available app page area above bottom navigation. Preserve header size, styling, controls and behavior, notification presentation and existing spacing. This is local to NotificationCenter, with no shared-header or app-wide scroll change.
+
+
+## Messages unread color and trash placement, October 9, 2026
+
+Julien in the coordinated release task: “i never asked for these additional pink message notification bubbles, for one, pick one color, i pick the pink, and 2, notice where it overlapps with the trash can? put the trash can on the bototm right corner instead”, clarified as “messages”. Use the existing primary pink for the four Messages unread tab indicators and move the normal conversation card trash control to its existing bottom-right footer slot. Preserve unread counts, pinned cards and action controls while the specific additional bubble to remove is unidentified. Do not change shared-card consumers or the Messages layout beyond the requested trash placement and indicator color.
+
+
+## Locked Carousel frame, October 9, 2026
+
+Julien: “I asked this be in the frame”, reaffirming the earlier “Can you make the cruush+ unlocks this appear within the carousel frame ?”, “i just want the cruush+ landing one to fit in the pink border and not get cropped off”, and “i dont want the frame of the carosel to chang eon landing for basic members”. Keep the existing basic-member frame unchanged. Fit only the cruush+ landing tile inside its visible frame without cropping and place the existing unlock label within it. Preserve the real-profile reel, all other tiles, heading, upgrade control, selected result and animation behavior.
+
+## Carousel Larger text scrolling, October 9, 2026
+
+Julien: “Approval” to allowing the Carousel page to scroll on short screens with Larger text so its card stays readable. The locked page may scroll instead of compressing its existing composition. Preserve the frame, typography, controls, normal-text layout and desktop panel.
+
+## Sale banner removed, October 9, 2026
+
+Julien: “Remove ugly red banner up top”. Remove the red sale banner below the checkout header. This supersedes its earlier placement approval; automatic 50% cruush+ pricing, no coupon stacking and owner-ended sale remain unchanged.
+
+## Carousel full-page entry, October 9, 2026
+
+Julien: “Carousel should be full screen only”, followed by “Or at elast never overlap with top”. Use the existing full-page Carousel route on desktop as on mobile, keeping it separate from map top controls. Preserve the existing page composition.

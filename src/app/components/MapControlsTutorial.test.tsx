@@ -293,9 +293,9 @@ describe('MapControlsTutorial', () => {
     expectHighlightedAction('zoom', 'Zoom in');
     fireEvent.click(screen.getByTestId('tutorial-next'));
 
-    expect(screen.getByRole('heading', { name: 'Cruise Carousel' })).toBeInTheDocument();
-    expect(screen.getByText(/spin the Cruise Carousel to discover someone nearby/i)).toBeInTheDocument();
-    fireEvent.click(expectHighlightedAction('carousel', 'Open Cruise Carousel'));
+    expect(screen.getByRole('heading', { name: 'Carousel' })).toBeInTheDocument();
+    expect(screen.getByText(/spin the Carousel to discover someone nearby/i)).toBeInTheDocument();
+    fireEvent.click(expectHighlightedAction('carousel', 'Open Carousel'));
     expect(onActivateStep).toHaveBeenLastCalledWith('carousel');
     fireEvent.click(screen.getByTestId('tutorial-next'));
 
@@ -303,9 +303,9 @@ describe('MapControlsTutorial', () => {
     expectHighlightedAction('profile-edit', 'Open Edit Profile');
     fireEvent.click(screen.getByTestId('tutorial-next'));
 
-    expect(screen.getByRole('heading', { name: 'Feed' })).toBeInTheDocument();
-    expect(screen.getByText(/search the Feed by tag/i)).toBeInTheDocument();
-    expectHighlightedAction('feed', 'Open Feed');
+    expect(screen.getByRole('heading', { name: 'Confessional' })).toBeInTheDocument();
+    expect(screen.getByText(/search the Confessional by tag/i)).toBeInTheDocument();
+    expectHighlightedAction('feed', 'Open Confessional');
     fireEvent.click(screen.getByTestId('tutorial-next'));
 
     expect(onComplete).toHaveBeenCalledTimes(1);
@@ -429,13 +429,13 @@ describe('MapControlsTutorial', () => {
     fireEvent.click(screen.getByTestId('tutorial-next'));
     fireEvent.click(screen.getByTestId('tutorial-next'));
     fireEvent.click(screen.getByTestId('tutorial-next'));
-    expect(screen.getByRole('heading', { name: 'Feed' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Confessional' })).toBeInTheDocument();
     fireEvent.click(screen.getByTestId('tutorial-try-step'));
     await waitFor(() => expect(onActivateStep).toHaveBeenLastCalledWith('feed'));
     secondRender.unmount();
 
     render(<MapControlsTutorial open onActivateStep={onActivateStep} onComplete={vi.fn()} />);
-    expect(screen.getByRole('heading', { name: 'Feed' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Confessional' })).toBeInTheDocument();
     expect(window.localStorage.getItem('cruush:tutorial-v5-progress')).toBe('feed');
   });
 });

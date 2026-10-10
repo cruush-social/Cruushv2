@@ -16,7 +16,7 @@ import { getCruushEntitlement } from "./match-relationships.js";
 function uploadError(error: unknown, prepareOnly = false) {
   const message = error instanceof Error ? error.message.toLowerCase() : "";
   if (message.includes("request file too large") || message.includes("file size")) {
-    return new ApiError(400, "VALIDATION_ERROR", prepareOnly ? "Camera original must be 128 MB or smaller." : "Feed photo must be 5 MB or smaller.");
+    return new ApiError(400, "VALIDATION_ERROR", prepareOnly ? "Camera original must be 128 MB or smaller." : "Confessional photo must be 5 MB or smaller.");
   }
   return error;
 }
@@ -33,14 +33,14 @@ export async function handleFeedPhotoUpload(
     throw new ApiError(402, "CRUUSH_PLUS_REQUIRED", "Photo posts are part of cruush+.");
   }
   if (!photoUploadAvailability(app.config).messagePhotos) {
-    throw new ApiError(503, "FEATURE_RESTRICTED", "Feed photo uploads are temporarily unavailable.");
+    throw new ApiError(503, "FEATURE_RESTRICTED", "Confessional photo uploads are temporarily unavailable.");
   }
 
   await app.rateLimiter.assert({
     key: `feed-photo-upload:${userId}`,
     max: 12,
     windowMs: 60 * 1000,
-    message: "Too many Feed photo uploads. Try again later."
+    message: "Too many Confessional photo uploads. Try again later."
   });
 
   const eligible = (await app.db.query<{ allowed: boolean }>(
@@ -73,7 +73,7 @@ export async function handleFeedPhotoUpload(
   )).rows[0]?.allowed;
 
   if (!eligible) {
-    throw new ApiError(403, "FEATURE_RESTRICTED", "Feed photo uploads are unavailable for this account.");
+    throw new ApiError(403, "FEATURE_RESTRICTED", "Confessional photo uploads are unavailable for this account.");
   }
 
   let upload;
@@ -84,7 +84,7 @@ export async function handleFeedPhotoUpload(
   }
 
   if (!upload || upload.fieldname !== "photo") {
-    throw new ApiError(400, "VALIDATION_ERROR", "Upload a Feed photo in the photo field.");
+    throw new ApiError(400, "VALIDATION_ERROR", "Upload a Confessional photo in the photo field.");
   }
 
   let bytes: Buffer;
@@ -94,7 +94,7 @@ export async function handleFeedPhotoUpload(
     throw uploadError(error, prepareOnly);
   }
   if (upload.file.truncated) {
-    throw new ApiError(400, "VALIDATION_ERROR", prepareOnly ? "Camera original must be 128 MB or smaller." : "Feed photo must be 5 MB or smaller.");
+    throw new ApiError(400, "VALIDATION_ERROR", prepareOnly ? "Camera original must be 128 MB or smaller." : "Confessional photo must be 5 MB or smaller.");
   }
 
   const processed = await processUploadedImage(bytes, upload.mimetype, { cameraOriginal: prepareOnly });
@@ -181,7 +181,7 @@ export async function handleFeedPhotoUpload(
     );
 
     if (!approved.rows[0]) {
-      throw new ApiError(400, "VALIDATION_ERROR", "This Feed photo could not be approved.");
+      throw new ApiError(400, "VALIDATION_ERROR", "This Confessional photo could not be approved.");
     }
 
     return reply.code(201).send({

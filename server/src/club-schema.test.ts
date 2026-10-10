@@ -1,8 +1,18 @@
 import { describe, expect, it } from "vitest";
-import { createClubPayloadSchema, clubVisibilityPayloadSchema } from "./club-schema.js";
+import { createClubPayloadSchema, clubVisibilityPayloadSchema, updateClubPayloadSchema } from "./club-schema.js";
 import { emptyProfile } from "./profile-schema.js";
 
 describe("Club visibility payloads", () => {
+  it("defaults to approval and accepts an explicit creation-only open-join option", () => {
+    const payload = { title: "Night Garden", summary: "", tags: ["night"], memberIds: [] };
+    expect(createClubPayloadSchema.parse(payload).requiresJoinApproval).toBe(true);
+    expect(createClubPayloadSchema.parse({ ...payload, requiresJoinApproval: false }).requiresJoinApproval).toBe(false);
+    expect(createClubPayloadSchema.parse({ ...payload, requiresJoinApproval: true }).requiresJoinApproval).toBe(true);
+    for (const invalid of [null, "false", 0]) {
+      expect(createClubPayloadSchema.safeParse({ ...payload, requiresJoinApproval: invalid }).success).toBe(false);
+    }
+    expect(updateClubPayloadSchema.safeParse({ title: "Night Garden", summary: "", tags: ["night"], requiresJoinApproval: false }).success).toBe(false);
+  });
   it("accepts omitted and false member-only Out of Sight rules", () => {
     const { outside_service_area_members: _omitted, ...legacyRules } = emptyProfile.visibility_rules;
     const createPayload = {

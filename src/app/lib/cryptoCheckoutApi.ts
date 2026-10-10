@@ -1,5 +1,5 @@
 import { requestApi } from './apiClient';
-import type { CruushPlusPlanId } from './billingApi';
+import type { CruushPlusPlanId, CruushPlusSale } from './billingApi';
 
 export type CryptoPaymentRailId = 'usdc_arbitrum' | 'pyusd_arbitrum' | 'pyusd_ethereum' | 'usdc_base' | 'btc_bitcoin';
 /** The app a member sends from. Several apps can share one rail (Bitcoin). */
@@ -53,6 +53,11 @@ export type CryptoPaymentIntent = {
   gasFeeUsdCents?: number;
   totalUsdCents?: number;
   discount?: CheckoutDiscount | null;
+  sale?: (CruushPlusSale & {
+    originalAmountUsdCents: number;
+    discountAmountUsdCents: number;
+    amountUsdCents: number;
+  }) | null;
   fundingEstimates?: Array<{ app: string; minimumSendAtomic?: string; meetsSendingMinimum?: boolean; allowanceUsdCents: number; availableUsdCents: number; availableAtomic: string; estimated: true }>;
   quotedAmountAtomic: string | null;
   paymentAddress: string | null;

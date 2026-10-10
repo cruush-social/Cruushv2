@@ -7,12 +7,115 @@ import {
   getNotifications,
   markAllNotificationsRead,
   markNotificationRead,
+  normalizeLegacyNotificationCopy,
   resolveNotificationNavigationPath,
+  refreshPushSubscription,
   subscribeToPushNotifications,
   updateNotificationPreferences,
+  type NotificationRecord,
 } from './notificationsApi';
 
+const legacyCopyCases = [
+  {
+    type: 'nearby_feed_post',
+    title: 'New Feed post nearby',
+    body: 'Open Feed to see what’s happening in your area.',
+    currentTitle: 'New Confessional post nearby',
+    currentBody: 'Open Confessional to see what’s happening in your area.',
+  },
+  {
+    type: 'mutual_feed_post',
+    title: 'New Feed post',
+    body: 'Open Feed to see it.',
+    currentTitle: 'New Confessional post',
+    currentBody: 'Open Confessional to see it.',
+  },
+  {
+    type: 'site_reminder',
+    title: "See what's happening nearby",
+    body: 'Open Feed to catch up on posts around you.',
+    currentTitle: "See what's happening nearby",
+    currentBody: 'Open Confessional to catch up on posts around you.',
+  },
+  {
+    type: 'site_reminder',
+    title: 'Post to Feed',
+    body: "Share what you're up for with people nearby.",
+    currentTitle: 'Post to Confessional',
+    currentBody: "Share what you're up for with people nearby.",
+  },
+] as const;
+
+const notificationFixture: NotificationRecord = {
+  id: 'notification-1',
+  userId: 'recipient-1',
+  type: 'nearby_feed_post',
+  title: 'New Feed post nearby',
+  body: 'Open Feed to see what’s happening in your area.',
+  linkUrl: '/feed?view=nearby#latest',
+  actorUserId: 'actor-1',
+  conversationId: null,
+  metadata: { postId: 'post-1', title: 'My Feed Club', content: 'Keep this Feed text.' },
+  readAt: null,
+  createdAt: '2026-10-09T12:00:00.000Z',
+};
+
 describe('notificationsApi', () => {
+  it.each(legacyCopyCases)('maps only the complete legacy $type template "$title" without mutating its record', ({
+    type, title, body, currentTitle, currentBody,
+  }) => {
+    const original = Object.freeze({
+      ...notificationFixture, type, title, body,
+      metadata: Object.freeze({ ...notificationFixture.metadata }),
+    });
+    const result = normalizeLegacyNotificationCopy(original);
+
+    expect(result).toEqual({ ...original, title: currentTitle, body: currentBody });
+    expect(result).not.toBe(original);
+    expect(result.metadata).toBe(original.metadata);
+    expect(original).toMatchObject({ title, body });
+    expect(normalizeLegacyNotificationCopy(result)).toBe(result);
+  });
+
+  it.each(legacyCopyCases)('preserves mismatched type or partial legacy pairs for "$title"', ({ type, title, body }) => {
+    const original = { ...notificationFixture, type, title, body };
+    const unmatched: NotificationRecord[] = [
+      { ...original, type: 'direct_message' },
+      { ...original, type: 'announcement' },
+      { ...original, title: `${title} from my Club` },
+      { ...original, body: `${body} My Feed text stays.` },
+    ];
+
+    for (const notification of unmatched) {
+      expect(normalizeLegacyNotificationCopy(Object.freeze(notification))).toBe(notification);
+    }
+  });
+
+  it('normalizes the shared list boundary while preserving unknown types, user content and pagination', async () => {
+    const notifications = [
+      ...legacyCopyCases.map(({ type, title, body }) => ({ ...notificationFixture, type, title, body })),
+      { ...notificationFixture, type: 'future_notice' },
+      { ...notificationFixture, type: 'group_message', title: 'My Club', body: 'I wrote about Feed and Clubs.' },
+      { ...notificationFixture, type: 'nearby_feed_post', title: 'Feed at my Club', body: 'My own post text.' },
+    ];
+    vi.mocked(fetch).mockResolvedValueOnce(new Response(JSON.stringify({
+      data: { notifications, nextCursor: 'next-page' },
+    }), { status: 200 }));
+
+    const result = await getNotifications();
+
+    expect(result).toEqual({
+      notifications: [
+        ...legacyCopyCases.map(({ currentTitle, currentBody }, index) => ({
+          ...notifications[index], title: currentTitle, body: currentBody,
+        })),
+        ...notifications.slice(4),
+      ],
+      nextCursor: 'next-page',
+    });
+    expect(fetch).toHaveBeenCalledTimes(1);
+  });
+
   it('opens a reward card using its server grant ID, never a duration supplied by the link', () => {
     expect(resolveNotificationNavigationPath({
       type: 'reward', linkUrl: '/rewards?days=99999', metadata: { grantId: 'earned/one', days: 99999 },
@@ -44,6 +147,9 @@ describe('notificationsApi', () => {
   });
 
   it('calls notification list, summary, and read endpoints', async () => {
+    vi.mocked(fetch).mockResolvedValueOnce(new Response(JSON.stringify({
+      data: { notifications: [], nextCursor: null },
+    }), { status: 200 }));
     await getNotifications({ filter: 'unread', limit: 10, cursor: '2026-07-08T12:00:00.000Z' });
     await getNotificationSummary();
     await markNotificationRead('notification-1');
@@ -94,6 +200,20 @@ describe('notificationsApi', () => {
           auth: 'auth',
         },
       }),
+    }));
+  });
+
+  it('uses the separate cancellable background refresh endpoint', async () => {
+    const controller = new AbortController();
+    const subscription = { endpoint: 'https://push.example/device', keys: { p256dh: 'key', auth: 'auth' } };
+
+    await refreshPushSubscription(subscription, controller.signal);
+
+    expect(fetch).toHaveBeenCalledExactlyOnceWith('/api/push/subscriptions/refresh', expect.objectContaining({
+      method: 'POST',
+      body: JSON.stringify(subscription),
+      signal: controller.signal,
+      credentials: 'include',
     }));
   });
 

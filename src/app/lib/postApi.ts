@@ -55,6 +55,7 @@ export type FeedPost = {
 
 export type FeedSettings = {
   locationPinVisibility: FeedLocationPinVisibility;
+  hideFromPurgatory?: boolean;
   showDistanceLabels: boolean;
   postExpiryDefault: FeedPostExpiry;
   feedWindow: FeedPostWindow;
@@ -73,6 +74,8 @@ export type FeedPostFilters = {
     searchQuery?: string;
     mileHighClub?: boolean;
     excludeMileHighClub?: boolean;
+    purgatoryMembers?: boolean;
+    excludePurgatoryMembers?: boolean;
     ageRange?: [number, number];
     identities?: string[];
     presentations?: string[];
@@ -134,6 +137,8 @@ export async function getFeedPosts(filters: FeedPostFilters = {}) {
   if (filters.seeking?.excludeMileHighClub) {
     params.set('excludeMileHighClub', '1');
   }
+  if (filters.seeking?.purgatoryMembers) params.set('purgatoryMembers', '1');
+  if (filters.seeking?.excludePurgatoryMembers) params.set('excludePurgatoryMembers', '1');
   if (filters.seeking?.searchQuery?.trim()) {
     params.set('q', filters.seeking.searchQuery.trim());
   }

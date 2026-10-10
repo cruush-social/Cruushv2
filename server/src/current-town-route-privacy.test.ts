@@ -158,6 +158,12 @@ describe("current town labels use only authorized precise saved-OOS subjects", (
         return { rows: (params[0] as string[]).flatMap(id => saved.has(id) ? [saved.get(id)!] : []) };
       }
       if (sql.includes("from posts p")) return { rows: posts };
+      if (sql.includes("from user_privacy_settings") && sql.includes("feed_hide_from_purgatory = true")) {
+        expect(sql).toContain("where user_id = any($1::uuid[]) and feed_hide_from_purgatory = true");
+        expect(params[0]).toEqual(expect.arrayContaining(posts.map(row => row.user_id).filter(id => id !== viewer)));
+        // These existing town fixtures keep the independent Feed preference off.
+        return { rows: [] };
+      }
       if (sql.includes("from profile_kink_interests")) return { rows: [] };
       if (sql.includes("from profiles")) {
         if (profilePrivacyReadFailure && sql.includes("where id = any($1::uuid[])")) {

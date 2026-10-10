@@ -9,7 +9,7 @@ import './CruushPlusScratchCard.css';
 // Existing Pulse explanation from MapPingSheet, reused on the Pulse reward card.
 const PULSE_CARD_FEATURES = [{
   title: 'Your heart beats for 30 minutes',
-  description: 'People in your radius see it beat and your signal posts to Feed. Your pin does not move. Alerts go to cruushes only, at most one every 4 hours.',
+  description: 'People in your radius see it beat and your signal posts to Confessional. Your pin does not move. Alerts go to cruushes only, at most one every 4 hours.',
 }] as const;
 
 function CardPatterns({ back = false }: { back?: boolean }) {

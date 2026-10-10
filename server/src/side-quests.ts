@@ -50,7 +50,7 @@ type QuestDefinition = {
 const HIDDEN_QUEST_KEYS: ReadonlySet<SideQuestKey> = new Set(["complete_tutorial"]);
 
 const QUESTS: QuestDefinition[] = [
-  { key: "post_feed", title: "Make your first Feed post", rewardKind: "cruush_plus_day", rewardAmount: 1 },
+  { key: "post_feed", title: "Make your first Confessional post", rewardKind: "cruush_plus_day", rewardAmount: 1 },
   { key: "complete_profile", title: "Finish your profile", rewardKind: "cruush_plus_day", rewardAmount: 1 },
   { key: "upload_first_photo", title: "Upload your first profile photo", rewardKind: "cruush_plus_day", rewardAmount: 1 },
   { key: "upload_four_photos", title: "Upload four profile photos", rewardKind: "cruush_plus_day", rewardAmount: 1 },
@@ -61,13 +61,13 @@ const QUESTS: QuestDefinition[] = [
   { key: "send_message", title: "Send your first message", rewardKind: "cruush_plus_day", rewardAmount: 1 },
   { key: "first_mutual_cruush", title: "Make your first mutual cruush", rewardKind: "cruush_plus_day", rewardAmount: 1 },
   { key: "send_three_messages", title: "Send three messages", rewardKind: "ping", rewardAmount: 2 },
-  { key: "post_three_feed", title: "Make three Feed posts", rewardKind: "ping", rewardAmount: 2 },
+  { key: "post_three_feed", title: "Make three Confessional posts", rewardKind: "ping", rewardAmount: 2 },
   { key: "check_in_spot", title: "Check in at a Spot", rewardKind: "ping", rewardAmount: 1 },
   { key: "post_spot_board", title: "Post in the Pink Book", rewardKind: "cruush_plus_day", rewardAmount: 1 },
   { key: "rate_spot", title: "Rate your first Spot", rewardKind: "cruush_plus_day", rewardAmount: 1 },
   { key: "save_visibility_set", title: "Save a Visibility set", rewardKind: "ping", rewardAmount: 2 },
-  { key: "join_club", title: "Join a Club", rewardKind: "ping", rewardAmount: 1 },
-  { key: "send_club_message", title: "Send your first Club message", rewardKind: "ping", rewardAmount: 1 }
+  { key: "join_club", title: "Join a Coven", rewardKind: "ping", rewardAmount: 1 },
+  { key: "send_club_message", title: "Send your first Coven message", rewardKind: "ping", rewardAmount: 1 }
 ];
 
 type CompletionRow = Record<SideQuestKey, boolean> & { timezone: string | null };

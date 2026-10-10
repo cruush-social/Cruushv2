@@ -620,7 +620,7 @@ export default function PrivateGroupChat({
       }
     } catch (loadError) {
       console.error('Error loading Club settings:', loadError);
-      setError(loadError instanceof Error ? loadError.message : 'Failed to load Club settings.');
+      setError(loadError instanceof Error ? loadError.message : 'Failed to load Coven settings.');
     }
   };
 
@@ -905,7 +905,7 @@ export default function PrivateGroupChat({
       setError(null);
     } catch (saveError) {
       console.error('Error saving Club settings:', saveError);
-      setError(saveError instanceof Error ? saveError.message : 'Failed to save Club settings.');
+      setError(saveError instanceof Error ? saveError.message : 'Failed to save Coven settings.');
     } finally {
       setSettingsSaving(false);
     }
@@ -921,7 +921,7 @@ export default function PrivateGroupChat({
       setClubVisibilityOpen(false);
       setError(null);
     } catch (saveError) {
-      setError(saveError instanceof Error ? saveError.message : 'Failed to save Club visibility.');
+      setError(saveError instanceof Error ? saveError.message : 'Failed to save Coven visibility.');
     } finally {
       setSettingsSaving(false);
     }
@@ -937,7 +937,7 @@ export default function PrivateGroupChat({
       setError(null);
     } catch (reviewError) {
       console.error('Error reviewing Club request:', reviewError);
-      setError(reviewError instanceof Error ? reviewError.message : 'Failed to review Club request.');
+      setError(reviewError instanceof Error ? reviewError.message : 'Failed to review Coven request.');
     } finally {
       setReviewingClubUserId(null);
     }
@@ -1019,7 +1019,7 @@ export default function PrivateGroupChat({
       setError(null);
     } catch (roleError) {
       console.error('Error updating Club role:', roleError);
-      setError(roleError instanceof Error ? roleError.message : 'Failed to update Club role.');
+      setError(roleError instanceof Error ? roleError.message : 'Failed to update Coven role.');
     } finally {
       setSettingsSaving(false);
     }
@@ -1250,7 +1250,7 @@ export default function PrivateGroupChat({
     <div data-testid="private-group-chat-screen" className={`relative max-w-full overflow-x-clip bg-background pb-20 ${embedded ? 'min-h-full' : 'min-h-screen'}`}>
       {settingsOpen ? (
         <AppPageHeader
-          title={conversation?.clubId ? 'Club settings' : conversation?.kind === 'group' ? 'Group settings' : 'Message settings'}
+          title={conversation?.clubId ? 'Coven settings' : conversation?.kind === 'group' ? 'Group settings' : 'Message settings'}
           onBack={() => navigate(location.pathname.replace(/\/settings$/, ''))}
           backLabel="Back to conversation"
           bugButtonTestId="conversation-settings-bug-button-slot"
@@ -1297,7 +1297,7 @@ export default function PrivateGroupChat({
             ) : (
               <div className="h-12 w-12 shrink-0 rounded-full bg-card" />
             )}
-        subtitle={conversation && conversation.kind !== 'dm' ? (
+        subtitle={conversation && conversation.kind !== 'dm' && !conversation.clubId ? (
           <div className="mt-1 flex min-w-0 flex-wrap items-center gap-2 text-xs text-muted-foreground">
             {conversation.kind === 'group' && !conversation.clubId ? (
                       <Badge variant="outline" className="border-border/80 bg-card/60 text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
@@ -1314,17 +1314,17 @@ export default function PrivateGroupChat({
                 type="button"
                 variant="ghost"
                 size="icon"
-                aria-label="Share Club"
+                aria-label="Share Coven"
                 onClick={() => setClubShareOpen(true)}
               >
                 <Share2 className="h-5 w-5" />
               </Button>
             ) : null}
-            {conversation ? (
+            {conversation && conversation.kind !== 'dm' ? (
               <ReportAction
                 targetType="conversation"
                 targetId={conversation.id}
-                targetLabel={conversation.kind === 'dm' ? `conversation with ${conversation.user.name}` : conversation.user.name}
+                targetLabel={conversation.user.name}
                 label="Report conversation"
               />
             ) : null}
@@ -1388,7 +1388,7 @@ export default function PrivateGroupChat({
                   disabled={settingsSaving}
                   onValueChange={(value) => void handleNotificationLevelChange(value as ConversationNotificationLevel)}
                 >
-                  <SelectTrigger aria-label="Group or Club notification level" className="h-11 w-full rounded-2xl border-white/12 bg-card/82 px-4 text-sm text-foreground">
+                  <SelectTrigger aria-label="Group or Coven notification level" className="h-11 w-full rounded-2xl border-white/12 bg-card/82 px-4 text-sm text-foreground">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent align="start" className="rounded-2xl border-white/12 bg-card/95 p-1 text-foreground">
@@ -1401,7 +1401,7 @@ export default function PrivateGroupChat({
                   disabled={settingsSaving}
                   onValueChange={(value) => value !== 'muted' && void handleNotificationMuteChange(value as ConversationMuteDuration)}
                 >
-                  <SelectTrigger aria-label="Temporarily mute Group or Club" className="h-11 w-full rounded-2xl border-white/12 bg-card/82 px-4 text-sm text-foreground">
+                  <SelectTrigger aria-label="Temporarily mute Group or Coven" className="h-11 w-full rounded-2xl border-white/12 bg-card/82 px-4 text-sm text-foreground">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent align="start" className="rounded-2xl border-white/12 bg-card/95 p-1 text-foreground">
@@ -1487,11 +1487,11 @@ export default function PrivateGroupChat({
               <div className="space-y-4 border-t border-border pt-4">
                 {conversation.clubId && canManageConversation ? (
                   <div className="space-y-4 border-b border-border pb-4">
-                    <h4 className="text-sm text-muted-foreground">Club settings</h4>
+                    <h4 className="text-sm text-muted-foreground">Coven settings</h4>
                     <label className="block space-y-2">
-                      <span className="text-sm text-muted-foreground">Club name</span>
+                      <span className="text-sm text-muted-foreground">Coven name</span>
                       <Input
-                        aria-label="Club settings name"
+                        aria-label="Coven settings name"
                         maxLength={120}
                         value={clubTitleDraft}
                         onChange={(event) => setClubTitleDraft(event.target.value)}
@@ -1500,7 +1500,7 @@ export default function PrivateGroupChat({
                     <label className="block space-y-2">
                       <span className="text-sm text-muted-foreground">Short description</span>
                       <Textarea
-                        aria-label="Club settings short description"
+                        aria-label="Coven settings short description"
                         maxLength={1000}
                         value={clubSummaryDraft}
                         onChange={(event) => setClubSummaryDraft(event.target.value)}
@@ -1508,7 +1508,7 @@ export default function PrivateGroupChat({
                     </label>
                     <div className="block space-y-2">
                       <span className="text-sm text-muted-foreground">Tags</span>
-                      <TagInput ariaLabel="Club settings tags" maxTags={10} onChange={setClubTagsDraft} tags={clubTagsDraft} />
+                      <TagInput ariaLabel="Coven settings tags" maxTags={10} onChange={setClubTagsDraft} tags={clubTagsDraft} />
                     </div>
                     <Button
                       type="button"
@@ -1516,7 +1516,7 @@ export default function PrivateGroupChat({
                       disabled={!clubSettings || !clubTitleDraft.trim() || !clubSummaryDraft.trim() || clubTagsDraft.length === 0 || settingsSaving}
                       onClick={() => void handleSaveClub()}
                     >
-                      Save Club
+                      Save Coven
                     </Button>
                     <Button
                       type="button"
@@ -1924,7 +1924,7 @@ export default function PrivateGroupChat({
                     />
                   ) : inAppShare ? (
                     <button
-                      aria-label={inAppShare.kind === 'club' ? `Open ${inAppShare.label} Club` : undefined}
+                      aria-label={inAppShare.kind === 'club' ? `Open ${inAppShare.label} Coven` : undefined}
                       className="min-w-48 rounded-[22px] border border-white/14 bg-black/38 px-4 py-3 text-left text-white transition hover:border-white/30"
                       onClick={() => navigate(inAppShare.kind === 'place'
                         ? `/places/${inAppShare.id}`
@@ -1934,7 +1934,7 @@ export default function PrivateGroupChat({
                       type="button"
                     >
                       <span className="block text-[10px] uppercase tracking-[0.16em] text-white/50">
-                        {inAppShare.kind === 'place' ? 'Spot' : inAppShare.kind === 'club' ? 'Club' : 'Profile'}
+                        {inAppShare.kind === 'place' ? 'Spot' : inAppShare.kind === 'club' ? 'Coven' : 'Profile'}
                       </span>
                       <span className="mt-1 block text-sm">{inAppShare.label}</span>
                     </button>
@@ -1985,7 +1985,7 @@ export default function PrivateGroupChat({
                         <Trash2 className="size-3.5" />
                       </Button>
                     ) : null}
-                    {!isOwn ? (
+                    {!isOwn && conversation?.kind !== 'dm' ? (
                       <ReportAction
                         targetType="message"
                         targetId={msg.id}
@@ -2286,8 +2286,8 @@ export default function PrivateGroupChat({
         />
       ) : null}
       <MapVisibilitySurface
-        description="Choose who can discover this Club."
-        searchPlaceholder="Hide this Club from matching names, bios, or #tags"
+        description="Choose who can discover this Coven."
+        searchPlaceholder="Hide this Coven from matching names, bios, or #tags"
         showOutsideServiceAreaControl={false}
         open={clubVisibilityOpen}
         onOpenChange={setClubVisibilityOpen}

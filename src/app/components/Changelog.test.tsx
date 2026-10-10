@@ -42,7 +42,7 @@ describe('Changelog', () => {
     ]);
     const v19Section = screen.getByRole('heading', { level: 3, name: 'cruush v1.9' }).closest('section');
     expect(v19Section).not.toBeNull();
-    expect(v19Section?.textContent ?? '').toMatch(/Browse persistent Clubs from Messages/i);
+    expect(v19Section?.textContent ?? '').toMatch(/Browse persistent Covens from Messages/i);
     expect(v19Section?.textContent ?? '').toMatch(/linked chat/i);
     expect(v19Section?.textContent ?? '').toMatch(/encrypted storage/i);
     expect(v19Section?.textContent ?? '').toMatch(/111 Kink icons and 333 Vibe icons/i);
@@ -67,7 +67,7 @@ describe('Changelog', () => {
     expect(v14Section?.textContent ?? '').toMatch(/Ghost Mode has clearer controls and status feedback/i);
     expect(v14Section?.textContent ?? '').toMatch(/same detailed Seeking filters as the map/i);
     expect(v14Section?.textContent ?? '').toMatch(/free day of cruush\+ when they enable 2FA/i);
-    expect(screen.getByText(/Pulse briefly activates your map heart.*local feed.*saved post duration/i)).toBeInTheDocument();
+    expect(screen.getByText(/Pulse briefly activates your map heart.*local Confessional.*saved post duration/i)).toBeInTheDocument();
     expect(screen.getByText(/tutorial points at the real buttons without covering them/i)).toBeInTheDocument();
     // v1.2 was deliberately written without any Ghost Mode mention. v1.4
     // announces the Ghost Mode updates, so scope the rule to the v1.2
@@ -77,7 +77,7 @@ describe('Changelog', () => {
     expect(v12Section?.textContent ?? '').not.toMatch(/Ghost Mode/i);
     expect(screen.getByText(/winged-heart Profile icon stays white until selected/i)).toBeInTheDocument();
     expect(screen.getByText(/Popup notifications now have a green border/i)).toBeInTheDocument();
-    expect(screen.getByText(/Feed post duration is yours to choose, with Never as the default/i)).toBeInTheDocument();
+    expect(screen.getByText(/Confessional post duration is yours to choose, with Never as the default/i)).toBeInTheDocument();
     // d709ffc applied Julien's chosen names to this entry: the v1.1 permission
     // copy says Cruushes, not Mutuals.
     expect(

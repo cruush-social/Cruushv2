@@ -1,6 +1,7 @@
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import { getViewerOutsideServiceArea, loadOosHiddenProfileIds } from "./profile-oos-visibility.js";
+import { loadFeedHiddenAuthorIds } from "./feed-visibility.js";
 
 export const PROFILE_ACTIVITY_NOTIFICATION_TYPES = [
   "incoming_cruush", "mutual_cruush", "nearby_activity", "nearby_user",
@@ -84,6 +85,12 @@ export async function filterOosHiddenNotifications<T extends ActivityNotificatio
     }
   }
   const hidden = await loadOosHiddenProfileIds(app, viewerId, [...new Set(sources.values())], viewerOos);
+  const feedTypes = new Set(["nearby_feed_post", "mutual_feed_post"]);
+  const feedAuthors = activity.filter((row) => feedTypes.has(row.type))
+    .flatMap((row) => sources.has(row) ? [sources.get(row)!] : []);
+  const feedHidden = await loadFeedHiddenAuthorIds(app, viewerId, feedAuthors, viewerOos);
   return eligibleRows.filter((row) => !isProfileActivityNotification(row)
-    || (sources.has(row) ? !hidden.has(sources.get(row)!) : !viewerOos));
+    || (sources.has(row)
+      ? !hidden.has(sources.get(row)!) && (!feedTypes.has(row.type) || !feedHidden.has(sources.get(row)!))
+      : !viewerOos));
 }

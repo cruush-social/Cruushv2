@@ -4,11 +4,13 @@ import { disablePushNotifications, enablePushNotifications, refreshExistingPushS
 const {
   getVapidPublicKey,
   getNotificationPreferences,
+  refreshPushSubscription,
   subscribeToPushNotifications,
   unsubscribeFromPushNotifications,
 } = vi.hoisted(() => ({
   getVapidPublicKey: vi.fn(),
   getNotificationPreferences: vi.fn(),
+  refreshPushSubscription: vi.fn(),
   subscribeToPushNotifications: vi.fn(),
   unsubscribeFromPushNotifications: vi.fn(),
 }));
@@ -16,6 +18,7 @@ const {
 vi.mock('./notificationsApi', () => ({
   getVapidPublicKey,
   getNotificationPreferences,
+  refreshPushSubscription,
   subscribeToPushNotifications,
   unsubscribeFromPushNotifications,
 }));
@@ -28,6 +31,7 @@ describe('pushNotifications', () => {
     vi.restoreAllMocks();
     getVapidPublicKey.mockReset();
     getNotificationPreferences.mockReset();
+    refreshPushSubscription.mockReset();
     subscribeToPushNotifications.mockReset();
     unsubscribeFromPushNotifications.mockReset();
     getSubscription.mockReset();
@@ -35,6 +39,7 @@ describe('pushNotifications', () => {
 
     getVapidPublicKey.mockResolvedValue({ enabled: true, publicKey: 'AQID' });
     getNotificationPreferences.mockResolvedValue({ pushEnabled: true });
+    refreshPushSubscription.mockResolvedValue({ pushEnabled: true });
     subscribeToPushNotifications.mockResolvedValue({ pushEnabled: true });
     unsubscribeFromPushNotifications.mockResolvedValue({ pushEnabled: false });
 
@@ -120,7 +125,8 @@ describe('pushNotifications', () => {
 
     expect(unsubscribe).toHaveBeenCalledOnce();
     expect(subscribe).toHaveBeenCalledWith({ userVisibleOnly: true, applicationServerKey: Uint8Array.from([1, 2, 3]) });
-    expect(subscribeToPushNotifications).toHaveBeenCalledWith(expect.objectContaining({ endpoint: 'https://push.example/new' }));
+    expect(refreshPushSubscription).toHaveBeenCalledWith(expect.objectContaining({ endpoint: 'https://push.example/new' }), undefined);
+    expect(subscribeToPushNotifications).not.toHaveBeenCalled();
     expect(Notification.requestPermission).not.toHaveBeenCalled();
   });
 
@@ -138,6 +144,7 @@ describe('pushNotifications', () => {
     expect(getSubscription).not.toHaveBeenCalled();
     expect(subscribe).not.toHaveBeenCalled();
     expect(subscribeToPushNotifications).not.toHaveBeenCalled();
+    expect(refreshPushSubscription).not.toHaveBeenCalled();
     expect(Notification.requestPermission).not.toHaveBeenCalled();
   });
 
@@ -146,7 +153,8 @@ describe('pushNotifications', () => {
     subscribe.mockResolvedValue({ endpoint: 'https://push.example/renewed', getKey: () => new ArrayBuffer(0) });
     await refreshExistingPushSubscription();
     expect(subscribe).toHaveBeenCalledWith({ userVisibleOnly: true, applicationServerKey: Uint8Array.from([1, 2, 3]) });
-    expect(subscribeToPushNotifications).toHaveBeenCalledWith(expect.objectContaining({ endpoint: 'https://push.example/renewed' }));
+    expect(refreshPushSubscription).toHaveBeenCalledWith(expect.objectContaining({ endpoint: 'https://push.example/renewed' }), undefined);
+    expect(subscribeToPushNotifications).not.toHaveBeenCalled();
     expect(Notification.requestPermission).not.toHaveBeenCalled();
   });
 
@@ -160,6 +168,43 @@ describe('pushNotifications', () => {
     expect(subscribe).not.toHaveBeenCalled();
     expect(subscribeToPushNotifications).not.toHaveBeenCalled();
     expect(Notification.requestPermission).not.toHaveBeenCalled();
+  });
+
+  it('stops a delayed preference read after the signed-in session ends', async () => {
+    let finishPreferences!: (value: { pushEnabled: boolean }) => void;
+    getNotificationPreferences.mockImplementationOnce(() => new Promise((resolve) => { finishPreferences = resolve; }));
+    const controller = new AbortController();
+    const refresh = refreshExistingPushSubscription(controller.signal);
+    controller.abort();
+    finishPreferences({ pushEnabled: true });
+
+    await expect(refresh).rejects.toMatchObject({ name: 'AbortError' });
+    expect(getSubscription).not.toHaveBeenCalled();
+    expect(refreshPushSubscription).not.toHaveBeenCalled();
+    expect(subscribeToPushNotifications).not.toHaveBeenCalled();
+  });
+
+  it('does not register a browser subscription that finishes after session cleanup', async () => {
+    let finishSubscription!: (subscription: unknown) => void;
+    getSubscription.mockResolvedValue(null);
+    subscribe.mockImplementationOnce(() => new Promise((resolve) => { finishSubscription = resolve; }));
+    const controller = new AbortController();
+    const refresh = refreshExistingPushSubscription(controller.signal);
+    await vi.waitFor(() => expect(subscribe).toHaveBeenCalledOnce());
+    controller.abort();
+    finishSubscription({ endpoint: 'https://push.example/delayed', getKey: () => new ArrayBuffer(0) });
+
+    await expect(refresh).rejects.toMatchObject({ name: 'AbortError' });
+    expect(refreshPushSubscription).not.toHaveBeenCalled();
+    expect(subscribeToPushNotifications).not.toHaveBeenCalled();
+  });
+
+  it('passes session cancellation to the background-only registration request', async () => {
+    getSubscription.mockResolvedValue({ options: { applicationServerKey: Uint8Array.from([1, 2, 3]).buffer }, endpoint: 'https://push.example/current', getKey: () => new ArrayBuffer(0) });
+    const controller = new AbortController();
+    await refreshExistingPushSubscription(controller.signal);
+    expect(refreshPushSubscription).toHaveBeenCalledWith(expect.objectContaining({ endpoint: 'https://push.example/current' }), controller.signal);
+    expect(subscribeToPushNotifications).not.toHaveBeenCalled();
   });
 
   it('unsubscribes the browser endpoint and server record', async () => {

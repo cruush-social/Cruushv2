@@ -116,7 +116,7 @@ export default function FeelingLucky() {
     } catch (loadError) {
       console.error('Error loading cruise carousel:', loadError);
       setCandidateUsers([]);
-      setError(loadError instanceof Error ? loadError.message : 'Unable to load Cruise Carousel.');
+      setError(loadError instanceof Error ? loadError.message : 'Unable to load Carousel.');
       setStatus('error');
     }
   };
@@ -132,14 +132,14 @@ export default function FeelingLucky() {
   return (
     <div className="flex h-full min-h-0 flex-col overflow-hidden bg-[#050505] text-foreground">
       <AppPageHeader
-        title="Cruise Carousel"
+        title="Carousel"
         onBack={() => navigate(-1)}
         bugButtonTestId="feeling-lucky-bug-button-slot"
       />
 
       <main className="mx-auto flex min-h-0 w-full max-w-3xl flex-1 flex-col gap-2 px-2 pt-0 sm:px-4 sm:pt-2">
         {status === 'checking' ? (
-          <LoadingCardSkeletons count={3} label="Loading Cruise Carousel" />
+          <LoadingCardSkeletons count={3} label="Loading Carousel" />
         ) : null}
 
         {status === 'locked' ? (
@@ -190,7 +190,7 @@ export default function FeelingLucky() {
 
         {status === 'error' ? (
           <div className="rounded-2xl border border-destructive/30 bg-destructive/10 p-5 text-center">
-            <p className="text-sm text-destructive">{error ?? 'Unable to load Cruise Carousel.'}</p>
+            <p className="text-sm text-destructive">{error ?? 'Unable to load Carousel.'}</p>
             <div className="mt-4 flex flex-col items-center gap-1.5">
               <Button
                 type="button"

@@ -56,9 +56,10 @@ describe("Bitcoin sending eligibility", () => {
   it("clears the PayPal and Venmo minimum only once an order reaches 0.001 BTC", async () => {
     const eligibility = await listBitcoinSendingEligibility(config(), chainStub(80_000));
 
-    // At $80,000 a coin, 0.001 BTC is $80: the annual plan clears it and the
-    // weekly one does not.
-    expect(eligibility.products.plus_annual).toEqual(["Cash App", "PayPal", "Venmo"]);
+    // At $80,000 a coin, 0.001 BTC is $80: the $60 sale annual plan
+    // no longer clears it; the lifetime founder sale price still does.
+    expect(eligibility.products.plus_annual).toEqual(["Cash App"]);
+    expect(eligibility.products.lifetime_founder).toEqual(["Cash App", "PayPal", "Venmo"]);
     expect(eligibility.products.plus_weekly).toEqual(["Cash App"]);
     expect(eligibility.products.plus_6_month).toEqual(["Cash App"]);
   });

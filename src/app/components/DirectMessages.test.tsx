@@ -209,7 +209,7 @@ describe('DirectMessages', () => {
       }] })),
     }));
     try {
-      fireEvent.click(screen.getByRole('tab', { name: 'Clubs' }));
+      fireEvent.click(screen.getByRole('tab', { name: 'Covens' }));
       const clubCard = (await screen.findByText('Club identity')).closest('[data-testid="club-directory-card"]');
       expect(clubCard).not.toBeNull();
       expect(within(clubCard as HTMLElement).queryByTestId('purgatory-heart-overlay')).not.toBeInTheDocument();
@@ -271,29 +271,30 @@ describe('DirectMessages', () => {
         </MemoryRouter>,
       );
 
-      fireEvent.click(await screen.findByRole('tab', { name: 'Clubs' }));
-      fireEvent.click(await screen.findByRole('tab', { name: 'Browse Clubs' }));
-      expect(screen.queryByRole('heading', { name: 'Browse Clubs' })).not.toBeInTheDocument();
+      fireEvent.click(await screen.findByRole('tab', { name: 'Covens' }));
+      fireEvent.click(await screen.findByRole('tab', { name: 'Browse Covens' }));
+      expect(screen.queryByRole('heading', { name: 'Browse Covens' })).not.toBeInTheDocument();
       expect(fetchMock).toHaveBeenCalledWith('/api/clubs', expect.objectContaining({ credentials: 'include' }));
       fireEvent.click(screen.getByRole('button', { name: 'New message' }));
-      fireEvent.click(screen.getByRole('button', { name: /^Create Club/ }));
+      fireEvent.click(screen.getByRole('button', { name: /^Create Coven/ }));
 
-      expect(await screen.findByRole('heading', { name: 'New Club' })).toBeInTheDocument();
+      expect(await screen.findByRole('heading', { name: 'New Coven' })).toBeInTheDocument();
+      expect(screen.getByRole('switch', { name: 'Require approval to join' })).toBeChecked();
       const clubProfileCard = screen.getByTestId('club-mutual-53fd68d7-24fc-4cff-8cd7-a97ec0cadf97');
       expect(clubProfileCard).toHaveClass('bg-black/72', 'hover:bg-black/86', 'min-h-[7.5rem]', 'content-center');
       expect(clubProfileCard).toHaveAttribute('aria-pressed', 'false');
       expect(within(clubProfileCard).getByTestId('profile-action-trio')).toBeInTheDocument();
       expect(within(clubProfileCard).queryByText('founder')).not.toBeInTheDocument();
       expect(within(clubProfileCard).getByText('Night owl')).toBeInTheDocument();
-      fireEvent.change(screen.getByLabelText('Club name'), { target: { value: 'Brooklyn techno' } });
+      fireEvent.change(screen.getByLabelText('Coven name'), { target: { value: 'Brooklyn techno' } });
       fireEvent.change(screen.getByLabelText('Short description'), { target: { value: 'A Club for local dancers.' } });
-      fireEvent.change(screen.getByLabelText('Club tags'), { target: { value: '#Techno' } });
-      fireEvent.keyDown(screen.getByLabelText('Club tags'), { key: 'Enter' });
-      fireEvent.change(screen.getByLabelText('Club tags'), { target: { value: '#Leather' } });
-      fireEvent.keyDown(screen.getByLabelText('Club tags'), { key: 'Enter' });
-      const clubComposer = screen.getByRole('heading', { name: 'New Club' }).closest('.fixed');
-      const createButton = within(clubComposer as HTMLElement).getByRole('button', { name: 'Create Club' });
-      const cruushSearch = within(clubComposer as HTMLElement).getByLabelText('Search cruushes for Club');
+      fireEvent.change(screen.getByLabelText('Coven tags'), { target: { value: '#Techno' } });
+      fireEvent.keyDown(screen.getByLabelText('Coven tags'), { key: 'Enter' });
+      fireEvent.change(screen.getByLabelText('Coven tags'), { target: { value: '#Leather' } });
+      fireEvent.keyDown(screen.getByLabelText('Coven tags'), { key: 'Enter' });
+      const clubComposer = screen.getByRole('heading', { name: 'New Coven' }).closest('.fixed');
+      const createButton = within(clubComposer as HTMLElement).getByRole('button', { name: 'Create Coven' });
+      const cruushSearch = within(clubComposer as HTMLElement).getByLabelText('Search cruushes for Coven');
       expect(createButton.compareDocumentPosition(cruushSearch) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
       fireEvent.click(createButton);
 
@@ -302,10 +303,11 @@ describe('DirectMessages', () => {
         summary: 'A Club for local dancers.',
         tags: ['techno', 'leather'],
         memberIds: [],
+        requiresJoinApproval: true,
         visibilityRules: expect.any(Object),
       })));
       expect(createFeedPost).toHaveBeenCalledWith({
-        content: 'New Club: Brooklyn techno',
+        content: 'New Coven: Brooklyn techno',
         expiresIn: 'never',
         audience: 'public',
       });
@@ -313,6 +315,52 @@ describe('DirectMessages', () => {
     } finally {
       vi.unstubAllGlobals();
     }
+  });
+
+  it.each([true, false])('sends approval=%s only as selected and restores approval for a new composer', async (requiresJoinApproval) => {
+    getConversations.mockResolvedValue([]);
+    getMyCruushActivity.mockResolvedValue({ mutual: [] });
+    createClub.mockResolvedValue({
+      id: '22222222-2222-4222-8222-222222222222',
+      title: 'Open circle',
+      summary: '',
+      tags: ['techno'],
+      currentUserRole: 'owner',
+      conversationId: '44444444-4444-4444-8444-444444444444',
+      memberCount: 1,
+      requiresJoinApproval,
+      joinRequestStatus: 'member',
+    });
+    const onOpenConversation = vi.fn();
+    render(<MemoryRouter><DirectMessages embedded onOpenConversation={onOpenConversation} /></MemoryRouter>);
+
+    const openComposer = async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'New message' }));
+      fireEvent.click(screen.getByRole('button', { name: /^Create Coven/ }));
+      await screen.findByRole('heading', { name: 'New Coven' });
+      await screen.findByText('No cruushes available.');
+    };
+    await openComposer();
+    fireEvent.click(screen.getByRole('switch', { name: 'Require approval to join' }));
+    expect(screen.getByRole('switch', { name: 'Require approval to join' })).not.toBeChecked();
+    fireEvent.click(screen.getByRole('button', { name: 'Close Coven composer' }));
+    await openComposer();
+    expect(screen.getByRole('switch', { name: 'Require approval to join' })).toBeChecked();
+
+    if (!requiresJoinApproval) fireEvent.click(screen.getByRole('switch', { name: 'Require approval to join' }));
+    fireEvent.change(screen.getByLabelText('Coven name'), { target: { value: 'Open circle' } });
+    fireEvent.change(screen.getByLabelText('Coven tags'), { target: { value: '#Techno' } });
+    fireEvent.keyDown(screen.getByLabelText('Coven tags'), { key: 'Enter' });
+    const composer = screen.getByRole('heading', { name: 'New Coven' }).closest('.fixed');
+    fireEvent.click(within(composer as HTMLElement).getByRole('button', { name: 'Create Coven' }));
+
+    await waitFor(() => expect(createClub).toHaveBeenCalledWith(expect.objectContaining({
+      title: 'Open circle', memberIds: [], requiresJoinApproval,
+    })));
+    await waitFor(() => expect(onOpenConversation).toHaveBeenCalledWith('44444444-4444-4444-8444-444444444444'));
+    expect(createFeedPost).toHaveBeenCalledWith({ content: 'New Coven: Open circle', expiresIn: 'never', audience: 'public' });
+    await openComposer();
+    expect(screen.getByRole('switch', { name: 'Require approval to join' })).toBeChecked();
   });
 
   it('keeps full-width message controls clear of the fixed bug reporter', async () => {
@@ -404,15 +452,15 @@ describe('DirectMessages', () => {
         </MemoryRouter>,
       );
 
-      fireEvent.click(await screen.findByRole('tab', { name: 'Clubs' }));
-      fireEvent.click(await screen.findByRole('tab', { name: 'Browse Clubs' }));
-      expect(screen.queryByLabelText('Search Browse Clubs')).not.toBeInTheDocument();
+      fireEvent.click(await screen.findByRole('tab', { name: 'Covens' }));
+      fireEvent.click(await screen.findByRole('tab', { name: 'Browse Covens' }));
+      expect(screen.queryByLabelText('Search Browse Covens')).not.toBeInTheDocument();
       const search = screen.getByPlaceholderText('Search people, threads, vibes');
       fireEvent.change(search, { target: { value: 'techno' } });
 
       expect(await screen.findByText('Brooklyn techno')).toBeInTheDocument();
       await waitFor(() => expect(fetchMock).toHaveBeenCalledWith('/api/clubs?sort=recent&q=techno&tags=techno', expect.objectContaining({ credentials: 'include' })));
-      const openButton = screen.getAllByRole('button', { name: 'Open Brooklyn techno Club' })
+      const openButton = screen.getAllByRole('button', { name: 'Open Brooklyn techno Coven' })
         .find((button) => button.classList.contains('size-10')) as HTMLElement;
       expect(openButton).toHaveStyle({ background: 'var(--cruush-gradient)' });
       expect(openButton).toHaveClass('size-10', 'rounded-full');
@@ -469,9 +517,9 @@ describe('DirectMessages', () => {
         </MemoryRouter>,
       );
 
-      fireEvent.click(await screen.findByRole('tab', { name: 'Clubs' }));
-      expect(await screen.findByRole('tab', { name: 'My Clubs' })).toHaveAttribute('data-state', 'active');
-      expect(screen.queryByRole('heading', { name: 'My Clubs' })).not.toBeInTheDocument();
+      fireEvent.click(await screen.findByRole('tab', { name: 'Covens' }));
+      expect(await screen.findByRole('tab', { name: 'My Covens' })).toHaveAttribute('data-state', 'active');
+      expect(screen.queryByRole('heading', { name: 'My Covens' })).not.toBeInTheDocument();
       expect(screen.getByText('Meet at 10 tonight')).toBeInTheDocument();
       expect(screen.getByText('2 new requests')).toBeInTheDocument();
       expect(screen.getAllByText('8 members')).toHaveLength(1);
@@ -514,8 +562,8 @@ describe('DirectMessages', () => {
         </MemoryRouter>,
       );
 
-      fireEvent.click(await screen.findByRole('tab', { name: 'Clubs' }));
-      fireEvent.click(await screen.findByRole('tab', { name: 'Browse Clubs' }));
+      fireEvent.click(await screen.findByRole('tab', { name: 'Covens' }));
+      fireEvent.click(await screen.findByRole('tab', { name: 'Browse Covens' }));
 
       expect(await screen.findByText('Kink NYC')).toBeInTheDocument();
     } finally {
@@ -626,12 +674,12 @@ describe('DirectMessages', () => {
         </MemoryRouter>,
       );
 
-      fireEvent.click(await screen.findByRole('tab', { name: 'Clubs' }));
-      fireEvent.click(await screen.findByRole('tab', { name: 'Browse Clubs' }));
-      expect(screen.queryByRole('button', { name: 'Create Club' })).not.toBeInTheDocument();
+      fireEvent.click(await screen.findByRole('tab', { name: 'Covens' }));
+      fireEvent.click(await screen.findByRole('tab', { name: 'Browse Covens' }));
+      expect(screen.queryByRole('button', { name: 'Create Coven' })).not.toBeInTheDocument();
       fireEvent.click(screen.getByRole('button', { name: 'New message' }));
-      fireEvent.click(screen.getByRole('button', { name: /^Create Club/ }));
-      expect(await screen.findByRole('heading', { name: 'New Club' })).toBeInTheDocument();
+      fireEvent.click(screen.getByRole('button', { name: /^Create Coven/ }));
+      expect(await screen.findByRole('heading', { name: 'New Coven' })).toBeInTheDocument();
       expect(screen.queryByText('cruush+ checkout')).not.toBeInTheDocument();
     } finally {
       vi.unstubAllGlobals();

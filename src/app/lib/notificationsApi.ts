@@ -3,7 +3,7 @@ import { requestApi } from './apiClient';
 export type NotificationRecord = {
   id: string;
   userId: string;
-  type: 'incoming_cruush' | 'mutual_cruush' | 'direct_message' | 'group_message' | 'group_membership' | 'nearby_activity' | 'nearby_feed_post' | 'reward' | 'announcement' | 'nearby_user' | 'pulse' | 'place_checkin_expired' | 'subscription_expiring' | 'site_reminder';
+  type: 'incoming_cruush' | 'mutual_cruush' | 'direct_message' | 'group_message' | 'group_membership' | 'nearby_activity' | 'nearby_feed_post' | 'mutual_feed_post' | 'reward' | 'announcement' | 'nearby_user' | 'pulse' | 'place_checkin_expired' | 'subscription_expiring' | 'site_reminder';
   title: string;
   body: string;
   linkUrl: string;
@@ -115,6 +115,49 @@ export function resolveNotificationNavigationPath(
   return safeLink;
 }
 
+const LEGACY_NOTIFICATION_COPY = [
+  {
+    type: 'nearby_feed_post',
+    title: 'New Feed post nearby',
+    body: 'Open Feed to see what’s happening in your area.',
+    currentTitle: 'New Confessional post nearby',
+    currentBody: 'Open Confessional to see what’s happening in your area.',
+  },
+  {
+    type: 'mutual_feed_post',
+    title: 'New Feed post',
+    body: 'Open Feed to see it.',
+    currentTitle: 'New Confessional post',
+    currentBody: 'Open Confessional to see it.',
+  },
+  {
+    type: 'site_reminder',
+    title: "See what's happening nearby",
+    body: 'Open Feed to catch up on posts around you.',
+    currentTitle: "See what's happening nearby",
+    currentBody: 'Open Confessional to catch up on posts around you.',
+  },
+  {
+    type: 'site_reminder',
+    title: 'Post to Feed',
+    body: "Share what you're up for with people nearby.",
+    currentTitle: 'Post to Confessional',
+    currentBody: "Share what you're up for with people nearby.",
+  },
+] as const;
+
+export function normalizeLegacyNotificationCopy(notification: NotificationRecord): NotificationRecord {
+  const template = LEGACY_NOTIFICATION_COPY.find((candidate) => (
+    notification.type === candidate.type
+    && notification.title === candidate.title
+    && notification.body === candidate.body
+  ));
+
+  return template
+    ? { ...notification, title: template.currentTitle, body: template.currentBody }
+    : notification;
+}
+
 export function getNotifications(input: {
   filter?: 'all' | 'unread';
   cursor?: string | null;
@@ -129,7 +172,10 @@ export function getNotifications(input: {
     params.set('limit', String(input.limit));
   }
 
-  return requestApi<NotificationsPayload>(`/api/notifications?${params.toString()}`);
+  return requestApi<NotificationsPayload>(`/api/notifications?${params.toString()}`).then((payload) => ({
+    ...payload,
+    notifications: payload.notifications.map(normalizeLegacyNotificationCopy),
+  }));
 }
 
 export function getNotificationSummary() {
@@ -179,6 +225,14 @@ export function subscribeToPushNotifications(subscription: PushSubscriptionPaylo
   return requestApi<NotificationPreferences>('/api/push/subscriptions', {
     method: 'POST',
     body: JSON.stringify(subscription),
+  });
+}
+
+export function refreshPushSubscription(subscription: PushSubscriptionPayload, signal?: AbortSignal) {
+  return requestApi<NotificationPreferences>('/api/push/subscriptions/refresh', {
+    method: 'POST',
+    body: JSON.stringify(subscription),
+    signal,
   });
 }
 

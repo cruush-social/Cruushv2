@@ -1281,7 +1281,7 @@ describe('MapHome', () => {
       expect(screen.getByTestId('outside-service-area-map-overlay')).toBeInTheDocument();
       expect(screen.getByTestId('map-top-actions')).toHaveAttribute('data-capsule-width', '298');
       expect(screen.getByTestId('map-plus-stack')).toBeInTheDocument();
-      expect(screen.getByRole('button', { name: 'Cruise Carousel' })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Carousel' })).toBeInTheDocument();
       expect(screen.getByRole('button', { name: 'Mile High Club' })).toHaveAttribute('data-tutorial-target', 'ghost');
       expect(screen.getByRole('button', { name: 'DL Mode settings' })).toBeInTheDocument();
       expect(screen.getByTestId('map-visibility-button')).toBeInTheDocument();
@@ -2172,7 +2172,7 @@ describe('MapHome', () => {
     );
 
     await openMapControls();
-    const luckyIcon = screen.getByRole('button', { name: 'Cruise Carousel' }).querySelector('img');
+    const luckyIcon = screen.getByRole('button', { name: 'Carousel' }).querySelector('img');
     const ghostModeButton = screen.getByRole('button', { name: 'Ghost Mode Settings' });
     // The eye opens DL Mode settings, the way the Ghost Mode mark beside it
     // opens its own page; the on/off switch lives on that page.
@@ -2214,7 +2214,7 @@ describe('MapHome', () => {
     expect(topActions).not.toContainElement(screen.getByTestId('map-plus-stack'));
     expect(topActions).not.toContainElement(screen.getByTestId('map-bug-button-slot'));
     for (const button of [
-      screen.getByRole('button', { name: 'Cruise Carousel' }),
+      screen.getByRole('button', { name: 'Carousel' }),
       ghostModeButton,
       dlModeButton,
       notificationButton,
@@ -2288,7 +2288,7 @@ describe('MapHome', () => {
     expect(settingsButton.nextElementSibling).toBe(notificationButton);
     expect(topActions.lastElementChild).toBe(notificationButton);
     for (const button of [
-      screen.getByRole('button', { name: 'Cruise Carousel' }),
+      screen.getByRole('button', { name: 'Carousel' }),
       ghostModeButton,
       dlModeButton,
       notificationButton,
@@ -2376,7 +2376,7 @@ describe('MapHome', () => {
     expect(screen.getByRole('button', { name: 'Edit profile' })).toBeInTheDocument();
   });
 
-  it('opens an eligible map-discovered profile in the desktop side panel from Cruise Carousel', async () => {
+  it('opens Carousel as a full page route on desktop', async () => {
     useIsMobile.mockReturnValue(false);
 
     render(
@@ -2390,16 +2390,10 @@ describe('MapHome', () => {
 
     await screen.findByRole('button', { name: 'Pin Jordan' });
 
-    fireEvent.click(screen.getByRole('button', { name: 'Cruise Carousel' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Carousel' }));
 
-    expect(screen.getByLabelText('cruise carousel')).toBeInTheDocument();
-    expect(screen.getByTestId('location-probe')).toHaveTextContent('/map');
-    // The "Nearby now" capsule was removed in 05c2b9c; the dock panel's own
-    // label is what identifies the opened profile now.
-    expect(await screen.findByRole('complementary', { name: 'Jordan profile' })).toBeInTheDocument();
-    expect(await screen.findByRole('button', { name: /message now/i })).toBeInTheDocument();
-    expect(getProfileById).toHaveBeenCalledWith('user-1');
-    expect(screen.getByTestId('location-probe')).toHaveTextContent('/map');
+    expect(screen.getByTestId('location-probe')).toHaveTextContent('/lucky');
+    expect(screen.queryByRole('complementary', { name: 'Carousel' })).not.toBeInTheDocument();
   });
 
   it('keeps Cruise Carousel as a full page route on mobile', async () => {
@@ -2414,7 +2408,7 @@ describe('MapHome', () => {
       </MemoryRouter>
     );
 
-    fireEvent.click(screen.getByRole('button', { name: 'Cruise Carousel' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Carousel' }));
 
     expect(screen.getByTestId('location-probe')).toHaveTextContent('/lucky');
   });
@@ -2443,7 +2437,7 @@ describe('MapHome', () => {
     expect(screen.getByTestId('location-probe')).toHaveTextContent('/store');
   });
 
-  it('shows the locked cruise carousel side panel for free desktop users', async () => {
+  it('opens the full Carousel page for free desktop users', async () => {
     useIsMobile.mockReturnValue(false);
     getMyBillingStatus.mockResolvedValue({
       cruushPlus: false,
@@ -2457,7 +2451,7 @@ describe('MapHome', () => {
       <MemoryRouter initialEntries={['/map']}>
         <Routes>
           <Route path="/map" element={<><MapHome /><LocationProbe /></>} />
-          <Route path="/rewards" element={<LocationProbe />} />
+          <Route path="/lucky" element={<LocationProbe />} />
           <Route path="/store" element={<LocationProbe />} />
         </Routes>
       </MemoryRouter>
@@ -2465,16 +2459,10 @@ describe('MapHome', () => {
 
     expect(await screen.findByRole('button', { name: 'cruush+ rewards' })).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Cruise Carousel' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Carousel' }));
 
-    expect(screen.getByTestId('location-probe')).toHaveTextContent('/map');
-    expect(screen.getByLabelText('cruise carousel')).toBeInTheDocument();
-    expect(await screen.findByRole('button', { name: 'Get cruush+' })).toBeInTheDocument();
-    expect(screen.queryByRole('complementary', { name: /profile$/ })).not.toBeInTheDocument();
-
-    fireEvent.click(screen.getByRole('button', { name: 'Get cruush+' }));
-
-    expect(screen.getByTestId('location-probe')).toHaveTextContent('/store');
+    expect(screen.getByTestId('location-probe')).toHaveTextContent('/lucky');
+    expect(screen.queryByRole('complementary', { name: 'Carousel' })).not.toBeInTheDocument();
   });
 
   it('lets free users open seeking and visibility controls from the map', async () => {

@@ -396,7 +396,7 @@ describe('PrivateGroupChat', () => {
       </MemoryRouter>,
     );
 
-    fireEvent.click(await screen.findByRole('button', { name: 'Open Brooklyn techno Club' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Open Brooklyn techno Coven' }));
     expect(screen.getByTestId('location-probe')).toHaveTextContent(`/clubs/${clubId}`);
   });
 
@@ -770,55 +770,6 @@ describe('PrivateGroupChat', () => {
     });
   });
 
-  it('navigates to the report page from the conversation safety action', async () => {
-    getConversationMessages.mockResolvedValue({
-      conversation: {
-        id: '7fba9ce1-b9ca-44f3-a4b1-03ad861a24d2',
-        kind: 'dm',
-        user: {
-          id: 'user-2',
-          name: 'River',
-          pronouns: '',
-          photo: null,
-        },
-        distance: 'Nearby',
-        updatedAt: '2026-04-29T12:00:00.000Z',
-        lastMessage: '',
-        unreadCount: 0,
-        pinned: false,
-        tags: [],
-      },
-      messages: [],
-    });
-
-    render(
-      <MemoryRouter initialEntries={['/chat/7fba9ce1-b9ca-44f3-a4b1-03ad861a24d2']}>
-        <Routes>
-          <Route path="/chat/:chatId" element={<PrivateGroupChat />} />
-        </Routes>
-      </MemoryRouter>,
-    );
-
-    fireEvent.click(await screen.findByRole('button', { name: 'Report conversation' }));
-    fireEvent.click(screen.getByRole('combobox', { name: 'Reason' }));
-    const reason = await screen.findByRole('option', { name: 'Harassment or bullying' });
-    fireEvent.pointerDown(reason, { button: 0, pointerType: 'touch' });
-    fireEvent.pointerUp(reason, { button: 0, pointerType: 'touch' });
-    fireEvent.click(reason);
-    fireEvent.change(screen.getByLabelText('Additional details (optional)'), {
-      target: { value: 'Repeated unwanted messages.' },
-    });
-    fireEvent.click(screen.getByRole('button', { name: 'Submit report' }));
-
-    await waitFor(() => expect(createReport).toHaveBeenCalledWith({
-      targetType: 'conversation',
-      targetId: '7fba9ce1-b9ca-44f3-a4b1-03ad861a24d2',
-      reason: 'harassment',
-      details: 'Repeated unwanted messages.',
-    }));
-    expect(toastSuccess).toHaveBeenCalledWith('Report submitted.');
-  });
-
   it('lets users block a DM partner from conversation settings and returns to messages', async () => {
     getConversationMessages.mockResolvedValue({
       conversation: {
@@ -1024,59 +975,6 @@ describe('PrivateGroupChat', () => {
       expect(updatedTimers).toHaveLength(2);
       expect(updatedTimers.every((timer) => timer.getAttribute('aria-label') !== initialLabel)).toBe(true);
     }, { timeout: 2_000 });
-  });
-
-  it('lets users report an individual incoming message', async () => {
-    const messageId = '59e01d61-4a76-4359-915a-1f25b7815ff4';
-    getConversationMessages.mockResolvedValue({
-      conversation: {
-        id: '7fba9ce1-b9ca-44f3-a4b1-03ad861a24d2',
-        kind: 'dm',
-        user: {
-          id: 'user-2',
-          name: 'River',
-          pronouns: 'they/them',
-          photo: null,
-        },
-        distance: 'Nearby',
-        updatedAt: '2026-04-29T12:00:00.000Z',
-        lastMessage: 'unwanted message',
-        unreadCount: 0,
-        pinned: false,
-        tags: [],
-      },
-      messages: [{
-        id: messageId,
-        userId: 'user-2',
-        content: 'unwanted message',
-        timestamp: '2026-04-29T12:00:00.000Z',
-      }],
-    });
-
-    render(
-      <MemoryRouter initialEntries={['/chat/7fba9ce1-b9ca-44f3-a4b1-03ad861a24d2']}>
-        <Routes>
-          <Route path="/chat/:chatId" element={<PrivateGroupChat />} />
-        </Routes>
-      </MemoryRouter>,
-    );
-
-    fireEvent.click(await screen.findByRole('button', { name: 'Report message' }));
-    fireEvent.click(screen.getByRole('combobox', { name: 'Reason' }));
-    const reason = await screen.findByRole('option', { name: 'Harassment or bullying' });
-    fireEvent.pointerDown(reason, { button: 0, pointerType: 'touch' });
-    fireEvent.pointerUp(reason, { button: 0, pointerType: 'touch' });
-    fireEvent.click(reason);
-    fireEvent.click(screen.getByRole('button', { name: 'Submit report' }));
-
-    await waitFor(() => expect(createReport).toHaveBeenCalledWith({
-      targetType: 'message',
-      targetId: messageId,
-      targetUserId: undefined,
-      reason: 'harassment',
-      details: undefined,
-    }));
-    expect(toastSuccess).toHaveBeenCalledWith('Report submitted.');
   });
 
   it('renders message photo attachments', async () => {
@@ -1661,15 +1559,15 @@ describe('PrivateGroupChat', () => {
 
     const header = await screen.findByTestId('chat-thread-header');
     expect(within(header).getByText('Brooklyn techno')).toBeInTheDocument();
-    expect(within(header).queryByText('Club')).not.toBeInTheDocument();
+    expect(within(header).queryByText('Coven')).not.toBeInTheDocument();
     expect(within(header).queryByLabelText('Brooklyn techno avatar')).not.toBeInTheDocument();
     expect(screen.queryByText('#techno')).not.toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Share Club' })).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Edit Club' })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Share Coven' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Edit Coven' })).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Conversation settings' }));
-    fireEvent.change(await screen.findByLabelText('Club settings short description'), { target: { value: 'Updated description.' } });
+    fireEvent.change(await screen.findByLabelText('Coven settings short description'), { target: { value: 'Updated description.' } });
     expect(screen.getByRole('button', { name: 'Visibility Controls' })).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: 'Save Club' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Save Coven' }));
     await waitFor(() => expect(updateClub).toHaveBeenCalledWith(clubId, {
       title: 'Brooklyn techno',
       summary: 'Updated description.',
@@ -1745,7 +1643,7 @@ describe('PrivateGroupChat', () => {
     expect(await screen.findByRole('button', { name: 'Delete message' })).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Conversation settings' }));
     expect(await screen.findByRole('button', { name: 'Approve' })).toBeInTheDocument();
-    expect(screen.queryByLabelText('Club settings short description')).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('Coven settings short description')).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Clear chat for everyone' })).toBeDisabled();
     fireEvent.click(screen.getByRole('button', { name: 'Approve' }));
     await waitFor(() => expect(reviewClubJoinRequest).toHaveBeenCalledWith(
@@ -1792,11 +1690,11 @@ describe('PrivateGroupChat', () => {
     fireEvent.click(await screen.findByRole('button', { name: 'Conversation settings' }));
     expect(screen.queryByText('Join requests')).not.toBeInTheDocument();
     expect(getClubJoinRequests).not.toHaveBeenCalled();
-    fireEvent.click(await screen.findByLabelText('Group or Club notification level'));
+    fireEvent.click(await screen.findByLabelText('Group or Coven notification level'));
     fireEvent.click(await screen.findByRole('option', { name: '@me only' }));
     await waitFor(() => expect(setConversationNotifications).toHaveBeenCalledWith(conversationId, { notificationLevel: 'mentions' }));
 
-    fireEvent.click(screen.getByLabelText('Temporarily mute Group or Club'));
+    fireEvent.click(screen.getByLabelText('Temporarily mute Group or Coven'));
     fireEvent.click(await screen.findByRole('option', { name: 'Mute for 8 hours' }));
     await waitFor(() => expect(setConversationNotifications).toHaveBeenCalledWith(conversationId, { muteFor: '8h' }));
   });

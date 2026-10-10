@@ -78,7 +78,7 @@ function preferenceRows(preferences: NotificationPreferences) {
     },
     {
       key: 'mutualFeedEnabled' as const,
-      label: 'Feed posts from cruushes',
+      label: 'Confessional posts from cruushes',
       checked: preferences.mutualFeedEnabled !== false,
     },
     {
@@ -238,7 +238,7 @@ export default function NotificationSettings() {
                 <Button
                   type="button"
                   variant="outline"
-                  onClick={() => void savePreferences({ pushEnabled: !preferences?.pushEnabled })}
+                  onClick={() => void savePreferences({ pushEnabled: false })}
                   disabled={isLoading || isSaving || !preferences}
                   className="rounded-full"
                 >

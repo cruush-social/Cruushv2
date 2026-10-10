@@ -20,7 +20,8 @@ import {
   listUserClubMemberships,
   upsertClubEnrollment,
 } from "../encrypted-club-enrollments.js";
-import { runTransaction } from "../db.js";
+import { runTransaction, type DbClient } from "../db.js";
+import { admitLockedClubMember, assertActiveClubJoiner, assertClubAdmissionOpen, MAX_CLUB_MEMBERS, withLockedClubAdmission } from "../club-admission.js";
 import { loadLocationEnvelopes, locationPayloadToCoordinates } from "../location-privacy.js";
 import { getRelationshipPermissions } from "../match-relationships.js";
 import { moderateTextOrReject } from "../moderation-service.js";
@@ -39,6 +40,7 @@ type ClubRowBase = {
   current_user_role: "owner" | "admin" | "moderator" | "member" | null;
   conversation_id: string | null;
   member_count: number;
+  requires_join_approval: boolean;
   visibility_ciphertext: string | null;
   visibility_nonce: string | null;
   visibility_auth_tag: string | null;
@@ -96,7 +98,6 @@ type ClubVisibilitySubjectRow = {
 const adminRoles = new Set(["owner", "admin"]);
 const requestReviewRoles = new Set(["owner", "admin", "moderator"]);
 const CLUB_BROWSE_RADIUS_MILES = 50;
-const MAX_CLUB_MEMBERS = 1000;
 
 function mapClubDirectory(row: ClubDirectoryRow) {
   return {
@@ -108,21 +109,26 @@ function mapClubDirectory(row: ClubDirectoryRow) {
     conversationId: row.current_user_role ? row.conversation_id : null,
     pendingJoinRequestCount: row.pending_join_request_count,
     memberCount: row.member_count,
+    requiresJoinApproval: row.requires_join_approval,
     lastActiveAt: new Date(row.last_activity_at).toISOString()
   };
 }
 
-function decryptClubVisibility(app: FastifyInstance, row: ClubRowBase) {
-  return decryptProfileVisibility(app.config, {
+function decryptClubVisibility(app: FastifyInstance, row: ClubRowBase, failClosed = false) {
+  const rules = decryptProfileVisibility(app.config, {
     profile_visibility_ciphertext: row.visibility_ciphertext,
     profile_visibility_nonce: row.visibility_nonce,
     profile_visibility_auth_tag: row.visibility_auth_tag,
     profile_visibility_key_version: row.visibility_key_version
-  }) ?? emptyProfile.visibility_rules;
+  });
+  if (failClosed && !rules && (row.visibility_ciphertext || row.visibility_nonce || row.visibility_auth_tag)) {
+    throw new ApiError(404, "NOT_FOUND", "Coven not found.");
+  }
+  return rules ?? emptyProfile.visibility_rules;
 }
 
-async function loadClubVisibilitySubject(app: FastifyInstance, userId: string): Promise<VisibilitySubjectProfile | null> {
-  const result = await app.db.query<ClubVisibilitySubjectRow>(
+async function loadClubVisibilitySubject(app: FastifyInstance, userId: string, db: DbClient = app.db): Promise<VisibilitySubjectProfile | null> {
+  const result = await db.query<ClubVisibilitySubjectRow>(
     `select
        profile.display_name,
        profile.bio,
@@ -201,15 +207,13 @@ async function loadClubVisibilitySubject(app: FastifyInstance, userId: string): 
   };
 }
 
-async function assertClubVisibleToViewer(app: FastifyInstance, row: ClubDetailRow, userId: string) {
+async function assertClubVisibleToViewer(app: FastifyInstance, row: ClubDetailRow, userId: string, failClosed = false, db: DbClient = app.db) {
   if (row.current_user_role) return;
-  const rules = decryptClubVisibility(app, row);
+  const rules = decryptClubVisibility(app, row, failClosed);
   if (visibilityRulesArePublic(rules)) return;
 
-  const [subject, locations] = await Promise.all([
-    loadClubVisibilitySubject(app, userId),
-    loadLocationEnvelopes(app, [userId, row.owner_user_id])
-  ]);
+  const subject = await loadClubVisibilitySubject(app, userId, db);
+  const locations = await loadLocationEnvelopes({ config: app.config, db }, [userId, row.owner_user_id]);
   const viewerLocation = locations.get(userId);
   const ownerLocation = locations.get(row.owner_user_id);
   const viewer = subject && viewerLocation
@@ -218,7 +222,7 @@ async function assertClubVisibleToViewer(app: FastifyInstance, row: ClubDetailRo
   const ownerCoordinates = ownerLocation ? locationPayloadToCoordinates(ownerLocation) : null;
 
   if (!viewer || !canSubjectViewProfile(rules, viewer, ownerCoordinates)) {
-    throw new ApiError(404, "NOT_FOUND", "Club not found.");
+    throw new ApiError(404, "NOT_FOUND", "Coven not found.");
   }
 }
 
@@ -229,6 +233,7 @@ function mapClubDetail(app: FastifyInstance, row: ClubDetailRow) {
     summary: row.summary,
     tags: row.tags,
     memberCount: row.member_count,
+    requiresJoinApproval: row.requires_join_approval,
     currentUserRole: row.current_user_role,
     conversationId: row.current_user_role ? row.conversation_id : null,
     joinRequestStatus: row.current_user_role
@@ -246,7 +251,7 @@ async function assertMutualClubMembers(app: FastifyInstance, userId: string, mem
   for (const memberId of memberIds) {
     const relationship = await getRelationshipPermissions(app, userId, memberId);
     if (!relationship.canMessage || !relationship.isMutualCruush) {
-      throw new ApiError(403, "MUTUAL_CRUUSH_REQUIRED", "Clubs can only start with cruushes.");
+      throw new ApiError(403, "MUTUAL_CRUUSH_REQUIRED", "Covens can only start with cruushes.");
     }
   }
 }
@@ -266,12 +271,13 @@ async function moderateClubMetadata(
   });
 }
 
-async function loadClubDetail(app: FastifyInstance, clubId: string, userId: string) {
-  const result = await app.db.query<Omit<ClubDetailRow, "current_user_role" | "conversation_id" | "join_request_pending" | "member_count" | "owner_user_id"> & { conversation_id: string | null }>(
+async function loadClubDetail(app: FastifyInstance, clubId: string, userId: string, db: DbClient = app.db) {
+  const result = await db.query<Omit<ClubDetailRow, "current_user_role" | "conversation_id" | "join_request_pending" | "member_count" | "owner_user_id"> & { conversation_id: string | null }>(
     `select
        c.id::text as id,
        c.title,
        c.summary,
+       c.requires_join_approval,
        coalesce((
          select array_agg(ct.tag order by ct.tag)
          from club_tags ct
@@ -287,13 +293,11 @@ async function loadClubDetail(app: FastifyInstance, clubId: string, userId: stri
     [clubId]
   );
   const rawClub = result.rows[0];
-  if (!rawClub) throw new ApiError(404, "NOT_FOUND", "Club not found.");
-  const context = { config: app.config, db: app.db };
-  const [membership, joinRequest, memberships] = await Promise.all([
-    findClubEnrollment(context, { clubId, userId, type: "membership" }),
-    findClubEnrollment(context, { clubId, userId, type: "join_request" }),
-    listClubMemberships(context, clubId)
-  ]);
+  if (!rawClub) throw new ApiError(404, "NOT_FOUND", "Coven not found.");
+  const context = { config: app.config, db };
+  const membership = await findClubEnrollment(context, { clubId, userId, type: "membership" });
+  const joinRequest = await findClubEnrollment(context, { clubId, userId, type: "join_request" });
+  const memberships = await listClubMemberships(context, clubId);
   const owner = memberships.find((record) => record.payload.role === "owner");
   const club: ClubDetailRow = {
     ...rawClub,
@@ -311,10 +315,11 @@ async function requireClubRole(
   clubId: string,
   userId: string,
   allowedRoles: Set<string>,
-  message: string
+  message: string,
+  db: DbClient = app.db
 ) {
   const membership = await findClubEnrollment(
-    { config: app.config, db: app.db },
+    { config: app.config, db },
     { clubId, userId, type: "membership" }
   );
   if (!membership?.payload.role || !allowedRoles.has(membership.payload.role)) {
@@ -332,6 +337,7 @@ export async function registerClubRoutes(app: FastifyInstance) {
          c.id::text as id,
          c.title,
          c.summary,
+         c.requires_join_approval,
          c.visibility_ciphertext,
          c.visibility_nonce,
          c.visibility_auth_tag,
@@ -435,7 +441,7 @@ export async function registerClubRoutes(app: FastifyInstance) {
     const payload = createClubPayloadSchema.parse(request.body);
     const memberIds = payload.memberIds.filter((memberId) => memberId !== userId);
     if (memberIds.length >= MAX_CLUB_MEMBERS) {
-      throw new ApiError(400, "VALIDATION_ERROR", `Clubs can have at most ${MAX_CLUB_MEMBERS} members.`);
+      throw new ApiError(400, "VALIDATION_ERROR", `Covens can have at most ${MAX_CLUB_MEMBERS} members.`);
     }
 
     await assertMutualClubMembers(app, userId, memberIds);
@@ -483,14 +489,14 @@ export async function registerClubRoutes(app: FastifyInstance) {
          insert into clubs (
            title, summary, directory_visible, conversation_id,
            visibility_ciphertext, visibility_nonce, visibility_auth_tag,
-           visibility_key_version, visibility_token_key_version
+           visibility_key_version, visibility_token_key_version, requires_join_approval
          )
          select $2, $3, true, inserted_conversation.id,
                 coalesce($6, eligible_creator.profile_visibility_ciphertext),
                 coalesce($7, eligible_creator.profile_visibility_nonce),
                 coalesce($8, eligible_creator.profile_visibility_auth_tag),
                 coalesce($9, eligible_creator.profile_visibility_key_version, 'v1'),
-                coalesce($10, eligible_creator.profile_visibility_token_key_version, 'v1')
+                coalesce($10, eligible_creator.profile_visibility_token_key_version, 'v1'), $11
          from inserted_conversation cross join eligible_creator
          returning id, conversation_id
        ), inserted_tags as (
@@ -508,11 +514,12 @@ export async function registerClubRoutes(app: FastifyInstance) {
         requestedVisibility?.profile_visibility_nonce ?? null,
         requestedVisibility?.profile_visibility_auth_tag ?? null,
         requestedVisibility?.profile_visibility_key_version ?? null,
-        requestedVisibility?.profile_visibility_token_key_version ?? null
+        requestedVisibility?.profile_visibility_token_key_version ?? null,
+        payload.requiresJoinApproval
       ]
       );
       const row = result.rows[0];
-      if (!row) throw new ApiError(403, "FEATURE_RESTRICTED", "Club creation is unavailable for this account.");
+      if (!row) throw new ApiError(403, "FEATURE_RESTRICTED", "Coven creation is unavailable for this account.");
       const enrollments = [{ userId, role: "owner" as const }, ...memberIds.map((memberId) => ({ userId: memberId, role: "member" as const }))];
       for (const enrollment of enrollments) {
         await upsertClubEnrollment(
@@ -544,6 +551,7 @@ export async function registerClubRoutes(app: FastifyInstance) {
         currentUserRole: "owner",
         conversationId: created.conversation_id,
         memberCount: memberIds.length + 1,
+        requiresJoinApproval: payload.requiresJoinApproval,
         joinRequestStatus: "member"
       }
     });
@@ -561,7 +569,7 @@ export async function registerClubRoutes(app: FastifyInstance) {
     const userId = await getActiveAccountUserId(request);
     const { clubId } = clubParamsSchema.parse(request.params);
     const payload = updateClubPayloadSchema.parse(request.body);
-    await requireClubRole(app, clubId, userId, adminRoles, "Only Club owners and admins can edit this Club.");
+    await requireClubRole(app, clubId, userId, adminRoles, "Only Coven owners and admins can edit this Coven.");
 
     await moderateClubMetadata(app, userId, payload, clubId);
     await app.db.query(
@@ -586,7 +594,7 @@ export async function registerClubRoutes(app: FastifyInstance) {
     const { clubId } = clubParamsSchema.parse(request.params);
     const payload = clubVisibilityPayloadSchema.parse(request.body);
     const encrypted = encryptProfileVisibility(app.config, payload.visibilityRules);
-    await requireClubRole(app, clubId, userId, adminRoles, "Only Club owners and admins can edit Club visibility.");
+    await requireClubRole(app, clubId, userId, adminRoles, "Only Coven owners and admins can edit Coven visibility.");
     const result = await app.db.query<{ id: string }>(
       `update clubs club
        set visibility_ciphertext = $2,
@@ -607,7 +615,7 @@ export async function registerClubRoutes(app: FastifyInstance) {
       ]
     );
     if (!result.rows[0]) {
-      throw new ApiError(403, "FORBIDDEN", "Only Club owners and admins can edit Club visibility.");
+      throw new ApiError(403, "FORBIDDEN", "Only Coven owners and admins can edit Coven visibility.");
     }
     return { data: { visibilityRules: payload.visibilityRules } };
   });
@@ -621,9 +629,9 @@ export async function registerClubRoutes(app: FastifyInstance) {
     );
 
     if (!result.rows[0]) {
-      throw new ApiError(404, "NOT_FOUND", "Club not found.");
+      throw new ApiError(404, "NOT_FOUND", "Coven not found.");
     }
-    await requireClubRole(app, clubId, userId, adminRoles, "Only Club owners and admins can delete this Club.");
+    await requireClubRole(app, clubId, userId, adminRoles, "Only Coven owners and admins can delete this Coven.");
 
     const conversation = await app.db.query<{ conversation_id: string | null }>(
       "select conversation_id::text as conversation_id from clubs where id = $1",
@@ -642,25 +650,29 @@ export async function registerClubRoutes(app: FastifyInstance) {
   app.post("/api/clubs/:clubId/join-requests", async (request, reply) => {
     const userId = await getActiveAccountUserId(request);
     const { clubId } = clubParamsSchema.parse(request.params);
-    const club = await loadClubDetail(app, clubId, userId);
-    await assertClubVisibleToViewer(app, club, userId);
-    const context = { config: app.config, db: app.db };
-    const membership = await findClubEnrollment(context, { clubId, userId, type: "membership" });
-    if (membership) throw new ApiError(409, "VALIDATION_ERROR", "You are already a Club member.");
-    await upsertClubEnrollment(context, buildClubEnrollmentPayload({
-      type: "join_request",
-      status: "pending",
-      clubId,
-      userId,
-      applicationAnswer: null
-    }));
-    return reply.code(201).send({ data: { joinRequestStatus: "pending" } });
+    const data = await withLockedClubAdmission(app, clubId, async (context) => {
+      await assertActiveClubJoiner(context, userId);
+      const club = await loadClubDetail(app, clubId, userId, context.db);
+      await assertClubVisibleToViewer(app, club, userId, true, context.db);
+      assertClubAdmissionOpen(context);
+      if (context.club.requires_join_approval === false) {
+        await admitLockedClubMember(context, userId);
+        return { joinRequestStatus: "member" as const, conversationId: context.club.conversation_id };
+      }
+      const membership = await findClubEnrollment(context, { clubId, userId, type: "membership" });
+      if (membership) throw new ApiError(409, "VALIDATION_ERROR", "You are already a Coven member.");
+      await upsertClubEnrollment(context, buildClubEnrollmentPayload({
+        type: "join_request", status: "pending", clubId, userId, applicationAnswer: null
+      }));
+      return { joinRequestStatus: "pending" as const };
+    });
+    return reply.code(201).send({ data });
   });
 
   app.get("/api/clubs/:clubId/join-requests", async (request) => {
     const userId = await getActiveAccountUserId(request);
     const { clubId } = clubParamsSchema.parse(request.params);
-    await requireClubRole(app, clubId, userId, requestReviewRoles, "Only Club owners, admins, and moderators can review requests.");
+    await requireClubRole(app, clubId, userId, requestReviewRoles, "Only Coven owners, admins, and moderators can review requests.");
     const requests = await listClubJoinRequests({ config: app.config, db: app.db }, clubId);
     if (requests.length === 0) return { data: [] };
     const applicantIds = requests.map((record) => record.payload.userId);
@@ -692,36 +704,12 @@ export async function registerClubRoutes(app: FastifyInstance) {
     const userId = await getActiveAccountUserId(request);
     const { clubId, requesterUserId } = reviewClubJoinRequestParamsSchema.parse(request.params);
     const { decision } = reviewClubJoinRequestPayloadSchema.parse(request.body);
-    await requireClubRole(app, clubId, userId, requestReviewRoles, "Only Club owners, admins, and moderators can review requests.");
-    const context = { config: app.config, db: app.db };
-    const pending = await findClubEnrollment(context, { clubId, userId: requesterUserId, type: "join_request" });
-    if (!pending) throw new ApiError(404, "NOT_FOUND", "Join request not found.");
-    const members = await listClubMemberships(context, clubId);
-    if (decision === "approve" && members.length >= MAX_CLUB_MEMBERS) {
-      throw new ApiError(409, "VALIDATION_ERROR", `This Club already has ${MAX_CLUB_MEMBERS} members.`);
-    }
-    const club = await app.db.query<{ conversation_id: string | null }>(
-      "select conversation_id::text as conversation_id from clubs where id = $1",
-      [clubId]
-    );
-    await runTransaction(app.db, async (db) => {
-      const txContext = { config: app.config, db };
+    await withLockedClubAdmission(app, clubId, async (txContext) => {
+      await requireClubRole(app, clubId, userId, requestReviewRoles, "Only Coven owners, admins, and moderators can review requests.", txContext.db);
+      const pending = await findClubEnrollment(txContext, { clubId, userId: requesterUserId, type: "join_request" });
+      if (!pending) throw new ApiError(404, "NOT_FOUND", "Join request not found.");
       if (decision === "approve") {
-        await upsertClubEnrollment(txContext, buildClubEnrollmentPayload({
-          type: "membership",
-          status: "active",
-          clubId,
-          userId: requesterUserId,
-          role: "member"
-        }));
-        if (club.rows[0]?.conversation_id) {
-          await db.query(
-            `insert into conversation_members (conversation_id, user_id, member_index, role)
-             values ($1, null, $2, 'member')
-             on conflict (conversation_id, member_index) where member_index is not null do nothing`,
-            [club.rows[0].conversation_id, createClubEnrollmentUserIndex(app.config, requesterUserId)]
-          );
-        }
+        await admitLockedClubMember(txContext, requesterUserId);
       }
       await deleteClubEnrollment(txContext, { clubId, userId: requesterUserId, type: "join_request" });
     });

@@ -20,7 +20,7 @@ describe("Sinners welcome mailer", () => {
     expect(body.subject).toBe("welcome to the Sinner's Map");
     const paragraphs = [
       "You signed the cruush Code of Conduct. In the old language, that means your soul is now marked for the Sinner's Map. If you are returning from Purgatory, welcome back. The gates noticed you made it home.",
-      "cruush is a technopagan occult artifact powered by sex magic. You are not merely opening an app. You are crossing the threshold into the Feed, Clubs, Crowds, Cruise Carousel, and everything else waiting beyond the oath.",
+      "cruush is a technopagan occult artifact powered by sex magic and digital alchemy. You are not merely opening an app. You are crossing the threshold into the Confessional, Covens, Crowds, Carousel, and everything else waiting beyond the oath.",
       "Be honest. Respect boundaries. Keep private things private. Do not spoof your location. Location spoofing is a reportable violation, and accounts caught doing it will be banned. The Sinner's Map has many mysteries. Fake GPS coordinates are not one of them.",
       "You have been welcomed, witnessed, and technically warned. Try to behave."
     ];

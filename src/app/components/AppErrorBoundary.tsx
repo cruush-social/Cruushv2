@@ -60,7 +60,7 @@ export default class AppErrorBoundary extends Component<
               </pre>
             ) : null}
             <a className="underline" href="/feed">
-              Open Feed
+              Open Confessional
             </a>
           </div>
         </div>

@@ -8,6 +8,7 @@ import { getNotificationPreferences, isWithinQuietHours, sendPushForNotification
 import { loadTravelPins } from "./travel-pins.js";
 import { getViewerOutsideServiceArea } from "./profile-oos-visibility.js";
 import { filterOosHiddenNotifications, isGroupPulseEligible } from "./oos-notification-visibility.js";
+import { createClubEnrollmentUserIndex, listClubMemberships } from "./encrypted-club-enrollments.js";
 
 /**
  * Who hears about a Pulse.
@@ -457,28 +458,63 @@ export async function notifyGroupPulseRecipients(
   input: GroupPulseNotificationInput,
   nowMs = Date.now()
 ) {
-  const recipients = await app.db.query<{ user_id: string; muted: boolean }>(
-    `select member.user_id::text as user_id, member.muted
+  const members = await app.db.query<{
+    user_id: string | null; member_index: string | null; club_id: string | null; muted: boolean;
+  }>(
+    `select member.user_id::text as user_id, member.member_index, club.id::text as club_id,
+            case when club.id is not null
+              then (member.muted or (member.muted_until is not null and member.muted_until > now()))
+              else member.muted end as muted
      from conversation_members member
      join conversations conversation on conversation.id = member.conversation_id
-     join app_users recipient on recipient.id = member.user_id
+     left join clubs club on club.conversation_id = conversation.id
+     left join app_users recipient on recipient.id = member.user_id
      where member.conversation_id::text = $1
-       and member.user_id <> $2
        and conversation.kind = 'group'
        and conversation.closed_at is null
-       and coalesce(recipient.account_status, 'active') = 'active'`,
+       and (
+         (club.id is null and recipient.id is not null and member.user_id <> $2
+          and coalesce(recipient.account_status, 'active') = 'active')
+         or (club.id is not null and member.user_id is null and member.member_index is not null)
+       )`,
     [input.conversationId, input.senderUserId]
   );
+  let recipients = members.rows.flatMap((member) => !member.club_id && member.user_id
+    ? [{ user_id: member.user_id, muted: member.muted }] : []);
+  const clubId = members.rows.find((member) => member.club_id)?.club_id;
+  if (clubId) {
+    // Club membership and roles stay encrypted. Resolve only active native
+    // enrollments that still have an opaque row in this conversation.
+    const enrollments = await listClubMemberships({ config: app.config, db: app.db }, clubId);
+    const settingsByIndex = new Map(members.rows.filter((member) => member.club_id === clubId
+      && member.user_id === null && member.member_index).map((member) => [member.member_index!, member]));
+    const candidates = new Map<string, { user_id: string; muted: boolean }>();
+    for (const { payload } of enrollments) {
+      if (payload.clubId !== clubId || payload.type !== "membership" || payload.status !== "active"
+        || payload.userId === input.senderUserId) continue;
+      const settings = settingsByIndex.get(createClubEnrollmentUserIndex(app.config, payload.userId));
+      if (settings) candidates.set(payload.userId, { user_id: payload.userId, muted: settings.muted });
+    }
+    if (candidates.size) {
+      const activeAccounts = await app.db.query<{ user_id: string }>(
+        `select id::text as user_id from app_users
+         where id = any($1::uuid[]) and coalesce(account_status, 'active') = 'active'`,
+        [[...candidates.keys()]]
+      );
+      const activeIds = new Set(activeAccounts.rows.map((row) => row.user_id));
+      recipients = [...candidates.values()].filter((recipient) => activeIds.has(recipient.user_id));
+    }
+  }
 
   const alreadyReached = await loadRecentlyReached(app, input.senderUserId, nowMs);
   const recentlyInterrupted = await loadRecentlyInterrupted(
     app,
-    recipients.rows.map((recipient) => recipient.user_id),
+    recipients.map((recipient) => recipient.user_id),
     nowMs
   );
   let notified = 0;
 
-  for (const recipient of recipients.rows) {
+  for (const recipient of recipients) {
     if (alreadyReached.has(recipient.user_id) || recentlyInterrupted.has(recipient.user_id)) {
       continue;
     }

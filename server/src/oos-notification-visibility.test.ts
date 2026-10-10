@@ -21,6 +21,14 @@ beforeEach(() => {
 });
 
 describe("Out of Sight activity notifications", () => {
+  it("rechecks the Feed-only preference for stored/deferred Feed notices without hiding other activity", async () => {
+    access.loadOosHiddenProfileIds.mockResolvedValue(new Set());
+    query.mockImplementation(async (sql: string) => ({ rows: sql.includes("feed_hide_from_purgatory = true") ? [{ user_id: hidden }] : [] }));
+    const rows = [row("mutual_feed_post"), row("nearby_feed_post"), row("incoming_cruush"), row("direct_message")];
+    expect(await filterOosHiddenNotifications(app, viewer, rows)).toEqual(rows.slice(2));
+    access.getViewerOutsideServiceArea.mockResolvedValue(false);
+    expect(await filterOosHiddenNotifications(app, viewer, rows)).toEqual(rows);
+  });
   it("filters hidden profile activity while retaining public activity", async () => {
     const rows = [row("incoming_cruush"), row("mutual_cruush"), row("pulse"), row("incoming_cruush", publicAuthor)];
     expect(await filterOosHiddenNotifications(app, viewer, rows)).toEqual([rows[3]]);

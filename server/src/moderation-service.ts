@@ -349,7 +349,7 @@ export function userMessageForDecision(
   }
 
   if (decision.user_message_code === "feed_content_rejected") {
-    return "This feed post was not published. Automated moderation flagged it for harm, hate, threats, or illegal activity. Edit the wording and try again, or write to reports@cruush.app if you think this is wrong.";
+    return "This Confessional post was not published. Automated moderation flagged it for harm, hate, threats, or illegal activity. Edit the wording and try again, or write to reports@cruush.app if you think this is wrong.";
   }
 
   if (decision.user_message_code === "nudity_private_messages_only") {

@@ -67,7 +67,7 @@ export default function FeedPhotoViewer({
 
   return (
     <div
-      aria-label="Feed photo viewer"
+      aria-label="Confessional photo viewer"
       aria-modal="true"
       className="fixed inset-0 z-[120] flex items-center justify-center bg-black/96 p-4"
       data-testid="feed-photo-viewer"
@@ -78,7 +78,7 @@ export default function FeedPhotoViewer({
     >
       <div className="relative flex h-full w-full items-center justify-center" onClick={(event) => event.stopPropagation()}>
         <img
-          alt={`Feed photo ${index + 1} by ${authorName}`}
+          alt={`Confessional photo ${index + 1} by ${authorName}`}
           className="max-h-full max-w-full rounded-xl object-contain"
           src={resolveMediaUrl(photo.url)}
         />
@@ -87,7 +87,7 @@ export default function FeedPhotoViewer({
             className="h-10 w-10 rounded-full border border-white/20 bg-black/78 text-white hover:bg-white/10"
             dialogClassName="z-[130] scrollbar-hide"
             iconOnly
-            label="Report Feed photo"
+            label="Report Confessional photo"
             size="icon"
             targetId={postId}
             targetLabel={`photo by ${authorName}`}
@@ -95,7 +95,7 @@ export default function FeedPhotoViewer({
             variant="ghost"
           />
           <button
-            aria-label="Close Feed photo"
+            aria-label="Close Confessional photo"
             className="flex h-10 w-10 items-center justify-center rounded-full border border-white/20 bg-black/78 text-white transition hover:bg-white/10"
             onClick={onClose}
             ref={closeRef}
@@ -107,7 +107,7 @@ export default function FeedPhotoViewer({
         {photos.length > 1 ? (
           <>
             <button
-              aria-label="Previous Feed photo"
+              aria-label="Previous Confessional photo"
               className="absolute left-2 flex h-11 w-11 items-center justify-center rounded-full border border-white/20 bg-black/70 text-white transition hover:bg-white/10"
               onClick={() => onIndexChange((index - 1 + photos.length) % photos.length)}
               type="button"
@@ -115,7 +115,7 @@ export default function FeedPhotoViewer({
               <ChevronLeft className="h-6 w-6" />
             </button>
             <button
-              aria-label="Next Feed photo"
+              aria-label="Next Confessional photo"
               className="absolute right-2 flex h-11 w-11 items-center justify-center rounded-full border border-white/20 bg-black/70 text-white transition hover:bg-white/10"
               onClick={() => onIndexChange((index + 1) % photos.length)}
               type="button"

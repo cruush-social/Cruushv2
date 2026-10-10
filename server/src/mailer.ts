@@ -1210,7 +1210,7 @@ export async function sendOutOfSightWelcomeEmail(input: {
   const subject = "congratulations, you have entered Purgatory";
   const text = [
     "The app just noticed that you are outside the service area. Congratulations, your GPS has promoted you to the waiting room. Do not panic. This is not a ban, a breakup, or an exorcism.",
-    "You are still a full cruush member. You can post, message, connect, and use the Feed, Clubs, Messages, and Profiles globally. The Map is taking a personal day and will not be accepting visitors in this state.",
+    "You are still a full cruush member. You can post, message, connect, and use Confessional, Covens, Messages, and Profiles globally. The Map is taking a personal day and will not be accepting visitors in this state.",
     "As a Purgatory member, profile location pins stay dark and unavailable to you, regardless of cruush status. Ghost Mode is unavailable here and points toward Mile High Club (MHC). If you use MHC to access the service area, location controls work under the normal privacy rules.",
     "You can also use Visibility Controls to hide your profile and activity from Purgatory members completely. Existing chats and history stay available. Purgatory members can never access your precise location. Please enjoy the rest of the app and resist the urge to negotiate with your pin.",
     `Open cruush: ${config.APP_URL.replace(/\/$/, "")}/settings`,
@@ -1228,7 +1228,7 @@ export async function sendOutOfSightWelcomeEmail(input: {
 <h1 style="margin:0 0 20px;color:#fff;font-family:'Cormorant Garamond',Georgia,'Times New Roman',serif;font-size:39px;line-height:1.04;font-weight:700;">you have entered Purgatory.</h1>
 <div style="color:#eeeeF2;font-family:'Spectral',Georgia,'Times New Roman',serif;font-size:17px;line-height:1.7;">
 The app just noticed that you are outside the service area. Congratulations, your GPS has promoted you to the waiting room. Do not panic. This is not a ban, a breakup, or an exorcism.<br /><br />
-You are still a full cruush member. You can post, message, connect, and use the Feed, Clubs, Messages, and Profiles globally. The Map is taking a personal day and will not be accepting visitors in this state.<br /><br />
+You are still a full cruush member. You can post, message, connect, and use Confessional, Covens, Messages, and Profiles globally. The Map is taking a personal day and will not be accepting visitors in this state.<br /><br />
 As a Purgatory member, profile location pins stay dark and unavailable to you, regardless of cruush status. Ghost Mode is unavailable here and points toward Mile High Club (MHC). If you use MHC to access the service area, location controls work under the normal privacy rules.<br /><br />
 You can also use Visibility Controls to hide your profile and activity from Purgatory members completely. Existing chats and history stay available. Purgatory members can never access your precise location. Please enjoy the rest of the app and resist the urge to negotiate with your pin.
 </div>
@@ -1268,7 +1268,7 @@ export async function sendSinnersWelcomeEmail(input: {
   const subject = "welcome to the Sinner's Map";
   const paragraphs = [
     "You signed the cruush Code of Conduct. In the old language, that means your soul is now marked for the Sinner's Map. If you are returning from Purgatory, welcome back. The gates noticed you made it home.",
-    "cruush is a technopagan occult artifact powered by sex magic. You are not merely opening an app. You are crossing the threshold into the Feed, Clubs, Crowds, Cruise Carousel, and everything else waiting beyond the oath.",
+    "cruush is a technopagan occult artifact powered by sex magic and digital alchemy. You are not merely opening an app. You are crossing the threshold into the Confessional, Covens, Crowds, Carousel, and everything else waiting beyond the oath.",
     "Be honest. Respect boundaries. Keep private things private. Do not spoof your location. Location spoofing is a reportable violation, and accounts caught doing it will be banned. The Sinner's Map has many mysteries. Fake GPS coordinates are not one of them.",
     "You have been welcomed, witnessed, and technically warned. Try to behave."
   ];

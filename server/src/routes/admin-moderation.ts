@@ -8,6 +8,7 @@ import type { DbClient } from "../db.js";
 import { ApiError } from "../errors.js";
 import { multilineTextSchema, singleLineTextSchema, uuidSchema } from "../input-schema.js";
 import { decryptMediaBytes } from "../media-encryption.js";
+import { removeOwnedNonPublicMediaAsset } from "../media-assets.js";
 import { deleteEncryptedMediaObject, readEncryptedMediaObject } from "../media-storage.js";
 import {
   isAgeRelatedSuspensionReason,
@@ -1865,6 +1866,53 @@ export async function registerAdminModerationRoutes(app: FastifyInstance) {
           [userId]
         );
       }
+      let removedFeedPostCount = 0;
+      let expiredFeedPulseCount = 0;
+      let feedMediaIds: string[] = [];
+      if (payload.status === "banned") {
+        // Match the report-then-post lock order used by moderator removal.
+        // Migration 220 retains report targets when the post FK becomes null.
+        await db.query(
+          `select report.id
+           from reports report
+           join posts post on post.id = report.post_id
+           where post.user_id = $1
+           order by report.id
+           for update of report`,
+          [userId]
+        );
+        const posts = await db.query<{ id: string; map_ping_id: string | null }>(
+          `select id::text, map_ping_id::text as map_ping_id
+           from posts
+           where user_id = $1
+           order by id
+           for update`,
+          [userId]
+        );
+        feedMediaIds = (await db.query<{ media_object_id: string }>(
+          `select attachment.media_object_id::text
+           from feed_post_attachments attachment
+           join posts post on post.id = attachment.post_id
+           where post.user_id = $1`,
+          [userId]
+        )).rows.map((row) => row.media_object_id);
+        const pingIds = posts.rows.flatMap((post) => post.map_ping_id ? [post.map_ping_id] : []);
+        if (pingIds.length > 0) {
+          const expired = await db.query<{ id: string }>(
+            `update map_pings
+             set expires_at = least(expires_at, now())
+             where id = any($1::uuid[])
+             returning id::text as id`,
+            [pingIds]
+          );
+          expiredFeedPulseCount = expired.rows.length;
+        }
+        const removed = await db.query<{ id: string }>(
+          "delete from posts where user_id = $1 returning id::text",
+          [userId]
+        );
+        removedFeedPostCount = removed.rows.length;
+      }
       const moderationAction = await createModerationAction(db, {
         actorUserId: moderator.userId,
         targetUserId: userId,
@@ -1872,15 +1920,32 @@ export async function registerAdminModerationRoutes(app: FastifyInstance) {
         action: actionForStatusChange(previousStatus, payload.status),
         reasonCode: payload.reasonCode,
         notes: payload.notes,
-        metadata: { previousStatus, newStatus: payload.status }
+        metadata: {
+          previousStatus,
+          newStatus: payload.status,
+          ...(payload.status === "banned" ? { removedFeedPostCount, expiredFeedPulseCount } : {})
+        }
       });
 
       if (payload.status === "suspended" || payload.status === "banned") {
         await revokeAllSessions(db, userId);
       }
 
-      return { updated, moderationAction, previousStatus, targetEmail: target.email };
+      return { updated, moderationAction, previousStatus, targetEmail: target.email, feedMediaIds };
     });
+    // Posts and their attachment links are gone before native orphan-media
+    // cleanup runs. A storage failure cannot roll back a committed ban.
+    for (const assetId of result.feedMediaIds) {
+      try {
+        // The native helper logs storage failures. Keep its error/asset fields
+        // out of this moderation path without changing the shared helper.
+        const cleanupRequest = Object.create(request) as typeof request;
+        cleanupRequest.log = request.log.child({}, { redact: { paths: ["err", "assetId"], remove: true } });
+        await removeOwnedNonPublicMediaAsset(app, cleanupRequest, assetId, userId);
+      } catch {
+        request.log.warn("banned Feed post media cleanup failed");
+      }
+    }
     if (payload.status === "suspended" && result.previousStatus !== "suspended" && result.targetEmail) {
       try {
         const ageRelated = isAgeRelatedSuspensionReason(payload.reasonCode);

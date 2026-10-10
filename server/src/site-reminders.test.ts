@@ -7,7 +7,7 @@ describe("site reminders", () => {
   it("schedules engagement reminders throughout the week, including affiliate sharing", () => {
     expect(siteReminderForDate(new Date("2026-09-21T12:00:00.000Z"))).toMatchObject({
       kind: "nearby_feed",
-      body: "Open Feed to catch up on posts around you.",
+      body: "Open Confessional to catch up on posts around you.",
       linkUrl: "/feed"
     });
     expect(siteReminderForDate(new Date("2026-09-22T12:00:00.000Z"))).toMatchObject({

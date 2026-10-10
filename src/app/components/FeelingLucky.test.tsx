@@ -85,7 +85,7 @@ describe('FeelingLucky', () => {
 
     renderLucky();
 
-    expect(await screen.findByLabelText('cruise carousel')).toBeInTheDocument();
+    expect(await screen.findByLabelText('Carousel')).toBeInTheDocument();
     await waitFor(() => expect(getNearbyUsers).toHaveBeenCalled());
     expect(await screen.findByTestId('cruise-carousel-plus-ad-tile')).toBeInTheDocument();
 
@@ -166,7 +166,7 @@ describe('FeelingLucky', () => {
 
     renderLucky();
 
-    expect(await screen.findByLabelText('cruise carousel')).toBeInTheDocument();
+    expect(await screen.findByLabelText('Carousel')).toBeInTheDocument();
     expect(await screen.findByRole('button', { name: 'Get cruush+' })).toBeInTheDocument();
     expect(getMyProfile).not.toHaveBeenCalled();
     expect(getNearbyUsers).not.toHaveBeenCalled();

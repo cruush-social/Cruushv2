@@ -54,7 +54,7 @@ export const createPostPayloadSchema = z.object({
     ctx.addIssue({
       code: z.ZodIssueCode.custom,
       path: ["photoMediaIds"],
-      message: "Choose each Feed photo once."
+      message: "Choose each Confessional photo once."
     });
   }
 
@@ -77,6 +77,7 @@ export const createPostPayloadSchema = z.object({
 
 export const updateFeedSettingsPayloadSchema = z.object({
   locationPinVisibility: feedLocationPinVisibilitySchema,
+  hideFromPurgatory: z.boolean().optional(),
   showDistanceLabels: z.boolean().optional().default(true),
   postExpiryDefault: postExpirySchema.optional(),
   feedWindow: feedWindowSchema.optional()

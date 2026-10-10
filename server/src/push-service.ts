@@ -255,15 +255,15 @@ function genericPushCopy(type: AppNotificationType) {
 
   if (type === "nearby_feed_post") {
     return {
-      title: "New Feed post nearby",
-      body: "Open Feed to see what’s happening in your area."
+      title: "New Confessional post nearby",
+      body: "Open Confessional to see what’s happening in your area."
     };
   }
 
   if (type === "mutual_feed_post") {
     return {
-      title: "New Feed post",
-      body: "Open Feed to see it."
+      title: "New Confessional post",
+      body: "Open Confessional to see it."
     };
   }
 
@@ -443,6 +443,43 @@ export async function removePushSubscription(app: PushApp, userId: string, endpo
        and ($2::text is null or endpoint = $2)`,
     [userId, endpoint ?? null]
   );
+}
+
+/** Repair an opted-in device without overriding a concurrent Pause or Disable. */
+export async function refreshPushSubscription(
+  app: PushApp,
+  userId: string,
+  subscription: PushSubscriptionPayload,
+  userAgent = ""
+) {
+  const result = await app.db.query<NotificationPreferencesRow>(
+    `with current_preferences as materialized (
+       select email_enabled, push_enabled, cruush_enabled, messages_enabled, groups_enabled,
+              nearby_enabled, mutual_feed_enabled, rewards_enabled, site_reminders_enabled,
+              sound_enabled, quiet_hours_enabled, quiet_hours_start_minute,
+              quiet_hours_end_minute, quiet_hours_timezone, pulse_enabled
+       from notification_preferences
+       where user_id = $1
+       for update
+     ), subscription_upsert as (
+       insert into push_subscriptions (user_id, endpoint, p256dh, auth, user_agent, revoked_at)
+       select $1, $2, $3, $4, $5, null
+       from current_preferences
+       where push_enabled = true
+       on conflict (endpoint) do update
+         set p256dh = excluded.p256dh,
+             auth = excluded.auth,
+             user_agent = excluded.user_agent,
+             revoked_at = null,
+             updated_at = now()
+         where push_subscriptions.user_id = excluded.user_id
+       returning id
+     )
+     select * from current_preferences`,
+    [userId, subscription.endpoint, subscription.keys.p256dh, subscription.keys.auth, userAgent]
+  );
+
+  return mapPreferences(result.rows[0]);
 }
 
 async function markPushSuccess(app: PushApp, subscriptionId: string) {

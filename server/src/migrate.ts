@@ -242,7 +242,10 @@ const migrationFiles = [
   "215_oos_welcome_email.sql",
   "217_sinners_welcome_email.sql",
   "218_encrypted_oos_service_area_state.sql",
-  "219_encrypted_service_area_email_outbox.sql"
+  "219_encrypted_service_area_email_outbox.sql",
+  "220_removed_feed_post_report_targets.sql",
+  "221_club_join_approval.sql",
+  "222_feed_purgatory_visibility.sql"
 ];
 const rewardSafetyPreflightFiles = [
   "079_daily_check_in_rewards.sql",

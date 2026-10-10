@@ -32,7 +32,7 @@ describe('CruiseCarouselSlot', () => {
     expect(upgradeButton).toBeInTheDocument();
     expect(upgradeButton).toHaveClass('rounded-full', 'size-12');
     expect(cruushPlusWord).toHaveTextContent('cruush+');
-    expect(screen.getByLabelText('cruise carousel')).toBeInTheDocument();
+    expect(screen.getByLabelText('Carousel')).toBeInTheDocument();
     expect(screen.getByText((_, element) => (
       element?.tagName.toLowerCase() === 'p' &&
       element.textContent === 'Browse nearby profiles with cruush+.'

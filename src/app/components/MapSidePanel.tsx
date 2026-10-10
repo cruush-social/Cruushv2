@@ -13,7 +13,7 @@ const TravelModeSettings = lazy(() => import('./TravelModeSettings'));
 export type MapSidePanelView = 'feed' | 'activity' | 'messages' | 'settings';
 
 export const MAP_SIDE_PANEL_VIEWS: { id: MapSidePanelView; label: string }[] = [
-  { id: 'feed', label: 'Feed' },
+  { id: 'feed', label: 'Confessional' },
   { id: 'activity', label: 'Cruushes' },
   { id: 'messages', label: 'Messages' },
   { id: 'settings', label: 'Settings' },
