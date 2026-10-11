@@ -3,6 +3,20 @@ import AppPageHeader from './AppPageHeader';
 
 const changelogReleases = [
   {
+    version: 'v2.2',
+    items: [
+      "Selected profile options fit up to two capsules per row when space allows, including boi and butch in Presentation.",
+      "DL Mode now masks explicit profile photos in the Edit Profile badge-picker heart preview.",
+      "Last active reflects app use rather than the last location update. Recently active members show Online; Ghost Mode members do not.",
+      "Profile refreshes keep newer cruush and membership state when responses arrive out of order.",
+      "Purgatory wording clarifies that the service area applies to the Sinner’s Map. Its status glyph has no surrounding border, and its bottom Map button opens Purgatory.",
+      "Onboarding and Purgatory use the new glossy animated emblem, with the old overlay removed.",
+      "Trash controls sit at the bottom-right of incoming-cruush and profile-view cards on the Cruushes page.",
+      "Mobile profile popups have the updated header controls and Close button, and Map Controls sit closer to the top bar.",
+      "Checkout funding explanations now sit inside the existing collapsible payment instructions.",
+    ],
+  },
+  {
     version: 'v2.1',
     items: [
       "Long message previews stay inside their cards, and Vibe capsules fit on one line.",

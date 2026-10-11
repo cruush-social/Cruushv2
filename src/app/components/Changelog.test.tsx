@@ -22,7 +22,7 @@ describe('Changelog', () => {
     getUserNoticeDismissal.mockResolvedValue({ dismissed: true, dismissedAt: '2026-08-09T12:00:00.000Z' });
   });
 
-  it('shows v2.1 before the preserved earlier history', () => {
+  it('shows v2.2 before the preserved earlier history', () => {
     render(
       <MemoryRouter>
         <Changelog />
@@ -30,6 +30,7 @@ describe('Changelog', () => {
     );
 
     expect(screen.getAllByRole('heading', { level: 3 }).map((heading) => heading.textContent)).toEqual([
+      'cruush v2.2',
       'cruush v2.1',
       'cruush v2.0',
       'cruush v1.9',
