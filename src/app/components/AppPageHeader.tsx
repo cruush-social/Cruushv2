@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 import { ArrowLeft, X } from 'lucide-react';
+import { usePopupRoute } from '../lib/popupRouteContext';
 import BugButtonSlot from './BugButtonSlot';
 import { Button } from './ui/button';
 
@@ -44,6 +45,8 @@ export default function AppPageHeader({
   testId,
   children,
 }: AppPageHeaderProps) {
+  const popupRoute = usePopupRoute();
+  const close = onClose ?? popupRoute?.onClose;
   return (
     <header
       className={`sticky top-0 z-20 shrink-0 border-b border-white/10 bg-black/88 py-4 shadow-[0_20px_55px_rgba(0,0,0,0.34)] backdrop-blur-xl ${className}`}
@@ -64,8 +67,8 @@ export default function AppPageHeader({
           <div className="ml-auto flex shrink-0 items-center gap-1 [&_[data-slot=button]]:!rounded-full">
             {actions}
             <BugButtonSlot className="!ml-0 !h-11 !w-11" testId={bugButtonTestId} />
-            {onClose ? (
-              <Button variant="secondary" size="icon" onClick={onClose} aria-label={closeLabel} className={APP_PAGE_HEADER_BUTTON_CLASS}>
+            {close ? (
+              <Button variant="secondary" size="icon" onClick={close} aria-label={closeLabel} className={APP_PAGE_HEADER_BUTTON_CLASS}>
                 <X className="h-4 w-4" />
               </Button>
             ) : null}

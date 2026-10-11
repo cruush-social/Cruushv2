@@ -1057,6 +1057,11 @@ export default function CruushPlusStore({ product = 'cruush_plus' }: { product?:
                                 <p>Send only the exact amount below. Your app charges its sending fee separately; unused crypto stays in your balance. Fees can change, so check the app’s final total.</p>
                               </div>
                             ) : null}
+                          {!locallyExpired ? (
+                            <p className="text-sm leading-5 text-muted-foreground sm:text-xs">
+                              Checkout updates when your payment is detected and confirmed. {isPulse ? 'Your Pulses are added' : 'Your time is added'} after confirmation. Leaving this page does not cancel your order; return here to check its status.
+                            </p>
+                          ) : null}
                           </AccordionContent>
                         </AccordionItem>
                       </Accordion>
@@ -1150,11 +1155,6 @@ export default function CruushPlusStore({ product = 'cruush_plus' }: { product?:
                         </Accordion>
                       </Card>
                     </div>
-                  ) : null}
-                  {!locallyExpired ? (
-                    <p className="text-sm leading-5 text-muted-foreground sm:text-xs">
-                      Checkout updates when your payment is detected and confirmed. {isPulse ? 'Your Pulses are added' : 'Your time is added'} after confirmation. Leaving this page does not cancel your order; return here to check its status.
-                    </p>
                   ) : null}
                   {paymentOpen && !locallyExpired && intent.status !== 'confirming' ? (
                     cancelAction ? (

@@ -38,7 +38,7 @@ export default function AppViewport({ children, topBanner }: { children: ReactNo
 
   useLayoutEffect(() => { content.current?.scrollTo(0, 0); }, [location.pathname]);
 
-  const onMap = location.pathname.startsWith('/map');
+  const onMap = location.pathname.startsWith('/map') || !fullscreen;
   const [dmKeyboardViewport, setDmKeyboardViewport] = useState<{ top: number; height: number } | null>(null);
 
   useLayoutEffect(() => {

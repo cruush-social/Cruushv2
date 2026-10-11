@@ -17,6 +17,7 @@ const {
   getConversationMessages,
   getCurrentUserId,
   getGroupMembers,
+  leaveGroupConversation,
   removeFavoriteMessageImage,
   sendFavoriteMessageImage,
   sendGroupPulse,
@@ -34,6 +35,7 @@ const {
   getConversationMessages: vi.fn(),
   getCurrentUserId: vi.fn(),
   getGroupMembers: vi.fn(),
+  leaveGroupConversation: vi.fn(),
   removeFavoriteMessageImage: vi.fn(),
   sendFavoriteMessageImage: vi.fn(),
   sendGroupPulse: vi.fn(),
@@ -94,6 +96,7 @@ vi.mock('../lib/messagesApi', async () => {
     getFavoriteMessageImages,
     getConversationMessages,
     getGroupMembers,
+    leaveGroupConversation,
     removeFavoriteMessageImage,
     sendFavoriteMessageImage,
     sendGroupPulse,
@@ -208,6 +211,7 @@ describe('PrivateGroupChat', () => {
     getConversationMessages.mockReset();
     getCurrentUserId.mockReset();
     getGroupMembers.mockReset();
+    leaveGroupConversation.mockReset().mockResolvedValue(undefined);
     getProfileById.mockReset();
     removeFavoriteMessageImage.mockReset();
     sendFavoriteMessageImage.mockReset();
@@ -238,6 +242,36 @@ describe('PrivateGroupChat', () => {
       status: 'open',
       createdAt: '2026-07-11T12:00:00.000Z',
     });
+  });
+
+
+  it.each([false, true])('leaves only after confirmation and returns to the correct list; Coven=%s', async (coven) => {
+    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false);
+    getConversationMessages.mockResolvedValue({ conversation: {
+      id: 'leave-chat', kind: 'group', clubId: coven ? 'club-1' : undefined,
+      user: { id: 'group-1', name: 'Leave test', pronouns: '', photo: null },
+      distance: 'Nearby', updatedAt: '2026-10-11T00:00:00Z', lastMessage: '', unreadCount: 0,
+      pinned: false, tags: [], membersLabel: '2 people', currentUserRole: 'member', disappearingTimer: 'off',
+    }, messages: [] });
+    const Destination = () => <div>Destination {useLocation().search}</div>;
+    render(<MemoryRouter initialEntries={['/chat/leave-chat/settings']}><Routes>
+      <Route path="/chat/:chatId/settings" element={<PrivateGroupChat />} />
+      <Route path="/messages" element={<Destination />} />
+    </Routes></MemoryRouter>);
+    try {
+      const button = await screen.findByRole('button', { name: coven ? 'Leave Coven' : 'Leave Group Chat' });
+      fireEvent.click(button);
+      expect(leaveGroupConversation).not.toHaveBeenCalled();
+      confirm.mockReturnValue(true);
+      leaveGroupConversation.mockRejectedValueOnce(new Error('Leave failed'));
+      fireEvent.click(button);
+      expect(await screen.findByText('Leave failed')).toBeVisible();
+      expect(screen.queryByText(/Destination/)).not.toBeInTheDocument();
+      fireEvent.click(button);
+      expect(await screen.findByText(coven ? 'Destination ?tab=clubs' : 'Destination')).toBeVisible();
+      expect(leaveGroupConversation).toHaveBeenLastCalledWith('leave-chat');
+      expect(deleteConversationForEveryone).not.toHaveBeenCalled();
+    } finally { confirm.mockRestore(); }
   });
 
   it('blocks restricted sends while keeping conversation settings and gallery viewing available', async () => {

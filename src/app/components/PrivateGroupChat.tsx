@@ -1,3 +1,4 @@
+import { usePopupRoute } from '../lib/popupRouteContext';
 import { useContentVisibilityRefresh } from '../lib/contentVisibilityRevision';
 import { Switch } from './ui/switch';
 import { useTrustRestrictions } from '../lib/trustRestrictions';
@@ -34,6 +35,7 @@ import {
   getFavoriteMessageImages,
   getConversationMessages,
   getGroupMembers,
+  leaveGroupConversation,
   removeFavoriteMessageImage,
   promoteGroupAdmin,
   removeGroupMember,
@@ -307,7 +309,7 @@ function sharedProfileCardUser(profile: ProfileRecord) {
 export default function PrivateGroupChat({
   backLabel = 'Back to messages',
   conversationId,
-  embedded = false,
+  embedded: embeddedProp = false,
   onBack,
   onClose,
 }: {
@@ -317,6 +319,8 @@ export default function PrivateGroupChat({
   onBack?: () => void;
   onClose?: () => void;
 } = {}) {
+  const popupRoute = usePopupRoute();
+  const embedded = embeddedProp || Boolean(popupRoute);
   const params = useParams();
   const { profilePinsAllowed: groupPulseAllowed } = useMapServiceArea();
   // The dock renders this thread without a route of its own.
@@ -1163,6 +1167,25 @@ export default function PrivateGroupChat({
     }
   };
 
+  const handleLeaveGroup = async () => {
+    if (!conversation || conversation.kind !== 'group' || !conversation.currentUserRole || conversation.currentUserRole === 'owner' || settingsSaving) return;
+    if (!window.confirm(conversation.clubId ? 'Leave this Coven?' : 'Leave this group chat?')) return;
+    const generation = chatLoadGeneration.current;
+    const destination = conversation.clubId ? '/messages?tab=clubs' : '/messages';
+    setSettingsSaving(true);
+    setError(null);
+    try {
+      await leaveGroupConversation(conversation.id);
+      if (chatLoadGeneration.current !== generation) return;
+      onClose?.();
+      navigate(destination, { replace: true });
+    } catch (leaveError) {
+      if (chatLoadGeneration.current === generation) setError(leaveError instanceof Error ? leaveError.message : 'Could not leave this chat.');
+    } finally {
+      if (chatLoadGeneration.current === generation) setSettingsSaving(false);
+    }
+  };
+
   const handleCloseGroup = async () => {
     if (!conversation || conversation.kind !== 'group' || !canManageConversation) {
       return;
@@ -1375,7 +1398,7 @@ export default function PrivateGroupChat({
     // With the keyboard up the composer sits flush on it: no rem gap and no
     // safe-area either, since the keyboard already covers that zone. The gap
     // used to reveal a strip of the thread underneath the input.
-    '--chat-composer-bottom': keyboardInset > 0
+    '--chat-composer-bottom': embedded ? '0px' : keyboardInset > 0
       ? `${keyboardInset}px`
       : keyboardOpen
         ? '0px'
@@ -1406,7 +1429,7 @@ export default function PrivateGroupChat({
             </span>
           </span>
         ) : (conversation?.user.name ?? (loading ? 'Loading chat...' : 'Conversation unavailable'))}
-        onBack={() => embedded ? (onBack ?? onClose)?.() : navigate(-1)}
+        onBack={() => embeddedProp ? (onBack ?? onClose)?.() : navigate(-1)}
         backLabel={routeBackLabel}
         onClose={embedded ? onClose : undefined}
         closeLabel="Close messages"
@@ -1806,6 +1829,18 @@ export default function PrivateGroupChat({
                     </div>
                   ))}
                 </div>
+
+                {conversation.currentUserRole && conversation.currentUserRole !== 'owner' ? (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="w-full justify-center"
+                    disabled={settingsSaving}
+                    onClick={() => void handleLeaveGroup()}
+                  >
+                    {conversation.clubId ? 'Leave Coven' : 'Leave Group Chat'}
+                  </Button>
+                ) : null}
 
                 {canManageConversation && !conversation.closed ? (
                   <Button

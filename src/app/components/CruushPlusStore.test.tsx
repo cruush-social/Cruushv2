@@ -1380,11 +1380,13 @@ describe('Bitcoin through Cash App, PayPal, Venmo or a wallet', () => {
     const protectedOrder = screen.getByRole('button', { name: /Protected order.*Order timer:/ });
     expect(protectedOrder).toHaveAttribute('aria-expanded', 'false');
     expect(screen.queryByText(/This address is unique to your order/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Checkout updates when your payment/)).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Copy address' })).toBeVisible();
     expect(screen.getByRole('button', { name: 'Copy amount' })).toBeVisible();
     fireEvent.click(protectedOrder);
     expect(protectedOrder).toHaveAttribute('aria-expanded', 'true');
     expect(screen.getByText(/This address is unique to your order/)).toBeVisible();
+    expect(screen.getByText(/Checkout updates when your payment/)).toBeVisible();
     fireEvent.click(protectedOrder);
     expect(screen.queryByText(/This address is unique to your order/)).not.toBeInTheDocument();
     expect(screen.getByText(/^Order timer:/)).toBeVisible();

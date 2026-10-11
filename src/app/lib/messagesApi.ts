@@ -184,6 +184,12 @@ export function getGroupMembers(conversationId: string) {
   return requestApi<GroupMemberRecord[]>(`/api/conversations/groups/${conversationId}/members`);
 }
 
+export function leaveGroupConversation(conversationId: string) {
+  return requestApi<void>(`/api/conversations/groups/${conversationId}/leave`, {
+    method: 'POST',
+  });
+}
+
 export function removeGroupMember(conversationId: string, userId: string) {
   return requestApi<void>(`/api/conversations/groups/${conversationId}/members/${userId}`, {
     method: 'DELETE',

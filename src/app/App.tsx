@@ -8,6 +8,7 @@ import ConfirmEmailChange from './components/ConfirmEmailChange';
 import ResetPassword from './components/ResetPassword';
 import AppErrorBoundary from './components/AppErrorBoundary';
 import AppViewport from './components/AppViewport';
+import DesktopPopupRoutes from './components/DesktopPopupRoutes';
 import BottomNav from './components/BottomNav';
 import PostHogPageTracker from './components/PostHogPageTracker';
 import { Toaster } from './components/ui/sonner';
@@ -653,7 +654,7 @@ export default function App({
         <AppViewport topBanner={<GlobalSaleBanner key={session.user.id} userId={session.user.id} />}>
           <MapServiceAreaProvider>
           <Suspense fallback={<RouteLoading />}>
-            <Routes>
+            <DesktopPopupRoutes mapElement={<MapHome developerToolsEnabled={canUseDeveloperMapToolsEmail(session?.user.email)} />}>
               <Route path="/" element={<Navigate to="/map" replace />} />
               <Route path="/map" element={<MapHome developerToolsEnabled={canUseDeveloperMapToolsEmail(session?.user.email)} />} />
               <Route path="/settings/outside-service-area-test" element={canUseDeveloperMapToolsEmail(session?.user.email)
@@ -717,7 +718,7 @@ export default function App({
               <Route path="/checkout/success" element={<CruushPlusSuccess />} />
               <Route path="/checkout/:sessionId" element={<Navigate to="/rewards" replace />} />
               <Route path="*" element={<Navigate to="/map" replace />} />
-            </Routes>
+            </DesktopPopupRoutes>
             <MobileInstallPrompt userId={session.user.id} />
             <PushPermissionPrompt key={`push:${session.user.id}`} userId={session.user.id} />
             <PurgatoryInfoPrompt key={`purgatory:${session.user.id}`} userId={session.user.id} />

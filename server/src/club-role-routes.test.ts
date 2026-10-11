@@ -36,4 +36,43 @@ describe("encrypted Club conversation roles", () => {
     expect(String(query.mock.calls[1]?.[0])).toContain("member_index");
     expect(JSON.stringify(query.mock.calls[1]?.[1])).not.toContain(memberId);
   });
+  it.each(['member', 'admin', 'moderator'])("lets a Coven %s leave only their own encrypted membership", async (role) => {
+    query.mockResolvedValueOnce({ rows: [conversation()] }).mockResolvedValueOnce({ rows: [] });
+    mocks.findClubEnrollment.mockResolvedValueOnce(record(userId, role as 'member' | 'admin' | 'moderator'));
+    const response = await app.inject({ method: 'POST', url: `/api/conversations/groups/${conversationId}/leave`, headers: { 'x-user-id': userId } });
+    expect(response.statusCode).toBe(204);
+    expect(mocks.deleteClubEnrollment).toHaveBeenCalledWith(expect.anything(), { clubId, userId, type: 'membership' });
+    expect(String(query.mock.calls[1][0])).toContain('member_index');
+    expect(JSON.stringify(query.mock.calls[1][1])).not.toContain(userId);
+  });
+  it.each(['member', 'admin'])("lets a group %s leave, including a closed group", async (role) => {
+    query.mockResolvedValueOnce({ rows: [{ role, club_id: null, closed_at: now }] }).mockResolvedValueOnce({ rows: [] });
+    const response = await app.inject({ method: 'POST', url: `/api/conversations/groups/${conversationId}/leave`, headers: { 'x-user-id': userId }, payload: { userId: memberId } });
+    expect(response.statusCode).toBe(204);
+    expect(query.mock.calls[1][1]).toEqual([conversationId, userId]);
+    expect(mocks.deleteClubEnrollment).not.toHaveBeenCalled();
+  });
+  it.each([true, false])('rejects owner self-leave, Coven=%s', async (coven) => {
+    query.mockResolvedValueOnce({ rows: [{ role: 'owner', club_id: coven ? clubId : null }] });
+    mocks.findClubEnrollment.mockResolvedValueOnce(record(userId, 'owner'));
+    const response = await app.inject({ method: 'POST', url: `/api/conversations/groups/${conversationId}/leave`, headers: { 'x-user-id': userId } });
+    expect(response.statusCode).toBe(403);
+    expect(query).toHaveBeenCalledTimes(1);
+    expect(mocks.deleteClubEnrollment).not.toHaveBeenCalled();
+  });
+  it('rejects a nonmember without deleting anything', async () => {
+    query.mockResolvedValueOnce({ rows: [] });
+    const response = await app.inject({ method: 'POST', url: `/api/conversations/groups/${conversationId}/leave`, headers: { 'x-user-id': userId } });
+    expect(response.statusCode).toBe(404);
+    expect(query).toHaveBeenCalledTimes(1);
+    expect(mocks.deleteClubEnrollment).not.toHaveBeenCalled();
+  });
+  it('rejects a stale Coven conversation row without active enrollment', async () => {
+    query.mockResolvedValueOnce({ rows: [conversation()] });
+    mocks.findClubEnrollment.mockResolvedValueOnce(null);
+    const response = await app.inject({ method: 'POST', url: `/api/conversations/groups/${conversationId}/leave`, headers: { 'x-user-id': userId } });
+    expect(response.statusCode).toBe(404);
+    expect(mocks.deleteClubEnrollment).not.toHaveBeenCalled();
+  });
+
 });

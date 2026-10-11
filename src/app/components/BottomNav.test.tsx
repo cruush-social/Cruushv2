@@ -148,7 +148,8 @@ describe('BottomNav', () => {
     expect(pill).not.toHaveClass('lg:ml-auto', 'lg:mr-4');
   });
 
-  it('adds a bottom backdrop on scroll-heavy non-map pages', () => {
+  it('adds a bottom backdrop on fullscreen scroll-heavy non-map pages', () => {
+    window.localStorage.setItem(DESKTOP_PAGE_LAYOUT_STORAGE_KEY, 'fullscreen');
     render(
       <MemoryRouter initialEntries={['/messages']}>
         <BottomNav />
@@ -159,6 +160,11 @@ describe('BottomNav', () => {
     const backdrop = nav.querySelector('.bg-gradient-to-t');
 
     expect(backdrop).toHaveClass('h-28', 'from-background', 'from-[68%]', 'via-background/96', 'via-[82%]', 'to-background/0');
+  });
+
+  it('preserves the map background beneath desktop popup routes', () => {
+    render(<MemoryRouter initialEntries={['/chat/coven']}><BottomNav /></MemoryRouter>);
+    expect(screen.getByRole('navigation').querySelector('.bg-gradient-to-t')).not.toBeInTheDocument();
   });
 
   it('keeps Map available to return to the out-of-service landing', () => {

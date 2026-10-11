@@ -426,7 +426,8 @@ describe('App', () => {
     fireEvent.click(await screen.findByRole('button', { name: 'Mock Auth' }));
 
     expect(await screen.findByText('Mock Survey')).toBeInTheDocument();
-    expect(screen.queryByText('Mock Map')).not.toBeInTheDocument();
+    expect(screen.getByText('Mock Map')).toBeInTheDocument();
+    expect(screen.getByTestId('desktop-dock-right')).toContainElement(screen.getByText('Mock Survey'));
   });
 
   it('renders the age suspension appeal before authentication', async () => {

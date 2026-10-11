@@ -2233,3 +2233,8 @@ html[data-cruush-page-framing="desktop"] [data-testid="map-ping-sheet-handle"] {
   padding-top: 0.5rem;
   padding-bottom: 0.25rem;
 }
+
+/* Routed popup pages fill their dock rather than reserving a full window. */
+[data-testid="popup-route-content"] > .min-h-screen {
+  min-height: 100%;
+}

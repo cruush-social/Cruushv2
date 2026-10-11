@@ -1413,6 +1413,47 @@ export async function registerMessageRoutes(app: FastifyInstance) {
     return reply.code(204).send();
   });
 
+  app.post("/api/conversations/groups/:conversationId/leave", async (request, reply) => {
+    const userId = await getActiveAccountUserId(request);
+    const { conversationId } = conversationParamsSchema.parse(request.params);
+    await runTransaction(app.db, async (db) => {
+      const result = await db.query<GroupAccessRow & { club_id: string | null }>(
+        `select cm.role, c.closed_at, linked_club.id::text as club_id
+         from conversations c
+         join conversation_members cm on cm.conversation_id = c.id
+         left join clubs linked_club on linked_club.conversation_id = c.id
+         where c.id::text = $1 and c.kind = 'group'
+           and (cm.user_id = $2 or cm.member_index = $3)
+         for update of c, cm`,
+        [conversationId, userId, createClubEnrollmentUserIndex(app.config, userId)]
+      );
+      const access = result.rows[0];
+      if (!access) throw new ApiError(404, "NOT_FOUND", "Group conversation not found.");
+      let role = access.role;
+      if (access.club_id) {
+        const membership = await findClubEnrollment(
+          { config: app.config, db }, { clubId: access.club_id, userId, type: "membership" }
+        );
+        if (!membership?.payload.role) throw new ApiError(404, "NOT_FOUND", "Group conversation not found.");
+        role = membership.payload.role;
+      }
+      if (role === "owner") throw new ApiError(403, "FORBIDDEN", "Group owners cannot leave.");
+      if (access.club_id) {
+        await deleteClubEnrollment({ config: app.config, db }, { clubId: access.club_id, userId, type: "membership" });
+        await db.query(
+          "delete from conversation_members where conversation_id::text = $1 and member_index = $2",
+          [conversationId, createClubEnrollmentUserIndex(app.config, userId)]
+        );
+      } else {
+        await db.query(
+          "delete from conversation_members where conversation_id::text = $1 and user_id = $2 and role <> 'owner'",
+          [conversationId, userId]
+        );
+      }
+    });
+    return reply.code(204).send();
+  });
+
   app.delete("/api/conversations/groups/:conversationId/members/:targetUserId", async (request, reply) => {
     const userId = await getActiveAccountUserId(request);
     const { conversationId, targetUserId } = groupMemberParamsSchema.parse(request.params);

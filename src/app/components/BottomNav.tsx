@@ -150,7 +150,8 @@ export default function BottomNav({
 
     return location.pathname === path || location.pathname.startsWith(path);
   };
-  const isMapRoute = location.pathname === '/map' || location.pathname.startsWith('/map/');
+  const isMapRoute = location.pathname === '/map' || location.pathname.startsWith('/map/')
+    || (desktopPageLayoutDevice && desktopPageLayout === 'popups');
   const isCruiseCarouselRoute = location.pathname === '/lucky' || location.pathname.startsWith('/lucky/');
   const isChatComposerRoute = location.pathname.startsWith('/chat/') && !location.pathname.endsWith('/settings');
   const desktopSidePanelViews: Record<string, 'feed' | 'activity' | 'messages'> = {

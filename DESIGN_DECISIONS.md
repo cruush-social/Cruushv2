@@ -714,3 +714,7 @@ Julien: “No border around the glyph please i never asked for that”. The Purg
 - October 10 profile input capsules: Julien requested “they should fit up to 2 capsules per profile inut like presentation should allow me to fit boi and butch if there is space for them as opposed to each item having its own line”. Selected Edit Profile capsules use at most two per row, wrapping when needed, with existing capsule styling and selection behavior preserved.
 
 - October 10 glossy backgrounds: Julien approved “remove the old overlay”, referring to the logo-scrub layer on glossy onboarding and Purgatory. Preserve the remaining shading and layout and the default recording overlay on other surfaces.
+
+## Popup Mode route coverage, October 11, 2026
+
+Julien: “basicaly every page should load in pops ups in luding co ven chats on the right pop up”. While Popup Mode is enabled, pages should use popups, including Coven chats in the existing right popup. Preserve the normal fullscreen mode and existing popup presentation. The accompanying screenshot padding report is queued separately pending its exact target.

@@ -683,6 +683,9 @@ function mutualMapItemToDiscoveryUser(item: MutualCruushActivityItem): Discovery
 
 type MapHomeProps = {
   developerToolsEnabled?: boolean;
+  routePopupActive?: boolean;
+  routePopupSlot?: 'left' | 'right';
+  onReturnToMap?: () => void;
   /** Admin-only replay of the normal out-of-service map state. */
   forceOutsideServiceArea?: boolean;
 };
@@ -1022,7 +1025,11 @@ export default function MapHome(_props: MapHomeProps = {}) {
   const [error, setError] = useState<string | null>(null);
   const [selectedUser, setSelectedUser] = useState<DiscoveryUser | null>(null);
   const [luckySlot, setLuckySlot] = useState<LuckySlotState | null>(null);
-  const [sidePanelView, setSidePanelView] = useState<MapSidePanelView | null>(null);
+  const [sidePanelView, setSidePanelViewState] = useState<MapSidePanelView | null>(null);
+  const setSidePanelView = useCallback((view: MapSidePanelView | null) => {
+    if (view && _props.routePopupActive) _props.onReturnToMap?.();
+    setSidePanelViewState(view);
+  }, [_props.routePopupActive, _props.onReturnToMap]);
   const [sidePanelReturnView, setSidePanelReturnView] = useState<Exclude<MapSidePanelView, 'settings'> | null>(null);
   const [openMileHighClubInSettings, setOpenMileHighClubInSettings] = useState(false);
   // Opening a thread from a profile popup keeps the map up and puts the
@@ -1437,6 +1444,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
   };
 
   const handleUserSelect = (user: DiscoveryUser) => {
+    if (_props.routePopupActive) _props.onReturnToMap?.();
     setLuckySlot(null);
 
     if (user.isDemo) {
@@ -3201,7 +3209,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
           />
         ) : null}
 
-        {!usesFullPageProfile && sidePanelView ? (
+        {!usesFullPageProfile && _props.routePopupSlot !== 'right' && sidePanelView ? (
           <MapSidePanel
             view={sidePanelView}
             openConversationWithUserId={pendingMessageUserId}
@@ -3231,7 +3239,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
           />
         ) : null}
 
-        {!usesFullPageProfile && selectedUser && !luckySlot ? (
+        {!usesFullPageProfile && _props.routePopupSlot !== 'left' && selectedUser && !luckySlot ? (
           <MapProfilePopup
             user={selectedUser}
             onClose={() => setSelectedUser(null)}
