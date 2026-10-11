@@ -692,8 +692,8 @@ export async function registerSupportRoutes(app: FastifyInstance) {
          page_url,
          metadata
        )
-       values ($1, $2, case when $2 is null or $3 <> 'bug' then null else now() + interval '30 days' end,
-         ($3 = 'bug' and $2 is not null), $3, $4, $5, $6, $7, $8::jsonb)
+       values ($1, $2::text, case when $2::text is null or $3::text <> 'bug' then null else now() + interval '30 days' end,
+         ($3::text = 'bug' and $2::text is not null), $3::text, $4, $5, $6, $7, $8::jsonb)
        ${payload.source === "survey" ? "on conflict do nothing" : ""}
        returning id::text as id, status, ai_triage_status, created_at`,
       [
