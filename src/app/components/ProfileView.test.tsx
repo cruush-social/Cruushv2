@@ -1,8 +1,9 @@
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { refreshContentVisibility } from '../lib/contentVisibilityRevision';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { Link, MemoryRouter, Route, Routes } from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import ProfileView, { profileRecordToProfileView } from './ProfileView';
-import { emptyProfilePayload, type ProfileRecord } from '../lib/profileApi';
+import { emptyProfilePayload, ProfileApiError, type ProfileRecord } from '../lib/profileApi';
 import mileHighClubWhite from '../assets/ui-icons/mile-high-club-white.svg';
 
 const { serviceArea } = vi.hoisted(() => ({ serviceArea: { profilePinsAllowed: false } }));
@@ -472,7 +473,78 @@ describe('ProfileView', () => {
     );
     const badge = await screen.findByRole('button', { name: 'This is a Purgatory member.' });
     fireEvent.click(badge);
-    expect(await screen.findByRole('tooltip')).toHaveTextContent('currently outside cruush’s service area');
+    expect(await screen.findByRole('tooltip')).toHaveTextContent('currently outside the Sinner’s Map service area');
+  });
+
+  it('shows Purgatory when a visibility refresh wins the initial profile request', async () => {
+    let finishInitial!: (value: ProfileRecord) => void;
+    const member = { ...emptyProfilePayload, ...createProfileFixture({ outOfSight: true, travelling: false }) } as ProfileRecord;
+    getProfileById.mockImplementationOnce(() => new Promise(resolve => { finishInitial = resolve; }));
+    getProfileById.mockResolvedValue(member);
+    render(<MemoryRouter initialEntries={['/profile/user-1']}><Routes><Route path="/profile/:userId" element={<ProfileView />} /></Routes></MemoryRouter>);
+    await act(async () => { refreshContentVisibility(); });
+    expect(await screen.findByRole('button', { name: 'This is a Purgatory member.' })).toBeInTheDocument();
+    await act(async () => { finishInitial({ ...member, outOfSight: false }); });
+    expect(screen.getByRole('button', { name: 'This is a Purgatory member.' })).toBeInTheDocument();
+  });
+
+  it('does not let an older cruush refresh overwrite authoritative Purgatory membership', async () => {
+    const member = createProfileFixture({ outOfSight: true, travelling: false });
+    getProfileById.mockResolvedValue(member);
+    render(<MemoryRouter initialEntries={['/profile/user-1']}><Routes><Route path="/profile/:userId" element={<ProfileView />} /></Routes></MemoryRouter>);
+    await screen.findByRole('button', { name: 'This is a Purgatory member.' });
+    let finishCruush!: (value: ProfileRecord) => void;
+    getProfileById.mockImplementationOnce(() => new Promise(resolve => { finishCruush = resolve; }));
+    act(() => { window.dispatchEvent(new CustomEvent('cruush:changed', { detail: { targetUserId: 'user-1', mutual: false } })); });
+    await act(async () => { refreshContentVisibility(); });
+    await act(async () => { finishCruush({ ...member, outOfSight: false }); });
+    expect(screen.getByRole('button', { name: 'This is a Purgatory member.' })).toBeInTheDocument();
+  });
+
+  it('does not let an older cruush event overwrite the latest cruush refresh', async () => {
+    const member = createProfileFixture({ outOfSight: true, travelling: false });
+    getProfileById.mockResolvedValue(member);
+    render(<MemoryRouter initialEntries={['/profile/user-1']}><Routes><Route path="/profile/:userId" element={<ProfileView />} /></Routes></MemoryRouter>);
+    await screen.findByRole('button', { name: 'This is a Purgatory member.' });
+    let finishOlder!: (value: ProfileRecord) => void;
+    getProfileById.mockImplementationOnce(() => new Promise(resolve => { finishOlder = resolve; }));
+    act(() => { window.dispatchEvent(new CustomEvent('cruush:changed', { detail: { targetUserId: 'user-1', mutual: false } })); });
+    await act(async () => { window.dispatchEvent(new CustomEvent('cruush:changed', { detail: { targetUserId: 'user-1', revoked: true } })); });
+    await act(async () => { finishOlder({ ...member, outOfSight: false }); });
+    expect(screen.getByRole('button', { name: 'This is a Purgatory member.' })).toBeInTheDocument();
+  });
+
+  it('reports a failed authoritative refresh without accepting stale initial data and recovers on retry', async () => {
+    let finishInitial!: (value: ProfileRecord) => void;
+    const member = createProfileFixture({ outOfSight: true, travelling: false });
+    getProfileById.mockImplementationOnce(() => new Promise(resolve => { finishInitial = resolve; }));
+    getProfileById.mockRejectedValueOnce(new Error('Failed to load profile.'));
+    getProfileById.mockResolvedValue(member);
+    render(<MemoryRouter initialEntries={['/profile/user-1']}><Routes><Route path="/profile/:userId" element={<ProfileView />} /></Routes></MemoryRouter>);
+    await act(async () => { refreshContentVisibility(); });
+    expect(await screen.findByText('Failed to load profile.')).toBeInTheDocument();
+    await act(async () => { finishInitial({ ...member, outOfSight: false }); });
+    expect(screen.getByText('Failed to load profile.')).toBeInTheDocument();
+    await act(async () => { refreshContentVisibility(); });
+    expect(await screen.findByRole('button', { name: 'This is a Purgatory member.' })).toBeInTheDocument();
+    expect(screen.queryByText('Failed to load profile.')).not.toBeInTheDocument();
+  });
+
+  it('does not restore a profile from a cruush refresh started during an authoritative 404', async () => {
+    const member = createProfileFixture({ outOfSight: true, travelling: false });
+    getProfileById.mockResolvedValue(member);
+    render(<MemoryRouter initialEntries={['/profile/user-1']}><Routes><Route path="/profile/:userId" element={<ProfileView />} /></Routes></MemoryRouter>);
+    await screen.findByRole('button', { name: 'This is a Purgatory member.' });
+    let rejectVisibility!: (error: Error) => void;
+    let finishCruush!: (value: ProfileRecord) => void;
+    getProfileById.mockImplementationOnce(() => new Promise((_resolve, reject) => { rejectVisibility = reject; }));
+    await act(async () => { refreshContentVisibility(); });
+    getProfileById.mockImplementationOnce(() => new Promise(resolve => { finishCruush = resolve; }));
+    act(() => { window.dispatchEvent(new CustomEvent('cruush:changed', { detail: { targetUserId: 'user-1', mutual: false } })); });
+    await act(async () => { rejectVisibility(new ProfileApiError(404, 'not_found', 'Profile not found.')); });
+    expect(screen.queryByRole('button', { name: 'This is a Purgatory member.' })).not.toBeInTheDocument();
+    await act(async () => { finishCruush(member); });
+    expect(screen.queryByRole('button', { name: 'This is a Purgatory member.' })).not.toBeInTheDocument();
   });
 
   it('shows MHC instead of Purgatory while an MHC pin is active', async () => {

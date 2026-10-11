@@ -387,12 +387,21 @@ export default function ProfileView() {
     try {
       const data = await getProfileById(userId);
       if (isCurrent() && generation === profileLoadGeneration.current) {
+        profileLoadGeneration.current += 1;
         setProfile({ ...emptyProfilePayload, ...data });
+        setMembershipSource(userId ?? 'self');
+        setError(null);
         setLoading(false);
       }
     } catch (error) {
       if (!isCurrent() || generation !== profileLoadGeneration.current) return;
-      if (!(error instanceof ProfileApiError) || error.status !== 404) throw error;
+      if (!(error instanceof ProfileApiError) || error.status !== 404) {
+        setError(error instanceof Error ? error.message : 'Failed to load profile.');
+        throw error;
+      }
+      // Invalidate concurrent refreshes, including ones started in this generation.
+      profileLoadGeneration.current += 1;
+      setLoading(false);
       setExpandedPhoto(null);
       setProfile(null);
       if (userId) notifyProfileUnavailable(userId);
@@ -421,6 +430,7 @@ export default function ProfileView() {
     }
 
     let active = true;
+    let refreshSequence = 0;
 
     const unsubscribe = addCruushChangedListener((payload) => {
       if (payload.targetUserId !== userId) {
@@ -435,9 +445,11 @@ export default function ProfileView() {
         setCruushBecameMutual(payload.mutual === true);
       }
 
+      const generation = profileLoadGeneration.current;
+      const sequence = ++refreshSequence;
       void getProfileById(userId)
         .then((data) => {
-          if (!active) {
+          if (!active || generation !== profileLoadGeneration.current || sequence !== refreshSequence) {
             return;
           }
 
@@ -445,6 +457,7 @@ export default function ProfileView() {
             ...emptyProfilePayload,
             ...data,
           });
+          setMembershipSource(userId);
         })
         .catch((refreshError) => {
           console.error('Error refreshing profile after cruush:', refreshError);

@@ -20,7 +20,7 @@ describe('PurgatoryMemberBadge', () => {
     const trigger = screen.getByRole('button', { name: 'This is a Purgatory member.' });
     tap(trigger);
     expect(await screen.findByRole('tooltip')).toHaveTextContent(
-      'This is a Purgatory member. They are currently outside cruush’s service area.',
+      'This is a Purgatory member. They are currently outside the Sinner’s Map service area.',
     );
     expect(openProfile).not.toHaveBeenCalled();
     expect(trigger).toHaveAttribute('aria-expanded', 'true');

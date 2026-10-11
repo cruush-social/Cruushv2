@@ -55,7 +55,7 @@ describe('ProfileCard', () => {
     const badge = await screen.findByRole('button', { name: 'This is a Purgatory member.' });
     expect(getProfileById).toHaveBeenCalledTimes(1);
     fireEvent.click(badge);
-    expect(await screen.findByRole('tooltip')).toHaveTextContent('currently outside cruush’s service area');
+    expect(await screen.findByRole('tooltip')).toHaveTextContent('currently outside the Sinner’s Map service area');
     expect(onViewProfile).not.toHaveBeenCalled();
   });
 

@@ -151,6 +151,7 @@ import {
 import { DEFAULT_PRIVACY_SETTINGS, getMyPrivacySettings } from '../lib/privacyApi';
 import { DARK_ROOM_PALETTE } from '../lib/darkRoomPalette';
 import { BADGE_INTENTS, formatBadgeLabel, type BadgeIntent } from '../lib/badgeIntent';
+import { shouldMaskPhoto } from '../lib/dlMode';
 import { useIsMobile } from './ui/use-mobile';
 import { KINK_GROUPS, VIBE_GROUPS } from '../lib/profileOptions';
 import { Button } from './ui/button';
@@ -524,6 +525,7 @@ function BadgeChip({ darkRoom = false, embedded = false, frame, option, side, me
 
 type BadgePickerPreviewProps = {
   embedded?: boolean;
+  dlModeActive?: boolean;
   onboardingProfile?: {
     photos: string[];
     role: string[];
@@ -542,6 +544,7 @@ type BadgePickerPreviewProps = {
 
 export default function BadgePickerPreview({
   embedded = false,
+  dlModeActive = false,
   onboardingProfile,
   onOnboardingBadgesChange,
   onClose,
@@ -572,6 +575,7 @@ export default function BadgePickerPreview({
     vibes?: string[];
     kinks?: string[];
     side_badges?: SideBadges;
+    photo_metadata?: Array<{ url: string; explicit?: boolean | null }>;
   } | null>(onboardingProfile ?? null);
   const [saveState, setSaveState] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
   const [badgePoolOptions, setBadgePoolOptions] = useState<Record<BadgePoolGroup, BadgeOption[]>>({ Kinks: [], Vibes: [] });
@@ -607,6 +611,9 @@ export default function BadgePickerPreview({
     : activePoolGroup
       ? badgePoolOptions.Kinks
       : [];
+  const primaryPhoto = profile?.photos?.[0] ?? null;
+  const primaryPhotoExplicit = profile?.photo_metadata?.find((metadata) => metadata.url === primaryPhoto)?.explicit;
+  const maskPrimaryPhoto = shouldMaskPhoto(dlModeActive, primaryPhotoExplicit);
   const poolCategories = [...new Set(activePoolOptions.map((option) => option.category ?? 'Other'))];
   const optionsForActiveGroup = activePoolGroup
     ? activePoolOptions
@@ -1021,8 +1028,8 @@ export default function BadgePickerPreview({
               <HeartPhoto
                 className="w-20"
                 label="Your heart with its side badges"
-                masked={false}
-                photo={profile?.photos?.[0] ?? null}
+                masked={maskPrimaryPhoto}
+                photo={primaryPhoto}
                 theme="current"
                 userId="badge-preview"
               />

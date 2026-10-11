@@ -1043,6 +1043,20 @@ export default function CruushPlusStore({ product = 'cruush_plus' }: { product?:
                                 {CRYPTO_NETWORK_LABELS[intent.network]} and allow time for it to arrive on-chain before the timer reaches 0. Network confirmation can finish afterward.
                               </p>
                             ) : null}
+                            {intent.paymentAddress && intent.quotedAmountAtomic && intent.fundingEstimates?.length ? (
+                              <div className="mb-3 space-y-1 text-sm text-muted-foreground sm:text-xs">
+                                {intent.fundingEstimates.map(estimate => (
+                                  <p key={estimate.app}>
+                                    {estimate.meetsSendingMinimum === false ? (
+                                      <>{estimate.app}: this order is below its {formatUsdcAtomic(estimate.minimumSendAtomic!, intent.asset)} {intent.asset} sending minimum. Choose another method before buying.</>
+                                    ) : (
+                                      <>{estimate.app}: have about {formatUsdcAtomic(estimate.availableAtomic, intent.asset)} {intent.asset} available ({formatPrice(estimate.availableUsdCents)}), including a {formatPrice(estimate.allowanceUsdCents)} sending-fee allowance. Buy only what you still need.</>
+                                    )}
+                                  </p>
+                                ))}
+                                <p>Send only the exact amount below. Your app charges its sending fee separately; unused crypto stays in your balance. Fees can change, so check the app’s final total.</p>
+                              </div>
+                            ) : null}
                           </AccordionContent>
                         </AccordionItem>
                       </Accordion>
@@ -1051,20 +1065,6 @@ export default function CruushPlusStore({ product = 'cruush_plus' }: { product?:
                   {intent.paymentAddress && intent.quotedAmountAtomic && isOpenCryptoPayment(intent.status) && !paymentWindowClosed ? (
                     <div className="space-y-3">
                       <div>
-                        {intent.fundingEstimates?.length ? (
-                          <div className="mb-3 space-y-1 text-sm text-muted-foreground sm:text-xs">
-                            {intent.fundingEstimates.map(estimate => (
-                              <p key={estimate.app}>
-                                {estimate.meetsSendingMinimum === false ? (
-                                  <>{estimate.app}: this order is below its {formatUsdcAtomic(estimate.minimumSendAtomic!, intent.asset)} {intent.asset} sending minimum. Choose another method before buying.</>
-                                ) : (
-                                  <>{estimate.app}: have about {formatUsdcAtomic(estimate.availableAtomic, intent.asset)} {intent.asset} available ({formatPrice(estimate.availableUsdCents)}), including a {formatPrice(estimate.allowanceUsdCents)} sending-fee allowance. Buy only what you still need.</>
-                                )}
-                              </p>
-                            ))}
-                            <p>Send only the exact amount below. Your app charges its sending fee separately; unused crypto stays in your balance. Fees can change, so check the app’s final total.</p>
-                          </div>
-                        ) : null}
                         {(intent.gasFeeUsdCents ?? 0) > 0 ? (
                           <p className="flex items-center gap-1 text-sm text-muted-foreground sm:text-xs">
                             cruush processing fee: {formatPrice(intent.gasFeeUsdCents!, 'USD')} (included)

@@ -696,3 +696,21 @@ October 10 clarification: Julien answered “with selected, reduce fade and gap�
 ## Confessional default posted window — October 10, 2026
 
 Julien: “show mostly recently posted feed posts in the past 30days by default and update changelog/settings ver number”. Confessional defaults to posts created within the past 30 days, newest first. Preserve explicitly saved time-window choices and existing audience/privacy filters. This changes the default browsing window, not post expiration.
+
+- October 10, 2026 Popup Mode headers: Julien requested “make pop ups have mobile headers” and clarified “All popups in Popup Mode”. Reuse the existing mobile header presentation for all Popup Mode surfaces, preserving their content and unrelated presentation.
+
+## Purgatory Map navigation — October 10, 2026
+
+Julien: “let purgatory members have the map icon in their bottom bar but they will see their cusotm landing page that we forgot to link in the bottom bar”. Keep Map available for these members and route it to the existing service-area-aware landing; membership restrictions remain unchanged.
+
+## Purgatory service-area wording — October 10, 2026
+
+Julien: “they are currently outside of the Sinner's Map service area. not cruush's service area . add to que.” Describe Purgatory membership as outside the Sinner’s Map service area, not outside cruush’s service area. The shared member explanation and accessible label use this wording.
+
+## Purgatory glyph outline — October 10, 2026
+
+Julien: “No border around the glyph please i never asked for that”. The Purgatory glyph trigger has no visible focus outline; preserve the approved artwork, dimensions and tooltip interactions.
+
+- October 10 profile input capsules: Julien requested “they should fit up to 2 capsules per profile inut like presentation should allow me to fit boi and butch if there is space for them as opposed to each item having its own line”. Selected Edit Profile capsules use at most two per row, wrapping when needed, with existing capsule styling and selection behavior preserved.
+
+- October 10 glossy backgrounds: Julien approved “remove the old overlay”, referring to the logo-scrub layer on glossy onboarding and Purgatory. Preserve the remaining shading and layout and the default recording overlay on other surfaces.

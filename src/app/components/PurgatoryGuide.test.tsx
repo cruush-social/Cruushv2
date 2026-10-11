@@ -15,7 +15,7 @@ describe('Purgatory guide navigation', () => {
       </MemoryRouter>,
     );
     fireEvent.click(screen.getByRole('button', { name: 'This is a Purgatory member.' }));
-    expect(await screen.findByRole('tooltip')).toHaveTextContent('currently outside cruush’s service area.');
+    expect(await screen.findByRole('tooltip')).toHaveTextContent('currently outside the Sinner’s Map service area.');
     expect(screen.queryByRole('heading', { name: 'Sinners and Purgatory' })).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole('link', { name: /This is a Purgatory member/ }));
     expect(await screen.findByRole('heading', { name: 'Sinners and Purgatory' })).toBeInTheDocument();

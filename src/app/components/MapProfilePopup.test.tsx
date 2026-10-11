@@ -127,7 +127,7 @@ describe('MapProfilePopup', () => {
     const badge = await screen.findByRole('button', { name: 'This is a Purgatory member.' });
     expect(screen.getByRole('img', { name: 'Mile High Club' })).toBeInTheDocument();
     fireEvent.click(badge);
-    expect(await screen.findByRole('tooltip')).toHaveTextContent('currently outside cruush’s service area');
+    expect(await screen.findByRole('tooltip')).toHaveTextContent('currently outside the Sinner’s Map service area');
   });
 
   it('does not carry Purgatory membership into the next popup while its profile loads', async () => {
@@ -144,7 +144,7 @@ describe('MapProfilePopup', () => {
     expect(screen.queryByRole('button', { name: 'This is a Purgatory member.' })).not.toBeInTheDocument();
   });
 
-  it('keeps a mutually permitted popup pin dark on mobile OOS and restores it in service area', async () => {
+  it('keeps an unavailable popup pin bright and dimmed on mobile OOS and restores it in service area', async () => {
     const profile = await getProfileById();
     getProfileById.mockResolvedValue({ ...profile, viewer_relationship: { ...profile.viewer_relationship, mutual_cruush: true, can_reveal_precise_location: true } });
     const props = { user: { id: 'user-1', name: 'River', relationship: { mutualCruush: true } }, onClose: vi.fn() };
@@ -152,8 +152,8 @@ describe('MapProfilePopup', () => {
     const blocked = await screen.findByRole('button', { name: 'Map location unavailable' });
     expect(blocked).toBeDisabled();
     expect(blocked).toHaveAttribute('title', 'Map location unavailable');
-    expect(blocked).toHaveStyle({ background: 'var(--cruush-gradient-soft-28), #0A0A12' });
-    expect(blocked.style.getPropertyValue('--profile-center-pin-mobile-background')).toBe('var(--cruush-gradient-soft-28), #0A0A12');
+    expect(blocked).toHaveStyle({ background: 'var(--cruush-gradient)', opacity: '0.5' });
+    expect(blocked.style.getPropertyValue('--profile-center-pin-mobile-background')).toBe('var(--cruush-gradient)');
 
     serviceArea.profilePinsAllowed = true;
     rerender(<MemoryRouter><MapProfilePopup {...props} /></MemoryRouter>);

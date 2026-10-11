@@ -59,6 +59,28 @@ describe('BadgePickerPreview', () => {
     });
   });
 
+  it('masks an explicit profile photo in the badge heart when DL Mode is active', async () => {
+    const { emptyProfilePayload, emptySideBadges } = await import('../lib/profileApi');
+    getMyProfile.mockResolvedValue({
+      ...emptyProfilePayload,
+      id: 'user-1',
+      photos: ['/nsfw-profile-photo.jpg'],
+      photo_metadata: [{ url: '/nsfw-profile-photo.jpg', explicit: true }],
+      side_badges: emptySideBadges,
+    });
+
+    render(
+      <MemoryRouter>
+        <BadgePickerPreview embedded dlModeActive />
+      </MemoryRouter>
+    );
+
+    const placeholder = await screen.findByTestId('dl-mode-photo-placeholder');
+    const heart = placeholder.closest('svg');
+    expect(heart).not.toBeNull();
+    expect(heart?.querySelector('pattern image')).toBeNull();
+  });
+
   it('keeps every Pride flag badge at the normal icon scale', () => {
     const flagIds = BADGE_OPTIONS.filter((option) => option.id.startsWith('flag-')).map((option) => option.id);
 

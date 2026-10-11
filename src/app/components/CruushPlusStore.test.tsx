@@ -1391,8 +1391,10 @@ describe('Bitcoin through Cash App, PayPal, Venmo or a wallet', () => {
     expect(screen.getByRole('button', { name: 'PayPal' })).toHaveAttribute('aria-pressed', 'true');
     expect(screen.getByRole('button', { name: 'Cash App' })).toHaveAttribute('aria-pressed', 'false');
     expect(screen.getByRole('button', { name: 'Venmo' })).toHaveAttribute('aria-pressed', 'false');
-    // Only the chosen app's balance guidance is shown.
-    expect(screen.getByText(/^PayPal: have about/)).toBeInTheDocument();
+    // Funding guidance follows the requested collapsed Protected order section.
+    expect(screen.queryByText(/^PayPal: have about/)).not.toBeInTheDocument();
+    fireEvent.click(protectedOrder);
+    expect(screen.getByText(/^PayPal: have about/)).toBeVisible();
     expect(screen.queryByText(/^Cash App: have about/)).not.toBeInTheDocument();
     expect(screen.queryByText(/^Venmo: have about/)).not.toBeInTheDocument();
   });

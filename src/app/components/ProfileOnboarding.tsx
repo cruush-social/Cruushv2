@@ -750,7 +750,7 @@ export default function ProfileOnboarding({
       className={`${constrainedViewport ? 'h-full' : 'h-[100dvh]'} relative isolate flex max-w-full flex-col items-center ${currentStep === 'oath' ? 'justify-start' : 'justify-center'} overflow-y-auto bg-black/20 px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-[calc(max(0.75rem,env(safe-area-inset-top))+var(--onboarding-pan-offset,0px))] text-foreground sm:px-4`}
     >
       <div className="onboarding-map-teaser-layer pointer-events-none absolute inset-0 opacity-95">
-        <LaunchLoginMapTeaser fasterPulses pulseStep={step} showVideo={false} />
+        <LaunchLoginMapTeaser fasterPulses pulseStep={step} showVideo={false} recording="glossy" />
       </div>
       <div ref={stepContentRef} className="relative z-10 flex w-full max-w-md shrink-0 flex-col">
         <header className="mb-4 text-center sm:mb-6">
@@ -869,7 +869,6 @@ export default function ProfileOnboarding({
             case 'crowds':
               return (
                 <div>
-                  <p className="mb-2 text-base text-white/82">Crowds</p>
                   <p className="mb-3 text-base leading-6 text-white/72">
                     Crowds are shared social spaces, like gay or dyke bars, not identity labels. Change who can see you in Map Controls &gt; Visibility.
                   </p>

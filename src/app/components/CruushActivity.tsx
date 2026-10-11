@@ -320,7 +320,7 @@ function IncomingRow({
             onCenterPin={() => onOpenMap(item.user!.id)}
           />
         )}
-        cornerBadge={onDismiss ? (
+        cornerAction={onDismiss ? (
           <Button
             variant="ghost"
             size="icon"
@@ -499,7 +499,7 @@ function ViewRow({
             onCenterPin={() => onOpenMap(item.user!.id)}
           />
         )}
-        cornerBadge={onRemove ? (
+        cornerAction={onRemove ? (
           <Button
             variant="ghost"
             size="icon"

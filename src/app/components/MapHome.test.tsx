@@ -1277,8 +1277,9 @@ describe('MapHome', () => {
       await screen.findByRole('button', { name: 'Turn on Mile High Club' });
       expect(screen.getByText('One free day of cruush+')).toBeInTheDocument();
       expect(screen.getByRole('button', { name: 'cruush+ rewards' })).toBeInTheDocument();
-      expect(screen.getByTestId('outside-service-area-map-filter')).toHaveClass('grayscale', 'brightness-[0.68]');
-      expect(screen.getByTestId('outside-service-area-map-overlay')).toBeInTheDocument();
+      expect(screen.getByTestId('launch-login-map-teaser')).toBeInTheDocument();
+      expect(screen.getByTestId('outside-service-area-map-canvas')).toHaveClass('pointer-events-none', 'opacity-0');
+      expect(screen.queryByTestId('outside-service-area-map-overlay')).not.toBeInTheDocument();
       expect(screen.getByTestId('map-top-actions')).toHaveAttribute('data-capsule-width', '298');
       expect(screen.getByTestId('map-plus-stack')).toBeInTheDocument();
       expect(screen.getByRole('button', { name: 'Carousel' })).toBeInTheDocument();
@@ -2358,7 +2359,7 @@ describe('MapHome', () => {
     );
     expect(pingButton).not.toHaveClass('absolute', 'mt-2');
     // Controls use the approved compact clearance beneath the top capsule.
-    expect(rightActions).toHaveClass('right-3', 'top-[5.5rem]', 'sm:right-4', 'sm:top-[5.5rem]', 'lg:right-3', 'lg:top-[5.5rem]');
+    expect(rightActions).toHaveClass('right-3', 'top-[5rem]', 'gap-1', 'sm:right-4', 'lg:right-3', 'lg:gap-2', 'lg:top-[5.5rem]');
     expect(cruushPlusButton).toHaveClass(
       'cruush-plus-shimmer-button',
       'cruush-logo-font',

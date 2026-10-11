@@ -161,14 +161,16 @@ describe('BottomNav', () => {
     expect(backdrop).toHaveClass('h-28', 'from-background', 'from-[68%]', 'via-background/96', 'via-[82%]', 'to-background/0');
   });
 
-  it('keeps Feed available in the reduced out-of-service capsule', () => {
+  it('keeps Map available to return to the out-of-service landing', () => {
     render(
-      <MemoryRouter initialEntries={['/map']}>
+      <MemoryRouter initialEntries={['/messages']}>
         <BottomNav outsideServiceArea />
+        <LocationProbe />
       </MemoryRouter>
     );
 
-    expect(screen.queryByRole('button', { name: /map/i })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /^Map$/ }));
+    expect(screen.getByTestId('location-probe')).toHaveTextContent('/map:null');
     expect(screen.getByRole('button', { name: /Confessional/i })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /^cruush$/i })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /messages/i })).toBeInTheDocument();

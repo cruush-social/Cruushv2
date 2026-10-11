@@ -34,6 +34,7 @@ import BugButtonSlot from './BugButtonSlot';
 import { resolveUserBorderTone } from '../lib/userBorderTone';
 import { useMapServiceArea } from './MapServiceAreaContext';
 import PurgatoryMemberBadge from './PurgatoryMemberBadge';
+import SingleLineVibeRow from './SingleLineVibeRow';
 
 interface MapProfilePopupProps {
   user: any;
@@ -285,16 +286,18 @@ export default function MapProfilePopup({
             photos={displayPhotos}
             userId={profileView?.id ?? user.id}
           />
-          <div className="absolute inset-x-0 top-0 flex items-start justify-between gap-3 py-4 pl-4 pr-1">
-            <div className="ml-auto flex items-center gap-2">
+          <div className="pointer-events-none absolute inset-x-0 top-0 z-30 flex items-start justify-between p-3 pr-3">
+            <div className="pointer-events-auto flex min-w-0 items-center gap-2" />
+            <div className="pointer-events-auto flex items-center gap-2">
               {isOwnProfile ? (
-                <button
+                <Button
                   type="button"
                   onClick={() => setOwnProfileMode('edit')}
-                  className="h-9 rounded-full border border-white/10 bg-black/45 px-3 text-[11px] uppercase tracking-[0.14em] text-white/82 backdrop-blur-sm transition hover:text-white"
+                  className="h-10 rounded-full border border-white/12 bg-black/55 px-4 text-white backdrop-blur-sm"
+                  variant="ghost"
                 >
                   Edit profile
-                </button>
+                </Button>
               ) : null}
               {!isOwnProfile && !isDemo ? (
                 <>
@@ -303,12 +306,12 @@ export default function MapProfilePopup({
                     targetId={user.id}
                     targetLabel={displayName}
                     label={`Report ${displayName}`}
-                    className="h-9 w-9 rounded-full border border-white/10 bg-black/45 text-white/80 backdrop-blur-sm transition hover:bg-black/55 hover:text-white"
+                    className="h-10 w-10 rounded-full border border-white/12 bg-black/55 text-white backdrop-blur-sm"
                   />
                   <BlockUserAction
                     userId={user.id}
                     displayName={displayName}
-                    className="h-9 w-9 rounded-full border border-white/10 bg-black/45 text-white/80 backdrop-blur-sm transition hover:bg-black/55 hover:text-white"
+                    className="h-10 w-10 rounded-full border border-white/12 bg-black/55 p-0 text-white backdrop-blur-sm"
                     onBlocked={(blockedUserId) => {
                       onBlockedUser?.(blockedUserId);
                       onClose();
@@ -316,17 +319,15 @@ export default function MapProfilePopup({
                   />
                 </>
               ) : null}
-              {/* The bug button rides this row like the other controls; Close
-                  stays last. */}
-              <BugButtonSlot className="ml-0 h-9 w-9" testId="map-profile-popup-bug-button-slot" />
               <button
                 type="button"
                 onClick={onClose}
-                className="flex h-9 w-9 items-center justify-center rounded-full border border-white/10 bg-black/45 text-white/80 backdrop-blur-sm transition hover:text-white"
+                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-white/12 bg-black/55 text-white backdrop-blur-sm"
                 aria-label="Close profile preview"
               >
-                <X className="h-4 w-4" />
+                <X className="h-5 w-5" />
               </button>
+              <BugButtonSlot className="ml-0" testId="map-profile-popup-bug-button-slot" />
             </div>
           </div>
 
@@ -383,7 +384,8 @@ export default function MapProfilePopup({
             ) : null}
 
             {profileView?.vibes.length ? (
-              <div className="mt-2 flex flex-wrap gap-1.5" data-testid="popup-overlay-vibes">
+              <div className="mt-2" data-testid="popup-overlay-vibes">
+                <SingleLineVibeRow>
                 {profileView.vibes.slice(0, 3).map((vibe) => (
                   <span
                     className="max-w-full min-w-0 truncate rounded-full border px-2 py-0.5 text-[11px] uppercase leading-tight tracking-[0.08em]"
@@ -396,6 +398,7 @@ export default function MapProfilePopup({
                     {vibe}
                   </span>
                 ))}
+                </SingleLineVibeRow>
               </div>
             ) : null}
           </div>

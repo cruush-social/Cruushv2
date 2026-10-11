@@ -9,29 +9,34 @@ export type LaunchLoginMapTeaserPlaybackState = {
 
 type LaunchLoginMapTeaserProps = {
   onPlaybackStateChange?: (state: LaunchLoginMapTeaserPlaybackState) => void;
+  recording?: 'default' | 'glossy';
 };
 
 const DESKTOP_TEASER_VIDEO = '/teasers/launch-login-teaser-desktop.webm';
 const MOBILE_TEASER_VIDEO = '/teasers/launch-login-teaser-mobile.mp4';
+const GLOSSY_DESKTOP_TEASER_VIDEO = '/teasers/launch-login-teaser-glossy-desktop.webm';
+const GLOSSY_MOBILE_TEASER_VIDEO = '/teasers/launch-login-teaser-glossy-mobile.mp4';
 const MOBILE_VIDEO_QUERY = '(max-width: 640px)';
 const REDUCED_MOTION_QUERY = '(prefers-reduced-motion: reduce)';
 
-function getTeaserVideoSource() {
+function getTeaserVideoSource(recording: 'default' | 'glossy' = 'default') {
+  const desktopVideo = recording === 'glossy' ? GLOSSY_DESKTOP_TEASER_VIDEO : DESKTOP_TEASER_VIDEO;
+  const mobileVideo = recording === 'glossy' ? GLOSSY_MOBILE_TEASER_VIDEO : MOBILE_TEASER_VIDEO;
   if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') {
-    return DESKTOP_TEASER_VIDEO;
+    return desktopVideo;
   }
 
   if (shouldReduceMotion()) {
     return null;
   }
 
-  return window.matchMedia(MOBILE_VIDEO_QUERY).matches ? MOBILE_TEASER_VIDEO : DESKTOP_TEASER_VIDEO;
+  return window.matchMedia(MOBILE_VIDEO_QUERY).matches ? mobileVideo : desktopVideo;
 }
 
-export default function LaunchLoginMapTeaser({ onPlaybackStateChange }: LaunchLoginMapTeaserProps = {}) {
+export default function LaunchLoginMapTeaser({ onPlaybackStateChange, recording = 'default' }: LaunchLoginMapTeaserProps = {}) {
   const [isVideoReady, setIsVideoReady] = useState(false);
-  const [videoSource, setVideoSource] = useState<string | null>(() => getTeaserVideoSource());
-  const isMobileRecording = videoSource === MOBILE_TEASER_VIDEO;
+  const [videoSource, setVideoSource] = useState<string | null>(() => getTeaserVideoSource(recording));
+  const isMobileRecording = videoSource === MOBILE_TEASER_VIDEO || videoSource === GLOSSY_MOBILE_TEASER_VIDEO;
   const teaserClassName = [
     'launch-login-map-teaser',
     isVideoReady ? 'launch-login-map-teaser--video-ready' : '',
@@ -50,8 +55,8 @@ export default function LaunchLoginMapTeaser({ onPlaybackStateChange }: LaunchLo
       setVideoSource(shouldReduceMotion()
         ? null
         : mobileQuery.matches
-          ? MOBILE_TEASER_VIDEO
-          : DESKTOP_TEASER_VIDEO);
+          ? recording === 'glossy' ? GLOSSY_MOBILE_TEASER_VIDEO : MOBILE_TEASER_VIDEO
+          : recording === 'glossy' ? GLOSSY_DESKTOP_TEASER_VIDEO : DESKTOP_TEASER_VIDEO);
     };
 
     updateVideoSource();
@@ -64,7 +69,7 @@ export default function LaunchLoginMapTeaser({ onPlaybackStateChange }: LaunchLo
       reducedMotionQuery.removeEventListener?.('change', updateVideoSource);
       window.removeEventListener(ACCESSIBILITY_PREFERENCES_CHANGED_EVENT, updateVideoSource);
     };
-  }, []);
+  }, [recording]);
 
   useEffect(() => {
     onPlaybackStateChange?.({
@@ -97,7 +102,9 @@ export default function LaunchLoginMapTeaser({ onPlaybackStateChange }: LaunchLo
       ) : (
         <div className="launch-login-map-teaser__ambient-fallback" data-testid="launch-login-ambient-fallback" />
       )}
-      <div className="launch-login-map-teaser__video-logo-scrub" data-testid="launch-login-video-logo-scrub" />
+      {recording !== 'glossy' ? (
+        <div className="launch-login-map-teaser__video-logo-scrub" data-testid="launch-login-video-logo-scrub" />
+      ) : null}
       <div className="launch-login-map-teaser__mobile-pulse" data-testid="launch-login-mobile-pulse" />
       <div className="launch-login-map-teaser__shade" data-testid="launch-login-video-shade" />
     </div>

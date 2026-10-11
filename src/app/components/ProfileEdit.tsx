@@ -1155,6 +1155,7 @@ export default function ProfileEdit({ embedded = false, onCancel, onSaved }: Pro
       ] as const)
   );
   const profileMenuProps = {
+    selectedCapsulesPerRow: 2 as const,
     menuPortal: true,
   };
   return (
@@ -1211,6 +1212,7 @@ export default function ProfileEdit({ embedded = false, onCancel, onSaved }: Pro
             <Suspense fallback={<LoadingCardSkeletons className="px-5 py-6" count={2} label="Loading badge editor" />}>
               <BadgePickerPreview
                 embedded
+                dlModeActive={dlModeActive}
                 onClose={() => handleTabChange('basics')}
                 onExitGuardReady={(guard) => {
                   badgeExitGuardRef.current = guard;

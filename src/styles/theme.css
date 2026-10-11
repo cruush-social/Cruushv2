@@ -135,6 +135,19 @@ header :is(h1, h2)[class] {
   }
 }
 
+/* Popup Mode uses the existing mobile header typography even on a wide
+   window. Scope to popup containers so full-page desktop headers stay intact. */
+html[data-cruush-page-framing="desktop"] :is([data-dock-slot], [data-slot="dialog-content"], [data-slot="sheet-content"], [data-slot="alert-dialog-content"]) header :is(h1, h2)[class] {
+  font-size: 1.5rem;
+  line-height: var(--text-2xl--line-height);
+}
+
+/* These primitive headers already share their mobile composition. Prevent
+   their desktop alignment override inside Popup Mode. */
+html[data-cruush-page-framing="desktop"] :is([data-slot="dialog-header"], [data-slot="alert-dialog-header"])[class~="text-center"] {
+  text-align: center;
+}
+
 [data-slot="sheet-content"]:has([data-cruush-bug-slot]) > button:last-child {
   top: 28px;
 }
@@ -2213,4 +2226,10 @@ html[data-cruush-map-route='open'] [data-slot='dialog-content'].cruush-first-ent
    cannot fold it away and re-enable Tailwind's additional translation. */
 .cruush-first-entry-prompt[data-slot="dialog-content"][data-dialog-framing="first-entry"] {
   translate: 0 0 !important;
+}
+
+/* Keep Pulse draggable while using its existing mobile header inset. */
+html[data-cruush-page-framing="desktop"] [data-testid="map-ping-sheet-handle"] {
+  padding-top: 0.5rem;
+  padding-bottom: 0.25rem;
 }

@@ -94,6 +94,7 @@ import profileEditIconWhite from '../assets/ui-icons/humanity-profile-selected-w
 import mileHighClubWhite from '../assets/ui-icons/mile-high-club-white.svg';
 import DlModeMark from './DlModeMark';
 import DlModePhotoPlaceholder from './DlModePhotoPlaceholder';
+import LaunchLoginMapTeaser from './LaunchLoginMapTeaser';
 import OutsideServiceAreaCard from './OutsideServiceAreaCard';
 import { useMapServiceArea } from './MapServiceAreaContext';
 import { claimWelcomeDay, getWelcomeDayStatus, type WelcomeDayStatus } from '../lib/rewardsApi';
@@ -3057,6 +3058,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
       {/* The map owns its own stacking context, so a hovered pin can never
           paint over the top chrome or the bottom nav. */}
       <div className="absolute inset-0 isolate z-0">
+        {displayedOutsideServiceArea ? <LaunchLoginMapTeaser recording="glossy" /> : null}
         <Suspense
           fallback={(
             <div className="relative h-full min-h-[400px] w-full overflow-hidden bg-background">
@@ -3066,62 +3068,63 @@ export default function MapHome(_props: MapHomeProps = {}) {
             </div>
           )}
         >
-          <div className={`h-full w-full ${displayedOutsideServiceArea ? 'grayscale brightness-[0.68]' : ''}`} data-testid={displayedOutsideServiceArea ? 'outside-service-area-map-filter' : undefined}>
-          <MapView
-            onPinClick={handleMarkerSelect}
-            onMapClick={() => {
-              setSelectedUser(null);
-              setSelectedEventSlug(null);
-              setSelectedPlace(null);
-            }}
-            markers={browseVisibleMapMarkers}
-            browseArea={currentUserMapLocation ? {
-              center: currentUserMapLocation,
-              radiusMiles: DISCOVERY_BROWSE_RADIUS_MILES,
-            } : null}
-            fitToMarkers={fitToMapMarkers && !nearbyArea}
-            focusArea={nearbyArea}
-            focusCoordinates={
-              (selectedPlace ? {
-                approximateLatitude: selectedPlace.latitude,
-                approximateLongitude: selectedPlace.longitude,
-              } : null) ??
-              focusedMapLocation ??
-              nearbyArea ??
-              browserFocusCoordinates ??
-              placeReturnFocus ??
-              (focusUserId || restoredViewportApplies ? undefined : travelMapLocation ?? (restoredMapViewport ? undefined : currentUserMapLocation))
-            }
-            initialViewport={restoredMapViewport && restoredViewportApplies ? {
-              center: {
-                approximateLatitude: restoredMapViewport.latitude,
-                approximateLongitude: restoredMapViewport.longitude,
-              },
-              zoom: restoredMapViewport.zoom,
-            } : undefined}
-            initialZoom={restoredMapViewport?.zoom ?? restoredMapZoom ?? undefined}
-            preserveInitialZoomOnLoad={Boolean(
-              restoredMapZoom != null && !focusUserId && !travelMapLocation,
-            )}
-            denseVenue={denseVenue}
-            radiusCircle={privacySettings.ghostModeEnabled && privacySettings.ghostLeashVisible !== false && currentUserMapLocation
-              ? {
-                  center: currentUserMapLocation,
-                  radiusMeters: privacySettings.ghostRadiusMeters,
-                }
-              : null}
-            ghostLeash={privacySettings.ghostModeEnabled && privacySettings.ghostLeashVisible !== false && currentUserMapLocation && ownerGhostMapLocation
-              ? {
-                  from: currentUserMapLocation,
-                  to: ownerGhostMapLocation,
-                }
-              : null}
-            onMapReady={handleMapReady}
-          />
+          <div
+            aria-hidden={displayedOutsideServiceArea}
+            className={`h-full w-full ${displayedOutsideServiceArea ? 'pointer-events-none opacity-0' : ''}`}
+            data-testid={displayedOutsideServiceArea ? 'outside-service-area-map-canvas' : undefined}
+          >
+            <MapView
+              onPinClick={handleMarkerSelect}
+              onMapClick={() => {
+                setSelectedUser(null);
+                setSelectedEventSlug(null);
+                setSelectedPlace(null);
+              }}
+              markers={browseVisibleMapMarkers}
+              browseArea={currentUserMapLocation ? {
+                center: currentUserMapLocation,
+                radiusMiles: DISCOVERY_BROWSE_RADIUS_MILES,
+              } : null}
+              fitToMarkers={fitToMapMarkers && !nearbyArea}
+              focusArea={nearbyArea}
+              focusCoordinates={
+                (selectedPlace ? {
+                  approximateLatitude: selectedPlace.latitude,
+                  approximateLongitude: selectedPlace.longitude,
+                } : null) ??
+                focusedMapLocation ??
+                nearbyArea ??
+                browserFocusCoordinates ??
+                placeReturnFocus ??
+                (focusUserId || restoredViewportApplies ? undefined : travelMapLocation ?? (restoredMapViewport ? undefined : currentUserMapLocation))
+              }
+              initialViewport={restoredMapViewport && restoredViewportApplies ? {
+                center: {
+                  approximateLatitude: restoredMapViewport.latitude,
+                  approximateLongitude: restoredMapViewport.longitude,
+                },
+                zoom: restoredMapViewport.zoom,
+              } : undefined}
+              initialZoom={restoredMapViewport?.zoom ?? restoredMapZoom ?? undefined}
+              preserveInitialZoomOnLoad={Boolean(
+                restoredMapZoom != null && !focusUserId && !travelMapLocation,
+              )}
+              denseVenue={denseVenue}
+              radiusCircle={privacySettings.ghostModeEnabled && privacySettings.ghostLeashVisible !== false && currentUserMapLocation
+                ? {
+                    center: currentUserMapLocation,
+                    radiusMeters: privacySettings.ghostRadiusMeters,
+                  }
+                : null}
+              ghostLeash={privacySettings.ghostModeEnabled && privacySettings.ghostLeashVisible !== false && currentUserMapLocation && ownerGhostMapLocation
+                ? {
+                    from: currentUserMapLocation,
+                    to: ownerGhostMapLocation,
+                  }
+                : null}
+              onMapReady={handleMapReady}
+            />
           </div>
-          {displayedOutsideServiceArea ? (
-            <div aria-hidden="true" className="pointer-events-none absolute inset-0 z-[5] bg-black/28" data-testid="outside-service-area-map-overlay" />
-          ) : null}
         </Suspense>
         <div className="pointer-events-none absolute inset-y-0 left-0 z-10 w-24 bg-gradient-to-r from-background/65 to-transparent" />
 

@@ -134,9 +134,7 @@ export default function BottomNav({
   const hasShownOutsideServiceAreaFeedNudge = useRef(false);
   const mapServiceArea = useMapServiceArea();
   const outsideServiceArea = outsideServiceAreaOverride ?? mapServiceArea.outsideServiceArea;
-  const visibleNavItems = outsideServiceArea
-    ? navItems.filter((item) => ['/feed', '/cruush', '/messages', '/profile'].includes(item.path))
-    : navItems;
+  const visibleNavItems = navItems;
   const isOwnProfilePanelOpen = Boolean(
     (location.state as { openOwnProfilePanel?: boolean } | null)?.openOwnProfilePanel
   );

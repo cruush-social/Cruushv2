@@ -20,7 +20,7 @@ export default function PurgatoryMemberBadge({ size = 'profile' }: {
   const backgroundMaskId = `purgatory-background-${useId().replace(/:/g, '')}`;
   const explanation = <>
     <span className="block">This is a Purgatory member. They are </span>
-    <span className="block">currently outside cruush’s service area.</span>
+    <span className="block">currently outside the Sinner’s Map service area.</span>
   </>;
 
   return (
@@ -29,7 +29,7 @@ export default function PurgatoryMemberBadge({ size = 'profile' }: {
         <button
           ref={triggerRef}
           type="button"
-          className="pointer-events-auto ml-2 shrink-0 touch-manipulation"
+          className="pointer-events-auto ml-2 shrink-0 touch-manipulation outline-none"
           aria-label="This is a Purgatory member."
           aria-expanded={open}
           onPointerDown={(event) => {
@@ -98,7 +98,7 @@ export default function PurgatoryMemberBadge({ size = 'profile' }: {
           if (event.shiftKey) event.preventDefault();
           else setOpen(false);
         }}
-        aria-label="This is a Purgatory member. They are currently outside cruush’s service area."
+        aria-label="This is a Purgatory member. They are currently outside the Sinner’s Map service area."
         side="top"
         sideOffset={6}
         className="max-w-[calc(100vw-1rem)] pr-2 text-left [text-wrap:wrap]"

@@ -44,6 +44,7 @@ interface MultiSelectProps {
   onAddingDisabled?: () => void;
   maxSelections?: number;
   searchable?: boolean;
+  selectedCapsulesPerRow?: 2;
 }
 export default function MultiSelect({
   options = [],
@@ -59,6 +60,7 @@ export default function MultiSelect({
   onAddingDisabled,
   maxSelections,
   searchable = false,
+  selectedCapsulesPerRow,
 }: MultiSelectProps) {
   const [selected, setSelected] = useState<string[]>(value);
   const [isOpen, setIsOpen] = useState(false);
@@ -464,6 +466,15 @@ export default function MultiSelect({
       )
     : null;
 
+  const renderSelectedBadge = (item: string) => (
+    <Badge key={item} variant="secondary" className="gap-1">
+      {item}
+      <button type="button" onClick={() => removeOption(item)} className="ml-1">
+        <X className="w-3 h-3" />
+      </button>
+    </Badge>
+  );
+
   return (
     <div className="space-y-2">
       <div className="relative">
@@ -507,16 +518,19 @@ export default function MultiSelect({
         anchored to a stale position overlapping its own trigger (menuPortal).
       */}
       {selected.length > 0 && (
-        <div className="flex flex-wrap gap-2">
-          {selected.map((item) => (
-            <Badge key={item} variant="secondary" className="gap-1">
-              {item}
-              <button type="button" onClick={() => removeOption(item)} className="ml-1">
-                <X className="w-3 h-3" />
-              </button>
-            </Badge>
-          ))}
-        </div>
+        selectedCapsulesPerRow === 2 ? (
+          <div className="space-y-2">
+            {Array.from({ length: Math.ceil(selected.length / 2) }, (_, row) => (
+              <div key={selected[row * 2]} className="flex flex-wrap gap-2">
+                {selected.slice(row * 2, row * 2 + 2).map(renderSelectedBadge)}
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="flex flex-wrap gap-2">
+            {selected.map(renderSelectedBadge)}
+          </div>
+        )
       )}
     </div>
   );

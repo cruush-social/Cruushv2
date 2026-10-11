@@ -57,7 +57,7 @@ function VisibilityControlButton({ hasActiveVisibility, setVisibilityError, setI
 export default function MapControls({ isMobile, sidePanelView, selectedPlace, selectedUser, setMapControlsHovered, activeCrowdNotice, setVisibilityError, setIsVisibilityOpen, mapControlsOpen, setMapControlsOpen, hasActiveFilters, setIsFiltersOpen, hasActiveVisibility, spotFiltersActive, setPlacesOpen, setMapPingSheetOpen, mapPingStatus, handleCenterMyLocation, locationStatus, mapInstance, visibilityOnly = false }: MapControlsProps) {
   return (
         <div
-          className={`pointer-events-none [&_button]:pointer-events-auto absolute right-3 top-[5.5rem] z-[900] flex flex-col items-end gap-2 sm:right-4 sm:top-[5.5rem] lg:right-3 lg:top-[5.5rem] ${isMobile && (sidePanelView || selectedPlace || selectedUser) ? 'hidden' : ''}`}
+          className={`pointer-events-none [&_button]:pointer-events-auto absolute right-3 top-[5rem] z-[900] flex flex-col items-end gap-1 sm:right-4 lg:gap-2 lg:right-3 lg:top-[5.5rem] ${isMobile && (sidePanelView || selectedPlace || selectedUser) ? 'hidden' : ''}`}
           data-map-control-hit-layer="true"
           data-testid="map-right-actions"
           onPointerEnter={() => setMapControlsHovered(true)}
