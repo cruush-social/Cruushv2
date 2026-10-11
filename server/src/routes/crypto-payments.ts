@@ -39,6 +39,10 @@ import {
 } from "../crypto-watcher-runtime.js";
 import { ingestCryptoPaymentReceipt } from "../crypto-watcher.js";
 
+function assertCruushPlusPurchasesAllowed(): void {
+  throw new ApiError(503, "CRYPTO_PROCESSOR_NOT_READY", "cruush+ purchases are temporarily unavailable.");
+}
+
 // The app the member sends from is recorded with the order so the estimate,
 // the minimum warning and the order history all name it. Bitcoin is the rail
 // Cash App, PayPal and Venmo share.
@@ -215,6 +219,7 @@ export async function registerCryptoPaymentRoutes(
       message: "Too many crypto payment attempts. Try again shortly."
     });
     const payload = paymentIntentPayloadSchema.parse(request.body);
+    assertCruushPlusPurchasesAllowed();
 
     // The plan price is always derived on the server. A client-supplied amount is never trusted.
     const plan = getCruushPlusPlan(payload.planId);

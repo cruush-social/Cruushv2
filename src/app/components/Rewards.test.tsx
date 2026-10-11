@@ -200,21 +200,13 @@ describe('Rewards', () => {
     expect(screen.queryByRole('button', { name: 'Set up authenticator app' })).not.toBeInTheDocument();
   });
 
-  it('removes Side Quests and their requests while preserving earned reward history', async () => {
-    api.getRewardSummary.mockResolvedValue({
-      ...summary,
-      recentGrants: [{ id: 'earned-quest', source: 'side_quest', sideQuestKey: 'view_profile',
-        days: 1, status: 'active', createdAt: '2026-08-30T12:00:00.000Z' }],
-    });
+  it('restores Side Quests and their read request without claiming automatically', async () => {
+    api.getSideQuests.mockResolvedValue({ quests: [], claimedToday: false, claimingAvailable: true });
     renderRewards();
     await screen.findByText('6-day streak');
-    expect(screen.queryByText(/Side Quest/i)).not.toBeInTheDocument();
-    expect(screen.queryByTestId('side-quests-card')).not.toBeInTheDocument();
-    expect(screen.getByText('Promotional grant')).toBeInTheDocument();
-    expect(screen.getByText('+1 day')).toBeInTheDocument();
-    fireEvent.focus(window);
-    fireEvent(document, new Event('visibilitychange'));
-    expect(api.getSideQuests).not.toHaveBeenCalled();
+    expect(screen.getByTestId('side-quests-card')).toBeInTheDocument();
+    expect(screen.getByText('Side Quests')).toBeInTheDocument();
+    expect(api.getSideQuests).toHaveBeenCalledTimes(1);
     expect(api.claimSideQuest).not.toHaveBeenCalled();
     expect(api.recordDailyRewardCheckIn).toHaveBeenCalledTimes(1);
     expect(screen.getByDisplayValue(summary.referrals.link)).toBeInTheDocument();

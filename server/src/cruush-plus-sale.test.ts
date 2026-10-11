@@ -9,23 +9,23 @@ describe("automatic cruush+ sale", () => {
     vi.setSystemTime(new Date("2026-10-10T12:00:00Z"));
   });
   afterEach(() => vi.useRealTimers());
-  it("prices every plan at 50% without an account-age or membership condition", async () => {
+  it("removes the promotion and restores every plan to its list price", async () => {
     const app = { db: { query: async () => ({ rows: [] }) } } as unknown as FastifyInstance;
     const catalog = await getPublicCruushPlusPlans(app);
     for (const plan of catalog) {
       const original = CRUUSH_PLUS_PLANS.find((candidate) => candidate.id === plan.id)!;
       expect(plan.originalAmountCents).toBe(original.amountCents);
-      expect(plan.amountCents).toBe(Math.round(original.amountCents / 2));
-      expect(plan.sale).toEqual(CRUUSH_PLUS_SALE);
+      expect(plan.amountCents).toBe(original.amountCents);
+      expect(plan.sale).toBeNull();
       expect(plan.supplyLimit).toBe(original.supplyLimit);
     }
-    expect(getCruushPlusSalePrice(199999).amountCents).toBe(100000);
-    expect(getCruushPlusSalePrice(1899).amountCents).toBe(950);
+    expect(getCruushPlusSalePrice(199999).amountCents).toBe(199999);
+    expect(getCruushPlusSalePrice(1899).amountCents).toBe(1899);
     expect(CRUUSH_PLUS_SALE).toMatchObject({ endsAt: "2026-10-12T03:59:00Z", couponStacking: false });
   });
 
   it("restores list prices when the sale is switched off without mutating stored snapshots", () => {
-    const recorded = cruushPlusOrderSale(1899);
+    const recorded = { ...CRUUSH_PLUS_SALE, originalAmountUsdCents: 1899, discountAmountUsdCents: 949, amountUsdCents: 950 };
     expect(getCruushPlusSalePrice(1899, null)).toEqual({ amountCents: 1899, originalAmountCents: 1899, sale: null });
     expect(cruushPlusSaleFromMetadata({ sale: recorded })).toEqual({
       ...CRUUSH_PLUS_SALE, originalAmountUsdCents: 1899, discountAmountUsdCents: 949, amountUsdCents: 950
@@ -33,11 +33,11 @@ describe("automatic cruush+ sale", () => {
     expect(cruushPlusSaleFromMetadata({})).toBeNull();
   });
 
-  it("ends new quotes exactly at Sunday 23:59 New York, with no grace minute", async () => {
+  it("keeps new quotes at list price before and after the former deadline", async () => {
     const deadline = Date.parse("2026-10-12T03:59:00Z");
     vi.setSystemTime(deadline - 1);
-    expect(getActiveCruushPlusSale()).toEqual(CRUUSH_PLUS_SALE);
-    expect(getCruushPlusSalePrice(1899).amountCents).toBe(950);
+    expect(getActiveCruushPlusSale()).toBeNull();
+    expect(getCruushPlusSalePrice(1899).amountCents).toBe(1899);
     for (const time of [deadline, deadline + 1, deadline + 60_000]) {
       vi.setSystemTime(time);
       expect(getActiveCruushPlusSale()).toBeNull();
@@ -52,7 +52,7 @@ describe("automatic cruush+ sale", () => {
   });
 
   it("reads both dated and legacy unbounded order snapshots after the sale ends", () => {
-    const recorded = cruushPlusOrderSale(1899)!;
+    const recorded = { ...CRUUSH_PLUS_SALE, originalAmountUsdCents: 1899, discountAmountUsdCents: 949, amountUsdCents: 950 };
     const legacy = { ...recorded, endsAt: null };
     vi.setSystemTime(new Date("2026-10-13T00:00:00Z"));
     expect(cruushPlusSaleFromMetadata({ sale: recorded })).toEqual(recorded);

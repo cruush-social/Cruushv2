@@ -476,18 +476,18 @@ export default function GhostModeSettings() {
             <ChevronRight className="h-5 w-5 shrink-0 text-white/60" />
           </button>
 
-          <div className="space-y-3 rounded-lg border border-white/10 bg-white/[0.025] p-4">
+          <div className="@container space-y-3 rounded-lg border border-white/10 bg-white/[0.025] p-4">
             <div className="flex items-center gap-3">
               <CruushIcon name="map" className="h-5 w-5 opacity-65" />
               <p>Who can see my precise location?</p>
             </div>
-            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+            <div className="grid grid-cols-2 gap-2 @min-[28rem]:grid-cols-3">
               <button
                 type="button"
                 aria-label="Public"
                 aria-pressed={privacySettings.baseMode === 'PUBLIC_PRECISE'}
                 className={[
-                  ghostSettingsChoiceClassName,
+                  `${ghostSettingsChoiceClassName} min-w-0 flex-wrap gap-x-2 gap-y-1`,
                   privacySettings.baseMode === 'PUBLIC_PRECISE'
                     ? ghostSettingsSelectedChoiceClassName
                     : ghostSettingsIdleChoiceClassName,
@@ -509,8 +509,8 @@ export default function GhostModeSettings() {
                 }}
                 style={!profilePinsAllowed ? { background: 'var(--cruush-gradient)', opacity: 0.5 } : privacySettings.baseMode === 'PUBLIC_PRECISE' ? { background: 'var(--cruush-gradient)' } : undefined}
               >
-                <span>Public</span>
-                <span className="text-xs">{privacySettings.baseMode === 'PUBLIC_PRECISE' ? 'On' : 'Off'}</span>
+                <span className="min-w-0 break-words">Public</span>
+                <span className="shrink-0 text-xs">{privacySettings.baseMode === 'PUBLIC_PRECISE' ? 'On' : 'Off'}</span>
               </button>
 
               <button
@@ -518,7 +518,7 @@ export default function GhostModeSettings() {
                 aria-label="Cruushes"
                 aria-pressed={privacySettings.preciseToMutualCruushes}
                 className={[
-                  ghostSettingsChoiceClassName,
+                  `${ghostSettingsChoiceClassName} min-w-0 flex-wrap gap-x-2 gap-y-1`,
                   privacySettings.preciseToMutualCruushes
                     ? ghostSettingsSelectedChoiceClassName
                     : ghostSettingsIdleChoiceClassName,
@@ -534,8 +534,8 @@ export default function GhostModeSettings() {
                 }}
                 style={!profilePinsAllowed ? { background: 'var(--cruush-gradient)', opacity: 0.5 } : privacySettings.preciseToMutualCruushes ? { background: 'var(--cruush-gradient)' } : undefined}
               >
-                <span>Cruushes</span>
-                <span className="text-xs">{privacySettings.preciseToMutualCruushes ? 'On' : 'Off'}</span>
+                <span className="min-w-0 break-words">Cruushes</span>
+                <span className="shrink-0 text-xs">{privacySettings.preciseToMutualCruushes ? 'On' : 'Off'}</span>
               </button>
 
               {CROWDS.map((crowd) => {
@@ -547,7 +547,7 @@ export default function GhostModeSettings() {
                     type="button"
                     aria-pressed={selected}
                     className={[
-                      ghostSettingsChoiceClassName,
+                      `${ghostSettingsChoiceClassName} min-w-0 flex-wrap gap-x-2 gap-y-1`,
                       selected
                         ? ghostSettingsSelectedChoiceClassName
                         : ghostSettingsIdleChoiceClassName,
@@ -561,8 +561,8 @@ export default function GhostModeSettings() {
                     }}
                     style={!profilePinsAllowed ? { background: 'var(--cruush-gradient)', opacity: 0.5 } : selected ? { background: 'var(--cruush-gradient)' } : undefined}
                   >
-                    <span>{crowd}</span>
-                    <span className="text-xs">{selected ? 'On' : 'Off'}</span>
+                    <span className="min-w-0 break-words">{crowd}</span>
+                    <span className="shrink-0 text-xs">{selected ? 'On' : 'Off'}</span>
                   </button>
                 );
               })}

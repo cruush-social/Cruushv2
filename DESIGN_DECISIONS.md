@@ -726,3 +726,7 @@ Julien: “basicaly every page should load in pops ups in luding co ven chats on
 - October 11 profile relationship status: Julien reported “Bugs dude the overlap?? make it hang.” with the “single, not looking” pill spilling into Looking For. Allow that field’s pill text to wrap within its existing card; preserve the grid, font, padding and decoration.
 
 - October 11, 2026 release naming: Julien: “call this release 2.2”. The current release is 2.2; the Settings version label matches the existing v2.2 changelog.
+
+
+## October 11, 2026 promotion and Side Quests
+Julien: “disabled purchases”, “so remove promotion”, “bring back sidequests”. Disable new cruush+ purchases and the current promotion; restore the existing Side Quests UI on Rewards. Existing orders and Pulse purchases remain available. This supersedes the October 10 Side Quests UI removal.

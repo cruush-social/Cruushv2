@@ -229,6 +229,18 @@ describe('CruushPlusStore', () => {
     });
   });
 
+  it('disables new cruush+ purchases even when every stablecoin rail is ready', async () => {
+    vi.mocked(getCryptoProcessorStatus).mockResolvedValue(processorStatus(['usdc_arbitrum', 'pyusd_arbitrum', 'pyusd_ethereum', 'usdc_base']));
+    renderStore();
+    const picker = await screen.findByLabelText('Where you are paying from');
+    for (const name of ['Cash App', 'PayPal', 'Venmo', 'A crypto wallet']) {
+      const button = within(picker).getByRole('button', { name });
+      expect(button).toBeDisabled();
+      fireEvent.click(button);
+    }
+    expect(createCryptoPaymentIntent).not.toHaveBeenCalled();
+  });
+
   it('shows plans without waiting for slower processor and Bitcoin checks', async () => {
     vi.mocked(getCryptoProcessorStatus).mockReturnValue(new Promise(() => {}));
     vi.mocked(getBitcoinSendingEligibility).mockReturnValue(new Promise(() => {}));
@@ -678,7 +690,7 @@ describe('CruushPlusStore', () => {
     expect(createCryptoPaymentIntent).not.toHaveBeenCalled();
   });
 
-  it('cancels a recorded order before unlocking another payment method', async () => {
+  it('cancels a recorded order while new cruush+ purchases remain disabled', async () => {
     vi.mocked(getCryptoProcessorStatus).mockResolvedValue(bitcoinOnlyProcessorStatus());
     const openIntent = {
       id: '00000000-0000-4000-8000-000000000010',
@@ -725,24 +737,9 @@ describe('CruushPlusStore', () => {
       'Previous order cancelled. Choose how you want to pay.',
     );
     expect(screen.queryByText(openIntent.paymentAddress)).not.toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'PayPal' })).toBeEnabled();
-    const replacement = {
-      ...openIntent,
-      id: '00000000-0000-4000-8000-000000000012',
-      asset: 'BTC' as const,
-      rail: 'btc_bitcoin' as const,
-      tokenAddress: '',
-      paymentAddress: '0x2222222222222222222222222222222222222222',
-      createdAt: '2099-09-01T12:01:00.000Z',
-      expiresAt: '2099-09-02T12:01:00.000Z',
-    };
-    vi.mocked(createCryptoPaymentIntent).mockResolvedValue(replacement);
+    expect(screen.getByRole('button', { name: 'PayPal' })).toBeDisabled();
     fireEvent.click(screen.getByRole('button', { name: 'PayPal' }));
-    expect(await screen.findByText(replacement.paymentAddress)).toBeInTheDocument();
-    expect(createCryptoPaymentIntent).toHaveBeenCalledWith({
-      planId: 'plus_monthly', rail: 'btc_bitcoin', sendingApp: 'paypal', idempotencyKey: expect.any(String),
-    });
-    expect(screen.queryByText(openIntent.paymentAddress)).not.toBeInTheDocument();
+    expect(createCryptoPaymentIntent).not.toHaveBeenCalled();
   });
 
   it('keeps a restored open Bitcoin payment on its original rail', async () => {

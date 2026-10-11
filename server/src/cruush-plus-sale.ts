@@ -1,7 +1,7 @@
 // Julien, October 9: automatic 50% off for all users, no coupon stacking,
 // October 10: end Sunday October 11 at 23:59 America/New_York.
 // This switch and deadline control new prices only, never stored orders.
-export const CRUUSH_PLUS_SALE_ACTIVE = true;
+export const CRUUSH_PLUS_SALE_ACTIVE = false;
 
 export const CRUUSH_PLUS_SALE = {
   id: "cruush-plus-50",

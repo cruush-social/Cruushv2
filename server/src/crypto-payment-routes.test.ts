@@ -67,6 +67,15 @@ const disabledApp = buildServer(baseConfig(), {
 });
 
 describe("crypto payment routes", () => {
+  it.each(["usdc_arbitrum", "pyusd_arbitrum", "pyusd_ethereum", "usdc_base"])("refuses new cruush+ purchases on %s before publishing an order", async (rail) => {
+    const response = await disabledApp.inject({
+      method: "POST", url: "/api/crypto/payment-intents", headers: { "x-user-id": userId },
+      payload: { planId: "plus_monthly", rail, idempotencyKey: "disabled-plus-purchase" }
+    });
+    expect(response.statusCode).toBe(503);
+    expect(response.json().error.message).toBe("cruush+ purchases are temporarily unavailable.");
+  });
+
   it.each([
     ["/api/crypto/payment-intents", { planId: "plus_monthly" }],
     ["/api/crypto/ping-pack-intents", { packId: "ping_10" }]

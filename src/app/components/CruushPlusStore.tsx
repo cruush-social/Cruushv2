@@ -561,7 +561,8 @@ export default function CruushPlusStore({ product = 'cruush_plus' }: { product?:
 
   const handleStartPayment = useCallback(async (source: CryptoPaymentSource) => {
     if (
-      !selectedPlan
+      !isPulse
+      || !selectedPlan
       || !readyRailIds.has(source.rail)
       || startingRef.current
       || retryAt > Date.now()
@@ -957,7 +958,7 @@ export default function CruushPlusStore({ product = 'cruush_plus' }: { product?:
                       type="button"
                       aria-label={source.label}
                       aria-pressed={sourceSelected}
-                      disabled={!sourceReady || checkoutSelectionLocked || checkingMinimum || belowMinimum || retryAt > clockMs}
+                      disabled={!isPulse || !sourceReady || checkoutSelectionLocked || checkingMinimum || belowMinimum || retryAt > clockMs}
                       className={`${pickerSources.length % 2 === 1 && index === pickerSources.length - 1 ? 'col-span-2' : ''} border-x-0 border-y px-2 py-2 text-center disabled:opacity-50 ${sourceSelected ? 'border-primary bg-primary/10' : 'border-border'}`}
                       onClick={() => void handleStartPayment(source)}
                     >
@@ -988,7 +989,7 @@ export default function CruushPlusStore({ product = 'cruush_plus' }: { product?:
               {starting || intent ? <Button
                 className="h-12 w-full rounded-full text-base font-semibold text-white disabled:opacity-50"
                 type="button"
-                disabled={starting || !selectedRailReady || (paymentOpen && !locallyExpired) || paymentPaid}
+                disabled={!isPulse || starting || !selectedRailReady || (paymentOpen && !locallyExpired) || paymentPaid}
                 onClick={() => void handleStartPayment(selectedPaymentSource)}
                 style={{ background: 'var(--cruush-logo)' }}
               >
