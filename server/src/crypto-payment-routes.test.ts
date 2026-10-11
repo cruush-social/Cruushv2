@@ -67,6 +67,18 @@ const disabledApp = buildServer(baseConfig(), {
 });
 
 describe("crypto payment routes", () => {
+  it.each([
+    ["/api/crypto/payment-intents", { planId: "plus_monthly" }],
+    ["/api/crypto/ping-pack-intents", { packId: "ping_10" }]
+  ])("temporarily refuses Bitcoin checkout at %s", async (url, product) => {
+    const response = await disabledApp.inject({
+      method: "POST", url, headers: { "x-user-id": userId },
+      payload: { ...product, rail: "btc_bitcoin", idempotencyKey: "disabled-bitcoin" }
+    });
+    expect(response.statusCode).toBe(503);
+    expect(response.json().error.message).toBe("Bitcoin checkout is temporarily disabled.");
+  });
+
   afterAll(async () => {
     await disabledApp.close();
   });

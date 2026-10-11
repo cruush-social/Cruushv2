@@ -95,6 +95,9 @@ const SUPPORTED_CHAIN_BOOTSTRAP_RAILS = [
  * enabled, and configuration validation refuses that flag in production.
  */
 function assertRailAllowed(app: FastifyInstance, rail: CryptoPaymentRailId) {
+  if (rail === "btc_bitcoin") {
+    throw new ApiError(503, "CRYPTO_PROCESSOR_NOT_READY", "Bitcoin checkout is temporarily disabled.");
+  }
   if (isTestnetCryptoPaymentRail(rail) && !app.config.CRYPTO_PROCESSOR_TESTNET_ENABLED) {
     throw new ApiError(400, "VALIDATION_ERROR", "Unsupported crypto payment rail.");
   }
@@ -179,8 +182,11 @@ export async function registerCryptoPaymentRoutes(
   app.get("/api/crypto/status", async (request, reply) => {
     await getAuthenticatedUserId(request);
 
+    const status = getCryptoProcessorStatus(app.config);
+    const rails = status.rails.map((rail) => rail.id === "btc_bitcoin" ? { ...rail, ready: false } : rail);
+
     return reply.send({
-      data: getCryptoProcessorStatus(app.config)
+      data: { ...status, rails, ready: rails.some((rail) => rail.ready) }
     });
   });
 
