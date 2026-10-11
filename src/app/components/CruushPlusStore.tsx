@@ -151,7 +151,7 @@ const BITCOIN_APP_LINKS = {
   venmo: 'https://venmo.com/about/crypto',
 } as const;
 
-const BITCOIN_PAYMENT_SOURCES = CRYPTO_PAYMENT_SOURCES.filter((source) => source.rail === 'btc_bitcoin');
+const STABLECOIN_PAYMENT_SOURCES = CRYPTO_PAYMENT_SOURCES.filter((source) => source.rail !== 'btc_bitcoin');
 
 export default function CruushPlusStore({ product = 'cruush_plus' }: { product?: 'cruush_plus' | 'ping_pack' }) {
   const isPulse = product === 'ping_pack';
@@ -169,7 +169,7 @@ export default function CruushPlusStore({ product = 'cruush_plus' }: { product?:
   const [bitcoinEligibilityRevision, setBitcoinEligibilityRevision] = useState(0);
   const [selectedPlanId, setSelectedPlanId] = useState<string | null>(null);
   const [intent, setIntent] = useState<CryptoPaymentIntent | null>(null);
-  const [selectedSourceId, setSelectedSourceId] = useState<string>(BITCOIN_PAYMENT_SOURCES[0].id);
+  const [selectedSourceId, setSelectedSourceId] = useState<string>(STABLECOIN_PAYMENT_SOURCES[0].id);
   const [hasChosenSource, setHasChosenSource] = useState(false);
   const [copied, setCopied] = useState(false);
   const [amountCopied, setAmountCopied] = useState(false);
@@ -417,7 +417,7 @@ export default function CruushPlusStore({ product = 'cruush_plus' }: { product?:
   );
 
   const selectedPaymentSource = useMemo(
-    () => BITCOIN_PAYMENT_SOURCES.find((source) => source.id === selectedSourceId) ?? BITCOIN_PAYMENT_SOURCES[0],
+    () => CRYPTO_PAYMENT_SOURCES.find((source) => source.id === selectedSourceId) ?? STABLECOIN_PAYMENT_SOURCES[0],
     [selectedSourceId],
   );
   const selectedRail: CryptoPaymentRailId = selectedPaymentSource.rail;
@@ -481,7 +481,7 @@ export default function CruushPlusStore({ product = 'cruush_plus' }: { product?:
     [processor],
   );
   const readyVisibleSources = useMemo(
-    () => BITCOIN_PAYMENT_SOURCES.filter((source) => readyRailIds.has(source.rail)),
+    () => STABLECOIN_PAYMENT_SOURCES.filter((source) => readyRailIds.has(source.rail)),
     [readyRailIds],
   );
   const selectedRailReady = readyRailIds.has(selectedRail);
@@ -511,12 +511,15 @@ export default function CruushPlusStore({ product = 'cruush_plus' }: { product?:
   // ready, keep the normal picker visible in its existing disabled state.
   const pickerSources = useMemo(
     () => {
-      const availableSources = BITCOIN_PAYMENT_SOURCES.filter((source) =>
-        readyRailIds.has(source.rail)
+      const preservingBitcoinOrder = (paymentOpen || paymentPaid)
+        && selectedPaymentSource.rail === 'btc_bitcoin';
+      const availableSources = CRYPTO_PAYMENT_SOURCES.filter((source) =>
+        ((preservingBitcoinOrder ? source.rail === 'btc_bitcoin' : source.rail !== 'btc_bitcoin')
+          && readyRailIds.has(source.rail))
         || (source.id === selectedSourceId && (paymentOpen || paymentPaid)));
-      return availableSources.length > 0 ? availableSources : BITCOIN_PAYMENT_SOURCES;
+      return availableSources.length > 0 ? availableSources : STABLECOIN_PAYMENT_SOURCES;
     },
-    [paymentOpen, paymentPaid, readyRailIds, selectedSourceId],
+    [paymentOpen, paymentPaid, readyRailIds, selectedSourceId, selectedPaymentSource.rail],
   );
 
   useEffect(() => {
@@ -829,7 +832,7 @@ export default function CruushPlusStore({ product = 'cruush_plus' }: { product?:
               It also lets us offer NSFW content from adult users.
             </p>
             <p>
-              Pay with Bitcoin from Cash App, PayPal, Venmo or a compatible wallet.
+              Pay with USDC or PYUSD from Cash App, PayPal, Venmo or a compatible wallet.
               {isPulse ? 'You pay once for the Pulse pack you choose.' : 'You pay once for the cruush+ time you choose.'} Nothing renews automatically.
             </p>
             <p>
@@ -1129,7 +1132,7 @@ export default function CruushPlusStore({ product = 'cruush_plus' }: { product?:
                       </Button>
                       {intent.paymentUri ? (
                         <Button className="w-full" variant="outline" asChild>
-                          <a href={selectedPaymentSource.sendingApp === 'wallet' ? intent.paymentUri : BITCOIN_APP_LINKS[selectedPaymentSource.sendingApp]} target={selectedPaymentSource.sendingApp === 'wallet' ? undefined : '_blank'} rel="noopener noreferrer">
+                          <a href={intent.rail === 'btc_bitcoin' && selectedPaymentSource.sendingApp !== 'wallet' ? BITCOIN_APP_LINKS[selectedPaymentSource.sendingApp] : intent.paymentUri} target={selectedPaymentSource.sendingApp === 'wallet' ? undefined : '_blank'} rel="noopener noreferrer">
                             {selectedPaymentSource.sendingApp === 'wallet' ? 'Open app' : `Open ${selectedPaymentSource.label}`}
                           </a>
                         </Button>

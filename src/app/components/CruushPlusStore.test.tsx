@@ -1401,8 +1401,9 @@ describe('Bitcoin through Cash App, PayPal, Venmo or a wallet', () => {
     expect(screen.queryByText(/^Venmo: have about/)).not.toBeInTheDocument();
   });
 
-  it('shows only Bitcoin sources once every rail is ready', async () => {
+  it('restores all four stablecoin sources once every rail is ready', async () => {
     vi.mocked(getCryptoProcessorStatus).mockResolvedValue(everyRailProcessorStatus());
+    vi.mocked(createCryptoPaymentIntent).mockRejectedValue(new Error('Stop after request mapping.'));
     vi.mocked(getBitcoinSendingEligibility).mockResolvedValue({ rail: 'btc_bitcoin', products: {} });
     renderStore();
 
@@ -1413,20 +1414,23 @@ describe('Bitcoin through Cash App, PayPal, Venmo or a wallet', () => {
       'Cash App', 'PayPal', 'Venmo', 'A crypto wallet',
     ]);
     expect(buttons.map((button) => button.textContent)).toEqual([
-      'Cash AppMinimum 0.00005 BTC', 'PayPalBTC · Bitcoin', 'VenmoBTC · Bitcoin', 'A crypto walletBTC · Bitcoin',
+      'Cash AppUSDC · Arbitrum', 'PayPalPYUSD · Arbitrum', 'VenmoPYUSD · Ethereum', 'A crypto walletUSDC · Base',
     ]);
     for (const button of buttons) {
       expect(button).toBeEnabled();
       expect(button.className).not.toContain('col-span');
     }
-    // A source becomes selected only after the member chooses one.
+    // Stablecoin checkout keeps its existing initial source selection.
     await waitFor(() => {
-      expect(buttons.filter((button) => button.getAttribute('aria-pressed') === 'true')).toHaveLength(0);
+      expect(buttons.filter((button) => button.getAttribute('aria-pressed') === 'true')).toHaveLength(1);
     });
 
     fireEvent.click(buttons[1]);
     expect(buttons[1]).toHaveAttribute('aria-pressed', 'true');
     expect(buttons[0]).toHaveAttribute('aria-pressed', 'false');
+    await waitFor(() => expect(createCryptoPaymentIntent).toHaveBeenCalledWith(expect.objectContaining({
+      rail: 'pyusd_arbitrum', sendingApp: 'paypal',
+    })));
   });
 });
 

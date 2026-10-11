@@ -33,7 +33,7 @@ export const CRYPTO_PAYMENT_SOURCES: ReadonlyArray<CryptoPaymentSource> = [
     label: 'Cash App',
     asset: 'USDC',
     network: 'Arbitrum',
-    availabilityNote: 'Cash App stablecoin transfers are not available to New York residents. If that applies to you, choose Bitcoin for Cash App, or another available method.',
+    availabilityNote: 'Cash App stablecoin transfers are not available to New York residents. If that applies to you, choose another available method.',
   },
   { id: 'paypal_pyusd_arbitrum', rail: 'pyusd_arbitrum', sendingApp: 'paypal', label: 'PayPal', asset: 'PYUSD', network: 'Arbitrum' },
   { id: 'venmo_pyusd_ethereum', rail: 'pyusd_ethereum', sendingApp: 'venmo', label: 'Venmo', asset: 'PYUSD', network: 'Ethereum' },
