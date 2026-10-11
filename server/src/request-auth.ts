@@ -9,6 +9,7 @@ import {
 import { isAlphaTestExpired } from "./alpha-test.js";
 import { getSessionTokenFromRequest, hashSessionToken } from "./auth.js";
 import { ApiError } from "./errors.js";
+import { touchLastSeen } from "./last-seen.js";
 import { isOwnerFullAccessEmail, ownerFullAccessCanBypassAccountStatus } from "./owner-access.js";
 
 const userIdHeaderSchema = z.object({
@@ -97,6 +98,7 @@ export async function getAuthenticatedUserId(request: FastifyRequest) {
         accountCanAuthenticate(session.accountStatus) ||
         ownerFullAccessCanBypassAccountStatus(session.ownerFullAccess, session.accountStatus)
       ) {
+        touchLastSeen(request.server, session.userId);
         return session.userId;
       }
 
@@ -129,6 +131,7 @@ export async function getActiveAccountUserId(request: FastifyRequest) {
         accountCanPerformUnsafeAction(session.accountStatus) ||
         ownerFullAccessCanBypassAccountStatus(session.ownerFullAccess, session.accountStatus)
       ) {
+        touchLastSeen(request.server, session.userId);
         return session.userId;
       }
 
@@ -169,6 +172,7 @@ export async function getOptionalAuthenticatedUserId(request: FastifyRequest) {
         accountCanAuthenticate(session.accountStatus) ||
         ownerFullAccessCanBypassAccountStatus(session.ownerFullAccess, session.accountStatus)
       ) {
+        touchLastSeen(request.server, session.userId);
         return session.userId;
       }
 

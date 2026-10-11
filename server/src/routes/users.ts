@@ -7,6 +7,7 @@ import { GhostLandUnavailableError } from "../ghost-land.js";
 import {
   formatDistanceMiles,
   formatLastActiveFromDate,
+  formatPresenceLabel,
   formatLastActiveFromMinutes,
   getDiscoveryCoordinates
 } from "../discovery-users.js";
@@ -103,6 +104,7 @@ type DiscoveryProfileRow = {
   fuzzy_lat: number | null;
   fuzzy_lng: number | null;
   location_updated_at?: string | Date | null;
+  last_seen_at?: string | Date | null;
   updated_at: string | Date;
   badges?: string[] | null;
   side_badges?: unknown;
@@ -795,6 +797,7 @@ async function loadDiscoveryRows(app: FastifyInstance, currentUserId: string, fi
          profiles.fuzzy_lat,
          profiles.fuzzy_lng,
          profiles.location_updated_at,
+         profiles.last_seen_at,
          latest_feed.content as latest_feed_post_content,
          latest_feed.content_ciphertext as latest_feed_post_content_ciphertext,
          latest_feed.content_nonce as latest_feed_post_content_nonce,
@@ -1065,7 +1068,11 @@ async function mapModernDiscoveryRow(
     latestFeedPostPreview,
     age: row.show_age !== false && row.year_of_birth ? new Date().getFullYear() - row.year_of_birth : null,
     pronouns: coerceStringArray(row.pronouns).join(", "),
-    lastActive: formatLastActiveFromDate(row.location_updated_at ?? row.updated_at),
+    lastActive: formatPresenceLabel({
+      lastSeenAt: row.last_seen_at,
+      fallback: row.location_updated_at ?? row.updated_at,
+      allowOnline: displayMode !== "GHOST"
+    }),
     distanceLabel: options.targetTravelling && relationship?.canRevealPreciseLocation !== true
       ? "Far far away"
       : formatDistanceLabel({

@@ -61,7 +61,7 @@ import {
 } from "../profile-sensitive.js";
 import { getActiveAccountUserId, getAuthenticatedUserId } from "../request-auth.js";
 import { assertUsersNotBlocked } from "../user-blocks.js";
-import { formatLastActiveFromDate } from "../discovery-users.js";
+import { formatPresenceLabel } from "../discovery-users.js";
 import { getTravelPin, locationPayloadAtTravelPin } from "../travel-pins.js";
 import { isTombstonedProfileName } from "../profile-tombstone.js";
 import {
@@ -221,6 +221,7 @@ type ProfileRow = {
   fuzzy_lng?: number | null;
   location_fuzz_radius_meters?: number | null;
   location_updated_at?: string | Date | null;
+  last_seen_at?: string | Date | null;
   badges?: string[] | null;
   attending_launch_party?: boolean | null;
   updated_at: string | Date;
@@ -1394,6 +1395,7 @@ async function loadProfileData(
             fuzzy_lng,
             location_fuzz_radius_meters,
             location_updated_at,
+            last_seen_at,
             coalesce((
               select array_agg(user_badges.badge_key order by user_badges.awarded_at asc)
               from user_badges
@@ -1517,7 +1519,12 @@ async function loadProfileData(
   const withPresence = !options.includePrivateSensitive && options.viewerUserId && options.viewerUserId !== userId
     ? {
         ...withTravel,
-        last_active: formatLastActiveFromDate(row.location_updated_at ?? row.updated_at),
+        last_active: formatPresenceLabel({
+          lastSeenAt: row.last_seen_at,
+          fallback: row.location_updated_at ?? row.updated_at,
+          // Ghost Mode members never read as online. An unknown mode is treated as Ghost.
+          allowOnline: relationship?.targetBaseMode === "PUBLIC_PRECISE"
+        }),
         distance_label: await loadViewerDistanceLabel(app, options.viewerUserId, userId, row, relationship)
       }
     : withTravel;

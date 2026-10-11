@@ -247,7 +247,8 @@ const migrationFiles = [
   "221_club_join_approval.sql",
   "222_feed_purgatory_visibility.sql",
   "223_place_checkin_audiences.sql",
-  "224_feed_window_default_thirty_days.sql"
+  "224_feed_window_default_thirty_days.sql",
+  "225_profile_last_seen.sql"
 ];
 const rewardSafetyPreflightFiles = [
   "079_daily_check_in_rewards.sql",

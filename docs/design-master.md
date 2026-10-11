@@ -784,6 +784,9 @@ These are not preferences. Breaking one is a bug.
   surface stays grey or black.
 - The one exception is the send control itself, which is filled green and picks
   up the hover sheen.
+- 2026-10-11, Julien: "Let's put a green dot next to the Online status on
+  profiles too" and "same green as pulse green". The Online status dot on a
+  profile is a second allowed green fill, in the same `#C8FF31`.
 - The sheet floats above the bottom nav. Nothing opens behind it.
 - Basic members receive 1 Pulse per rolling day. cruush+ members receive 5 Pulses per rolling day.
   The rolling window has no calendar reset or carryover. Earned bonus Pulses persist until used and

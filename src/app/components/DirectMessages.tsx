@@ -185,7 +185,7 @@ function parseDistanceMiles(distance: string) {
 
 function parseLastActiveRank(lastActive: string) {
   const normalized = lastActive.toLowerCase();
-  if (normalized === 'now' || normalized.includes('just')) {
+  if (normalized === 'now' || normalized === 'online' || normalized.includes('just')) {
     return 0;
   }
 

@@ -853,7 +853,7 @@ const CONVERSATION_SELECT = `
         and travel.set_at > now() - interval '24 hours'
     ) else false end as other_user_travelling,
     case when c.kind = 'dm'
-      then coalesce(other_profile.location_updated_at, other_profile.updated_at)
+      then greatest(coalesce(other_profile.location_updated_at, other_profile.updated_at), other_profile.last_seen_at)
       else null
     end as other_user_last_active,
     case when c.kind = 'dm' then coalesce((

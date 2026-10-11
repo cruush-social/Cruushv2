@@ -92,6 +92,44 @@ export function formatLastActiveFromDate(dateValue: string | Date) {
   return formatLastActiveFromMinutes(diffMinutes);
 }
 
+export const ONLINE_WINDOW_MINUTES = 5;
+
+function latestDate(values: Array<string | Date | null | undefined>) {
+  let latestMs = Number.NEGATIVE_INFINITY;
+  for (const value of values) {
+    if (value == null) continue;
+    const ms = new Date(value).getTime();
+    if (!Number.isNaN(ms) && ms > latestMs) latestMs = ms;
+  }
+  return Number.isFinite(latestMs) ? latestMs : null;
+}
+
+/**
+ * The last-active label. `lastSeenAt` is when the member last used the app;
+ * `fallback` is the older location/profile timestamp, kept for members who have
+ * not been seen since the column was added. A member seen within the online
+ * window reads "Online", unless `allowOnline` is false (Ghost Mode), in which
+ * case the label never reads closer than the window itself.
+ */
+export function formatPresenceLabel(input: {
+  lastSeenAt?: string | Date | null;
+  fallback?: string | Date | null;
+  allowOnline: boolean;
+  nowMs?: number;
+}) {
+  const latestMs = latestDate([input.lastSeenAt, input.fallback]);
+  if (latestMs == null) {
+    return formatLastActiveFromMinutes(ONLINE_WINDOW_MINUTES);
+  }
+
+  const diffMinutes = Math.max(0, Math.floor(((input.nowMs ?? Date.now()) - latestMs) / 60000));
+  if (diffMinutes < ONLINE_WINDOW_MINUTES) {
+    return input.allowOnline ? "Online" : formatLastActiveFromMinutes(ONLINE_WINDOW_MINUTES);
+  }
+
+  return formatLastActiveFromMinutes(diffMinutes);
+}
+
 export function formatDistanceMiles(fromLat: number, fromLng: number, toLat: number, toLng: number) {
   const earthRadiusMiles = 3958.8;
   const dLat = toRadians(toLat - fromLat);

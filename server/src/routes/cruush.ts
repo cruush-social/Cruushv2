@@ -39,7 +39,7 @@ import {
   upsertEncryptedRelationshipRecord,
   type EncryptedRelationshipRecord
 } from "../encrypted-relationships.js";
-import { formatDistanceMiles, formatLastActiveFromDate } from "../discovery-users.js";
+import { formatDistanceMiles, formatPresenceLabel } from "../discovery-users.js";
 import {
   CROWD_OPTIONS,
   decryptProfileVisibility,
@@ -221,6 +221,7 @@ type MutualCruushRow = {
   side_badges?: unknown;
   travelling: boolean;
   updated_at: string | Date;
+  last_seen_at?: string | Date | null;
   year_of_birth: number | null;
   lat: number | null;
   lng: number | null;
@@ -307,6 +308,7 @@ type ActivityProfileRow = {
   side_badges?: unknown;
   travelling: boolean;
   updated_at: string | Date;
+  last_seen_at?: string | Date | null;
   year_of_birth: number | null;
   lat: number | null;
   lng: number | null;
@@ -823,6 +825,7 @@ async function loadActivityProfiles(app: FastifyInstance, userIds: string[]) {
          limit 1
        ), true) as photo_explicit,
        profiles.updated_at,
+       profiles.last_seen_at,
        profiles.year_of_birth,
        null::double precision as lat,
        null::double precision as lng,
@@ -929,6 +932,7 @@ async function loadMutualCruushRows(app: FastifyInstance, userId: string) {
       side_badges: profile.side_badges,
       travelling: profile.travelling,
       updated_at: profile.updated_at,
+      last_seen_at: profile.last_seen_at,
       year_of_birth: profile.year_of_birth,
       lat: profile.lat,
       lng: profile.lng,
@@ -1100,7 +1104,11 @@ async function mapTokenizedMutualCruushRow(
             targetLng: preciseCoordinates.lng
           })
         : "Nearby",
-    lastActive: formatLastActiveFromDate(row.updated_at),
+    lastActive: formatPresenceLabel({
+      lastSeenAt: row.last_seen_at,
+      fallback: row.updated_at,
+      allowOnline: displayMode !== "GHOST"
+    }),
     canMessage: relationship.canMessage,
     canRevealPreciseLocation: relationship.canRevealPreciseLocation,
     displayLocationToken: token,
@@ -1167,7 +1175,11 @@ function mapMutualCruushRow(
       : row.travelling && !preciseAllowed
         ? "Far far away"
         : options.distanceLabelMode === "precise" ? formatMaybeDistance(options.currentCoordinates, coordinates) : "Nearby",
-    lastActive: formatLastActiveFromDate(row.updated_at),
+    lastActive: formatPresenceLabel({
+      lastSeenAt: row.last_seen_at,
+      fallback: row.updated_at,
+      allowOnline: row.target_base_mode !== "GHOST" && row.target_base_mode !== "STEALTH"
+    }),
     canMessage: row.can_message === true,
     canRevealPreciseLocation: preciseAllowed,
     coordinates: coordinates.lat != null && coordinates.lng != null
