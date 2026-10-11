@@ -57,7 +57,7 @@ export function SaleBanner({ percentOff, endsAt = null, onClick }: { percentOff:
   const glowClass = `cruush-sale-text${flickering ? ' cruush-sale-text--flickering' : ''}`;
 
   return (
-    <aside aria-label="cruush+ sale" className="cruush-sale-banner w-full border-y border-primary bg-primary/10 px-3 text-white sm:px-4">
+    <aside aria-label="cruush+ sale" className="cruush-sale-banner w-full border-y border-primary bg-primary/5 px-3 text-white sm:px-4">
       <button type="button" className="flex w-full items-center justify-between gap-3 px-1 py-2.5 text-left" onClick={onClick}>
         <span className="flex min-w-0 flex-col">
           {countdown !== null && <time dateTime={endsAt!} aria-label="Sale countdown" className={`${glowClass} text-sm leading-5 tabular-nums text-muted-foreground`}>{countdown}</time>}

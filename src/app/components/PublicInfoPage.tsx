@@ -175,7 +175,7 @@ const pageContent: Record<PublicInfoPageId, PublicInfoPageContent> = {
     sections: securitySections,
   },
   billing: {
-    eyebrow: 'Billing',
+    eyebrow: 'billing',
     title: 'billing policy',
     updated: billingUpdated,
     sections: billingSections,
@@ -222,13 +222,13 @@ export default function PublicInfoPage({ page, signedIn = false }: PublicInfoPag
         onBack={goBack}
         bugButtonTestId="public-info-page-bug-button-slot"
         subtitle={page === 'security' ? undefined : (
-          <p className="mt-1 text-[0.65rem] font-semibold uppercase tracking-[0.25em] text-primary">{content.eyebrow}</p>
+          <p className={`mt-1 text-[0.65rem] font-semibold ${page === 'billing' ? '' : 'uppercase'} tracking-[0.25em] text-primary`}>{content.eyebrow}</p>
         )}
       />
 
       <main className="mx-auto max-w-3xl space-y-5 p-6">
         {content.updated ? (
-          <p className="text-sm text-muted-foreground">Last updated: {content.updated}</p>
+          <p className="text-sm text-muted-foreground">{page === 'billing' ? 'last updated:' : 'Last updated:'} {content.updated}</p>
         ) : null}
         {content.sections.map((section) => (
           <section key={section.title} className="rounded-lg border border-border bg-card/70 p-5">

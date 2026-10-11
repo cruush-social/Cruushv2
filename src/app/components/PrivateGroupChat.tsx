@@ -448,6 +448,57 @@ export default function PrivateGroupChat({
     };
   }, [conversation?.kind, embedded, settingsOpen, dmKeyboardOpen, dmComposerClearance, keyboardInset]);
 
+  // Opening a thread starts at its newest message. Keep that position through
+  // late media/composer layout, but stop as soon as the reader browses history.
+  useLayoutEffect(() => {
+    if (loading || settingsOpen || !messages.length || conversation?.id !== chatId) return;
+    const content = threadContentRef.current;
+    const viewport = content?.closest<HTMLElement>(
+      '[data-testid="map-side-panel-content"], [data-testid="popup-route-content"], [data-testid="app-page-content"]',
+    );
+    if (!content || !viewport) return;
+    let retaining = true;
+    let frame = 0;
+    let lastScrollTop = viewport.scrollTop;
+    const release = () => { retaining = false; cancelAnimationFrame(frame); };
+    const retainLatest = () => {
+      if (!retaining) return;
+      cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(() => {
+        if (!retaining) return;
+        viewport.scrollTop = Math.max(0, viewport.scrollHeight - viewport.clientHeight);
+        lastScrollTop = viewport.scrollTop;
+      });
+    };
+    const onScroll = () => {
+      if (viewport.scrollTop < lastScrollTop - 1) release();
+      lastScrollTop = viewport.scrollTop;
+    };
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (['ArrowUp', 'ArrowDown', 'PageUp', 'PageDown', 'Home', 'End', ' '].includes(event.key)
+        && !(event.target instanceof Element && event.target.closest('input, textarea, [contenteditable="true"]'))) release();
+    };
+    const observer = new ResizeObserver(retainLatest);
+    observer.observe(content);
+    observer.observe(viewport);
+    if (composerBarRef.current) observer.observe(composerBarRef.current);
+    viewport.addEventListener('wheel', release, { passive: true });
+    viewport.addEventListener('touchstart', release, { passive: true });
+    viewport.addEventListener('pointerdown', release, { passive: true });
+    viewport.addEventListener('keydown', onKeyDown);
+    viewport.addEventListener('scroll', onScroll, { passive: true });
+    retainLatest();
+    return () => {
+      release();
+      observer.disconnect();
+      viewport.removeEventListener('wheel', release);
+      viewport.removeEventListener('touchstart', release);
+      viewport.removeEventListener('pointerdown', release);
+      viewport.removeEventListener('keydown', onKeyDown);
+      viewport.removeEventListener('scroll', onScroll);
+    };
+  }, [chatId, conversation?.id, loading, settingsOpen, messages.length > 0]);
+
   const focusComposer = () => {
     if (!dmKeyboardOpenRef.current) {
       const viewport = threadContentRef.current?.closest<HTMLElement>('[data-testid="app-page-content"]');
@@ -1923,7 +1974,7 @@ export default function PrivateGroupChat({
 
             if (isSystem) {
               return (
-                <div key={msg.id} className="flex justify-center">
+                <div key={msg.id} ref={msg.id === messages[messages.length - 1]?.id ? latestMessageRef : undefined} className="flex justify-center">
                   <div className="max-w-[80%] rounded-full border border-primary/20 bg-primary/10 px-4 py-2 text-center text-xs text-primary">
                     {msg.content}
                   </div>

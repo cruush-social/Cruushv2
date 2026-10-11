@@ -1015,7 +1015,7 @@ export function ProfileDetailsTabs({
               profile never showed it back. */}
           {profileView.relationshipStatus.length > 0 ? (
             <Section title="Relationship Status" compact={compact} className="!order-3">
-              <BadgeList items={profileView.relationshipStatus} compact={compact} />
+              <BadgeList items={profileView.relationshipStatus} compact={compact} wrap />
             </Section>
           ) : null}
 
@@ -1090,10 +1090,12 @@ function BadgeList({
   items,
   variant = 'default',
   compact = false,
+  wrap = false,
 }: {
   items: string[];
   variant?: 'default' | 'gradient';
   compact?: boolean;
+  wrap?: boolean;
 }) {
   if (!items.length) {
     return <p className={`${compact ? 'text-sm' : 'text-base'} text-muted-foreground`}>Nothing listed yet.</p>;
@@ -1104,7 +1106,7 @@ function BadgeList({
       {items.map((item) => (
         <span
           key={item}
-          className={`whitespace-nowrap rounded-full border lowercase ${compact ? 'px-2.5 py-1 text-xs' : 'px-3 py-1 text-base'}`}
+          className={`${wrap ? 'max-w-full whitespace-normal break-words' : 'whitespace-nowrap'} rounded-full border lowercase ${compact ? 'px-2.5 py-1 text-xs' : 'px-3 py-1 text-base'}`}
                   style={variant === 'gradient'
             ? {
                 borderColor: 'transparent',

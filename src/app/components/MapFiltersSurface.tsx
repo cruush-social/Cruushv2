@@ -195,6 +195,7 @@ export default function MapFiltersSurface({
             <div className="mb-5">
               <CruushPlusGateNotice
                 compactMobileText
+                mobileDescriptionLines={conversionSurface === 'feed_plus' ? ['Basic includes up to 3', 'seeking filter categories.'] : undefined}
                 description="Basic includes up to 3 seeking filter categories."
                 surface={conversionSurface}
                 benefit="seeking_visibility"

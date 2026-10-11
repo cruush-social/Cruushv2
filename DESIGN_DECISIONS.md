@@ -718,3 +718,11 @@ Julien: “No border around the glyph please i never asked for that”. The Purg
 ## Popup Mode route coverage, October 11, 2026
 
 Julien: “basicaly every page should load in pops ups in luding co ven chats on the right pop up”. While Popup Mode is enabled, pages should use popups, including Coven chats in the existing right popup. Preserve the normal fullscreen mode and existing popup presentation. The accompanying screenshot padding report is queued separately pending its exact target.
+
+- October 11 Purgatory offering banner: “make the banner transculeent up top teh sale”, clarified with “yesi mean the purga offering banner”. Make only the existing sale banner background more translucent; preserve its other presentation and behavior.
+
+- October 11, 2026 message entry: Julien: “also messages should load on the most recently sent one”. Open direct, group and club conversations at the newest loaded message across full-page, popup and dock presentations. Retain the latest position while initial content settles; stop automatic retention when the reader scrolls through older messages. Preserve existing message ordering, composer layout and history access.
+
+- October 11 profile relationship status: Julien reported “Bugs dude the overlap?? make it hang.” with the “single, not looking” pill spilling into Looking For. Allow that field’s pill text to wrap within its existing card; preserve the grid, font, padding and decoration.
+
+- October 11, 2026 release naming: Julien: “call this release 2.2”. The current release is 2.2; the Settings version label matches the existing v2.2 changelog.

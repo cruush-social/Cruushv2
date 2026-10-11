@@ -521,7 +521,7 @@ describe('CruushPlusStore', () => {
     expect(screen.queryByRole('button', { name: /get 1 year for/i })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Pulse checkout' })).not.toBeInTheDocument();
     expect(mainChildren[whyCryptoIndex]).toContainElement(whyCryptoButton);
-    const billingIndex = mainChildren.findIndex((child) => child.textContent?.includes('Billing policy'));
+    const billingIndex = mainChildren.findIndex((child) => child.textContent?.includes('billing policy'));
     const orderHistoryIndex = mainChildren.findIndex((child) => child.contains(screen.getByRole('link', { name: 'Order history' })));
     expect(orderHistoryIndex).toBe(billingIndex - 1);
     expect(mainChildren[billingIndex]).toContainElement(screen.getByRole('link', { name: /read the billing policy/i }));
@@ -1012,15 +1012,15 @@ describe('CruushPlusStore', () => {
 
     renderStore();
 
-    const link = await screen.findByRole('link', { name: 'Read the billing policy' });
-    const refundLink = screen.getByRole('link', { name: 'Request a legally required refund review' });
-    const billingSupportLink = screen.getByRole('link', { name: 'Report a billing issue' });
+    const link = await screen.findByRole('link', { name: 'read the billing policy' });
+    const refundLink = screen.getByRole('link', { name: 'request a legally required refund review' });
+    const billingSupportLink = screen.getByRole('link', { name: 'report a billing issue' });
     expect(link).toHaveAttribute('href', '/billing-policy');
     expect(refundLink).toHaveAttribute('href', '/support?refund=1');
     expect(billingSupportLink).toHaveAttribute('href', '/support?billing=payment');
-    expect(link.closest('div')).toHaveTextContent('One-time purchase. Nothing renews automatically.');
+    expect(link.closest('div')).toHaveTextContent('one-time purchase. nothing renews automatically.');
     expect(link.closest('div')).toHaveTextContent(
-      'Purchases are final and non-refundable except where applicable law requires a withdrawal, refund, remedy, or forced reversal.',
+      'no voluntary refunds; any withdrawal, refund, or other remedy required by applicable law still applies.',
     );
   });
 });

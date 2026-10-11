@@ -1213,19 +1213,19 @@ export default function CruushPlusStore({ product = 'cruush_plus' }: { product?:
 
         <Card>
           <CardContent className="space-y-2 p-4 text-sm leading-6 text-muted-foreground">
-            <h2 className="text-base font-semibold text-foreground">Billing policy</h2>
+            <h2 className="text-base font-semibold text-foreground">billing policy</h2>
             <p>
-              One-time purchase. Nothing renews automatically. Purchases are final and non-refundable
-              except where applicable law requires a withdrawal, refund, remedy, or forced reversal.
+              one-time purchase. nothing renews automatically. no voluntary refunds;
+              any withdrawal, refund, or other remedy required by applicable law still applies.
             </p>
             <a className="font-medium text-foreground underline underline-offset-4" href="/billing-policy">
-              Read the billing policy
+              read the billing policy
             </a>
             <a className="block font-medium text-foreground underline underline-offset-4" href="/support?refund=1">
-              Request a legally required refund review
+              request a legally required refund review
             </a>
             <a className="block font-medium text-foreground underline underline-offset-4" href="/support?billing=payment">
-              Report a billing issue
+              report a billing issue
             </a>
           </CardContent>
         </Card>

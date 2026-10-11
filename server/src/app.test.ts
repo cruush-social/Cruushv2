@@ -6556,6 +6556,8 @@ describe("server", () => {
       }]
     });
 
+    query.mockResolvedValueOnce({ rows: [{ message_id: messageId }] });
+
     const response = await app.inject({
       method: "POST",
       url: `/api/messages/${messageId}/attachments/${mediaObjectId}/view`,
@@ -6568,6 +6570,69 @@ describe("server", () => {
     expect(query.mock.calls.some(([sql]) => String(sql).includes("insert into message_media_views"))).toBe(true);
     expect(response.headers["content-type"]).toContain("image/png");
     expect(response.body).toBe(plaintext.toString());
+  });
+
+  it.each(["missing", "corrupt", "concurrent"])("preserves view-once delivery with %s storage requests", async (scenario) => {
+    const plaintext = Buffer.from("retryable-view-once-photo");
+    const encrypted = encryptMediaBytes(app.config, plaintext);
+    const objectKey = `message-photos/${userId}-${Date.now()}-${scenario}-view-retry.png.enc`;
+    const messageId = "28bbd9a5-e48e-46ea-8a43-9ef80ed9473d";
+    const mediaObjectId = "cb4dc89b-8732-4c22-9452-bb2d06159355";
+    const media = {
+      object_key: objectKey, mime_type: "image/png",
+      encrypted_data_key: encrypted.encryptedDataKey,
+      data_key_nonce: encrypted.dataKeyNonce, data_key_auth_tag: encrypted.dataKeyAuthTag,
+      content_nonce: encrypted.nonce, content_auth_tag: encrypted.authTag, key_version: encrypted.keyVersion
+    };
+    let consumed = false;
+    let preparations = 0;
+    let releasePreparations!: () => void;
+    const bothPrepared = new Promise<void>((resolve) => { releasePreparations = resolve; });
+    query.mockImplementation(async (sql: string) => {
+      if (sql.includes("select media.owner_user_id::text, media.explicit_classification")) {
+        return { rows: [{ owner_user_id: userId, explicit_classification: "non_explicit" }] };
+      }
+      if (sql.includes("insert into message_media_views")) {
+        expect(sql).toContain("on conflict (message_id, media_object_id, user_id) do nothing");
+        if (consumed) return { rows: [] };
+        consumed = true;
+        return { rows: [{ message_id: messageId }] };
+      }
+      if (sql.includes("with target as")) {
+        if (consumed) return { rows: [] };
+        preparations++;
+        if (scenario === "concurrent") {
+          if (preparations === 2) releasePreparations();
+          await bothPrepared;
+        }
+        return { rows: [media] };
+      }
+      return { rows: [] };
+    });
+    const request = { method: "POST" as const, url: `/api/messages/${messageId}/attachments/${mediaObjectId}/view`, headers: { "x-user-id": userId } };
+    try {
+      if (scenario === "concurrent") {
+        await writeEncryptedMediaObject(app.config, objectKey, encrypted.ciphertext);
+        const responses = await Promise.all([app.inject(request), app.inject(request)]);
+        expect(responses.map(response => response.statusCode).sort()).toEqual([200, 404]);
+        expect(responses.filter(response => response.body === plaintext.toString())).toHaveLength(1);
+        expect(preparations).toBe(2);
+      } else {
+        if (scenario === "corrupt") await writeEncryptedMediaObject(app.config, objectKey, Buffer.from("corrupt"));
+        expect((await app.inject(request)).statusCode).toBe(500);
+        expect(consumed).toBe(false);
+        expect(query.mock.calls.some(([sql]) => String(sql).includes("insert into message_media_views"))).toBe(false);
+        if (scenario === "corrupt") await deleteEncryptedMediaObject(app.config, objectKey);
+        await writeEncryptedMediaObject(app.config, objectKey, encrypted.ciphertext);
+        const retry = await app.inject(request);
+        expect(retry.statusCode).toBe(200);
+        expect(retry.body).toBe(plaintext.toString());
+      }
+      expect(consumed).toBe(true);
+      expect((await app.inject(request)).statusCode).toBe(404);
+    } finally {
+      await deleteEncryptedMediaObject(app.config, objectKey);
+    }
   });
 
   it("does not consume a view-once photo when its owner's audience excludes the viewer", async () => {

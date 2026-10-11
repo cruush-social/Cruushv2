@@ -2182,6 +2182,100 @@ describe('PrivateGroupChat', () => {
     }
   });
 
+  describe('initial newest-message positioning', () => {
+    function scrollHarness() {
+      let frameId = 0;
+      const frames = new Map<number, FrameRequestCallback>();
+      const observers = new Set<{ callback: ResizeObserverCallback; targets: Set<Element> }>();
+      vi.stubGlobal('requestAnimationFrame', (callback: FrameRequestCallback) => { frames.set(++frameId, callback); return frameId; });
+      vi.stubGlobal('cancelAnimationFrame', (id: number) => { frames.delete(id); });
+      vi.stubGlobal('ResizeObserver', class {
+        callback: ResizeObserverCallback;
+        targets = new Set<Element>();
+        constructor(callback: ResizeObserverCallback) { this.callback = callback; observers.add(this); }
+        observe(target: Element) { this.targets.add(target); }
+        unobserve(target: Element) { this.targets.delete(target); }
+        disconnect() { observers.delete(this); }
+      });
+      return {
+        flush() { act(() => { const pending = [...frames.values()]; frames.clear(); pending.forEach(callback => callback(0)); }); },
+        resize(target: Element) { act(() => { [...observers].filter(observer => observer.targets.has(target)).forEach(observer => observer.callback([], observer as unknown as ResizeObserver)); }); },
+        restore() { vi.unstubAllGlobals(); },
+      };
+    }
+    const conversationId = 'initial-scroll-conversation';
+    function chatData(kind: 'dm' | 'group', extraMessage = false) {
+      return {
+        conversation: { id: conversationId, kind, user: { id: 'user-2', name: 'River', pronouns: '', photo: null },
+          distance: 'Nearby', updatedAt: '2026-04-29T12:00:00.000Z', lastMessage: 'Newest message', unreadCount: 0, pinned: false, tags: [], mutual: true },
+        messages: [{ id: 'latest-message', userId: 'user-2', content: 'Newest message', timestamp: '2026-04-29T12:05:00.000Z' },
+          ...(extraMessage ? [{ id: 'later-message', userId: 'user-2', content: 'Later incoming message', timestamp: '2026-04-29T12:06:00.000Z' }] : [])],
+      };
+    }
+    it.each([
+      ['dm', 'app-page-content'], ['group', 'app-page-content'],
+      ['dm', 'popup-route-content'], ['group', 'popup-route-content'],
+      ['dm', 'map-side-panel-content'], ['group', 'map-side-panel-content'],
+    ] as const)('positions deferred %s history in only the nearest %s viewport', async (kind, surface) => {
+      const harness = scrollHarness();
+      let resolveChat!: (data: ReturnType<typeof chatData>) => void;
+      getConversationMessages.mockReturnValue(new Promise(resolve => { resolveChat = resolve; }));
+      const chat = <PrivateGroupChat conversationId={conversationId} embedded={surface !== 'app-page-content'} />;
+      const rendered = render(<MemoryRouter><div data-testid="app-page-content">{surface === 'app-page-content' ? chat : <div data-testid={surface}>{chat}</div>}</div></MemoryRouter>);
+      try {
+        const outer = screen.getByTestId('app-page-content');
+        const viewport = screen.getByTestId(surface);
+        Object.defineProperty(viewport, 'scrollHeight', { configurable: true, value: 1600 });
+        Object.defineProperty(viewport, 'clientHeight', { configurable: true, value: 600 });
+        outer.scrollTop = 71;
+        if (viewport !== outer) viewport.scrollTop = 13;
+        harness.flush();
+        expect(viewport.scrollTop).toBe(viewport === outer ? 71 : 13);
+        await act(async () => { resolveChat(chatData(kind)); });
+        expect(await screen.findByText('Newest message')).toBeInTheDocument();
+        // Parent route-reset layout effects run before this queued frame.
+        viewport.scrollTop = 0;
+        harness.flush();
+        expect(viewport.scrollTop).toBe(1000);
+        if (viewport !== outer) expect(outer.scrollTop).toBe(71);
+        Object.defineProperty(viewport, 'scrollHeight', { configurable: true, value: 1800 });
+        harness.resize(screen.getByTestId('chat-thread-content'));
+        harness.flush();
+        expect(viewport.scrollTop).toBe(1200);
+        if (viewport !== outer) expect(outer.scrollTop).toBe(71);
+      } finally { rendered.unmount(); harness.restore(); }
+    });
+
+    it.each(['wheel', 'scroll', 'keyboard'] as const)('preserves older history after %s through later messages and media resizing', async input => {
+      const harness = scrollHarness();
+      getConversationMessages.mockResolvedValue(chatData('group'));
+      const rendered = render(<MemoryRouter><div data-testid="app-page-content"><PrivateGroupChat conversationId={conversationId} /></div></MemoryRouter>);
+      try {
+        const viewport = screen.getByTestId('app-page-content');
+        Object.defineProperty(viewport, 'scrollHeight', { configurable: true, value: 1600 });
+        Object.defineProperty(viewport, 'clientHeight', { configurable: true, value: 600 });
+        await screen.findByText('Newest message'); harness.flush();
+        expect(viewport.scrollTop).toBe(1000);
+        // Queue late layout work before the reader moves, to test its cancellation.
+        harness.resize(screen.getByTestId('chat-thread-content'));
+        if (input === 'wheel') fireEvent.wheel(viewport, { deltaY: -100 });
+        if (input === 'keyboard') fireEvent.keyDown(viewport, { key: 'PageUp' });
+        viewport.scrollTop = 240;
+        if (input === 'scroll') fireEvent.scroll(viewport);
+        harness.flush();
+        expect(viewport.scrollTop).toBe(240);
+        getConversationMessages.mockResolvedValue(chatData('group', true));
+        act(() => refreshContentVisibility());
+        await screen.findByText('Later incoming message');
+        Object.defineProperty(viewport, 'scrollHeight', { configurable: true, value: 2000 });
+        harness.resize(screen.getByTestId('chat-thread-content'));
+        harness.resize(viewport);
+        harness.flush();
+        expect(viewport.scrollTop).toBe(240);
+      } finally { rendered.unmount(); harness.restore(); }
+    });
+  });
+
   it.each(['bottom', 'latest visible', 'older history'])('retains only a latest-message reader during keyboard resize: %s', async position => {
     const vv = mockVisualViewport({ height: 900, innerHeight: 900 });
     const conversationId = '7fba9ce1-b9ca-44f3-a4b1-03ad861a24d2';

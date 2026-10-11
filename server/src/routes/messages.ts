@@ -1101,7 +1101,7 @@ function isMissingDmKeyConflictTarget(error: unknown) {
     && String((error as { code?: string }).code) === "42P10";
 }
 
-async function sendEncryptedMessageMedia(app: FastifyInstance, reply: FastifyReply, mediaObject: EncryptedMessageMediaRow) {
+async function readDecryptedMessageMedia(app: FastifyInstance, mediaObject: EncryptedMessageMediaRow) {
   const encryptedBytes = await readEncryptedMediaObject(app.config, mediaObject.object_key);
   const bytes = decryptMediaBytes(app.config, {
     ciphertext: encryptedBytes,
@@ -1113,10 +1113,7 @@ async function sendEncryptedMessageMedia(app: FastifyInstance, reply: FastifyRep
     keyVersion: mediaObject.key_version
   });
 
-  return reply
-    .type(mediaObject.mime_type)
-    .header("cache-control", "no-store")
-    .send(bytes);
+  return bytes;
 }
 
 export async function registerMessageRoutes(app: FastifyInstance) {
@@ -2670,9 +2667,7 @@ export async function registerMessageRoutes(app: FastifyInstance) {
         && !await canViewNsfwPhoto(app, audienceMedia.owner_user_id, userId))) {
       throw new ApiError(404, "NOT_FOUND", "Media not found.");
     }
-    const result = await app.db.query<EncryptedMessageMediaRow>(
-      `with target as (
-         select
+    const targetQuery = `select
            coalesce(display_variant.object_key, media.object_key) as object_key,
            coalesce(display_variant.mime_type, media.mime_type) as mime_type,
            coalesce(display_variant.encrypted_data_key, media.encrypted_data_key) as encrypted_data_key,
@@ -2699,33 +2694,40 @@ export async function registerMessageRoutes(app: FastifyInstance) {
            and media.moderation_status = 'approved'
            and (media.legacy_asset = true or display_variant.id is not null)
            and (message.expires_at is null or message.expires_at > now())
-           and (conversation.cleared_at is null or message.created_at > conversation.cleared_at)
-       ), inserted_view as (
-         insert into message_media_views (message_id, media_object_id, user_id)
-         select $1, $2, $3
-         from target
-         where not exists (
-           select 1
-           from message_media_views existing_view
-           where existing_view.message_id = $1
-             and existing_view.media_object_id = $2
-             and existing_view.user_id = $3
-         )
-         returning message_id
-       )
-       select target.*
-       from target
-       join inserted_view on true
-       limit 1`,
-      [messageId, mediaObjectId, userId, createClubEnrollmentUserIndex(app.config, userId)]
+           and (conversation.cleared_at is null or message.created_at > conversation.cleared_at)`;
+    const params = [messageId, mediaObjectId, userId, createClubEnrollmentUserIndex(app.config, userId)];
+    const result = await app.db.query<EncryptedMessageMediaRow>(
+      `with target as (${targetQuery})
+       select target.* from target
+       where not exists (
+         select 1 from message_media_views
+         where message_id = $1 and media_object_id = $2 and user_id = $3
+       ) limit 1`,
+      params
     );
     const mediaObject = result.rows[0];
-
     if (!mediaObject) {
       throw new ApiError(404, "NOT_FOUND", "Media not found.");
     }
 
-    return sendEncryptedMessageMedia(app, reply, mediaObject);
+    // Prepare the bytes before consuming the view. Storage or decryption
+    // failures must leave the recipient able to retry.
+    const bytes = await readDecryptedMessageMedia(app, mediaObject);
+    // Recheck access/expiry after the read, and atomically claim the view.
+    // Concurrent requests can prepare bytes, but only one may deliver them.
+    const claimed = await app.db.query<{ message_id: string }>(
+      `with target as (${targetQuery})
+       insert into message_media_views (message_id, media_object_id, user_id)
+       select $1, $2, $3 from target where true
+       on conflict (message_id, media_object_id, user_id) do nothing
+       returning message_id`,
+      params
+    );
+    if (!claimed.rows[0]) {
+      throw new ApiError(404, "NOT_FOUND", "Media not found.");
+    }
+
+    return reply.type(mediaObject.mime_type).header("cache-control", "no-store").send(bytes);
   });
 
   app.post("/api/messages/photos", async (request, reply) => {
