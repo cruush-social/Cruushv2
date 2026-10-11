@@ -3,6 +3,17 @@ import AppPageHeader from './AppPageHeader';
 
 const changelogReleases = [
   {
+    version: 'v2.3',
+    items: [
+      "Conversations open at the newest loaded message, while scrolling back keeps older messages accessible.",
+      "Popup Mode opens pages and Coven chats in the existing popups.",
+      "Members can leave Covens and group conversations from their chat controls.",
+      "Long relationship-status text wraps within its profile card instead of overlapping Looking For.",
+      "View-once message photos remain available to retry when storage or decryption fails before delivery.",
+      "The sale banner is more translucent, and compact mobile filter notices wrap more clearly.",
+    ],
+  },
+  {
     version: 'v2.2',
     items: [
       "Selected profile options fit up to two capsules per row when space allows, including boi and butch in Presentation.",

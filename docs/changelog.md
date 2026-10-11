@@ -1,5 +1,14 @@
 # cruush changelog
 
+## Release 2.3 (October 11, 2026)
+
+- Conversations open at the newest loaded message, while scrolling back keeps older messages accessible.
+- Popup Mode opens pages and Coven chats in the existing popups.
+- Members can leave Covens and group conversations from their chat controls.
+- Long relationship-status text wraps within its profile card instead of overlapping Looking For.
+- View-once message photos remain available to retry when storage or decryption fails before delivery.
+- The sale banner is more translucent, and compact mobile filter notices wrap more clearly.
+
 ## Release 2.2 (October 10, 2026)
 
 - Selected profile options fit up to two capsules per row when space allows, including boi and butch in Presentation.
