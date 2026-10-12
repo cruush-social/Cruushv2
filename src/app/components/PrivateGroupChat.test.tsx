@@ -2382,6 +2382,15 @@ describe('PrivateGroupChat', () => {
       expect(viewMessageAttachment).toHaveBeenCalledWith('msg-photo', 'media-1');
     });
     expect(await screen.findByAltText('View-once photo')).toHaveAttribute('src', 'blob:view-once-photo');
+    const viewer = screen.getByRole('dialog', { name: 'View-once photo viewer' });
+    expect(within(viewer).getByAltText('View-once photo')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Open view-once photo' })).not.toBeInTheDocument();
+    fireEvent.click(within(viewer).getByRole('button', { name: 'Close view-once photo' }));
+    expect(screen.queryByRole('dialog', { name: 'View-once photo viewer' })).not.toBeInTheDocument();
+    expect(screen.queryByAltText('View-once photo')).not.toBeInTheDocument();
+    expect(screen.getByText('View-once photo viewed')).toBeInTheDocument();
+    expect(viewMessageAttachment).toHaveBeenCalledTimes(1);
+
   });
 
   it.each([

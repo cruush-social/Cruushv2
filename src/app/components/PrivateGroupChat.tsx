@@ -85,6 +85,7 @@ import AppPageHeader from './AppPageHeader';
 import MapVisibilitySurface, { DEFAULT_VISIBILITY_STATE, type VisibilityControlState } from './MapVisibilitySurface';
 import { visibilityRulesToState, visibilityStateToRules } from '../lib/visibilityControls';
 import InAppShareDialog from './InAppShareDialog';
+import ViewOncePhotoViewer from './ViewOncePhotoViewer';
 import profileEditIconWhite from '../assets/ui-icons/humanity-profile-selected-winged-heart-symmetric.png';
 
 const timerOptions: Array<{ value: ConversationTimer; label: string }> = [
@@ -368,6 +369,10 @@ export default function PrivateGroupChat({
   const [mutualOptions, setMutualOptions] = useState<MutualCruushActivityItem[]>([]);
   const [addMemberId, setAddMemberId] = useState('');
   const [viewedAttachmentUrls, setViewedAttachmentUrls] = useState<Record<string, string>>({});
+  const [activeViewOnceKey, setActiveViewOnceKey] = useState<string | null>(null);
+  const viewOnceRequestScopeRef = useRef(0);
+  const viewedAttachmentUrlsRef = useRef(viewedAttachmentUrls);
+  viewedAttachmentUrlsRef.current = viewedAttachmentUrls;
   const [viewingAttachmentIds, setViewingAttachmentIds] = useState<Record<string, boolean>>({});
   const [mutualRequiredConversationId, setMutualRequiredConversationId] = useState<string | null>(null);
   const dlModeActive = useDlMode();
@@ -394,9 +399,11 @@ export default function PrivateGroupChat({
   const textMessageSendingRef = useRef(false);
 
   useLayoutEffect(() => {
-    if (conversation?.kind !== 'dm' || embedded || settingsOpen) return;
+    if (conversation?.kind !== 'dm' || settingsOpen) return;
     const composer = composerBarRef.current;
-    const viewport = threadContentRef.current?.closest<HTMLElement>('[data-testid="app-page-content"]');
+    const viewport = threadContentRef.current?.closest<HTMLElement>(embedded
+      ? '[data-testid="map-side-panel-content"], [data-testid="popup-route-content"]'
+      : '[data-testid="app-page-content"]');
     if (!composer || !viewport) return;
     const measure = () => {
       const composerBounds = composer.getBoundingClientRect();
@@ -535,6 +542,39 @@ export default function PrivateGroupChat({
     reevaluateExpiredMessages();
     const timer = window.setInterval(reevaluateExpiredMessages, 1000);
     return () => window.clearInterval(timer);
+  }, []);
+
+  const closeViewOncePhoto = () => {
+    if (!activeViewOnceKey) return;
+    const key = activeViewOnceKey;
+    const url = viewedAttachmentUrlsRef.current[key];
+    if (url) URL.revokeObjectURL(url);
+    setViewedAttachmentUrls((current) => {
+      const next = { ...current };
+      delete next[key];
+      return next;
+    });
+    setActiveViewOnceKey(null);
+  };
+
+  const activeViewOnceAttachment = messages.flatMap((item) =>
+    (item.attachments ?? []).map((attachment) => ({ key: `${item.id}:${attachment.id}`, attachment })),
+  ).find((item) => item.key === activeViewOnceKey)?.attachment;
+  const activeViewOnceUrl = activeViewOnceKey ? viewedAttachmentUrls[activeViewOnceKey] : undefined;
+  const viewOncePhotoAllowed = activeViewOnceAttachment
+    && !shouldMaskPhoto(dlModeActive, activeViewOnceAttachment.explicit, activeViewOnceAttachment.photoRelationship);
+
+  useEffect(() => {
+    if (activeViewOnceKey && !viewOncePhotoAllowed) closeViewOncePhoto();
+  }, [activeViewOnceKey, viewOncePhotoAllowed]);
+
+  useEffect(() => {
+    setActiveViewOnceKey(null);
+    return () => { viewOnceRequestScopeRef.current += 1; };
+  }, [chatId]);
+
+  useEffect(() => () => {
+    for (const url of Object.values(viewedAttachmentUrlsRef.current)) URL.revokeObjectURL(url);
   }, []);
 
   useEffect(() => {
@@ -1005,7 +1045,6 @@ export default function PrivateGroupChat({
       const updated = await clearConversationForEveryone(conversation.id);
       setConversation(updated);
       setMessages([]);
-      setViewedAttachmentUrls({});
       setError(null);
     } catch (error) {
       console.error('Error clearing chat:', error);
@@ -1022,9 +1061,6 @@ export default function PrivateGroupChat({
     try {
       await deleteMessage(messageId);
       setMessages((prev) => prev.filter((item) => item.id !== messageId));
-      setViewedAttachmentUrls((prev) => Object.fromEntries(
-        Object.entries(prev).filter(([key]) => !key.startsWith(`${messageId}:`)),
-      ));
     } catch (error) {
       console.error('Error deleting message:', error);
       setError(error instanceof Error ? error.message : 'Failed to delete message.');
@@ -1275,9 +1311,15 @@ export default function PrivateGroupChat({
 
     setViewingAttachmentIds((prev) => ({ ...prev, [attachmentKey]: true }));
 
+    const requestScope = viewOnceRequestScopeRef.current;
     try {
       const objectUrl = await viewMessageAttachment(messageId, attachment.id);
+      if (requestScope !== viewOnceRequestScopeRef.current) {
+        URL.revokeObjectURL(objectUrl);
+        return;
+      }
       setViewedAttachmentUrls((prev) => ({ ...prev, [attachmentKey]: objectUrl }));
+      setActiveViewOnceKey(attachmentKey);
       setMessages((prev) => prev.map((item) => (
         item.id !== messageId
           ? item
@@ -1461,7 +1503,7 @@ export default function PrivateGroupChat({
   } as CSSProperties & { '--chat-composer-bottom': string };
 
   return (
-    <div data-testid="private-group-chat-screen" className={`relative max-w-full overflow-x-clip bg-background pb-20 ${embedded ? 'min-h-full' : 'min-h-screen'}`}>
+    <div data-testid="private-group-chat-screen" className={`relative max-w-full overflow-x-clip bg-background ${embedded && conversation?.kind === 'dm' && !settingsOpen ? 'flex min-h-full flex-col' : `pb-20 ${embedded ? 'min-h-full' : 'min-h-screen'}`}`}>
       {settingsOpen ? (
         <AppPageHeader
           title={conversation?.clubId ? 'Coven settings' : conversation?.kind === 'group' ? 'Group settings' : 'Message settings'}
@@ -1562,8 +1604,8 @@ export default function PrivateGroupChat({
       <div
         ref={threadContentRef}
         data-testid="chat-thread-content"
-        className={`mx-auto flex w-full max-w-2xl flex-col px-4 pt-4 ${settingsOpen ? 'pb-8' : 'pb-[calc(17rem+env(safe-area-inset-bottom))]'}`}
-        style={conversation?.kind === 'dm' && !embedded && !settingsOpen && dmComposerClearance !== null ? { paddingBottom: dmComposerClearance } : undefined}
+        className={`mx-auto flex w-full max-w-2xl flex-col px-4 pt-4 ${embedded && conversation?.kind === 'dm' && !settingsOpen ? 'flex-1' : ''} ${settingsOpen ? 'pb-8' : 'pb-[calc(17rem+env(safe-area-inset-bottom))]'}`}
+        style={conversation?.kind === 'dm' && !settingsOpen && dmComposerClearance !== null ? { paddingBottom: dmComposerClearance + (embedded ? 16 : 0) } : undefined}
       >
         {error ? (
           <div className="mb-4 space-y-3 rounded-2xl border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">
@@ -1929,7 +1971,7 @@ export default function PrivateGroupChat({
           </>
         ) : null}
 
-        <div className="mt-4 flex-1 space-y-4">
+        <div className={`mt-4 flex-1 space-y-4 ${embedded && conversation?.kind === 'dm' ? 'flex flex-col justify-end' : ''}`}>
           {loading ? (
             <div className="space-y-3">
               {Array.from({ length: 4 }).map((_, index) => (
@@ -2036,27 +2078,6 @@ export default function PrivateGroupChat({
                                 <span>View-once photo sent</span>
                               </div>
                             </div>
-                          </div>
-                        );
-                      }
-
-                      if (openedViewOnceUrl) {
-                        if (shouldMaskPhoto(dlModeActive, attachment.explicit, attachment.photoRelationship)) {
-                          return <ExplicitMessagePhotoShield key={attachment.id} attachmentKey={attachmentKey} restriction={getNsfwPhotoRestriction(attachment.explicit, attachment.photoRelationship)} />;
-                        }
-
-                        return (
-                          <div
-                            key={attachment.id}
-                            className={`relative aspect-[3/4] w-[min(72vw,19rem)] overflow-hidden rounded-[1.7rem] border shadow-[0_18px_46px_rgba(0,0,0,0.38)] ${
-                              isOwn ? 'border-primary/45 bg-black' : 'border-white/14 bg-black'
-                            }`}
-                          >
-                            <img
-                              alt="View-once photo"
-                              src={openedViewOnceUrl}
-                              className="h-full w-full object-cover"
-                            />
                           </div>
                         );
                       }
@@ -2534,6 +2555,9 @@ export default function PrivateGroupChat({
         ) : null}
         </div>
       </div>
+      {activeViewOnceUrl && viewOncePhotoAllowed ? (
+        <ViewOncePhotoViewer url={activeViewOnceUrl} onClose={closeViewOncePhoto} />
+      ) : null}
       {conversation?.clubId ? (
         <InAppShareDialog
           onOpenChange={setClubShareOpen}

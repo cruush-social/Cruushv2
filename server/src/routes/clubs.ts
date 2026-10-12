@@ -24,6 +24,7 @@ import {
 import { runTransaction, type DbClient } from "../db.js";
 import { admitLockedClubMember, assertActiveClubJoiner, assertClubAdmissionOpen, MAX_CLUB_MEMBERS, withLockedClubAdmission } from "../club-admission.js";
 import { loadLocationEnvelopes, locationPayloadToCoordinates } from "../location-privacy.js";
+import { resolveVisibilityLocation } from "../visibility-location.js";
 import { getRelationshipPermissions } from "../match-relationships.js";
 import { moderateTextOrReject } from "../moderation-service.js";
 import { OWNER_FULL_ACCESS_EMAIL } from "../owner-access.js";
@@ -220,9 +221,11 @@ async function assertClubVisibleToViewer(app: FastifyInstance, row: ClubDetailRo
   const viewer = subject && viewerLocation
     ? { ...subject, coordinates: locationPayloadToCoordinates(viewerLocation) }
     : subject;
-  const ownerCoordinates = ownerLocation ? locationPayloadToCoordinates(ownerLocation) : null;
+  const ownerDisplay = ownerLocation ? await resolveVisibilityLocation(app, {
+    viewerUserId: userId, subjectUserId: row.owner_user_id, location: ownerLocation
+  }) : null;
 
-  if (!viewer || !canSubjectViewProfile(rules, viewer, ownerCoordinates)) {
+  if (!viewer || !canSubjectViewProfile(rules, viewer, ownerDisplay?.coordinate, ownerDisplay?.uncertaintyMiles ?? 0)) {
     throw new ApiError(404, "NOT_FOUND", "Coven not found.");
   }
 }
@@ -402,30 +405,37 @@ export async function registerClubRoutes(app: FastifyInstance) {
         ? { ...visibilitySubject, coordinates: locationPayloadToCoordinates(viewerLocation) }
         : visibilitySubject;
 
+      const ownerDisplays = new Map(await Promise.all(enrichedRows
+        .filter(row => !row.current_user_role)
+        .map(async row => {
+          const location = locations.get(row.owner_user_id);
+          return [row.id, location ? await resolveVisibilityLocation(app, {
+            viewerUserId: userId, subjectUserId: row.owner_user_id, location
+          }) : null] as const;
+        })));
       visibleRows = visibleRows.filter((row) => {
         if (row.current_user_role) return true;
         const rules = decryptClubVisibility(app, row);
         if (visibilityRulesArePublic(rules)) return true;
-        const ownerLocation = locations.get(row.owner_user_id);
-        const ownerCoordinates = ownerLocation ? locationPayloadToCoordinates(ownerLocation) : null;
-        return Boolean(viewerSubject && canSubjectViewProfile(rules, viewerSubject, ownerCoordinates));
+        const ownerDisplay = ownerDisplays.get(row.id);
+        return Boolean(viewerSubject && canSubjectViewProfile(rules, viewerSubject,
+          ownerDisplay?.coordinate, ownerDisplay?.uncertaintyMiles ?? 0));
       });
       if (viewerLocation) {
         const viewerCoordinates = locationPayloadToCoordinates(viewerLocation);
         visibleRows = visibleRows.filter((row) => {
           if (row.current_user_role) return true;
-          const ownerLocation = locations.get(row.owner_user_id);
-          if (!ownerLocation) return false;
-          const distance = distanceMiles(viewerCoordinates, locationPayloadToCoordinates(ownerLocation));
+          const ownerDisplay = ownerDisplays.get(row.id);
+          if (!ownerDisplay) return false;
+          const distance = distanceMiles(viewerCoordinates, ownerDisplay.coordinate);
           browseDistances.set(row.id, distance);
-          return distance <= CLUB_BROWSE_RADIUS_MILES;
+          return distance + ownerDisplay.uncertaintyMiles <= CLUB_BROWSE_RADIUS_MILES;
         });
       }
     } catch (error) {
       app.log.warn({ err: error, userId }, "Club nearby filtering unavailable");
-      visibleRows = visibleRows.filter((row) =>
-        Boolean(row.current_user_role) || visibilityRulesArePublic(decryptClubVisibility(app, row))
-      );
+      // A failed privacy/location decision must not broaden nearby discovery.
+      visibleRows = visibleRows.filter(row => Boolean(row.current_user_role));
     }
 
     if (query.sort === "nearby") {

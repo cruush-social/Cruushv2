@@ -730,3 +730,14 @@ Julien: “basicaly every page should load in pops ups in luding co ven chats on
 
 ## October 11, 2026 promotion and Side Quests
 Julien: “disabled purchases”, “so remove promotion”, “bring back sidequests”. Disable new cruush+ purchases and the current promotion; restore the existing Side Quests UI on Rewards. Existing orders and Pulse purchases remain available. This supersedes the October 10 Side Quests UI removal.
+
+## 2026-10-11: Profile action button gradient reference
+
+Julien: “Why inconsistent? The butch one is correct for button color gradients across profiles add to que”. Use the provided butch top etc screenshot (4981.jpg) as the profile-action gradient reference. This authorizes gradient treatment only; preserve button geometry, icons, labels and enabled/disabled permissions.
+
+## Ghost triangulation hardening, October 11, 2026
+
+Julien: “lets make it safer,” then “Smaller jumps, preserve the minimum offset.” Ghost movement must not encode the direction from the hidden anchor to the real location. Smaller jumps are approved to preserve the existing half-radius minimum offset, selected maximum radius, privacy cell size, land-only placement, rotation timing and animation. Distance-based public decisions must not disclose exact Ghost coordinates or weaken the member's existing visibility exclusions. Existing precise-location grants and their defaults remain unchanged.
+
+## 2026-10-11: View-once photo overlay
+Julien: “i think the view once photos should be like snapchat style right? they pop up?” and “agree” to “tap to open a full-screen photo overlay, then close it to return to chat. After closing, it shows Viewed and cannot reopen.” Recipient view-once photos open in a full-screen overlay; closing removes the temporary image. Keep expiry, DL/NSFW and one-time-access rules intact.

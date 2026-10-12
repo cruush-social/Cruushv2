@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 /**
  * Several prompts mount together after onboarding and each used to decide on
@@ -20,15 +20,33 @@ export type ExclusivePopupId = (typeof PRIORITY)[number];
 
 const waiting = new Set<ExclusivePopupId>();
 const listeners = new Set<() => void>();
+export const LOGIN_POPUP_GAP_MS = 30_000;
+const LOGIN_POPUPS = new Set<ExclusivePopupId>(['push-permission', 'mobile-install', 'purgatory-info', 'affiliate-login']);
+let previousHolder: ExclusivePopupId | null = null;
+let loginResumeAt = 0;
+let resumeTimer: ReturnType<typeof setTimeout> | undefined;
 
 function holder(): ExclusivePopupId | null {
-  return PRIORITY.find((id) => waiting.has(id)) ?? null;
+  return PRIORITY.find((id) => waiting.has(id)
+    && (!LOGIN_POPUPS.has(id) || Date.now() >= loginResumeAt)) ?? null;
 }
 
 function notify() {
+  previousHolder = holder();
   for (const listener of [...listeners]) {
     listener();
   }
+}
+
+function release(id: ExclusivePopupId, wasPresented: boolean) {
+  const wasShowing = previousHolder === id;
+  waiting.delete(id);
+  if (wasShowing && wasPresented && LOGIN_POPUPS.has(id)) {
+    loginResumeAt = Date.now() + LOGIN_POPUP_GAP_MS;
+    clearTimeout(resumeTimer);
+    resumeTimer = setTimeout(notify, LOGIN_POPUP_GAP_MS);
+  }
+  notify();
 }
 
 /**
@@ -37,8 +55,10 @@ function notify() {
  * waiting. A prompt that unmounts or stops wanting the screen releases it, so
  * the next one appears without needing to be told.
  */
-export function useExclusivePopup(id: ExclusivePopupId, wantsToShow: boolean) {
+export function useExclusivePopup(id: ExclusivePopupId, wantsToShow: boolean, visible = wantsToShow) {
   const [, bump] = useState(0);
+  const presented = useRef(false);
+  if (visible && holder() === id) presented.current = true;
 
   useEffect(() => {
     const listener = () => bump((count) => count + 1);
@@ -52,14 +72,15 @@ export function useExclusivePopup(id: ExclusivePopupId, wantsToShow: boolean) {
     if (wantsToShow) {
       waiting.add(id);
     } else {
-      waiting.delete(id);
+      release(id, presented.current);
+      presented.current = false;
     }
 
     notify();
 
     return () => {
-      waiting.delete(id);
-      notify();
+      release(id, presented.current);
+      presented.current = false;
     };
   }, [id, wantsToShow]);
 
@@ -78,11 +99,14 @@ export function usePopupQueueIdle() {
     };
   }, []);
 
-  return holder() === null;
+  return waiting.size === 0 && Date.now() >= loginResumeAt;
 }
 
 /** Test helper: no prompt is waiting at the start of a test. */
 export function resetExclusivePopupsForTest() {
   waiting.clear();
+  previousHolder = null;
+  loginResumeAt = 0;
+  clearTimeout(resumeTimer);
   notify();
 }

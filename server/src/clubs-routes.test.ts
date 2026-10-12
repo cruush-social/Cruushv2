@@ -99,6 +99,23 @@ describe("encrypted Club directory routes", () => {
     expect(mocks.upsertClubEnrollment).not.toHaveBeenCalled();
   });
 
+  it("fails closed for nonmember Clubs when privacy/location lookup fails", async () => {
+    query.mockResolvedValueOnce({ rows: [rawClub()] });
+    mocks.loadLocationEnvelopes.mockRejectedValue(new Error("privacy unavailable"));
+    const response = await app.inject({ method: "GET", url: "/api/clubs?sort=nearby", headers: { "x-user-id": userId } });
+    expect(response.statusCode).toBe(200);
+    expect(response.json().data).toEqual([]);
+  });
+
+  it("preserves memberships when directory privacy lookup fails", async () => {
+    query.mockResolvedValueOnce({ rows: [rawClub()] });
+    mocks.listUserClubMemberships.mockResolvedValueOnce([enrollment(userId, "member")]);
+    mocks.loadLocationEnvelopes.mockRejectedValue(new Error("privacy unavailable"));
+    const response = await app.inject({ method: "GET", url: "/api/clubs?sort=nearby", headers: { "x-user-id": userId } });
+    expect(response.statusCode).toBe(200);
+    expect(response.json().data).toHaveLength(1);
+  });
+
   it("browses published Clubs and exposes membership only after encrypted lookup", async () => {
     query.mockResolvedValueOnce({ rows: [rawClub()] });
     mocks.listUserClubMemberships.mockResolvedValueOnce([enrollment(userId, "admin")]);

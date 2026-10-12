@@ -10,7 +10,7 @@ import { useLocation, useNavigate } from 'react-router';
 import { formatDistanceLabel, useDistancePreferences } from '../lib/distancePreferences';
 import { Clock, SlidersHorizontal, Trash2, X } from 'lucide-react';
 import { Button } from './ui/button';
-import { Accordion, AccordionItem, AccordionTrigger } from './ui/accordion';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from './ui/accordion';
 import CruushPlusCardDialog from './CruushPlusCardDialog';
 import ReportAction from './ReportAction';
 import CruushBadge from './CruushBadge';
@@ -1064,47 +1064,53 @@ export default function LocalFeed({ embedded = false, onClose }: { embedded?: bo
               </div>
               <p className="mt-2 text-xs text-white/58">Never expire is free. Custom timers are part of cruush+.</p>
             </section>
-            <section className="rounded-lg border border-white/10 bg-black/42 p-2">
-              <p className="text-sm font-semibold text-white">Who can see this post</p>
-              <p className="mb-2 mt-1 text-xs text-white/58">Public and Cruushes are free. Crowd mode is part of cruush+.</p>
-              <MultiSelect
-                ariaLabel="Who can see this post"
-                menuPortal
-                options={hasCruushPlus === true ? ['Public', 'Cruushes', ...availableCrowdTargets] : ['Public', 'Cruushes', 'Crowd mode']}
-                value={postAudience === 'crowd'
-                  ? selectedCrowdTargets
-                  : [postAudience === 'mutuals' ? 'Cruushes' : 'Public']}
-                onChange={(values) => {
-                  const selected = values[values.length - 1];
-                  const crowdTargets = values.filter((value) => availableCrowdTargets.includes(value));
+            <Accordion type="single" collapsible>
+              <AccordionItem value="post-audience" className="rounded-lg border border-white/10 bg-black/42 p-2 data-[state=open]:rounded-lg">
+                <AccordionTrigger aria-label="Toggle post audience" className="w-full text-sm font-semibold text-white">
+                  Who can see this post
+                </AccordionTrigger>
+                <AccordionContent>
+                <p className="mb-2 mt-1 text-xs text-white/58">Public and Cruushes are free. Crowd mode is part of cruush+.</p>
+                <MultiSelect
+                  ariaLabel="Who can see this post"
+                  menuPortal
+                  options={hasCruushPlus === true ? ['Public', 'Cruushes', ...availableCrowdTargets] : ['Public', 'Cruushes', 'Crowd mode']}
+                  value={postAudience === 'crowd'
+                    ? selectedCrowdTargets
+                    : [postAudience === 'mutuals' ? 'Cruushes' : 'Public']}
+                  onChange={(values) => {
+                    const selected = values[values.length - 1];
+                    const crowdTargets = values.filter((value) => availableCrowdTargets.includes(value));
 
-                  if (selected === 'Crowd mode') {
-                    navigate(buildCruushPlusStorePath('feed_plus', 'feed_plus'));
-                    return;
-                  }
-
-                  if (selected && crowdTargets.includes(selected)) {
-                    if (hasCruushPlus !== true) {
+                    if (selected === 'Crowd mode') {
                       navigate(buildCruushPlusStorePath('feed_plus', 'feed_plus'));
                       return;
                     }
 
-                    setPostAudience('crowd');
-                    setSelectedCrowdTargets(crowdTargets);
-                    return;
-                  }
+                    if (selected && crowdTargets.includes(selected)) {
+                      if (hasCruushPlus !== true) {
+                        navigate(buildCruushPlusStorePath('feed_plus', 'feed_plus'));
+                        return;
+                      }
 
-                  if (selected === 'Cruushes') {
-                    setPostAudience('mutuals');
+                      setPostAudience('crowd');
+                      setSelectedCrowdTargets(crowdTargets);
+                      return;
+                    }
+
+                    if (selected === 'Cruushes') {
+                      setPostAudience('mutuals');
+                      setSelectedCrowdTargets([]);
+                      return;
+                    }
+
+                    setPostAudience('public');
                     setSelectedCrowdTargets([]);
-                    return;
-                  }
-
-                  setPostAudience('public');
-                  setSelectedCrowdTargets([]);
-                }}
-              />
-            </section>
+                  }}
+                />
+                </AccordionContent>
+              </AccordionItem>
+            </Accordion>
           </div>
           {stagedPhotos.length > 0 ? (
             <div className="mb-2 space-y-2 rounded-xl border border-white/10 bg-black/45 p-2" data-testid="feed-photo-staging">
@@ -1169,7 +1175,7 @@ export default function LocalFeed({ embedded = false, onClose }: { embedded?: bo
                   {`Photo${hasCruushPlus === true ? ` ${stagedPhotos.length}/3` : ' +'}`}
                 </Button>
                 {hasCruushPlus !== true ? (
-                  <p className="min-w-0 text-xs text-white/58">cruush+ users can post up to 3 photos to the Confessional.</p>
+                  <p className="min-w-0 text-xs text-white/58">cruush+ includes up to 3 photos.</p>
                 ) : null}
               </div>
               <Button

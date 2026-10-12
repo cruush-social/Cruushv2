@@ -243,7 +243,8 @@ export function countVisibilityExclusionFilters(rules: ProfileVisibilityRules | 
 export function canSubjectViewProfile(
   rules: ProfileVisibilityRules | null | undefined,
   subject: VisibilitySubjectProfile,
-  targetCoordinates?: VisibilityCoordinates | null
+  targetCoordinates?: VisibilityCoordinates | null,
+  targetUncertaintyMiles = 0
 ) {
   if (!rules) {
     return true;
@@ -293,7 +294,8 @@ export function canSubjectViewProfile(
     // a guess is the one outcome the member asked not to have. The route
     // measures against the encrypted location envelope, so a viewer with a
     // location is measurable and only a viewer with none is refused.
-    if (distance == null || distance > normalizedRules.distance) {
+    if (distance == null || !Number.isFinite(targetUncertaintyMiles) || targetUncertaintyMiles < 0 ||
+        distance + targetUncertaintyMiles > normalizedRules.distance) {
       return false;
     }
   }

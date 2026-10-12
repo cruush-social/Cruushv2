@@ -13,6 +13,7 @@ import {
 
 const INSTALL_PROMPT_VERSION = 'v1';
 const INSTALL_REQUESTED_EVENT = 'cruush:install-requested';
+export const INSTALL_COMPLETED_KEY = 'cruush:installed:v1';
 
 export function installPromptHandledKey(userId: string) {
   return `cruush:first-entry-install:${INSTALL_PROMPT_VERSION}:${userId}`;
@@ -32,7 +33,17 @@ function isIosBrowser() {
 }
 
 function wasHandled(userId: string) {
-  return window.localStorage.getItem(installPromptHandledKey(userId)) === 'true';
+  try {
+    return window.localStorage.getItem(installPromptHandledKey(userId)) === 'true'
+      || window.localStorage.getItem(INSTALL_COMPLETED_KEY) === 'true';
+  } catch { return false; }
+}
+
+function rememberHandled(userId: string, installed = false) {
+  try {
+    window.localStorage.setItem(installPromptHandledKey(userId), 'true');
+    if (installed) window.localStorage.setItem(INSTALL_COMPLETED_KEY, 'true');
+  } catch { /* Installation detection and dismissal still work for this mount. */ }
 }
 
 function wantsAutomaticPrompt(userId: string, installEvent: BeforeInstallPromptEvent | null) {
@@ -77,7 +88,7 @@ export default function MobileInstallPrompt({ userId }: { userId: string }) {
     };
 
     const handleInstalled = () => {
-      window.localStorage.setItem(installPromptHandledKey(userId), 'true');
+      rememberHandled(userId, true);
       clearInstallPrompt();
       setInstallEvent(null);
       setVisible(false);
@@ -87,9 +98,18 @@ export default function MobileInstallPrompt({ userId }: { userId: string }) {
     window.addEventListener(INSTALL_PROMPT_AVAILABLE_EVENT, showAvailableInstallPrompt);
     window.addEventListener(INSTALL_REQUESTED_EVENT, handleInstallRequested);
     window.addEventListener('appinstalled', handleInstalled);
+    if (isStandaloneDisplay()) handleInstalled();
+    const relatedApps = (navigator as Navigator & { getInstalledRelatedApps?: () => Promise<unknown[]> }).getInstalledRelatedApps;
+    let active = true;
+    if (relatedApps) {
+      void relatedApps.call(navigator).then(apps => {
+        if (active && apps.length > 0) handleInstalled();
+      }).catch(() => { /* No supported installation evidence available. */ });
+    }
     showAvailableInstallPrompt();
 
     return () => {
+      active = false;
       window.removeEventListener('beforeinstallprompt', captureInstallPrompt);
       window.removeEventListener(INSTALL_PROMPT_AVAILABLE_EVENT, showAvailableInstallPrompt);
       window.removeEventListener(INSTALL_REQUESTED_EVENT, handleInstallRequested);
@@ -98,7 +118,7 @@ export default function MobileInstallPrompt({ userId }: { userId: string }) {
   }, [userId]);
 
   const markHandledAndClose = () => {
-    window.localStorage.setItem(installPromptHandledKey(userId), 'true');
+    rememberHandled(userId);
     setVisible(false);
   };
 
@@ -111,9 +131,12 @@ export default function MobileInstallPrompt({ userId }: { userId: string }) {
 
     try {
       await installEvent.prompt();
-      await installEvent.userChoice.catch(() => null);
+      const choice = await installEvent.userChoice.catch(() => null);
+      if (choice?.outcome === 'accepted') {
+        rememberHandled(userId, true);
+      }
     } finally {
-      window.localStorage.setItem(installPromptHandledKey(userId), 'true');
+      rememberHandled(userId);
       clearInstallPrompt();
       setInstallEvent(null);
       setVisible(false);

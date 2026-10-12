@@ -41,7 +41,7 @@ import {
 import { approvedContentReviewCte, moderateMessageTextOrAllowByKeyword } from "../moderation-service.js";
 import { OWNER_FULL_ACCESS_EMAIL, userHasOwnerFullAccess } from "../owner-access.js";
 import { getActiveAccountUserId, getAuthenticatedUserId } from "../request-auth.js";
-import { formatLastActiveFromDate } from "../discovery-users.js";
+import { formatPresenceLabel } from "../discovery-users.js";
 import { getSharedDistanceLabelMode } from "../match-relationships.js";
 import { loadOutOfSightStatuses, resolveOutOfSightLocationLabel, type OutOfSightStatus } from "../out-of-sight-location.js";
 import { loadCurrentTownLabels } from "../current-town-labels.js";
@@ -416,6 +416,7 @@ export function mapConversationRow(app: FastifyInstance, row: ConversationRow, o
   nsfwPhotoRestriction?: PhotoViewerRelationship["nsfwPhotoRestriction"];
   distanceLabel?: string;
   outOfSight?: boolean;
+  allowOnline?: boolean;
 } = {}) {
   const isGroup = row.kind === "group";
   const lastMessage = decryptTextContentOrFallback(app.config, "message", {
@@ -441,7 +442,7 @@ export function mapConversationRow(app: FastifyInstance, row: ConversationRow, o
       ...(isGroup || !row.other_user_vibes?.length ? {} : { vibes: row.other_user_vibes.slice(0, 3) }),
       ...(isGroup ? {} : { travelling: row.other_user_travelling === true }),
       ...(isGroup || options.outOfSight === undefined ? {} : { outOfSight: options.outOfSight }),
-      ...(isGroup || !row.other_user_last_active ? {} : { lastActive: formatLastActiveFromDate(row.other_user_last_active) })
+      ...(isGroup || !row.other_user_last_active ? {} : { lastActive: formatPresenceLabel({ lastSeenAt: row.other_user_last_active, allowOnline: options.allowOnline === true }) })
     },
     distance: options.distanceLabel ?? "Nearby",
     updatedAt: new Date(row.updated_at).toISOString(),
@@ -522,6 +523,7 @@ async function getDirectConversationOptions(
   const audience = await getNsfwPhotoAudience(app, row.other_user_id);
   return {
     canMessage,
+    allowOnline: relationship.targetBaseMode === "PUBLIC_PRECISE",
     mutual: relationship.isMutualCruush,
     sharesCrowd,
     nsfwPhotoRestriction: resolveNsfwPhotoRestriction(audience, { isMutualCruush: relationship.isMutualCruush, sharesCrowd })

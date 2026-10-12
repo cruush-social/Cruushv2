@@ -42,6 +42,14 @@ describe("conversation vibes", () => {
     expect(mapped.user.vibes).toEqual(["Adventurous", "Stoner", "Direct"]);
   });
 
+  it("reports recent app use as Online only for public members", () => {
+    const recent = row({ other_user_last_active: new Date() });
+    expect(mapConversationRow(app, recent, { allowOnline: true }).user.lastActive).toBe("Online");
+    expect(mapConversationRow(app, recent, { allowOnline: false }).user.lastActive).toBe("5m ago");
+    expect(mapConversationRow(app, recent).user.lastActive).toBe("5m ago");
+    expect(mapConversationRow(app, row({ kind: "group", other_user_last_active: new Date() }), { allowOnline: true }).user.lastActive).toBeUndefined();
+  });
+
   it("omits vibes for a group, which has no single member to describe", () => {
     const mapped = mapConversationRow(app, row({ kind: "group", title: "Crew" }), {}) as {
       user: { vibes?: string[] };

@@ -1,6 +1,6 @@
-import { render, screen } from '@testing-library/react';
-import { beforeEach, describe, expect, it } from 'vitest';
-import { resetExclusivePopupsForTest, useExclusivePopup, type ExclusivePopupId } from './popupQueue';
+import { act, render, screen } from '@testing-library/react';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { LOGIN_POPUP_GAP_MS, resetExclusivePopupsForTest, useExclusivePopup, type ExclusivePopupId } from './popupQueue';
 
 function Prompt({ id, wants }: { id: ExclusivePopupId; wants: boolean }) {
   const showing = useExclusivePopup(id, wants);
@@ -91,7 +91,10 @@ describe('useExclusivePopup', () => {
     expect(screen.getByTestId('first-feed-post')).toBeInTheDocument();
   });
 
-  it('shows push before install and hands the slot to install', () => {
+  afterEach(() => { vi.useRealTimers(); });
+
+  it('spaces push and install by thirty seconds', () => {
+    vi.useFakeTimers();
     const view = render(
       <>
         <Prompt id="mobile-install" wants />
@@ -110,6 +113,10 @@ describe('useExclusivePopup', () => {
     );
 
     expect(screen.queryByTestId('push-permission')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('mobile-install')).not.toBeInTheDocument();
+    act(() => { vi.advanceTimersByTime(LOGIN_POPUP_GAP_MS - 1); });
+    expect(screen.queryByTestId('mobile-install')).not.toBeInTheDocument();
+    act(() => { vi.advanceTimersByTime(1); });
     expect(screen.getByTestId('mobile-install')).toBeInTheDocument();
   });
 

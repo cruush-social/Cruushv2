@@ -1,6 +1,6 @@
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { resetExclusivePopupsForTest, useExclusivePopup } from '../lib/popupQueue';
+import { LOGIN_POPUP_GAP_MS, resetExclusivePopupsForTest, useExclusivePopup } from '../lib/popupQueue';
 import { androidPushPromptSessionKey, resetPushPromptForLogin } from '../lib/pushPromptSession';
 
 const { enablePushNotifications, getNotificationPreferences } = vi.hoisted(() => ({
@@ -11,7 +11,7 @@ const { enablePushNotifications, getNotificationPreferences } = vi.hoisted(() =>
 vi.mock('../lib/pushNotifications', () => ({ enablePushNotifications }));
 vi.mock('../lib/notificationsApi', () => ({ getNotificationPreferences }));
 
-import PushPermissionPrompt, { pushPromptHandledKey, PUSH_PREFERENCE_TIMEOUT_MS } from './PushPermissionPrompt';
+import PushPermissionPrompt, { pushPromptHandledKey, pushPromptCompletedKey, PUSH_PREFERENCE_TIMEOUT_MS } from './PushPermissionPrompt';
 
 function setPermission(permission: NotificationPermission) {
   vi.stubGlobal('Notification', { permission });
@@ -45,6 +45,7 @@ describe('PushPermissionPrompt', () => {
 
   afterEach(() => {
     resetExclusivePopupsForTest();
+    vi.useRealTimers();
     vi.unstubAllGlobals();
   });
 
@@ -64,7 +65,8 @@ describe('PushPermissionPrompt', () => {
     expect(dialog()).toBeInTheDocument();
   });
 
-  it('stays dismissed on same-login remount but asks again after the next login', () => {
+  it('stays dismissed on same-login remount but asks after the next login and cooldown', () => {
+    vi.useFakeTimers();
     const first = render(<PushPermissionPrompt userId="member-1" />);
     fireEvent.click(screen.getByRole('button', { name: 'Not now' }));
     expect(enablePushNotifications).not.toHaveBeenCalled();
@@ -75,6 +77,8 @@ describe('PushPermissionPrompt', () => {
     second.unmount();
     resetPushPromptForLogin('member-1');
     render(<PushPermissionPrompt userId="member-1" />);
+    expect(dialog()).not.toBeInTheDocument();
+    act(() => { vi.advanceTimersByTime(LOGIN_POPUP_GAP_MS); });
     expect(dialog()).toBeInTheDocument();
   });
 
@@ -96,6 +100,7 @@ describe('PushPermissionPrompt', () => {
   });
 
   it.each(['Android', 'desktop'])('dismisses when %s prompt storage reads and writes throw', (platform) => {
+    vi.useFakeTimers();
     if (platform === 'desktop') setUserAgent('Mozilla/5.0 (Macintosh)');
     const get = vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => { throw new Error('Storage blocked'); });
     const set = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => { throw new Error('Storage blocked'); });
@@ -103,6 +108,8 @@ describe('PushPermissionPrompt', () => {
       render(<><PushPermissionPrompt userId="storage-blocked" /><LaterPrompt /></>);
       fireEvent.click(screen.getByRole('button', { name: 'Not now' }));
       expect(dialog()).not.toBeInTheDocument();
+      expect(screen.queryByTestId('later-prompt')).not.toBeInTheDocument();
+      act(() => { vi.advanceTimersByTime(LOGIN_POPUP_GAP_MS); });
       expect(screen.getByTestId('later-prompt')).toBeInTheDocument();
       expect(enablePushNotifications).not.toHaveBeenCalled();
     } finally { get.mockRestore(); set.mockRestore(); }
@@ -128,6 +135,7 @@ describe('PushPermissionPrompt', () => {
   });
 
   it.each([true, false])('holds later prompts until Android preference resolves (enabled: %s)', async (pushEnabled) => {
+    vi.useFakeTimers();
     setPermission('granted');
     let resolvePreference!: (value: { pushEnabled: boolean }) => void;
     getNotificationPreferences.mockImplementationOnce(() => new Promise((resolve) => { resolvePreference = resolve; }));
@@ -139,6 +147,8 @@ describe('PushPermissionPrompt', () => {
       expect(dialog()).toBeInTheDocument();
       expect(screen.queryByTestId('later-prompt')).not.toBeInTheDocument();
       fireEvent.click(screen.getByRole('button', { name: 'Not now' }));
+      expect(screen.queryByTestId('later-prompt')).not.toBeInTheDocument();
+      act(() => { vi.advanceTimersByTime(LOGIN_POPUP_GAP_MS); });
     }
     expect(screen.getByTestId('later-prompt')).toBeInTheDocument();
   });
@@ -174,6 +184,7 @@ describe('PushPermissionPrompt', () => {
   });
 
   it('does not let an old enable completion dismiss the next login reminder', async () => {
+    vi.useFakeTimers();
     let resolveEnable!: (value: { pushEnabled: boolean }) => void;
     enablePushNotifications.mockImplementationOnce(() => new Promise((resolve) => { resolveEnable = resolve; }));
     const previousLogin = render(<PushPermissionPrompt userId="member-1" />);
@@ -183,19 +194,39 @@ describe('PushPermissionPrompt', () => {
     await act(async () => { resolveEnable({ pushEnabled: true }); });
     expect(sessionStorage.getItem(androidPushPromptSessionKey('member-1'))).toBeNull();
     render(<PushPermissionPrompt userId="member-1" />);
+    expect(dialog()).not.toBeInTheDocument();
+    act(() => { vi.advanceTimersByTime(LOGIN_POPUP_GAP_MS); });
     expect(dialog()).toBeInTheDocument();
   });
 
-  it('keeps a denied Android permission error visible after the explicit action', async () => {
+  it('does not ask again after browser notification permission was denied', () => {
     setPermission('denied');
-    enablePushNotifications.mockRejectedValueOnce(new Error('Notifications are blocked for cruush in this browser.'));
     render(<PushPermissionPrompt userId="member-1" />);
-    expect(dialog()).toBeInTheDocument();
+    expect(dialog()).not.toBeInTheDocument();
     expect(enablePushNotifications).not.toHaveBeenCalled();
+  });
+
+  it('remembers completed Android setup across later logins', async () => {
+    const first = render(<PushPermissionPrompt userId="member-1" />);
     fireEvent.click(screen.getByRole('button', { name: 'Enable notifications' }));
-    expect(await screen.findByText('Notifications are blocked for cruush in this browser.')).toBeInTheDocument();
-    expect(dialog()).toBeInTheDocument();
-    expect(sessionStorage.getItem(androidPushPromptSessionKey('member-1'))).toBeNull();
+    await waitFor(() => expect(dialog()).not.toBeInTheDocument());
+    expect(localStorage.getItem(pushPromptCompletedKey('member-1'))).toBe('true');
+    first.unmount();
+    resetPushPromptForLogin('member-1');
+    resetExclusivePopupsForTest();
+    render(<PushPermissionPrompt userId="member-1" />);
+    expect(dialog()).not.toBeInTheDocument();
+    expect(enablePushNotifications).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not ask a subscribed device again or re-enable an account that paused push', async () => {
+    setPermission('granted');
+    Object.defineProperty(navigator, 'serviceWorker', { configurable: true, value: {
+      getRegistration: vi.fn().mockResolvedValue({ pushManager: { getSubscription: vi.fn().mockResolvedValue({}) } }),
+    } });
+    await act(async () => { render(<PushPermissionPrompt userId="member-1" />); });
+    expect(dialog()).not.toBeInTheDocument();
+    expect(enablePushNotifications).not.toHaveBeenCalled();
   });
 
   it('does not prompt without a service worker', () => {

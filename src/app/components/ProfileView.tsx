@@ -810,11 +810,7 @@ export default function ProfileView() {
                 aria-label={revokingCruush ? (isAlreadyMutual ? 'uncruushing' : 'unsending cruush') : isAlreadyMutual ? 'uncruush' : hasSentCruush ? 'unsend cruush' : sendingCruush ? 'sending cruush' : 'send cruush'}
                 style={{
                   opacity: isAlreadyMutual && !cruushDisabled ? 0.5 : undefined,
-                  background: isAlreadyMutual && !cruushDisabled ? 'var(--cruush-gradient)' : cruushDisabled
-                    ? '#151021'
-                    : hasRevocableCruush
-                      ? 'var(--cruush-gradient-soft-28), #0A0A12'
-                      : 'var(--cruush-gradient)',
+                  background: 'var(--cruush-gradient)',
                 }}
               >
                 <CruushIcon name="mutual" className={`mr-2 h-7 w-7 sm:h-4 sm:w-4 ${cruushDisabled ? 'opacity-45 grayscale' : ''}`} variant="white" />
@@ -827,13 +823,7 @@ export default function ProfileView() {
                   className="profile-center-pin-match-action size-11 shrink-0 rounded-xl border-0 text-white transition hover:brightness-110"
                   style={{
                     background: 'var(--cruush-gradient)',
-                    '--profile-center-pin-mobile-background': !pinActionable
-                      ? 'var(--cruush-gradient)'
-                      : cruushDisabled
-                      ? '#151021'
-                      : hasRevocableCruush
-                        ? 'var(--cruush-gradient-soft-28), #0A0A12'
-                        : 'var(--cruush-gradient)',
+                    '--profile-center-pin-mobile-background': 'var(--cruush-gradient)',
                   } as CSSProperties}
                   aria-label={!profilePinsAllowed ? 'Map location unavailable' : pinActionable ? `Center the map on ${profileView.name}` : `${profileView.name} does not share a precise location with you`}
                   title={!profilePinsAllowed ? 'Map location unavailable' : pinActionable ? `Center the map on ${profileView.name}` : targetInDarkRoom ? 'Dark Room' : 'Precise location unavailable'}

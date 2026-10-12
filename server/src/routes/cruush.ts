@@ -1,3 +1,4 @@
+import { ghostDistanceUncertaintyMiles } from "../visibility-location.js";
 import { nonBannedAccountSql, loadBannedUserIds } from "../banned-content.js";
 import type { FastifyInstance, FastifyRequest } from "fastify";
 import { loadPhotoViewerRelationships } from "../nsfw-photo-audience.js";
@@ -647,7 +648,8 @@ function matchesMutualMapSeeking(
   target: VisibilitySubjectProfile,
   targetCoordinates: VisibilityCoordinates,
   viewerCoordinates: VisibilityCoordinates | null,
-  filters: MutualMapQuery
+  filters: MutualMapQuery,
+  uncertaintyMiles = 0
 ) {
   const searchQuery = filters.q?.trim().toLowerCase();
   const searchTagQuery = searchQuery?.replace(/^#+/, "");
@@ -689,7 +691,7 @@ function matchesMutualMapSeeking(
 
   if (filters.distance != null) {
     const distance = viewerCoordinates ? mapDistanceMiles(viewerCoordinates, targetCoordinates) : null;
-    if (distance == null || distance > filters.distance) {
+    if (distance == null || distance + uncertaintyMiles > filters.distance) {
       return false;
     }
   }
@@ -1026,14 +1028,7 @@ async function mapTokenizedMutualCruushRow(
 
   const preciseCoordinates = locationPayloadToCoordinates(location);
   const targetSubject = toMapVisibilitySubject(app, row, preciseCoordinates);
-  if (!matchesMutualMapSeeking(targetSubject, preciseCoordinates, options.currentCoordinates, options.filters)) {
-    return null;
-  }
   const targetVisibilityRules = decryptProfileVisibility(app.config, row);
-  if (options.viewerSubject && !canSubjectViewProfile(targetVisibilityRules, options.viewerSubject, preciseCoordinates)) {
-    return null;
-  }
-
   const policy = await loadPolicyOrDefault(app, row.other_user_id);
 
   if (policy.baseMode === "STEALTH") {
@@ -1054,6 +1049,12 @@ async function mapTokenizedMutualCruushRow(
         location
       })
     : null;
+  const shownCoordinates = resolvedGhost?.coordinate ?? preciseCoordinates;
+  const uncertaintyMiles = displayMode === "GHOST" ? ghostDistanceUncertaintyMiles(policy, resolvedGhost?.radiusMeters) : 0;
+  if (!matchesMutualMapSeeking(targetSubject, shownCoordinates, options.currentCoordinates,
+      options.filters, uncertaintyMiles)) return null;
+  if (options.viewerSubject && !canSubjectViewProfile(targetVisibilityRules,
+      options.viewerSubject, shownCoordinates, uncertaintyMiles)) return null;
   const token = await makeDisplayLocationToken(app, request, {
     subjectUserId: row.other_user_id,
     viewerUserId,

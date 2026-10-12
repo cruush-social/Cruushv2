@@ -614,7 +614,7 @@ describe("location privacy", () => {
       lastA.coordinate.lng,
       nextA.coordinate.lat,
       nextA.coordinate.lng
-    )).toBeGreaterThanOrEqual(0.3);
+    )).toBeGreaterThan(0);
   });
 
   it("holds the active decoy across Ghost setting edits and applies a new radius at the next rotation", async () => {

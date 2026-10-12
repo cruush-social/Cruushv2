@@ -253,6 +253,6 @@ export function resolveSavedBadgeGlyph(badgeId: string) {
   return {
     icon,
     label: null,
-    fillsFrame: false,
+    fillsFrame: badgeId.startsWith('flag '),
   };
 }

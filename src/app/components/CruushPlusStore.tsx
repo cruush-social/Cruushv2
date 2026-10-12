@@ -942,6 +942,7 @@ export default function CruushPlusStore({ product = 'cruush_plus' }: { product?:
                   {checkoutNotice}
                 </p>
               ) : null}
+              <div className="relative">
               <div className="grid grid-cols-2 gap-2" aria-label="Where you are paying from">
                 {pickerSources.map((source, index) => {
                   const sourceReady = readyRailIds.has(source.rail);
@@ -969,6 +970,10 @@ export default function CruushPlusStore({ product = 'cruush_plus' }: { product?:
                     </button>
                   );
                 })}
+              </div>
+                <div role="status" className="absolute inset-x-0 top-1/2 -translate-y-1/2 border-y border-border bg-background/95 px-3 py-3 text-center">
+                  <p className="text-sm font-semibold">Sorry, we are now migrating to stablecoin.</p>
+                </div>
               </div>
               {retryAt > clockMs ? <p role="status" className="text-sm text-muted-foreground sm:text-xs">Try again in {Math.ceil((retryAt - clockMs) / 1000)}s</p> : null}
               {!intent ? (

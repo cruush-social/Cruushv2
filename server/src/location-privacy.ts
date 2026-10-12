@@ -193,23 +193,13 @@ export const GHOST_RADIUS_OPTIONS = [
 
 export const DEFAULT_GHOST_RADIUS_METERS = 1609;
 export const GHOST_MIN_OFFSET_RATIO = 0.5;
-// Ghost v2 geometry, as fractions of the configured radius R.
-//
-// The decoy moves tangentially around an offset anchor. Keeping radial drift
-// narrow makes room for much larger sideways movement without shrinking the
-// privacy cell or breaching the [0.5R, R] true-position offset bounds.
-//
-// The budget is deliberately NOT tight: offsetCoordinate uses a fixed
-// metres-per-degree constant that is off by up to ~0.7%, and it is applied
-// twice here, so a zero-margin budget would breach the annulus at some
-// latitudes. GHOST_GEOMETRY_SLACK_RATIO reserves that headroom.
+// Ghost v3 keeps an offset anchor, but samples drift in a circle whose
+// orientation is independent of the anchor-to-cell direction. Tangential
+// bands disclose that direction through their principal axis over time.
 export const GHOST_ANCHOR_RATIO = 0.75;
-export const GHOST_DRIFT_RATIO = 0.395;
-export const GHOST_DRIFT_MIN_TANGENT_RATIO = 0.155;
-export const GHOST_DRIFT_RADIAL_RATIO = 0.04;
+export const GHOST_DRIFT_RATIO = 0.15;
 export const GHOST_GEOMETRY_SLACK_RATIO = 0.02;
-// Preserve the existing cell verbatim in size. More visible movement must not
-// silently improve an observer's within-cell resolution.
+// Preserve the existing privacy cell size.
 export const GHOST_CELL_RATIO =
   (0.25 - 0.15 - GHOST_GEOMETRY_SLACK_RATIO) * 2 / Math.SQRT2;
 // Reported to viewers for every Ghost subject regardless of the radius they
@@ -1325,7 +1315,7 @@ export function deriveGhostCoordinate(input: {
 
   // Secret per-subject lattice phase: without it an attacker who recovers the
   // anchor can intersect a known grid and identify the cell outright.
-  const phaseSeed = hmacFor("ghost-v2-phase", input.subjectUserId, input.policyVersion);
+  const phaseSeed = hmacFor("ghost-v3-phase", input.subjectUserId, input.policyVersion);
   const phaseLat = randomFloatFromSeed(phaseSeed.subarray(0, 8)) * latStepDegrees;
 
   // Quantise latitude FIRST, then scale longitude by the row's latitude rather
@@ -1345,7 +1335,7 @@ export function deriveGhostCoordinate(input: {
 
   // Anchor: fixed for this subject and cell. No epoch, no viewer.
   const anchorSeed = hmacFor(
-    "ghost-v2-anchor",
+    "ghost-v3-anchor",
     input.subjectUserId,
     cellRow,
     cellColumn,
@@ -1361,34 +1351,26 @@ export function deriveGhostCoordinate(input: {
     anchorMeters * Math.sin(anchorTheta)
   );
 
-  // Drift: the visible fifteen-minute movement. Derived only from the subject
+  // Drift: the visible rotation movement. Derived only from the subject
   // and the epoch, never from the position, so averaging it away reveals
   // nothing about the subject beyond the cell the anchor already fixes.
   const driftSeed = hmacFor(
-    "ghost-v2-drift",
+    "ghost-v3-drift",
     input.subjectUserId,
     input.rotationEpoch,
     input.derivationSalt,
     input.policyVersion
   );
-  // Random positions in opposite tangential bands guarantee a meaningful jump
-  // without depending on a viewer, the exact position, or process-local history.
-  // Consecutive samples move 0.31R..0.795R before geodesic rounding; this leaves
-  // headroom inside the approved 0.30R..0.80R range. A random full-circle phase
-  // each epoch would cancel a scheduled angle and allow near-identical spots.
-  const side = (input.rotationEpoch + (anchorSeed[8] & 1)) % 2 === 0 ? 1 : -1;
-  const tangent = side * input.radiusMeters * (
-    GHOST_DRIFT_MIN_TANGENT_RATIO +
-    (GHOST_DRIFT_RATIO - GHOST_DRIFT_MIN_TANGENT_RATIO) * randomFloatFromSeed(driftSeed.subarray(0, 8))
-  );
-  const radial = input.radiusMeters * GHOST_DRIFT_RADIAL_RATIO *
-    (2 * randomFloatFromSeed(driftSeed.subarray(8, 16)) - 1);
-
+  // Uniform disc, independent of anchorTheta. Learning the drift distribution
+  // or its finite land pool must not reveal the bearing to the subject's cell.
+  const driftMeters = input.radiusMeters * GHOST_DRIFT_RATIO *
+    Math.sqrt(randomFloatFromSeed(driftSeed.subarray(0, 8)));
+  const driftTheta = 2 * Math.PI * randomFloatFromSeed(driftSeed.subarray(8, 16));
   return offsetCoordinate(
     anchor.lat,
     anchor.lng,
-    radial * Math.cos(anchorTheta) - tangent * Math.sin(anchorTheta),
-    radial * Math.sin(anchorTheta) + tangent * Math.cos(anchorTheta)
+    driftMeters * Math.cos(driftTheta),
+    driftMeters * Math.sin(driftTheta)
   );
 }
 

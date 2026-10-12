@@ -25,6 +25,7 @@ import {
   type VisibilityCoordinates,
   type VisibilitySubjectProfile
 } from "../profile-visibility.js";
+import { hasActiveSameCrowdPrecisionGrant, resolveVisibilityLocation } from "../visibility-location.js";
 import { getAuthenticatedUserId } from "../request-auth.js";
 import { anonymousNearbyArea } from "../nearby-area.js";
 import { getTrustRestrictions } from "../trust-restrictions.js";
@@ -598,31 +599,14 @@ function hasAnyCrowd(requiredCrowds: string[], subject: VisibilitySubjectProfile
   return requiredCrowds.some((crowd) => subjectCrowds.has(crowd.toLowerCase()));
 }
 
-function hasActiveSameCrowdPrecisionGrant(
-  policy: Awaited<ReturnType<typeof getEffectiveVisibilityPolicy>>,
-  viewerCrowds: string[],
-  targetCrowds: string[]
-) {
-  const normalizedViewerCrowds = new Set(viewerCrowds.map((crowd) => crowd.trim().toLowerCase()).filter(Boolean));
-  const normalizedTargetCrowds = new Set(targetCrowds.map((crowd) => crowd.trim().toLowerCase()).filter(Boolean));
-
-  return policy.preciseToMutualCrowds.some((crowdPolicy) => {
-    const normalizedCrowd = crowdPolicy.crowdId.trim().toLowerCase();
-
-    return crowdPolicy.precisionEnabled &&
-      (crowdPolicy.revokedAtMs ?? null) === null &&
-      crowdPolicy.minimumTrustLevel === "MEMBER" &&
-      normalizedViewerCrowds.has(normalizedCrowd) &&
-      normalizedTargetCrowds.has(normalizedCrowd);
-  });
-}
-
-function discoveryRowIsVisibleToViewer(
+async function discoveryRowIsVisibleToViewer(
   app: FastifyInstance,
   row: DiscoveryProfileRow,
   viewer: { subject: VisibilitySubjectProfile | null; activeCrowdModes: string[] },
   targetCoordinates: VisibilityCoordinates = getCoordinates(row),
-  viewerOutsideServiceArea = true
+  viewerOutsideServiceArea = true,
+  viewerUserId?: string,
+  targetLocation?: LocationPayload
 ) {
   const targetVisibilityRules = decryptProfileVisibility(app.config, row);
   if (!targetVisibilityRules && (row.profile_visibility_ciphertext || row.profile_visibility_nonce || row.profile_visibility_auth_tag)) {
@@ -639,7 +623,23 @@ function discoveryRowIsVisibleToViewer(
     return false;
   }
 
-  return canSubjectViewProfile(targetVisibilityRules, viewer.subject, targetCoordinates);
+  let uncertaintyMiles = 0;
+  if (targetVisibilityRules?.distance != null) {
+    const location = targetLocation ?? (targetCoordinates.lat != null && targetCoordinates.lng != null
+      ? locationPayloadFromCoordinates({ subjectUserId: row.id, lat: targetCoordinates.lat,
+          lng: targetCoordinates.lng, updatedAt: row.location_updated_at ?? row.updated_at })
+      : null);
+    const visibleLocation = location && viewerUserId
+      ? await resolveVisibilityLocation(app, {
+          viewerUserId, subjectUserId: row.id, location,
+          viewerCrowds: viewer.subject.crowds ?? [], subjectCrowds: targetSubject.crowds ?? []
+        })
+      : null;
+    if (!visibleLocation) return false;
+    targetCoordinates = visibleLocation.coordinate;
+    uncertaintyMiles = visibleLocation.uncertaintyMiles;
+  }
+  return canSubjectViewProfile(targetVisibilityRules, viewer.subject, targetCoordinates, uncertaintyMiles);
 }
 
 function canViewLatestFeedPreview(
@@ -1307,18 +1307,14 @@ async function loadDiscoveryState(
     : new Set<string>();
   const realUsers = discoveryRows.mode === "modern"
     ? (await Promise.all(discoveryRows.rows
-        .filter((row) => {
-          if (hiddenProfileIds.has(row.id)) return false;
-          const targetLocation = encryptedLocations.get(row.id);
-          return discoveryRowIsVisibleToViewer(
-            app,
-            row,
-            discoveryViewer,
-            targetLocation ? locationPayloadToCoordinates(targetLocation) : getCoordinates(row),
-            viewerOutsideServiceArea
-          );
-        })
+        .filter(row => !hiddenProfileIds.has(row.id))
         .map(async (row) => {
+          const targetLocation = encryptedLocations.get(row.id);
+          if (!await discoveryRowIsVisibleToViewer(
+            app, row, discoveryViewer,
+            targetLocation ? locationPayloadToCoordinates(targetLocation) : getCoordinates(row),
+            viewerOutsideServiceArea, currentUserId, targetLocation
+          )) return null;
           usedIds.add(row.id);
           const relationship = await getRelationshipPermissions(app, currentUserId, row.id);
           return mapModernDiscoveryRow(

@@ -637,7 +637,7 @@ export async function listEncryptedRelationshipRecordsByParticipant(
     participantUserId: string;
     type: EncryptedRelationshipType;
     status?: EncryptedRelationshipStatus;
-    limit?: number;
+    limit?: number | null;
   }
 ) {
   const { typeIndex, statusIndex, keyVersion } = activeTypeStatusIndexes(context.config, input.type, input.status);
@@ -669,7 +669,7 @@ export async function listEncryptedRelationshipRecordsByParticipant(
        and index_key_version = $4
      order by created_at desc
      limit $5`,
-    [participantIndex, typeIndex, statusIndex, keyVersion, input.limit ?? 500]
+    [participantIndex, typeIndex, statusIndex, keyVersion, input.limit === undefined ? 500 : input.limit]
   );
 
   return (result?.rows ?? [])

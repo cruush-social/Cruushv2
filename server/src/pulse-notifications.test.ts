@@ -1,3 +1,4 @@
+import { listEncryptedRelationshipRecordsByParticipant } from "./encrypted-relationships.js";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { FastifyInstance } from "fastify";
 import {
@@ -8,20 +9,24 @@ import {
   PULSE_NOTIFICATION_RECIPIENT_LIMIT
 } from "./pulse-notifications.js";
 import { createAppNotification } from "./notification-service.js";
-import { getRelationshipPermissions } from "./match-relationships.js";
-import { loadLocationEnvelopes, type LocationPayload } from "./location-privacy.js";
+import { getEffectiveVisibilityPolicy, getRelationshipPermissions } from "./match-relationships.js";
+import { buildDefaultVisibilityPolicy, loadLocationEnvelopes, resolveViewerGhostCoordinate, type LocationPayload } from "./location-privacy.js";
 import { emptyProfile } from "./profile-schema.js";
 import { encryptProfileVisibility } from "./profile-sensitive.js";
 import { getNotificationPreferences, sendPushForNotification } from "./push-service.js";
 import { loadTravelPins, type TravelPin } from "./travel-pins.js";
 import { filterOosHiddenNotifications } from "./oos-notification-visibility.js";
 
+vi.mock("./encrypted-relationships.js", async original => ({
+  ...await original<typeof import("./encrypted-relationships.js")>(),
+  listEncryptedRelationshipRecordsByParticipant: vi.fn()
+}));
 vi.mock("./notification-service.js", () => ({ createAppNotification: vi.fn() }));
 vi.mock("./oos-notification-visibility.js", async (importOriginal) => ({
   ...await importOriginal<typeof import("./oos-notification-visibility.js")>(),
   filterOosHiddenNotifications: vi.fn()
 }));
-vi.mock("./match-relationships.js", () => ({ getRelationshipPermissions: vi.fn() }));
+vi.mock("./match-relationships.js", () => ({ getRelationshipPermissions: vi.fn(), getEffectiveVisibilityPolicy: vi.fn() }));
 vi.mock("./push-service.js", () => ({
   getNotificationPreferences: vi.fn(),
   isWithinQuietHours: vi.fn().mockReturnValue(false),
@@ -29,7 +34,7 @@ vi.mock("./push-service.js", () => ({
 }));
 vi.mock("./location-privacy.js", async (importOriginal) => ({
   ...await importOriginal<typeof import("./location-privacy.js")>(),
-  loadLocationEnvelopes: vi.fn()
+  loadLocationEnvelopes: vi.fn(), resolveViewerGhostCoordinate: vi.fn()
 }));
 vi.mock("./travel-pins.js", async (importOriginal) => ({
   ...await importOriginal<typeof import("./travel-pins.js")>(),
@@ -73,6 +78,11 @@ function pulseApp(senderHides = true, recipientHides = false, unreadableSender =
 }
 
 beforeEach(() => {
+  vi.mocked(listEncryptedRelationshipRecordsByParticipant).mockReset().mockResolvedValue([
+    { payload: { actorUserId: senderId, targetUserId: recipientId } }
+  ] as never);
+  vi.mocked(getEffectiveVisibilityPolicy).mockReset().mockResolvedValue({ baseMode: "PUBLIC_PRECISE" } as never);
+  vi.mocked(resolveViewerGhostCoordinate).mockReset().mockResolvedValue({ coordinate: { lat: 40.7128, lng: -74.006 } } as never);
   vi.mocked(createAppNotification).mockReset().mockResolvedValue({ id: "notification-1" } as never);
   vi.mocked(getRelationshipPermissions).mockReset().mockResolvedValue({ isMutualCruush: true } as never);
   vi.mocked(getNotificationPreferences).mockReset().mockResolvedValue(null as never);
@@ -112,6 +122,44 @@ describe("pulse notification caps", () => {
 });
 
 describe("pulse notification eligibility", () => {
+  it("bases Ghost Pulse delivery on the decoy, not the sender's real position", async () => {
+    vi.mocked(getEffectiveVisibilityPolicy).mockResolvedValue(buildDefaultVisibilityPolicy(config, senderId));
+    vi.mocked(resolveViewerGhostCoordinate).mockResolvedValue({ coordinate: { lat: 40.9, lng: -74.006 } } as never);
+    const app = pulseApp(false, false);
+    const result = await notifyPulseRecipients(app, { pingId: "ghost-pulse", senderUserId: senderId, radiusMiles: 1 });
+    expect(result.notified).toBe(0);
+    expect(resolveViewerGhostCoordinate).toHaveBeenCalled();
+    expect(createAppNotification).not.toHaveBeenCalled();
+  });
+
+  it("queries only mutual candidates before resolving privacy coordinates", async () => {
+    const app = pulseApp(false, false);
+    await notifyPulseRecipients(app, { pingId: "mutual-only", senderUserId: senderId, radiusMiles: 5 });
+    const query = vi.mocked(app.db.query).mock.calls.find(([sql]) => sql.includes("select profiles.id"));
+    expect(query?.[0]).toContain("profiles.id = any($2::uuid[])");
+    expect(query?.[1]).toEqual([senderId, [recipientId]]);
+  });
+
+  it("keeps an older nearby mutual eligible after the first 500 mutual records", async () => {
+    const nearbyId = "00000000-0000-4000-8000-999999999999";
+    const records = Array.from({ length: 501 }, (_, index) => ({ payload: {
+      actorUserId: senderId,
+      targetUserId: index === 500 ? nearbyId : `00000000-0000-4000-8000-${String(index + 100).padStart(12, "0")}`
+    } }));
+    vi.mocked(listEncryptedRelationshipRecordsByParticipant).mockImplementation(async (_app, input) =>
+      records.slice(0, input.limit === null ? undefined : input.limit ?? 500) as never);
+    const app = pulseApp(false, false);
+    const previous = vi.mocked(app.db.query).getMockImplementation()!;
+    vi.mocked(app.db.query).mockImplementation(async (sql, params) => {
+      if (sql.includes("select profiles.id")) {
+        return { rows: (params?.[1] as string[]).includes(nearbyId)
+          ? [{ user_id: nearbyId, latitude: 40.7128, longitude: -74.006 }] : [] } as never;
+      }
+      return previous(sql, params);
+    });
+    expect((await notifyPulseRecipients(app, { pingId: "older-mutual", senderUserId: senderId, radiusMiles: 1 })).notified).toBe(1);
+  });
+
   it("stops at the sender when the sender has no position to measure from", async () => {
     const query = vi.fn().mockResolvedValue({ rows: [] });
     const app = { db: { query }, log: { warn: vi.fn() } } as never;

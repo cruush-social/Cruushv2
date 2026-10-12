@@ -26,6 +26,17 @@ describe("profile visibility rules", () => {
     expect(canSubjectViewProfile(rules, { outside_service_area: false, mile_high_club_member: true })).toBe(true);
   });
 
+  it("uses the conservative Ghost distance bound without weakening the real-distance exclusion", () => {
+    const rules = { ...emptyProfile.visibility_rules, distance: 1 };
+    const viewer = { coordinates: { lat: 40.7128, lng: -74.006 } };
+    const decoy = { lat: 40.7128, lng: -74.006 };
+    expect(canSubjectViewProfile(rules, viewer, decoy, 0.9)).toBe(true);
+    expect(canSubjectViewProfile(rules, viewer, decoy, 1.1)).toBe(false);
+    expect(canSubjectViewProfile(rules, viewer, decoy, Infinity)).toBe(false);
+    expect(canSubjectViewProfile(rules, viewer, decoy, -1)).toBe(false);
+    expect(canSubjectViewProfile(rules, viewer, decoy)).toBe(true);
+  });
+
   it("treats selected trait values as excluded audiences", () => {
     const rules: ProfileVisibilityRules = {
       ...emptyProfile.visibility_rules,

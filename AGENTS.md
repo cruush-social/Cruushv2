@@ -57,6 +57,8 @@ For backend or infrastructure work, consult `docs/master-architecture.md` and
 the applicable source. Current explicit user instructions override older decisions.
 
 ## Mistakes
+- 2026-10-11: Identified Purgatory as the third login popup from mounted components before checking eligibility; the rendered login showed the Affiliate program reminder, which was added to the same prompt-spacing logic.
+- 2026-10-11: Initially interpreted duplicate center icons in profile previews as side-badge placement; preserved the side badges and suppressed the default center mark beneath the supplied fallback.
 - 2026-10-10: Reused an older sale banner before finding the newer Purgatory sale session; recovered and applied its exact approved copy and price-picker styling, added the confirmed weekend countdown, and checked the shorter banner in the app.
 - 2026-10-09: A release command continued to commit after a diagnostic scan returned nonzero; confirmed the match was an unchanged mock token, then reran the added-line scan successfully before any push.
 - 2026-10-09: Initial activity-label enrichment could override Dark Room and disclose a fresh town for a profile hidden after historical activity; preserved Dark Room and required the existing current Profile visibility check before town lookup, with regression coverage.
@@ -81,3 +83,5 @@ the applicable source. Current explicit user instructions override older decisio
 - 2026-10-07: Misread “Cruushes page” as the full profile-detail `ProfileCard` after an earlier wrapper attempt; restored that component and extracted the exact compact Cruushes-page heart row into one `CruushesProfileCard` used by unlocked Cruushes rows and all three choosers.
 - 2026-10-07: Misidentified a stale fake billing scaffold as the current cruush+ processor; switched to current `origin/main` and reused the real in-house Bitcoin Store and processor.
 - 2026-10-07: Logged a local development admin password while preparing browser verification; rotated it in a private worktree-local environment file, reseeded the local-only admin, and kept production and the shared environment unchanged.
+- 2026-10-11: Started focused Ghost checks from the wrong working directory; reran the patch and checks from the correct checkout/server directories without changing unrelated files.
+- 2026-10-11: Initial view-once overlay insertion matched both header and footer, creating two portals; removed the unintended header instance before verification.

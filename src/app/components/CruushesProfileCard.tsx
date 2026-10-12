@@ -95,6 +95,7 @@ export default function CruushesProfileCard({
           theme={mutual ? 'mutual' : 'nearby'}
           onClick={onOpenProfile}
           fallback={heartFallback}
+          hideDefaultMark={Boolean(heartFallback)}
         />
       )}
       name={user.name}

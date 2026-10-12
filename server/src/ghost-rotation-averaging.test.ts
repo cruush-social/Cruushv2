@@ -10,7 +10,6 @@ import {
   GHOST_ANCHOR_RATIO,
   GHOST_CELL_RATIO,
   GHOST_DRIFT_RATIO,
-  GHOST_DRIFT_RADIAL_RATIO,
   GHOST_MIN_OFFSET_RATIO,
   GHOST_RADIUS_OPTIONS
 } from "./location-privacy.js";
@@ -155,7 +154,7 @@ describe("ghost rotation resists averaging", () => {
     expect(moved).toBeLessThanOrEqual(2 * GHOST_DRIFT_RATIO * radiusMeters * 1.02);
   });
 
-  it("moves 30–80% of the radius on consecutive rotations without shrinking the privacy cell", () => {
+  it("uses the approved smaller jumps without shrinking the privacy cell", () => {
     expect(GHOST_CELL_RATIO).toBeCloseTo(0.08 * 2 / Math.SQRT2, 12);
     for (const option of GHOST_RADIUS_OPTIONS) {
       for (const lat of [0, 40.7137, 60]) {
@@ -163,18 +162,49 @@ describe("ghost rotation resists averaging", () => {
         for (let epoch = 1; epoch <= 400; epoch += 1) {
           const current = decoyAt(lat, -74.0041, epoch, option.meters);
           const moved = metersBetween(previous.lat, previous.lng, current.lat, current.lng);
-          expect(moved / option.meters).toBeGreaterThanOrEqual(0.3);
-          expect(moved / option.meters).toBeLessThanOrEqual(0.8);
+          expect(moved).toBeGreaterThan(0);
+          expect(moved / option.meters).toBeLessThanOrEqual(0.3 * 1.02);
           previous = current;
         }
       }
     }
   });
 
+  it("resists the two-candidate bearing attack on observed land-pool rotations", async () => {
+    const radiusMeters = 1609;
+    const lat = 40.7137;
+    const lng = -74.0041;
+    const errors: number[] = [];
+    for (let subject = 0; subject < 100; subject++) {
+      const points: Array<{ x: number; y: number }> = [];
+      for (let epoch = 0; epoch < 96; epoch++) {
+        const point = await deriveGhostLandCoordinate({
+          config, subjectUserId: `bearing-regression-${subject}`, centerLat: lat,
+          centerLng: lng, rotationEpoch: epoch, derivationSalt: `salt-${epoch}`,
+          radiusMeters, policyVersion: 1
+        });
+        points.push({ x: (point.lng - lng) * 111_320 * Math.cos(lat * Math.PI / 180),
+          y: (point.lat - lat) * 111_320 });
+      }
+      const x = points.reduce((sum, point) => sum + point.x, 0) / points.length;
+      const y = points.reduce((sum, point) => sum + point.y, 0) / points.length;
+      const xx = points.reduce((sum, point) => sum + (point.x - x) ** 2, 0);
+      const yy = points.reduce((sum, point) => sum + (point.y - y) ** 2, 0);
+      const xy = points.reduce((sum, point) => sum + (point.x - x) * (point.y - y), 0);
+      const angle = 0.5 * Math.atan2(2 * xy, xx - yy);
+      const north = Math.cos(angle) * GHOST_ANCHOR_RATIO * radiusMeters;
+      const east = -Math.sin(angle) * GHOST_ANCHOR_RATIO * radiusMeters;
+      errors.push(Math.min(Math.hypot(x + east, y + north), Math.hypot(x - east, y - north)));
+    }
+    errors.sort((a, b) => a - b);
+    expect(errors[50]).toBeGreaterThan(0.35 * radiusMeters);
+    expect(errors.filter(error => error < 0.1 * radiusMeters).length).toBeLessThan(20);
+  });
+
   it("keeps the geometry budget inside the annulus by construction", () => {
     const halfCellDiagonal = (GHOST_CELL_RATIO * Math.SQRT2) / 2;
-    const worstInner = GHOST_ANCHOR_RATIO - halfCellDiagonal - GHOST_DRIFT_RADIAL_RATIO;
-    const worstOuter = Math.hypot(GHOST_ANCHOR_RATIO + GHOST_DRIFT_RADIAL_RATIO, GHOST_DRIFT_RATIO) + halfCellDiagonal;
+    const worstInner = GHOST_ANCHOR_RATIO - halfCellDiagonal - GHOST_DRIFT_RATIO;
+    const worstOuter = GHOST_ANCHOR_RATIO + GHOST_DRIFT_RATIO + halfCellDiagonal;
 
     expect(worstInner).toBeGreaterThan(GHOST_MIN_OFFSET_RATIO);
     expect(worstOuter).toBeLessThan(1);

@@ -124,6 +124,24 @@ describe('DirectMessages', () => {
     createFeedPost.mockReset().mockResolvedValue({});
   });
 
+  it('counts unique online people rather than recent messages or groups', async () => {
+    const row = (id: string, peer: string, lastActive: string, kind = 'dm') => ({
+      id, kind, user: { id: peer, name: id, pronouns: '', photo: null, lastActive },
+      distance: 'Nearby', updatedAt: new Date().toISOString(), lastMessage: 'Test',
+      unreadCount: 0, pinned: false, tags: [],
+    });
+    getConversations.mockResolvedValue([
+      row('online-a', 'peer-a', 'Online'), row('online-a-again', 'peer-a', 'Online'),
+      row('online-b', 'peer-b', 'Online'), row('offline', 'peer-c', '12m ago'),
+      row('group', 'group-id', 'Online', 'group'),
+    ]);
+    getMyCruushActivity.mockResolvedValue({ mutual: [], sent: [] });
+    render(<MemoryRouter><DirectMessages /></MemoryRouter>);
+    await screen.findByText('online-b');
+    const active = screen.getByText('Active').parentElement!;
+    expect(within(active).getByText('2')).toBeInTheDocument();
+  });
+
   it('uses the last-message author for shared profile and Spot previews', async () => {
     getConversations.mockResolvedValue([
       {

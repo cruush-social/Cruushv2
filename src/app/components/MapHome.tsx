@@ -3488,7 +3488,12 @@ export default function MapHome(_props: MapHomeProps = {}) {
                   className={`h-9 rounded-full border border-white/10 px-5 text-[11px] uppercase tracking-[0.18em] text-white shadow-[0_10px_24px_rgba(0,0,0,0.32)] backdrop-blur-md transition hover:border-white/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/65 ${
                     isRecentlyActiveOpen ? '' : 'bg-[color:var(--cruush-black-glass)] backdrop-blur-[var(--cruush-black-glass-blur)]'
                   }`}
-                  onClick={() => setIsRecentlyActiveOpen((open) => !open)}
+                  onClick={() => {
+                    if (!isRecentlyActiveOpen) {
+                      void fetchUsers(getCurrentFetchCoordinates(), filters, { background: true });
+                    }
+                    setIsRecentlyActiveOpen((open) => !open);
+                  }}
                   style={isRecentlyActiveOpen ? { background: 'var(--cruush-gradient)' } : undefined}
                 >
                   Recently Active

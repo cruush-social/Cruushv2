@@ -1,7 +1,7 @@
 import { act, fireEvent, render, screen } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { resetExclusivePopupsForTest, useExclusivePopup } from '../lib/popupQueue';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { LOGIN_POPUP_GAP_MS, resetExclusivePopupsForTest, useExclusivePopup } from '../lib/popupQueue';
 
 const { getRewardSummary } = vi.hoisted(() => ({ getRewardSummary: vi.fn() }));
 vi.mock('../lib/rewardsApi', () => ({ getRewardSummary }));
@@ -24,6 +24,8 @@ describe('AffiliateLoginReminder', () => {
     getRewardSummary.mockReset();
     getRewardSummary.mockResolvedValue({ referrals: { link: 'https://example.test/invite' }, rules: { referralRewardDays: 7 } });
   });
+
+  afterEach(() => { resetExclusivePopupsForTest(); vi.useRealTimers(); });
 
   it('shows server-owned reward terms once daily and opens Rewards', async () => {
     const first = render(view());
@@ -48,13 +50,17 @@ describe('AffiliateLoginReminder', () => {
     expect(localStorage.getItem(affiliateReminderKey('member'))).toBe(affiliateReminderDay());
   });
 
-  it('waits for earlier prompts without consuming the daily reminder', async () => {
+  it('waits thirty seconds after earlier prompts without consuming the daily reminder', async () => {
+    vi.useFakeTimers();
     const rendered = render(view('member', true));
     await act(async () => {});
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
     expect(localStorage.getItem(affiliateReminderKey('member'))).toBeNull();
     rendered.rerender(view('member', false));
-    expect(await screen.findByRole('dialog')).toBeInTheDocument();
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(localStorage.getItem(affiliateReminderKey('member'))).toBeNull();
+    await act(async () => { vi.advanceTimersByTime(LOGIN_POPUP_GAP_MS); });
+    expect(screen.getByRole('dialog')).toBeInTheDocument();
   });
 
   it('keeps separate daily state for different accounts', async () => {

@@ -1,7 +1,10 @@
+import { listEncryptedRelationshipRecordsByParticipant } from "./encrypted-relationships.js";
+import { resolveVisibilityLocation } from "./visibility-location.js";
+import { type LocationPayload } from "./location-privacy.js";
 import type { FastifyInstance } from "fastify";
 import { distanceMiles } from "./beta-access.js";
 import { createAppNotification } from "./notification-service.js";
-import { getRelationshipPermissions } from "./match-relationships.js";
+import { getEffectiveVisibilityPolicy, getRelationshipPermissions } from "./match-relationships.js";
 import { decryptProfileVisibility, decryptSensitiveProfile } from "./profile-sensitive.js";
 import { canSubjectViewProfile, type VisibilityCoordinates, type VisibilitySubjectProfile } from "./profile-visibility.js";
 import { getNotificationPreferences, isWithinQuietHours, sendPushForNotification } from "./push-service.js";
@@ -125,10 +128,17 @@ function toPulseVisibilitySubject(
   };
 }
 
+function pulseLocation(subjectUserId: string, coordinate: VisibilityCoordinates): LocationPayload {
+  return { version: 1, subjectUserId, locationVersion: 0,
+    latE7: Math.round((coordinate.lat ?? NaN) * 1e7), lonE7: Math.round((coordinate.lng ?? NaN) * 1e7),
+    accuracyM: 0, source: "SYSTEM", deviceReportedAtMs: Date.now(),
+    collectedAtMs: Date.now(), expiresAtMs: Date.now() + 180_000, keyVersion: "v1" };
+}
+
 async function profilesAreMutuallyVisible(
   app: FastifyInstance,
-  sender: { userId: string; profile: PulseProfileRow; subject: VisibilitySubjectProfile; coordinates: VisibilityCoordinates },
-  candidate: { userId: string; profile: PulseProfileRow; subject: VisibilitySubjectProfile; coordinates: VisibilityCoordinates },
+  sender: { userId: string; profile: PulseProfileRow; subject: VisibilitySubjectProfile; coordinates: VisibilityCoordinates; uncertaintyMiles?: number },
+  candidate: { userId: string; profile: PulseProfileRow; subject: VisibilitySubjectProfile; coordinates: VisibilityCoordinates; uncertaintyMiles?: number },
   outsideServiceArea: (userId: string) => Promise<boolean>
 ) {
   const senderRules = decryptProfileVisibility(app.config, sender.profile);
@@ -142,8 +152,11 @@ async function profilesAreMutuallyVisible(
     senderRules?.outside_service_area_members ? outsideServiceArea(candidate.userId) : undefined
   ]);
 
-  return canSubjectViewProfile(candidateRules, { ...sender.subject, outside_service_area: senderOos }, candidate.coordinates) &&
-    canSubjectViewProfile(senderRules, { ...candidate.subject, outside_service_area: candidateOos }, sender.coordinates);
+  const uncertaintyMiles = (sender.uncertaintyMiles ?? 0) + (candidate.uncertaintyMiles ?? 0);
+  return canSubjectViewProfile(candidateRules, { ...sender.subject, outside_service_area: senderOos },
+      candidate.coordinates, uncertaintyMiles) &&
+    canSubjectViewProfile(senderRules, { ...candidate.subject, outside_service_area: candidateOos },
+      sender.coordinates, uncertaintyMiles);
 }
 
 /**
@@ -207,11 +220,13 @@ async function loadNearbyCandidates(
   app: FastifyInstance,
   input: PulseNotificationInput & { source: { lat: number; lng: number } }
 ): Promise<PulseCandidateRow[]> {
-  // A degree of latitude is about 69 miles; longitude shrinks with latitude.
-  // The box is a cheap prefilter and the exact distance is checked below.
-  const latitudeSpan = input.radiusMiles / 69;
-  const longitudeSpan = input.radiusMiles / Math.max(1, 69 * Math.cos((input.source.lat * Math.PI) / 180));
-
+  const mutuals = await listEncryptedRelationshipRecordsByParticipant(app, {
+    participantUserId: input.senderUserId, type: "mutual_cruush", limit: null
+  });
+  const candidateIds = [...new Set(mutuals.map(record => record.payload.actorUserId === input.senderUserId
+    ? record.payload.targetUserId : record.payload.actorUserId))];
+  if (!candidateIds.length) return [];
+  // Raw-coordinate candidate bounds would form a Ghost distance oracle.
   const result = await app.db.query<PulseCandidateRow>(
     `select profiles.id::text as user_id,
             profiles.tags,
@@ -245,22 +260,15 @@ async function loadNearbyCandidates(
      from profiles
      join app_users on app_users.id = profiles.id
      where profiles.id <> $1
+       and profiles.id = any($2::uuid[])
        and coalesce(app_users.account_status, 'active') = 'active'
-       and coalesce(profiles.lat, profiles.fuzzy_lat) between $2 and $3
-       and coalesce(profiles.lng, profiles.fuzzy_lng) between $4 and $5
        and not exists (
          select 1
          from user_blocks block
          where (block.blocker_user_id = $1 and block.blocked_user_id = profiles.id)
             or (block.blocker_user_id = profiles.id and block.blocked_user_id = $1)
        )`,
-    [
-      input.senderUserId,
-      input.source.lat - latitudeSpan,
-      input.source.lat + latitudeSpan,
-      input.source.lng - longitudeSpan,
-      input.source.lng + longitudeSpan
-    ]
+    [input.senderUserId, candidateIds]
   );
 
   return result.rows;
@@ -306,39 +314,46 @@ export async function notifyPulseRecipients(
     return { notified: 0 };
   }
 
+  const senderPolicy = await getEffectiveVisibilityPolicy(app, input.senderUserId);
+  if (senderPolicy.baseMode === "STEALTH") return { notified: 0 };
   const senderPin = (await loadTravelPins(app, [input.senderUserId])).get(input.senderUserId);
   const senderCoordinates = senderPin
-    ? { lat: senderPin.latitude, lng: senderPin.longitude }
-    : sender.source;
+    ? { lat: senderPin.latitude, lng: senderPin.longitude } : sender.source;
+  const senderLocation = pulseLocation(input.senderUserId, senderCoordinates);
   const candidates = await loadNearbyCandidates(app, { ...input, source: senderCoordinates });
-  const mileHighClubPins = await loadTravelPins(
-    app,
-    candidates.map((candidate) => candidate.user_id)
-  );
-  const senderSubject = toPulseVisibilitySubject(
-    app,
-    sender.profile,
-    senderCoordinates,
-    Boolean(senderPin)
-  );
-
-  const withinRadius = candidates
-    .filter((row) => Number.isFinite(row.latitude) && Number.isFinite(row.longitude))
-    .map((row) => {
+  const mileHighClubPins = await loadTravelPins(app, candidates.map(candidate => candidate.user_id));
+  const senderSubject = toPulseVisibilitySubject(app, sender.profile, senderCoordinates, Boolean(senderPin));
+  const withinRadius = (await Promise.all(candidates
+    .filter(row => Number.isFinite(row.latitude) && Number.isFinite(row.longitude))
+    .map(async row => {
+      try {
       const candidatePin = mileHighClubPins.get(row.user_id);
       const coordinates = candidatePin
         ? { lat: candidatePin.latitude, lng: candidatePin.longitude }
         : { lat: row.latitude as number, lng: row.longitude as number };
-
-      return {
-        userId: row.user_id,
-        miles: distanceMiles(senderCoordinates, coordinates),
-        profile: row,
-        coordinates,
-        subject: toPulseVisibilitySubject(app, row, coordinates, Boolean(candidatePin))
-      };
-    })
-    .filter((row) => row.miles <= input.radiusMiles)
+      const subject = toPulseVisibilitySubject(app, row, coordinates, Boolean(candidatePin));
+      const senderDisplay = await resolveVisibilityLocation(app, {
+        viewerUserId: row.user_id, subjectUserId: input.senderUserId, location: senderLocation,
+        viewerCrowds: subject.crowds ?? [], subjectCrowds: senderSubject.crowds ?? []
+      });
+      const candidateDisplay = await resolveVisibilityLocation(app, {
+        viewerUserId: input.senderUserId, subjectUserId: row.user_id,
+        location: pulseLocation(row.user_id, coordinates),
+        viewerCrowds: senderSubject.crowds ?? [], subjectCrowds: subject.crowds ?? []
+      });
+      const displayedCoordinates = candidateDisplay?.coordinate ?? coordinates;
+      return { userId: row.user_id, profile: row,
+        coordinates: displayedCoordinates, subject: { ...subject, coordinates: displayedCoordinates },
+        uncertaintyMiles: candidateDisplay?.uncertaintyMiles ?? Infinity,
+        senderDisplay,
+        miles: senderDisplay && candidateDisplay
+          ? distanceMiles(senderDisplay.coordinate, candidateDisplay.coordinate)
+            + senderDisplay.uncertaintyMiles + candidateDisplay.uncertaintyMiles : Infinity };
+      } catch {
+        return null;
+      }
+    })))
+    .filter((row): row is NonNullable<typeof row> => row !== null && row.miles <= input.radiusMiles)
     .sort((a, b) => a.miles - b.miles);
 
   if (withinRadius.length === 0) {
@@ -374,7 +389,10 @@ export async function notifyPulseRecipients(
 
     if (!await profilesAreMutuallyVisible(
       app,
-      { userId: input.senderUserId, profile: sender.profile, subject: senderSubject, coordinates: senderCoordinates },
+      { userId: input.senderUserId, profile: sender.profile,
+        subject: { ...senderSubject, coordinates: candidate.senderDisplay!.coordinate },
+        coordinates: candidate.senderDisplay!.coordinate,
+        uncertaintyMiles: candidate.senderDisplay!.uncertaintyMiles },
       candidate,
       outsideServiceArea
     )) {

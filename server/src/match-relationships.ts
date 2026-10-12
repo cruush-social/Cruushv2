@@ -1,3 +1,4 @@
+import { resolveViewerPrecisionGrant } from "./visibility-location.js";
 import type { FastifyInstance } from "fastify";
 import {
   buildEncryptedRelationshipPayload,
@@ -218,6 +219,10 @@ export async function getSharedDistanceLabelMode(app: FastifyInstance, viewerUse
   // Keep existing callers unchanged; town-aware surfaces conservatively use
   // their existing approximate label when the subject is hidden.
   if (options?.forTown && subject.baseMode === "STEALTH") return "approximate";
+  if (subject.baseMode === "GHOST" && viewerUserId !== targetUserId &&
+      !(await resolveViewerPrecisionGrant(app, { viewerUserId, subjectUserId: targetUserId }))) {
+    return "approximate";
+  }
   return resolveSharedDistanceLabelMode(viewer.distanceLabelMode, subject.distanceLabelMode);
 }
 

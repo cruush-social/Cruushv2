@@ -19,6 +19,10 @@ export function pushPromptHandledKey(userId: string) {
   return `cruush:first-entry-push:${PUSH_PROMPT_VERSION}:${userId}`;
 }
 
+export function pushPromptCompletedKey(userId: string) {
+  return `cruush:first-entry-push-completed:${PUSH_PROMPT_VERSION}:${userId}`;
+}
+
 function isStandaloneDisplay() {
   return window.matchMedia?.('(display-mode: standalone)').matches
     || (window.navigator as Navigator & { standalone?: boolean }).standalone === true;
@@ -34,9 +38,11 @@ function isAndroidBrowser() {
 
 function canOfferAndroidPush(userId: string) {
   return isAndroidBrowser()
+    && !wasHandled('localStorage', pushPromptCompletedKey(userId))
     && 'Notification' in window
     && Boolean(navigator.serviceWorker)
     && 'PushManager' in window
+    && Notification.permission !== 'denied'
     && !wasHandled('sessionStorage', androidPushPromptSessionKey(userId));
 }
 
@@ -65,7 +71,7 @@ export default function PushPermissionPrompt({ userId }: { userId: string }) {
   const [saving, setSaving] = useState(false);
   const [checkingPreference, setCheckingPreference] = useState(() => canOfferAndroidPush(userId) && Notification.permission === 'granted');
   const enableGeneration = useRef(0);
-  const ownsSlot = useExclusivePopup('push-permission', visible || checkingPreference);
+  const ownsSlot = useExclusivePopup('push-permission', visible || checkingPreference, visible);
   const showing = visible && ownsSlot;
 
   useEffect(() => {
@@ -82,8 +88,11 @@ export default function PushPermissionPrompt({ userId }: { userId: string }) {
         preferencePending = false;
         if (active) setCheckingPreference(false);
       }, PUSH_PREFERENCE_TIMEOUT_MS);
-      void getNotificationPreferences().then((preferences) => {
-        if (active && preferencePending) setVisible(!preferences.pushEnabled);
+      void Promise.all([
+        getNotificationPreferences(),
+        navigator.serviceWorker.getRegistration?.().then(registration => registration?.pushManager.getSubscription()).catch(() => null) ?? Promise.resolve(null),
+      ]).then(([preferences, subscription]) => {
+        if (active && preferencePending) setVisible(!preferences.pushEnabled && !subscription);
       }).catch(() => {
         // An unavailable preference is not evidence that push is off.
       }).finally(() => {
@@ -119,6 +128,8 @@ export default function PushPermissionPrompt({ userId }: { userId: string }) {
     try {
       await enablePushNotifications();
       if (generation !== enableGeneration.current) return;
+      try { window.localStorage.setItem(pushPromptCompletedKey(userId), 'true'); }
+      catch { /* Permission/subscription checks still suppress completed setup. */ }
       markHandledAndClose();
     } catch (nextError) {
       if (generation !== enableGeneration.current) return;

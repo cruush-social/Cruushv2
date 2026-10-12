@@ -1073,6 +1073,7 @@ describe('LocalFeed', () => {
     });
     // 905b731 moved "Who can see this post" out of Feed settings and into the
     // composer, where the per-post state already lived.
+    fireEvent.click(within(composer).getByRole('button', { name: 'Toggle post audience' }));
     fireEvent.click(await within(composer).findByRole('button', { name: 'Who can see this post' }));
     fireEvent.click(await screen.findByRole('option', { name: 'Cruushes', exact: true }));
     fireEvent.click(await within(composer).findByRole('button', { name: 'Post' }));
@@ -1122,6 +1123,7 @@ describe('LocalFeed', () => {
     const composer = await screen.findByTestId('local-feed-composer');
     openComposer();
 
+    fireEvent.click(within(composer).getByRole('button', { name: 'Toggle post audience' }));
     fireEvent.click(await within(composer).findByRole('button', { name: 'Who can see this post' }));
     expect(screen.queryByRole('option', { name: 'Dyke', exact: true })).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole('option', { name: 'Crowd mode', exact: true }));
@@ -1162,6 +1164,7 @@ describe('LocalFeed', () => {
     });
 
     // cruush+ members pick each eligible Crowd directly in the audience picker.
+    fireEvent.click(screen.getByRole('button', { name: 'Toggle post audience' }));
     fireEvent.click(await screen.findByRole('button', { name: 'Who can see this post' }));
     fireEvent.click(await screen.findByRole('option', { name: 'Dyke', exact: true }));
     fireEvent.click(await screen.findByRole('option', { name: 'Gay', exact: true }));

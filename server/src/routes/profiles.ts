@@ -59,6 +59,7 @@ import {
   type SensitiveProfileData,
   type SensitiveProfileToken
 } from "../profile-sensitive.js";
+import { resolveVisibilityLocation } from "../visibility-location.js";
 import { getActiveAccountUserId, getAuthenticatedUserId } from "../request-auth.js";
 import { assertUsersNotBlocked } from "../user-blocks.js";
 import { formatPresenceLabel } from "../discovery-users.js";
@@ -1662,8 +1663,8 @@ async function assertProfileRowVisibleToViewer(
   // only the row meant a distance rule had nothing to measure, so people who
   // set one vanished from the profile route while still showing on the map.
   const coordinates = viewerUserId
-    ? await loadVisibilityCoordinates(app, viewerUserId, row)
-    : { viewer: null, target: getProfileCoordinates(row) };
+    ? await loadVisibilityCoordinates(app, viewerUserId, row, visibilityRules?.distance != null)
+    : { viewer: null, target: getProfileCoordinates(row), uncertaintyMiles: 0 };
 
   const viewerSubject = viewerProfile
     ? {
@@ -1676,7 +1677,7 @@ async function assertProfileRowVisibleToViewer(
       }
     : null;
 
-  if (!viewerSubject || !canSubjectViewProfile(visibilityRules, viewerSubject, coordinates.target)) {
+  if (!viewerSubject || !canSubjectViewProfile(visibilityRules, viewerSubject, coordinates.target, coordinates.uncertaintyMiles)) {
     throw new ApiError(404, "NOT_FOUND", "Profile not found");
   }
 }
@@ -1686,7 +1687,7 @@ async function assertProfileRowVisibleToViewer(
  * them: the encrypted location envelope first, the profile row only as a
  * fallback for the few accounts that still carry one.
  */
-async function loadVisibilityCoordinates(app: FastifyInstance, viewerUserId: string, row: ProfileRow) {
+async function loadVisibilityCoordinates(app: FastifyInstance, viewerUserId: string, row: ProfileRow, protectDistance = false) {
   const envelopes = await loadLocationEnvelopes(app, [viewerUserId, row.id]).catch((error: unknown) => {
     if (isSchemaCompatibilityError(error)) {
       return new Map<string, LocationPayload>();
@@ -1704,9 +1705,20 @@ async function loadVisibilityCoordinates(app: FastifyInstance, viewerUserId: str
   )).rows[0];
   const rowTarget = getProfileCoordinates(row);
 
+  const target = targetFromEnvelope ?? rowTarget;
+  const location = targetEnvelope ?? (target.lat != null && target.lng != null ? {
+    version: 1 as const, subjectUserId: row.id, locationVersion: 0,
+    latE7: Math.round(target.lat * 1e7), lonE7: Math.round(target.lng * 1e7),
+    accuracyM: 0, source: "SYSTEM" as const, deviceReportedAtMs: Date.now(),
+    collectedAtMs: Date.now(), expiresAtMs: Date.now() + 180_000, keyVersion: "v1"
+  } : null);
+  const visibleLocation = protectDistance && location
+    ? await resolveVisibilityLocation(app, { viewerUserId, subjectUserId: row.id, location })
+    : null;
   return {
     viewer: viewerFromEnvelope ?? (viewerRow ? getProfileCoordinates(viewerRow as unknown as ProfileRow) : null),
-    target: targetFromEnvelope ?? rowTarget
+    target: protectDistance ? visibleLocation?.coordinate ?? null : target,
+    uncertaintyMiles: visibleLocation?.uncertaintyMiles ?? 0
   };
 }
 

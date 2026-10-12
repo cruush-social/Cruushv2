@@ -1,3 +1,6 @@
+import { resolveVisibilityLocation } from "../visibility-location.js";
+import { loadLocationEnvelopes } from "../location-privacy.js";
+import { distanceMiles as visibilityDistanceMiles } from "../beta-access.js";
 import { nonBannedAccountSql } from "../banned-content.js";
 import { getMhcLocationLabel } from "../mhc-location-label.js";
 import type { FastifyInstance } from "fastify";
@@ -674,20 +677,9 @@ export async function registerPostRoutes(app: FastifyInstance) {
         when $2 ~ '^[0-9]+d$' then split_part($2, 'd', 1)::integer * interval '1 day'
         else interval '24 hours'
       end)`,
-      `(
-        $5::double precision is null
-        or $3::double precision is null
-        or $4::double precision is null
-        or (
-          coalesce(pr.fuzzy_lat, pr.lat) is not null
-          and coalesce(pr.fuzzy_lng, pr.lng) is not null
-          and 3958.8 * 2 * asin(sqrt(
-            power(sin(radians((coalesce(pr.fuzzy_lat, pr.lat) - $3::double precision) / 2)), 2)
-            + cos(radians($3::double precision)) * cos(radians(coalesce(pr.fuzzy_lat, pr.lat)))
-              * power(sin(radians((coalesce(pr.fuzzy_lng, pr.lng) - $4::double precision) / 2)), 2)
-          )) <= $5::double precision
-        )
-      )`,
+      // Distance eligibility is evaluated on viewer-authorized coordinates
+      // below, never on raw profile-row coordinates before pagination.
+      "($5::double precision is null or $5::double precision > 0)",
       "($6::timestamptz is null or p.created_at < $6::timestamptz or (p.created_at = $6::timestamptz and p.id < $7::uuid))",
       `not exists (
         select 1
@@ -788,10 +780,24 @@ export async function registerPostRoutes(app: FastifyInstance) {
         result.rows.map((row) => row.user_id), viewerOutsideServiceArea);
       const authorStatuses = query.purgatoryMembers || query.excludePurgatoryMembers
         ? await loadOutOfSightStatuses(app, result.rows.map((row) => row.user_id)) : null;
+      const distanceEligibility = new Map<string, boolean>();
+      if (query.distanceMiles !== "global" && query.lat != null && query.lng != null) {
+        const locations = await loadLocationEnvelopes(app, result.rows.map(row => row.user_id));
+        await Promise.all([...new Set(result.rows.map(row => row.user_id))].map(async subjectUserId => {
+          const location = locations.get(subjectUserId);
+          const displayed = location ? await resolveVisibilityLocation(app, {
+            viewerUserId: userId, subjectUserId, location
+          }) : null;
+          distanceEligibility.set(subjectUserId, displayed !== null &&
+            visibilityDistanceMiles({ lat: query.lat!, lng: query.lng! }, displayed.coordinate)
+              + displayed.uncertaintyMiles <= (query.distanceMiles as number));
+        }));
+      }
       const audienceVisibility = await Promise.all(
         result.rows.map(async (row) => ({
           row,
-          visible: !hiddenAuthors.has(row.user_id) && !feedHiddenAuthors.has(row.user_id)
+          visible: distanceEligibility.get(row.user_id) !== false
+            && !hiddenAuthors.has(row.user_id) && !feedHiddenAuthors.has(row.user_id)
             && (!authorStatuses || authorStatuses.get(row.user_id) === (query.purgatoryMembers ? "out_of_sight" : "in_area"))
             && await canViewPostAudience(app, userId, row)
         }))

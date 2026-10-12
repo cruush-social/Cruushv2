@@ -438,6 +438,27 @@ export default function DirectMessages({
     await fetchConversations(true);
   });
 
+  useEffect(() => {
+    let active = true;
+    let refreshing = false;
+    const refresh = async () => {
+      if (!active || refreshing || document.visibilityState === 'hidden') return;
+      refreshing = true;
+      try { await fetchConversations(true); }
+      catch { /* The existing request handler reports the failure. */ }
+      finally { refreshing = false; }
+    };
+    const timer = window.setInterval(() => void refresh(), 30_000);
+    window.addEventListener('focus', refresh);
+    document.addEventListener('visibilitychange', refresh);
+    return () => {
+      active = false;
+      window.clearInterval(timer);
+      window.removeEventListener('focus', refresh);
+      document.removeEventListener('visibilitychange', refresh);
+    };
+  }, []);
+
   const query = deferredSearchQuery.trim().toLowerCase();
   const filteredConversations = conversations.filter((conversation) => {
     if (activeTab === 'unread' && conversation.unreadCount === 0) {
@@ -478,7 +499,9 @@ export default function DirectMessages({
   const clubUnreadCount = conversations
     .filter((conversation) => Boolean(conversation.clubId))
     .reduce((sum, conversation) => sum + conversation.unreadCount, 0);
-  const activeNowCount = conversations.filter((conversation) => formatRelativeTime(conversation.updatedAt).includes('m')).length;
+  const activeNowCount = new Set(conversations
+    .filter((conversation) => conversation.kind === 'dm' && conversation.user.lastActive === 'Online')
+    .map((conversation) => conversation.user.id)).size;
   const groupMutuals = useMemo(() => {
     const groupQuery = groupSearchQuery.trim().toLowerCase();
     const filtered = mutualOptions.filter((item) => {
