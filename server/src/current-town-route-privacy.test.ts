@@ -383,6 +383,18 @@ describe("current town labels use only authorized precise saved-OOS subjects", (
     expect(await relationships.getSharedDistanceLabelMode(app, viewer, subject, { forTown: true })).toBe("approximate");
   });
 
+  it("keeps retained activity coarse when the Ghost grant policy read fails", async () => {
+    const { relationships } = await useRealEncryptedPrivacy();
+    m.loadPolicy.mockImplementation(async (_app, id) => {
+      if (id === subject) throw Object.assign(new Error("privacy record unavailable"), { code: "23503" });
+      return { baseMode: "PUBLIC_PRECISE", distanceLabelMode: "precise", auditRequired: false };
+    });
+    // The existing privacy fallback is Ghost; the subsequent grant lookup must
+    // also fail closed instead of rejecting the entire activity response.
+    expect(await relationships.getSharedDistanceLabelMode(app, viewer, subject)).toBe("approximate");
+    expect(await relationships.getSharedDistanceLabelMode(app, viewer, subject, { forTown: true })).toBe("approximate");
+  });
+
   it("fails closed when the actual encrypted subject policy is unreadable", async () => {
     const { relationships } = await useRealEncryptedPrivacy();
     policyRows.get(subject)!.policy_auth_tag = "invalid";

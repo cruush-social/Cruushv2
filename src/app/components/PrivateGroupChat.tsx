@@ -481,6 +481,12 @@ export default function PrivateGroupChat({
       if (viewport.scrollTop < lastScrollTop - 1) release();
       lastScrollTop = viewport.scrollTop;
     };
+    const onReaderInteraction = (event: Event) => {
+      // Typing or sending in the composer is not browsing older messages.
+      if (event.target instanceof Node && composerBarRef.current?.contains(event.target)
+        && viewport.scrollHeight - viewport.clientHeight - viewport.scrollTop <= 24) return;
+      release();
+    };
     const onKeyDown = (event: KeyboardEvent) => {
       if (['ArrowUp', 'ArrowDown', 'PageUp', 'PageDown', 'Home', 'End', ' '].includes(event.key)
         && !(event.target instanceof Element && event.target.closest('input, textarea, [contenteditable="true"]'))) release();
@@ -490,8 +496,8 @@ export default function PrivateGroupChat({
     observer.observe(viewport);
     if (composerBarRef.current) observer.observe(composerBarRef.current);
     viewport.addEventListener('wheel', release, { passive: true });
-    viewport.addEventListener('touchstart', release, { passive: true });
-    viewport.addEventListener('pointerdown', release, { passive: true });
+    viewport.addEventListener('touchstart', onReaderInteraction, { passive: true });
+    viewport.addEventListener('pointerdown', onReaderInteraction, { passive: true });
     viewport.addEventListener('keydown', onKeyDown);
     viewport.addEventListener('scroll', onScroll, { passive: true });
     retainLatest();
@@ -499,8 +505,8 @@ export default function PrivateGroupChat({
       release();
       observer.disconnect();
       viewport.removeEventListener('wheel', release);
-      viewport.removeEventListener('touchstart', release);
-      viewport.removeEventListener('pointerdown', release);
+      viewport.removeEventListener('touchstart', onReaderInteraction);
+      viewport.removeEventListener('pointerdown', onReaderInteraction);
       viewport.removeEventListener('keydown', onKeyDown);
       viewport.removeEventListener('scroll', onScroll);
     };

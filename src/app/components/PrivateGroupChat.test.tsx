@@ -2246,6 +2246,22 @@ describe('PrivateGroupChat', () => {
       } finally { rendered.unmount(); harness.restore(); }
     });
 
+    it.each(['pointerDown', 'touchStart'] as const)('keeps the newest message visible after composer %s', async input => {
+      const harness = scrollHarness();
+      getConversationMessages.mockResolvedValue(chatData('dm'));
+      const rendered = render(<MemoryRouter><div data-testid="app-page-content"><PrivateGroupChat conversationId={conversationId} /></div></MemoryRouter>);
+      try {
+        const viewport = screen.getByTestId('app-page-content');
+        Object.defineProperty(viewport, 'scrollHeight', { configurable: true, value: 1600 });
+        Object.defineProperty(viewport, 'clientHeight', { configurable: true, value: 600 });
+        await screen.findByText('Newest message'); harness.flush();
+        fireEvent[input](screen.getByTestId('chat-composer-bar'));
+        Object.defineProperty(viewport, 'scrollHeight', { configurable: true, value: 1800 });
+        harness.resize(screen.getByTestId('chat-thread-content')); harness.flush();
+        expect(viewport.scrollTop).toBe(1200);
+      } finally { rendered.unmount(); harness.restore(); }
+    });
+
     it.each(['wheel', 'scroll', 'keyboard'] as const)('preserves older history after %s through later messages and media resizing', async input => {
       const harness = scrollHarness();
       getConversationMessages.mockResolvedValue(chatData('group'));
