@@ -669,7 +669,7 @@ export async function registerPostRoutes(app: FastifyInstance) {
       "coalesce(author.account_status, 'active') <> 'deleted'",
       nonBannedAccountSql("p.user_id"),
       notTombstonedSql("pr"),
-      `(p.created_at >= now() - case
+      `($2 = 'never' or p.created_at >= now() - case
         when $2 = '1h' then interval '1 hour'
         when $2 = '3h' then interval '3 hours'
         when $2 = '6h' then interval '6 hours'

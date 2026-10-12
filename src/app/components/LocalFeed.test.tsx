@@ -436,15 +436,15 @@ describe('LocalFeed', () => {
     await waitFor(() => expect(getFeedPosts).toHaveBeenLastCalledWith(expect.objectContaining({ within: '24h' })));
   });
 
-  it('normalizes a saved Never filter to 30d without changing post expiry', async () => {
+  it('preserves a saved Never filter without changing post expiry', async () => {
     getFeedPosts.mockResolvedValue([]);
     getFeedSettings.mockResolvedValue({ locationPinVisibility: 'mutuals', showDistanceLabels: true, postExpiryDefault: 'never', feedWindow: 'never' });
     render(<MemoryRouter><LocalFeed /></MemoryRouter>);
-    await waitFor(() => expect(getFeedPosts).toHaveBeenLastCalledWith(expect.objectContaining({ within: '30d' })));
+    await waitFor(() => expect(getFeedPosts).toHaveBeenLastCalledWith(expect.objectContaining({ within: 'never' })));
     fireEvent.click(screen.getByRole('button', { name: 'Confessional settings' }));
     const page = await screen.findByTestId('feed-settings-page');
-    expect(within(page).getByRole('slider', { name: 'Posted within' })).toHaveAttribute('aria-valuenow', '27');
-    expect(within(page).queryByText('Never')).not.toBeInTheDocument();
+    expect(within(page).getByRole('slider', { name: 'Posted within' })).toHaveAttribute('aria-valuenow', '28');
+    expect(within(page).getAllByText('Never').length).toBeGreaterThan(0);
   });
 
   it('defaults and resets Feed distance to Global while allowing a finite distance', async () => {
@@ -518,7 +518,7 @@ describe('LocalFeed', () => {
     expect(within(page).queryByRole('switch', { name: 'Purgatory members only' })).not.toBeInTheDocument();
   });
 
-  it('ends Posted within at 30d without offering Never', async () => {
+  it('offers Never for all-time Posted within and sends it to the Feed API', async () => {
     getFeedPosts.mockResolvedValue([]);
     render(<MemoryRouter><LocalFeed /></MemoryRouter>);
 
@@ -529,13 +529,13 @@ describe('LocalFeed', () => {
     fireEvent.keyDown(postedWithinSlider, { key: 'End' });
 
     await waitFor(() => expect(updateFeedSettings).toHaveBeenCalledWith(expect.objectContaining({
-      feedWindow: '30d',
+      feedWindow: 'never',
     })));
     await waitFor(() => expect(getFeedPosts).toHaveBeenLastCalledWith(expect.objectContaining({
-      within: '30d',
+      within: 'never',
     })));
-    expect(postedWithinSlider).toHaveAttribute('aria-valuenow', '27');
-    expect(within(settingsPage).queryByText('Never')).not.toBeInTheDocument();
+    expect(postedWithinSlider).toHaveAttribute('aria-valuenow', '28');
+    expect(within(settingsPage).getAllByText('Never').length).toBeGreaterThan(0);
   });
 
   it('offers 8d through 30d in Posted within and sends the selected window to the Feed API', async () => {
@@ -550,6 +550,7 @@ describe('LocalFeed', () => {
     await waitFor(() => expect(getFeedPosts).toHaveBeenLastCalledWith(expect.objectContaining({ within: '8d' })));
 
     fireEvent.keyDown(slider, { key: 'End' });
+    fireEvent.keyDown(slider, { key: 'ArrowLeft' });
     await waitFor(() => expect(updateFeedSettings).toHaveBeenCalledWith(expect.objectContaining({ feedWindow: '30d' })));
   });
 

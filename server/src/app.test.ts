@@ -11662,7 +11662,7 @@ describe("server", () => {
     expect(String(query.mock.calls[2]?.[0])).not.toContain("p.expires_in = 'never' or p.created_at >= now()");
   });
 
-  it("applies the 30d created-at cutoff for a legacy Posted within Never request", async () => {
+  it("bypasses only the created-at cutoff for Posted within Never", async () => {
     query
       .mockResolvedValueOnce({ rows: [] }) // encrypted viewer location
       .mockResolvedValueOnce({ rows: [] }) // viewer travel pin
@@ -11677,9 +11677,10 @@ describe("server", () => {
     expect(response.statusCode).toBe(200);
     expect(query.mock.calls[2]?.[0]).toContain("p.created_at >= now() - case");
     expect(query.mock.calls[2]?.[0]).toContain("split_part($2, 'd', 1)::integer * interval '1 day'");
-    expect(query.mock.calls[2]?.[0]).not.toContain("$2 = 'never'");
+    expect(query.mock.calls[2]?.[0]).toContain("$2 = 'never' or p.created_at");
+    expect(query.mock.calls[2]?.[0]).toContain("p.expires_at > now()");
     expect(query.mock.calls[2]?.[0]).not.toContain("p.expires_in = 'never' or p.created_at >= now()");
-    expect(query.mock.calls[2]?.[1]?.[1]).toBe("30d");
+    expect(query.mock.calls[2]?.[1]?.[1]).toBe("never");
   });
 
   it("returns the persisted feed expiry choice on another page or device", async () => {

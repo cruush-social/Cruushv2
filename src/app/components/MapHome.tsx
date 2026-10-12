@@ -696,6 +696,7 @@ type MapRouteState = {
   openConversationWithUserId?: string;
   centerEventSlug?: string;
   focusUserId?: string;
+  consumedIncomingProfileLink?: string;
   seekingFilters?: FilterState;
 } | null;
 
@@ -1153,6 +1154,8 @@ export default function MapHome(_props: MapHomeProps = {}) {
   const isMutualMapMode = searchParams.get('mode') === 'mutuals';
   const lastMutualMapModeRef = useRef(isMutualMapMode);
   const focusUserId = searchParams.get('focusUserId') ?? routeState?.focusUserId ?? null;
+  const consumedIncomingProfileLinkRef = useRef<string | null>(null);
+  const preserveIncomingProfileCamera = !isMutualMapMode && Boolean(focusUserId || (routeState?.consumedIncomingProfileLink && routeState.consumedIncomingProfileLink === consumedIncomingProfileLinkRef.current));
   const nearbyNotificationId = searchParams.get('nearbyNotification');
   const [nearbyArea, setNearbyArea] = useState<NearbyNotificationArea | null>(null);
   useEffect(() => {
@@ -1459,6 +1462,30 @@ export default function MapHome(_props: MapHomeProps = {}) {
 
     setSelectedUser(user);
   };
+
+  useEffect(() => {
+    // Incoming-cruush links identify a profile, not a location grant. Preserve
+    // mutual-map camera links and open this actor using the normal profile flow.
+    if (isMutualMapMode || !focusUserId || loading || !hasFetchedInitialUsersRef.current) return;
+    const linkKey = `${location.key}:${focusUserId}`;
+    if (consumedIncomingProfileLinkRef.current === linkKey) return;
+    consumedIncomingProfileLinkRef.current = linkKey;
+    const actor = users.find((user) => user.id === focusUserId && !user.isDemo);
+    const remainingParams = new URLSearchParams(location.search);
+    remainingParams.delete('focusUserId');
+    const remainingSearch = remainingParams.toString();
+    navigate(`${location.pathname}${remainingSearch ? `?${remainingSearch}` : ''}`, {
+      replace: true,
+      state: { ...routeState, focusUserId: undefined, consumedIncomingProfileLink: linkKey },
+    });
+    if (actor) {
+      handleUserSelect(actor);
+    } else {
+      // Discovery can omit a distant actor. The profile route enforces current
+      // availability and block restrictions without creating a map pin.
+      navigate(`/profile/${encodeURIComponent(focusUserId)}`);
+    }
+  }, [focusUserId, isMutualMapMode, loading, users, location.key]);
 
   const handleBlockedUser = (blockedUserId: string) => {
     setUsers((currentUsers) => currentUsers.filter((user) => user.id !== blockedUserId));
@@ -2650,7 +2677,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
     }
   };
 
-  const fitToMapMarkers = !restoredMapViewport && !currentUserMapLocation && !isMutualMapMode && !focusUserId;
+  const fitToMapMarkers = !restoredMapViewport && !currentUserMapLocation && !isMutualMapMode && !focusUserId && !preserveIncomingProfileCamera;
   const mapMarkers = useMemo<MapMarker[]>(() => {
     const activeReceivedPings = new Map(
       (mapPingStatus?.receivedPings ?? [])
@@ -3104,7 +3131,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
                 nearbyArea ??
                 browserFocusCoordinates ??
                 placeReturnFocus ??
-                (focusUserId || restoredViewportApplies ? undefined : travelMapLocation ?? (restoredMapViewport ? undefined : currentUserMapLocation))
+                (focusUserId || preserveIncomingProfileCamera || restoredViewportApplies ? undefined : travelMapLocation ?? (restoredMapViewport ? undefined : currentUserMapLocation))
               }
               initialViewport={restoredMapViewport && restoredViewportApplies ? {
                 center: {
@@ -3115,7 +3142,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
               } : undefined}
               initialZoom={restoredMapViewport?.zoom ?? restoredMapZoom ?? undefined}
               preserveInitialZoomOnLoad={Boolean(
-                restoredMapZoom != null && !focusUserId && !travelMapLocation,
+                restoredMapZoom != null && !focusUserId && !preserveIncomingProfileCamera && !travelMapLocation,
               )}
               denseVenue={denseVenue}
               radiusCircle={privacySettings.ghostModeEnabled && privacySettings.ghostLeashVisible !== false && currentUserMapLocation

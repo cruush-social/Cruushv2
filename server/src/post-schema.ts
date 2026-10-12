@@ -5,9 +5,8 @@ import { normalizeCrowdOption } from "./profile-sensitive.js";
 export const postExpirySchema = z.enum(["30m", "1h", "3h", "6h", "12h", "24h", "2d", "3d", "5d", "7d", "8d", "9d", "10d", "11d", "12d", "13d", "14d", "15d", "16d", "17d", "18d", "19d", "20d", "21d", "22d", "23d", "24d", "25d", "26d", "27d", "28d", "29d", "30d", "never"]);
 export const feedPostAudienceSchema = z.enum(["public", "mutuals", "crowd"]);
 export const feedLocationPinVisibilitySchema = z.enum(["off", "mutuals", "same_crowd", "public"]);
-// Accept legacy filters without restoring an unbounded window or changing post expiry.
-export const feedWindowSchema = z.enum(["1h", "3h", "6h", "24h", "7d", "8d", "9d", "10d", "11d", "12d", "13d", "14d", "15d", "16d", "17d", "18d", "19d", "20d", "21d", "22d", "23d", "24d", "25d", "26d", "27d", "28d", "29d", "30d", "never"])
-  .transform((value) => value === "never" ? "30d" : value);
+// Never removes the post-age cutoff; post expiry remains a separate setting.
+export const feedWindowSchema = z.enum(["1h", "3h", "6h", "24h", "7d", "8d", "9d", "10d", "11d", "12d", "13d", "14d", "15d", "16d", "17d", "18d", "19d", "20d", "21d", "22d", "23d", "24d", "25d", "26d", "27d", "28d", "29d", "30d", "never"]);
 
 export const crowdTargetsSchema = z.array(z.string()).optional().default([])
   .transform((values, ctx) => {

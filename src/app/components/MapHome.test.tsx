@@ -357,7 +357,12 @@ vi.mock('./MapView', async () => {
 
 function LocationProbe() {
   const location = useLocation();
-  return <div data-testid="location-probe">{location.pathname}</div>;
+  return <div data-testid="location-probe">{location.pathname}{location.search}</div>;
+}
+
+function NormalMapNavigationProbe() {
+  const navigate = useNavigate();
+  return <button onClick={() => navigate('/map')}>Normal map entry</button>;
 }
 
 function ServiceAreaRouteProbe() {
@@ -2778,6 +2783,59 @@ describe('MapHome', () => {
       fireEvent.click(screen.getByRole('button', { name: /^visibility$/i }));
       expect(screen.getByRole('button', { name: 'Remove #reviewtag' })).toBeInTheDocument();
     }
+  });
+
+  it('opens an incoming cruush actor once and consumes its map deep link', async () => {
+    useIsMobile.mockReturnValue(false);
+    render(<MemoryRouter initialEntries={['/map?focusUserId=user-1']}>
+      <Routes><Route path="/map" element={<><MapHome /><LocationProbe /></>} /></Routes>
+    </MemoryRouter>);
+    expect(await screen.findByRole('complementary')).toBeInTheDocument();
+    expect(getProfileById).toHaveBeenCalledWith('user-1');
+    expect(screen.getByTestId('location-probe')).toHaveTextContent('/map');
+    await waitFor(() => expect(screen.getByTestId('location-probe')).not.toHaveTextContent('focusUserId'));
+    expect(screen.getByTestId('map-focus')).toHaveAttribute('data-fit-to-markers', 'false');
+    fireEvent.click(screen.getByRole('button', { name: /close profile/i }));
+    await act(async () => { window.dispatchEvent(new Event('focus')); });
+    expect(screen.queryByRole('complementary')).not.toBeInTheDocument();
+  });
+
+  it('restores normal camera framing on a later plain map entry without reopening the actor', async () => {
+    useIsMobile.mockReturnValue(false);
+    navigator.geolocation.getCurrentPosition = vi.fn();
+    render(<MemoryRouter initialEntries={['/map?focusUserId=user-1']}>
+      <Routes><Route path="/map" element={<><MapHome /><LocationProbe /><NormalMapNavigationProbe /></>} /></Routes>
+    </MemoryRouter>);
+    await screen.findByRole('complementary');
+    await waitFor(() => expect(screen.getByTestId('location-probe')).not.toHaveTextContent('focusUserId'));
+    fireEvent.click(screen.getByRole('button', { name: /close profile/i }));
+    expect(screen.getByTestId('map-focus')).toHaveAttribute('data-fit-to-markers', 'false');
+    fireEvent.click(screen.getByRole('button', { name: 'Normal map entry' }));
+    await waitFor(() => expect(screen.getByTestId('map-focus')).toHaveAttribute('data-fit-to-markers', 'true'));
+    expect(screen.queryByRole('complementary')).not.toBeInTheDocument();
+  });
+
+  it('opens an incoming cruush profile on mobile and consumes the return link', async () => {
+    useIsMobile.mockReturnValue(true);
+    window.localStorage.setItem('cruush.desktopPageLayout', 'fullscreen');
+    render(<MemoryRouter initialEntries={['/map?focusUserId=user-1']}>
+      <Routes>
+        <Route path="/map" element={<MapHome />} />
+        <Route path="/profile/:userId" element={<LocationProbe />} />
+      </Routes>
+    </MemoryRouter>);
+    expect(await screen.findByTestId('location-probe')).toHaveTextContent('/profile/user-1');
+  });
+
+  it('opens a cruush actor outside discovery through the guarded profile route', async () => {
+    getNearbyUsers.mockResolvedValue([]);
+    render(<MemoryRouter initialEntries={['/map?focusUserId=missing-actor']}>
+      <Routes>
+        <Route path="/map" element={<MapHome />} />
+        <Route path="/profile/:userId" element={<LocationProbe />} />
+      </Routes>
+    </MemoryRouter>);
+    expect(await screen.findByTestId('location-probe')).toHaveTextContent('/profile/missing-actor');
   });
 
   it('opens the desktop popup instead of navigating immediately', async () => {

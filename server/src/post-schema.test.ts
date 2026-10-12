@@ -2,8 +2,8 @@ import { describe, expect, it } from "vitest";
 import { createPostPayloadSchema, feedWindowSchema, updateFeedSettingsPayloadSchema } from "./post-schema.js";
 
 describe("Feed Posted within compatibility", () => {
-  it("normalizes the legacy never filter to the largest remaining window", () => {
-    expect(feedWindowSchema.parse("never")).toBe("30d");
+  it("preserves Never as an unbounded age filter", () => {
+    expect(feedWindowSchema.parse("never")).toBe("never");
     expect(feedWindowSchema.default("7d").parse(undefined)).toBe("7d");
   });
 
@@ -20,7 +20,7 @@ describe("Feed Posted within compatibility", () => {
     }
   });
 
-  it("normalizes legacy settings without changing never-expiring posts", () => {
+  it("preserves Never settings without changing never-expiring posts", () => {
     expect(updateFeedSettingsPayloadSchema.parse({
       locationPinVisibility: "mutuals",
       feedWindow: "never",
@@ -28,7 +28,7 @@ describe("Feed Posted within compatibility", () => {
     })).toEqual({
       locationPinVisibility: "mutuals",
       showDistanceLabels: true,
-      feedWindow: "30d",
+      feedWindow: "never",
       postExpiryDefault: "never"
     });
     expect(createPostPayloadSchema.parse({ content: "No expiry", expiresIn: "never" }).expiresIn).toBe("never");

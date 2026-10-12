@@ -1,5 +1,6 @@
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
-import { MemoryRouter } from 'react-router';
+import { MemoryRouter, useLocation } from 'react-router';
+import { PopupRouteContext } from '../lib/popupRouteContext';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { CryptoPaymentRailId, CryptoProcessorStatus } from '../lib/cryptoCheckoutApi';
 import CruushPlusStore from './CruushPlusStore';
@@ -205,6 +206,10 @@ function renderStore() {
   );
 }
 
+function BackDestination() {
+  return <span data-testid="back-destination">{useLocation().pathname}</span>;
+}
+
 // Every render loads the Bitcoin sending sample. An empty map evaluates nothing,
 // so tests that are not about it keep the whole catalogue listed.
 beforeEach(() => {
@@ -227,6 +232,22 @@ describe('CruushPlusStore', () => {
       currency: 'USD',
       plans,
     });
+  });
+
+  it.each(['direct', 'history', 'popup'])('makes Back work from %s entry', async (entry) => {
+    vi.mocked(getCryptoProcessorStatus).mockResolvedValue(processorStatus([]));
+    const close = vi.fn();
+    render(
+      <MemoryRouter initialEntries={entry === 'history' ? ['/settings', '/store'] : ['/store']} initialIndex={entry === 'history' ? 1 : 0}>
+        <PopupRouteContext.Provider value={entry === 'popup' ? { onClose: close } : null}>
+          <CruushPlusStore />
+          <BackDestination />
+        </PopupRouteContext.Provider>
+      </MemoryRouter>,
+    );
+    fireEvent.click(await screen.findByRole('button', { name: 'Back', exact: true }));
+    expect(screen.getByTestId('back-destination')).toHaveTextContent(entry === 'history' ? '/settings' : entry === 'popup' ? '/store' : '/map');
+    expect(close).toHaveBeenCalledTimes(entry === 'popup' ? 1 : 0);
   });
 
   it('disables new cruush+ purchases even when every stablecoin rail is ready', async () => {

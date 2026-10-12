@@ -85,3 +85,5 @@ the applicable source. Current explicit user instructions override older decisio
 - 2026-10-07: Logged a local development admin password while preparing browser verification; rotated it in a private worktree-local environment file, reseeded the local-only admin, and kept production and the shared environment unchanged.
 - 2026-10-11: Started focused Ghost checks from the wrong working directory; reran the patch and checks from the correct checkout/server directories without changing unrelated files.
 - 2026-10-11: Initial view-once overlay insertion matched both header and footer, creating two portals; removed the unintended header instance before verification.
+- 2026-10-12: Initial Rewards/Store Back repair assumed browser history; inspected the authenticated MemoryRouter and corrected the handlers and tests to preserve its actual history before delivery.
+- 2026-10-12: Initial notification-link repair retained camera suppression after later ordinary map navigation; constrained it to the consumed link's route state and verified normal navigation restores existing framing.

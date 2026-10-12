@@ -1,6 +1,7 @@
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { MemoryRouter } from 'react-router';
+import { MemoryRouter, useLocation } from 'react-router';
+import { PopupRouteContext } from '../lib/popupRouteContext';
 import { CRUUSH_PLUS_FEATURES } from '../lib/cruushPlusFeatures';
 import Rewards from './Rewards';
 import { getMyBillingStatus } from '../lib/billingApi';
@@ -76,6 +77,10 @@ function renderRewards() {
   );
 }
 
+function BackDestination() {
+  return <span data-testid="back-destination">{useLocation().pathname}</span>;
+}
+
 describe('Rewards', () => {
   afterEach(() => vi.restoreAllMocks());
 
@@ -102,6 +107,21 @@ describe('Rewards', () => {
       configurable: true,
       value: { writeText: vi.fn().mockResolvedValue(undefined) },
     });
+  });
+
+  it.each(['direct', 'history', 'popup'])('makes Back work from %s entry', async (entry) => {
+    const close = vi.fn();
+    render(
+      <MemoryRouter initialEntries={entry === 'history' ? ['/settings', '/rewards'] : ['/rewards']} initialIndex={entry === 'history' ? 1 : 0}>
+        <PopupRouteContext.Provider value={entry === 'popup' ? { onClose: close } : null}>
+          <Rewards />
+          <BackDestination />
+        </PopupRouteContext.Provider>
+      </MemoryRouter>,
+    );
+    fireEvent.click(await screen.findByRole('button', { name: 'Back', exact: true }));
+    expect(screen.getByTestId('back-destination')).toHaveTextContent(entry === 'history' ? '/settings' : entry === 'popup' ? '/rewards' : '/map');
+    expect(close).toHaveBeenCalledTimes(entry === 'popup' ? 1 : 0);
   });
 
   it('renders loading, success, and empty-history states safely', async () => {

@@ -1,5 +1,6 @@
-import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
-import { useNavigate } from 'react-router';
+import { useCallback, useContext, useEffect, useRef, useState, type FormEvent } from 'react';
+import { UNSAFE_NavigationContext, useNavigate } from 'react-router';
+import { usePopupRoute } from '../lib/popupRouteContext';
 import {
   Clipboard,
   Gift,
@@ -69,6 +70,13 @@ function formatRemainingTime(remainingMs: number) {
 
 export default function Rewards() {
   const navigate = useNavigate();
+  const { navigator: routerNavigator } = useContext(UNSAFE_NavigationContext);
+  const popupRoute = usePopupRoute();
+  const handleBack = () => {
+    if (popupRoute) popupRoute.onClose();
+    else if (((routerNavigator as typeof routerNavigator & { index?: number }).index ?? window.history.state?.idx ?? 0) > 0) navigate(-1);
+    else navigate('/map', { replace: true });
+  };
   const [summary, setSummary] = useState<RewardSummary | null>(null);
   const [billingStatus, setBillingStatus] = useState<BillingStatus | null>(null);
   const [clockMs, setClockMs] = useState(() => Date.now());
@@ -292,7 +300,7 @@ export default function Rewards() {
     <div className="min-h-screen bg-background pb-24">
       <AppPageHeader
         title={<CruushPlusSectionTitle />}
-        onBack={() => navigate(-1)}
+        onBack={handleBack}
         bugButtonTestId="rewards-bug-button-slot"
       />
 

@@ -107,6 +107,7 @@ const FEED_WINDOW_OPTIONS: Array<{ value: FeedPostWindow; label: string }> = [
     const label = `${index + 7}d`;
     return { value: label as FeedPostWindow, label };
   }),
+  { value: 'never', label: 'Never' },
 ];
 const FEED_EXPIRY_OPTIONS: Array<{ value: FeedPostExpiry; label: string }> = [
   { value: '30m', label: '30m' },
@@ -460,8 +461,6 @@ export default function LocalFeed({ embedded = false, onClose }: { embedded?: bo
     initialFeedSettingsRef.current = getFeedSettings()
       .then((settings) => {
         const nextSettings = { ...DEFAULT_FEED_SETTINGS, ...settings };
-        // Older clients saved an unbounded filter; use the largest remaining window.
-        if (String(nextSettings.feedWindow) === 'never') nextSettings.feedWindow = '30d';
         if (hasCruushPlusRef.current === false) {
           nextSettings.postExpiryDefault = 'never';
         }

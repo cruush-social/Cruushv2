@@ -1,5 +1,6 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
-import { useLocation, useNavigate } from 'react-router';
+import { useCallback, useContext, useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
+import { UNSAFE_NavigationContext, useLocation, useNavigate } from 'react-router';
+import { usePopupRoute } from '../lib/popupRouteContext';
 import { ApiClientError } from '../lib/apiClient';
 import { Check, Copy, Info, Shield } from 'lucide-react';
 import { Button } from './ui/button';
@@ -158,6 +159,13 @@ export default function CruushPlusStore({ product = 'cruush_plus' }: { product?:
   const statusCopy = isPulse ? { ...PAYMENT_STATUS_COPY, paid: 'Payment confirmed. Your Pulses are available.', failed: 'Payment was not confirmed. No Pulses were added.' } : PAYMENT_STATUS_COPY;
   const [gasFeeHelpOpen, setGasFeeHelpOpen] = useState(false);
   const navigate = useNavigate();
+  const { navigator: routerNavigator } = useContext(UNSAFE_NavigationContext);
+  const popupRoute = usePopupRoute();
+  const handleBack = () => {
+    if (popupRoute) popupRoute.onClose();
+    else if (((routerNavigator as typeof routerNavigator & { index?: number }).index ?? window.history.state?.idx ?? 0) > 0) navigate(-1);
+    else navigate('/map', { replace: true });
+  };
   const location = useLocation();
   const conversionContext = useMemo(
     () => readCruushPlusConversionContext(location.search),
@@ -856,7 +864,7 @@ export default function CruushPlusStore({ product = 'cruush_plus' }: { product?:
     <div className="min-h-screen bg-background pb-24 text-foreground">
       <AppPageHeader
         title={isPulse ? 'Get Pulses' : <CruushPlusSectionTitle />}
-        onBack={() => navigate(-1)}
+        onBack={handleBack}
         bugButtonTestId="cruush-plus-store-bug-button-slot"
       />
 
