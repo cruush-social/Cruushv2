@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import ProfileCard from './ProfileCard';
@@ -296,6 +296,87 @@ describe('ProfileCard', () => {
     expect(screen.getByTestId('carousel-profile-photo')).toHaveAttribute('src', '/jordan.jpg');
     expect(screen.queryByTestId('carousel-profile-photo-hearts')).not.toBeInTheDocument();
     expect(getProfileById).not.toHaveBeenCalled();
+  });
+
+  it.each(['standard', 'carousel'] as const)('keeps fetched membership stable on a %s photo relationship refresh', async presentation => {
+    getProfileById.mockResolvedValue({ outOfSight: true });
+    const base = { id: 'user-1', name: 'Jordan', photo: '/jordan.jpg', photos: ['/jordan.jpg'] };
+    const card = (user: typeof base) => <MemoryRouter><ProfileCard user={user} presentation={presentation} onViewProfile={vi.fn()} /></MemoryRouter>;
+    const { rerender } = render(card(base));
+    await screen.findByRole('button', { name: 'This is a Purgatory member.' });
+    rerender(card({ ...base, ...{ photo_relationship: { isMutualCruush: true } } }));
+    expect(screen.getByRole('button', { name: 'This is a Purgatory member.' })).toBeInTheDocument();
+    expect(getProfileById).toHaveBeenCalledTimes(1);
+  });
+
+  it.each(['photoRelationship', 'photo_relationship'])('updates authoritative carousel grants and restrictions from %s', (relationshipKey) => {
+    window.localStorage.setItem('cruush:dl-mode-enabled', 'false');
+    const base = {
+      id: 'user-1', name: 'Jordan', photo: '/jordan.jpg', photos: ['/jordan.jpg'], outOfSight: false,
+      photo_metadata: [{ url: '/jordan.jpg', explicit: true }],
+    };
+    const restricted = { ...base, [relationshipKey]: { isMutualCruush: false, nsfwPhotoRestriction: 'mutual_cruushes' } };
+    const allowed = { ...base, [relationshipKey]: { isMutualCruush: true }, relationship: { mutualCruush: true } };
+    const card = (user: typeof base) => <MemoryRouter><ProfileCard user={user} presentation="carousel" onViewProfile={vi.fn()} /></MemoryRouter>;
+    const { rerender } = render(card(restricted));
+    expect(screen.getByTestId('dl-mode-photo-placeholder')).toHaveAttribute('aria-label', 'MUTUAL CRUUSHES ONLY');
+    rerender(card(allowed));
+    expect(screen.getByTestId('carousel-profile-photo')).toHaveAttribute('src', '/jordan.jpg');
+    rerender(card(restricted));
+    expect(screen.queryByTestId('carousel-profile-photo')).not.toBeInTheDocument();
+    expect(screen.getByTestId('dl-mode-photo-placeholder')).toHaveAttribute('aria-label', 'MUTUAL CRUUSHES ONLY');
+  });
+
+  it('retains a valid selected photo on authoritative refresh and bounds it when photos disappear', () => {
+    window.localStorage.setItem('cruush:dl-mode-enabled', 'false');
+    const base = { id: 'user-1', name: 'Jordan', photo: '/jordan.jpg', photos: ['/jordan.jpg', '/second.jpg'], outOfSight: false };
+    const card = (user: typeof base) => <MemoryRouter><ProfileCard user={user} presentation="carousel" onViewProfile={vi.fn()} /></MemoryRouter>;
+    const { rerender } = render(card(base));
+    fireEvent.click(screen.getByRole('button', { name: 'Show profile photo 2' }));
+    rerender(card({ ...base, photos: [...base.photos] }));
+    expect(screen.getByTestId('carousel-profile-photo')).toHaveAttribute('src', '/second.jpg');
+    rerender(card({ ...base, photos: ['/jordan.jpg'] }));
+    expect(screen.getByTestId('carousel-profile-photo')).toHaveAttribute('src', '/jordan.jpg');
+    rerender(card(base));
+    fireEvent.click(screen.getByRole('button', { name: 'Show profile photo 2' }));
+    rerender(card({ ...base, id: 'user-2' }));
+    expect(screen.getByTestId('carousel-profile-photo')).toHaveAttribute('src', '/jordan.jpg');
+  });
+
+  it('keeps the fetched gallery selection and classifications during a relationship-only refresh', async () => {
+    window.localStorage.setItem('cruush:dl-mode-enabled', 'false');
+    getProfileById.mockResolvedValueOnce({
+      photos: ['/jordan.jpg', '/second.jpg'],
+      photo_metadata: [{ url: '/jordan.jpg', explicit: false }, { url: '/second.jpg', explicit: true }],
+      photo_relationship: { isMutualCruush: true },
+    });
+    const base = { id: 'user-1', name: 'Jordan', photo: '/jordan.jpg', outOfSight: false };
+    const card = (user: typeof base) => <MemoryRouter><ProfileCard user={user} presentation="carousel" onViewProfile={vi.fn()} /></MemoryRouter>;
+    const { rerender } = render(card(base));
+    fireEvent.click(await screen.findByRole('button', { name: 'Show profile photo 2' }));
+    expect(screen.getByTestId('carousel-profile-photo')).toHaveAttribute('src', '/second.jpg');
+    getProfileById.mockReturnValueOnce(new Promise(() => {}));
+    rerender(card({ ...base, ...{ photo_relationship: { isMutualCruush: false, nsfwPhotoRestriction: 'mutual_cruushes' } } }));
+    expect(screen.queryByTestId('carousel-profile-photo')).not.toBeInTheDocument();
+    expect(screen.getByTestId('dl-mode-photo-placeholder')).toHaveAttribute('aria-label', 'MUTUAL CRUUSHES ONLY');
+  });
+
+  it.each([true, false])('ignores late gallery data after newer authoritative restriction=%s', async (restricted) => {
+    window.localStorage.setItem('cruush:dl-mode-enabled', 'false');
+    let resolveGallery!: (profile: unknown) => void;
+    getProfileById.mockReturnValue(new Promise((resolve) => { resolveGallery = resolve; }));
+    const base = { id: 'user-1', name: 'Jordan', photo: '/jordan.jpg', outOfSight: false };
+    const card = (user: typeof base) => <MemoryRouter><ProfileCard user={user} presentation="carousel" onViewProfile={vi.fn()} /></MemoryRouter>;
+    const { rerender } = render(card(base));
+    const relationship = (denied: boolean) => ({ isMutualCruush: !denied, nsfwPhotoRestriction: denied ? 'mutual_cruushes' : undefined });
+    rerender(card({ ...base, ...{
+      photos: ['/jordan.jpg'], photo_metadata: [{ url: '/jordan.jpg', explicit: true }],
+      photo_relationship: relationship(restricted),
+    } }));
+    await act(async () => { resolveGallery({ photos: ['/jordan.jpg', '/stale.jpg'], photo_metadata: [{ url: '/jordan.jpg', explicit: true }], photo_relationship: relationship(!restricted) }); });
+    expect(getProfileById).toHaveBeenCalledTimes(1);
+    expect(Boolean(screen.queryByTestId('carousel-profile-photo'))).toBe(!restricted);
+    expect(screen.queryByRole('button', { name: 'Show profile photo 2' })).not.toBeInTheDocument();
   });
 
   it('shows a large DL Mode icon and label on a masked carousel card', () => {

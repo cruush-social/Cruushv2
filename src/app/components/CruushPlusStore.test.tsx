@@ -1096,6 +1096,11 @@ describe('CruushPlusStore', () => {
     expect(link).toHaveAttribute('href', '/billing-policy');
     expect(refundLink).toHaveAttribute('href', '/support?refund=1');
     expect(billingSupportLink).toHaveAttribute('href', '/support?billing=payment');
+    expect(link.closest('div')).toHaveTextContent('after 30 minutes, contact payment support.');
+    expect(link.closest('div')).toHaveTextContent('Please don’t pay again while it’s being checked.');
+    fireEvent.click(screen.getByRole('button', { name: 'Why cruush takes crypto' }));
+    expect(screen.getByRole('link', { name: 'How stablecoin payments work' })).toHaveAttribute('href', '/blog/stablecoin-payments.html');
+    expect(screen.getByRole('link', { name: 'Crypto first. On our terms.' })).toHaveAttribute('href', '/blog/crypto-first.html');
     expect(link.closest('div')).toHaveTextContent('one-time purchase. nothing renews automatically.');
     expect(link.closest('div')).toHaveTextContent(
       'no voluntary refunds; any withdrawal, refund, or other remedy required by applicable law still applies.',

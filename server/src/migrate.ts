@@ -2,7 +2,7 @@ import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import pg from "pg";
-import { loadConfig } from "./config.js";
+import { loadMigrationCryptoConfig } from "./migration-config.js";
 import { decryptOosState, encryptOosState, type OosStateCryptoConfig } from "./oos-state-crypto.js";
 import {
   decryptServiceAreaEmailPayload, encryptServiceAreaEmailPayload, serviceAreaEmailDedupeToken,
@@ -248,7 +248,8 @@ const migrationFiles = [
   "222_feed_purgatory_visibility.sql",
   "223_place_checkin_audiences.sql",
   "224_feed_window_default_thirty_days.sql",
-  "225_profile_last_seen.sql"
+  "225_profile_last_seen.sql",
+  "226_crypto_gas_alerts.sql"
 ];
 const rewardSafetyPreflightFiles = [
   "079_daily_check_in_rewards.sql",
@@ -395,7 +396,7 @@ export async function runMigration(
     await client.query(sql);
     if (file === "219_encrypted_service_area_email_outbox.sql") {
       try {
-        await migrateLegacyServiceAreaEmailOutboxes(client, cryptoConfig ?? loadConfig());
+        await migrateLegacyServiceAreaEmailOutboxes(client, cryptoConfig ?? loadMigrationCryptoConfig());
       } catch {
         // Do not log PostgreSQL details or crypto input containing private legacy data.
         throw new Error("Encrypted service-area outbox migration failed; transaction must roll back.");
@@ -410,7 +411,7 @@ export async function runMigration(
       const legacyCount = Number(legacyColumns.rows[0]?.count ?? 0);
       if (legacyCount !== 0 && legacyCount !== 2) throw new Error("Incomplete legacy OOS state schema.");
       if (legacyCount === 2) {
-        const config = cryptoConfig ?? loadConfig();
+        const config = cryptoConfig ?? loadMigrationCryptoConfig();
         const rows = await client.query<{
           user_id: string; is_outside: boolean; current_event_id: string | null;
         }>(`select user_id::text, is_outside, current_event_id::text

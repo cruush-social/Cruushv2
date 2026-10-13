@@ -63,7 +63,7 @@ Index keys and signing/hash keys are outside this fallback mechanism.
 | `CSAM_REPORTING_ENABLED` | server | yes | `server/src/config.ts` |  |
 | `CSAM_REPORTING_MODE` | server | yes | `server/src/config.ts` |  |
 | `CSAM_REPORTING_TEST_MODE` | server | yes | `server/src/config.ts` |  |
-| `DATABASE_URL` | server | yes | `server/src/migrate.ts`, `server/src/config.ts` |  |
+| `DATABASE_URL` | server | yes | `server/src/migrate.ts`, `server/src/config.ts` | API: restricted runtime role. Explicit migration job: schema owner, in a separate process environment. API startup no longer runs migrations. See [cutover runbook](database-credential-cutover.md). |
 | `DEVELOPMENT_ADMIN_ENABLED` | server | yes | `server/src/config.ts` |  |
 | `DEVELOPMENT_ADMIN_PASSWORD` | server | yes | `server/src/config.ts` |  |
 | `DISPLAY_TOKEN_ENCRYPTION_KEY` | server | yes | `server/src/config.ts` |  |
@@ -93,9 +93,9 @@ Index keys and signing/hash keys are outside this fallback mechanism.
 | `LAUNCH_PARTY_RADIUS_MILES` | server | no | `server/src/config.ts` | **missing from .env.example** |
 | `LAUNCH_PARTY_STARTS_AT` | server | no | `scripts/generate-event-pass-door-guide.mjs`, `server/src/config.ts` | **missing from .env.example** |
 | `LAUNCH_PARTY_TIME_ZONE` | server | no | `scripts/generate-event-pass-door-guide.mjs` | tooling |
-| `LOCATION_ENCRYPTION_KEY` | server | yes | `server/src/config.ts` |  |
-| `LOCATION_ENCRYPTION_KEY_PREVIOUS` | server | yes | `server/src/config.ts` | Optional previous secret; unset by default. |
-| `LOCATION_ENCRYPTION_KEY_VERSION` | server | yes | `server/src/config.ts` |  |
+| `LOCATION_ENCRYPTION_KEY` | server | yes | `server/src/config.ts`, `server/src/migration-config.ts` |  |
+| `LOCATION_ENCRYPTION_KEY_PREVIOUS` | server | yes | `server/src/config.ts`, `server/src/migration-config.ts` | Optional previous secret; unset by default. |
+| `LOCATION_ENCRYPTION_KEY_VERSION` | server | yes | `server/src/config.ts`, `server/src/migration-config.ts` |  |
 | `LOCATION_INDEX_KEY` | server | yes | `server/src/config.ts` |  |
 | `LOCATION_INDEX_KEY_VERSION` | server | yes | `server/src/config.ts` |  |
 | `MAIL_FROM` | server | yes | `server/src/check-rekognition-health.ts`, `server/src/config.ts` |  |
@@ -122,7 +122,7 @@ Index keys and signing/hash keys are outside this fallback mechanism.
 | `MODERATION_MEDIA_BASE_URL` | server | yes | `server/src/config.ts` |  |
 | `MODERATION_PROVIDER` | server | yes | `server/src/config.ts` |  |
 | `MODERATION_TIMEOUT_MS` | server | yes | `server/src/config.ts` |  |
-| `NODE_ENV` | server | no | `server/src/config.ts` | **missing from .env.example** |
+| `NODE_ENV` | server | no | `server/src/config.ts`, `server/src/migration-config.ts` | **missing from .env.example** |
 | `PHOTODNA_API_URL` | server | yes | `server/src/config.ts` |  |
 | `PHOTODNA_ENABLED` | server | yes | `server/src/config.ts` |  |
 | `PHOTODNA_OPERATION_PATH` | server | yes | `server/src/config.ts` |  |
@@ -152,7 +152,7 @@ Index keys and signing/hash keys are outside this fallback mechanism.
 | `CLUB_ENROLLMENT_ENCRYPTION_KEY_VERSION` | server | yes | `server/src/config.ts` |  |
 | `CLUB_ENROLLMENT_INDEX_KEY_VERSION` | server | yes | `server/src/config.ts` |  |
 | `RESEND_API_KEY` | server | yes | `server/src/check-rekognition-health.ts`, `server/src/config.ts` |  |
-| `SESSION_SECRET` | server | yes | `server/src/urgent-release-real-postgres.test.ts`, `server/src/config.ts` |  |
+| `SESSION_SECRET` | server | yes | `server/src/urgent-release-real-postgres.test.ts`, `server/src/config.ts`, `server/src/migration-config.ts` |  |
 | `SEVERE_ACCESS_BAN_HMAC_KEY` | server | yes | `server/src/config.ts` |  |
 | `SEVERE_ACCESS_BANS_ENABLED` | server | yes | `server/src/config.ts` |  |
 | `STREAM_API_KEY` | server | yes | `server/src/config.ts` |  |

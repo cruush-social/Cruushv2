@@ -855,6 +855,12 @@ export default function CruushPlusStore({ product = 'cruush_plus' }: { product?:
             <p>cruush never asks for your wallet private key or seed phrase.</p>
             <a
               className="inline-flex font-semibold text-primary underline underline-offset-4"
+              href="/blog/stablecoin-payments.html"
+            >
+              How stablecoin payments work
+            </a>
+            <a
+              className="inline-flex font-semibold text-primary underline underline-offset-4"
               href="/blog/crypto-first.html"
             >
               Crypto first. On our terms.
@@ -1243,6 +1249,11 @@ export default function CruushPlusStore({ product = 'cruush_plus' }: { product?:
             <a className="block font-medium text-foreground underline underline-offset-4" href="/support?refund=1">
               request a legally required refund review
             </a>
+            <p>
+              If your payment app shows the transfer was sent but cruush has not confirmed your order
+              after 30 minutes, contact payment support. We’ll help you check the payment and your order.
+              Please don’t pay again while it’s being checked.
+            </p>
             <a className="block font-medium text-foreground underline underline-offset-4" href="/support?billing=payment">
               report a billing issue
             </a>

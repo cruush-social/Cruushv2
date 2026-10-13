@@ -3026,7 +3026,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
 
   return (
     <div
-      className={`cruush-map-shell ${isFiltersOpen || isVisibilityOpen ? 'cruush-map-surface-open' : ''} ${isMobile ? `fixed${mobileVisualViewportBounds ? '' : ' inset-0'}` : 'relative isolate'} overflow-hidden overscroll-none bg-background select-none`}
+      className={`cruush-map-shell ${isFiltersOpen || isVisibilityOpen ? 'cruush-map-surface-open' : ''} ${isMobile ? `fixed${mobileVisualViewportBounds ? '' : ' inset-0'}` : 'relative isolate'} cruush-map-sale-backdrop overscroll-none bg-background select-none`}
       data-testid="map-home-shell"
       style={mobileVisualViewportBounds ? {
         height: `calc(${mobileVisualViewportBounds.height}px - var(--cruush-sale-banner-height, 0px))`,
@@ -3092,7 +3092,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
 
       {/* The map owns its own stacking context, so a hovered pin can never
           paint over the top chrome or the bottom nav. */}
-      <div className="absolute inset-0 isolate z-0">
+      <div className="absolute inset-0 isolate z-0" data-testid="map-sale-backdrop" style={{ top: 'calc(-1 * var(--cruush-sale-banner-height, 0px))' }}>
         {displayedOutsideServiceArea ? <LaunchLoginMapTeaser recording="glossy" /> : null}
         <Suspense
           fallback={(

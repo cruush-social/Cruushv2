@@ -1,3 +1,4 @@
+import { formatVibeLabel } from '../lib/vibeLabels';
 import { useEffect, useRef, useState } from 'react';
 import { ZODIAC_SIGNS, ZodiacGlyph } from './ZodiacGlyphs';
 import { AnalGlyph, BondageGlyph, CyborgGlyph, GooningGlyph, HarnessGlyph, LeatherGlyph, LipsGlyph, NeurodivergentGlyph, NippleGlyph, PartyHatGlyph, PenetrationGlyph, RimmingGlyph, RubberGlyph, SpankingGlyph, StraightEdgeGlyph } from './BadgeGlyphs';
@@ -401,7 +402,7 @@ export function buildProfileBadgeOptions(group: ProfileBadgeGroup, values: strin
       ? { ...existing, category }
       : {
           id: profileBadgeId(group, value),
-          label: `${value.charAt(0).toUpperCase()}${value.slice(1)}`,
+          label: group === 'Vibes' ? formatVibeLabel(`${value.charAt(0).toUpperCase()}${value.slice(1)}`) : `${value.charAt(0).toUpperCase()}${value.slice(1)}`,
           icon: profileBadgeGlyph(group, value, category),
           group,
           category,

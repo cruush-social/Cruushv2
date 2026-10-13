@@ -94,6 +94,10 @@ export function formatLastActiveFromDate(dateValue: string | Date) {
 
 export const ONLINE_WINDOW_MINUTES = 5;
 
+export function canShowOnlineStatus(baseMode: string | null | undefined) {
+  return baseMode === "PUBLIC_PRECISE" || baseMode === "GHOST";
+}
+
 function latestDate(values: Array<string | Date | null | undefined>) {
   let latestMs = Number.NEGATIVE_INFINITY;
   for (const value of values) {
@@ -108,8 +112,8 @@ function latestDate(values: Array<string | Date | null | undefined>) {
  * The last-active label. `lastSeenAt` is when the member last used the app;
  * `fallback` is the older location/profile timestamp, kept for members who have
  * not been seen since the column was added. A member seen within the online
- * window reads "Online", unless `allowOnline` is false (Ghost Mode), in which
- * case the label never reads closer than the window itself.
+ * window reads "Online", unless `allowOnline` is false (Dark Room or unknown
+ * privacy), in which case the label never reads closer than the window itself.
  */
 export function formatPresenceLabel(input: {
   lastSeenAt?: string | Date | null;

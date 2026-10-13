@@ -315,6 +315,46 @@ describe('ProfileView', () => {
     expect(activity.parentElement?.children).toHaveLength(1);
   });
 
+  it.each([
+    { serverActivity: 'Online', cardActivity: '5m ago' },
+    { serverActivity: '12m ago', cardActivity: 'Online' },
+    { serverActivity: null, cardActivity: 'Online' },
+  ])('uses Dark Room profile activity $serverActivity ahead of card activity $cardActivity', async ({ serverActivity, cardActivity }) => {
+    serviceArea.profilePinsAllowed = true;
+    getProfileById.mockResolvedValue(createProfileFixture({
+      distance_label: null,
+      last_active: serverActivity,
+      viewer_relationship: { location_mode: 'STEALTH', can_reveal_precise_location: false },
+    }));
+    render(
+      <MemoryRouter initialEntries={[{ pathname: '/profile/user-1', state: { lastActive: cardActivity } }]}>
+        <Routes><Route path="/profile/:userId" element={<ProfileView />} /></Routes>
+      </MemoryRouter>,
+    );
+
+    await screen.findByRole('heading', { name: /Jordan/ });
+    if (serverActivity) expect(screen.getByText(serverActivity, { exact: true })).toBeInTheDocument();
+    expect(screen.queryByText(cardActivity, { exact: true })).not.toBeInTheDocument();
+    const pin = screen.getByRole('button', { name: 'Jordan does not share a precise location with you' });
+    expect(pin).toBeDisabled();
+    expect(pin).toHaveAttribute('title', 'Dark Room');
+    expect(getMutualCruushMap).not.toHaveBeenCalled();
+  });
+
+  it('preserves card activity precedence on profiles outside Dark Room', async () => {
+    getProfileById.mockResolvedValue(createProfileFixture({
+      last_active: 'Online',
+      viewer_relationship: { location_mode: 'GHOST' },
+    }));
+    render(
+      <MemoryRouter initialEntries={[{ pathname: '/profile/user-1', state: { lastActive: '5m ago' } }]}>
+        <Routes><Route path="/profile/:userId" element={<ProfileView />} /></Routes>
+      </MemoryRouter>,
+    );
+    expect(await screen.findByText('5m ago', { exact: true })).toBeInTheDocument();
+    expect(screen.queryByText('Online', { exact: true })).not.toBeInTheDocument();
+  });
+
   it('does not invent activity when the profile supplies neither distance nor activity', async () => {
     getProfileById.mockResolvedValue(createProfileFixture({
       distance_label: null,

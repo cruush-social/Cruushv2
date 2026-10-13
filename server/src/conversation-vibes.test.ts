@@ -42,7 +42,7 @@ describe("conversation vibes", () => {
     expect(mapped.user.vibes).toEqual(["Adventurous", "Stoner", "Direct"]);
   });
 
-  it("reports recent app use as Online only for public members", () => {
+  it("reports recent app use as Online only when presence is permitted", () => {
     const recent = row({ other_user_last_active: new Date() });
     expect(mapConversationRow(app, recent, { allowOnline: true }).user.lastActive).toBe("Online");
     expect(mapConversationRow(app, recent, { allowOnline: false }).user.lastActive).toBe("5m ago");

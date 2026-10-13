@@ -62,7 +62,7 @@ import {
 import { resolveVisibilityLocation } from "../visibility-location.js";
 import { getActiveAccountUserId, getAuthenticatedUserId } from "../request-auth.js";
 import { assertUsersNotBlocked } from "../user-blocks.js";
-import { formatPresenceLabel } from "../discovery-users.js";
+import { canShowOnlineStatus, formatPresenceLabel } from "../discovery-users.js";
 import { getTravelPin, locationPayloadAtTravelPin } from "../travel-pins.js";
 import { isTombstonedProfileName } from "../profile-tombstone.js";
 import {
@@ -1523,8 +1523,8 @@ async function loadProfileData(
         last_active: formatPresenceLabel({
           lastSeenAt: row.last_seen_at,
           fallback: row.location_updated_at ?? row.updated_at,
-          // Ghost Mode members never read as online. An unknown mode is treated as Ghost.
-          allowOnline: relationship?.targetBaseMode === "PUBLIC_PRECISE"
+          // Profile access is already authorized; Dark Room still hides map presence and location.
+          allowOnline: canShowOnlineStatus(relationship?.targetBaseMode) || relationship?.targetBaseMode === "STEALTH"
         }),
         distance_label: await loadViewerDistanceLabel(app, options.viewerUserId, userId, row, relationship)
       }

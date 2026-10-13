@@ -304,6 +304,63 @@ describe('ProfileEdit', () => {
     });
   });
 
+  it('applies profile text limits without truncating loaded values', async () => {
+    const loaded = await getMyProfile();
+    const displayName = 'n'.repeat(81);
+    const bio = 'b'.repeat(2001);
+    getMyProfile.mockResolvedValue({ ...loaded, display_name: displayName, bio });
+    render(<MemoryRouter><ProfileEdit /></MemoryRouter>);
+    await selectProfileEditTab('Basics');
+    expect(screen.getByLabelText('Display Name')).toHaveAttribute('maxlength', '80');
+    expect(screen.getByLabelText('Bio')).toHaveAttribute('maxlength', '2000');
+    expect(screen.getByLabelText('Display Name')).toHaveValue(displayName);
+    expect(screen.getByLabelText('Bio')).toHaveValue(bio);
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+    await waitFor(() => expect(saveMyProfile).toHaveBeenCalledWith(expect.objectContaining({
+      display_name: displayName, bio,
+    })));
+  });
+
+  it.each([
+    { field: 'display_name', label: 'Display Name', message: 'Too big: expected string to have <=80 characters' },
+    { field: 'bio', label: 'Bio', message: 'Too big: expected string to have <=2000 characters' },
+  ])('shows server validation feedback for $field in the existing save error', async ({ field, label, message }) => {
+    saveMyProfile.mockRejectedValue(new ApiClientError(400, 'VALIDATION_ERROR', 'Request validation failed', {
+      formErrors: [], fieldErrors: { [field]: [null, '', message] },
+    }));
+    render(<MemoryRouter><ProfileEdit /></MemoryRouter>);
+    await selectProfileEditTab('Basics');
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+    expect(await screen.findByText(`${label}: ${message}`)).toBeInTheDocument();
+    expect(screen.queryByText('Request validation failed')).not.toBeInTheDocument();
+  });
+
+  it.each([
+    new ApiClientError(400, 'VALIDATION_ERROR', 'Request validation failed', { fieldErrors: { bio: [null, 42, ' '] } }),
+    new ApiClientError(400, 'VALIDATION_ERROR', 'Request validation failed', { fieldErrors: { photos: ['Other field'] } }),
+    new ApiClientError(400, 'VALIDATION_ERROR', 'Request validation failed', { fieldErrors: 'invalid shape' }),
+    new ApiClientError(503, 'API_UNAVAILABLE', 'The cruush API is unavailable.', { fieldErrors: { bio: ['Ignore this detail'] } }),
+  ])('preserves the original save error when field feedback is inapplicable %#', async (error) => {
+    saveMyProfile.mockRejectedValue(error);
+    render(<MemoryRouter><ProfileEdit /></MemoryRouter>);
+    await selectProfileEditTab('Basics');
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+    expect(await screen.findByText(error.message)).toBeInTheDocument();
+  });
+
+  it('shows profile validation feedback when saving a photo removal', async () => {
+    const loaded = await getMyProfile();
+    getMyProfile.mockResolvedValue({ ...loaded, photos: [existingProfilePhoto] });
+    const message = 'Too big: expected string to have <=2000 characters';
+    saveMyProfile.mockRejectedValue(new ApiClientError(400, 'VALIDATION_ERROR', 'Request validation failed', {
+      fieldErrors: { bio: [message] },
+    }));
+    render(<MemoryRouter><ProfileEdit /></MemoryRouter>);
+    await selectProfileEditTab('Photos');
+    fireEvent.click(await screen.findByRole('button', { name: 'Remove photo 1' }));
+    expect(await screen.findByText(`Bio: ${message}`)).toBeInTheDocument();
+  });
+
   it('offers up to ten hobbies to cruush+ profiles', async () => {
     getMyBillingStatus.mockResolvedValue({ cruushPlus: true });
 

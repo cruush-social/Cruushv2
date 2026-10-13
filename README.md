@@ -22,8 +22,10 @@ configuration, APIs, deployment, testing, and grant reversal operations. The
 reasoning and tradeoffs behind the implementation are in
 [docs/rewards-design-decisions.md](docs/rewards-design-decisions.md).
 
-For production, set a strong dedicated `TWO_FACTOR_ENCRYPTION_KEY`. The API
-startup migration creates the rewards schema and default database settings.
+For production, set a strong dedicated `TWO_FACTOR_ENCRYPTION_KEY`. Run the
+explicit migration job before API startup to create the rewards schema and default
+database settings. The API image starts without migrations; see the
+[database credential cutover runbook](docs/database-credential-cutover.md).
 
   Local development is separate from staging. The local stack is:
 

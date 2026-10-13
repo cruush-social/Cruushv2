@@ -5,6 +5,7 @@ import { hasPremiumDiscoveryFilters, requireCruushPlus } from "../billing.js";
 import { decryptTextContentOrFallback } from "../content-encryption.js";
 import { GhostLandUnavailableError } from "../ghost-land.js";
 import {
+  canShowOnlineStatus,
   formatDistanceMiles,
   formatLastActiveFromDate,
   formatPresenceLabel,
@@ -1071,7 +1072,7 @@ async function mapModernDiscoveryRow(
     lastActive: formatPresenceLabel({
       lastSeenAt: row.last_seen_at,
       fallback: row.location_updated_at ?? row.updated_at,
-      allowOnline: displayMode !== "GHOST"
+      allowOnline: canShowOnlineStatus(policy.baseMode)
     }),
     distanceLabel: options.targetTravelling && relationship?.canRevealPreciseLocation !== true
       ? "Far far away"

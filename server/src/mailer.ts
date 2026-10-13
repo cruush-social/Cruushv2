@@ -395,6 +395,13 @@ function buildVerificationEmailHtml(escapedVerificationUrl: string) {
   });
 }
 
+export class CryptoGasEmailRejectedError extends Error {
+  constructor(readonly statusCode: number) {
+    super("Gas warning email was rejected before acceptance.");
+    this.name = "CryptoGasEmailRejectedError";
+  }
+}
+
 async function sendResendEmail(input: {
   attachments?: EmailAttachment[];
   config: AppConfig;
@@ -406,6 +413,7 @@ async function sendResendEmail(input: {
   failureMessage: string;
   idempotencyKey?: string;
   redactRecipientInFailureLog?: boolean;
+  classifyGasRejection?: boolean;
 } & ResendEmailContent) {
   const { attachments, config, email, failureMessage, from, logger, replyTo, subject } = input;
   const content = input.template
@@ -435,6 +443,10 @@ async function sendResendEmail(input: {
     logger.error(input.redactRecipientInFailureLog
       ? { statusCode: response.status }
       : { email, statusCode: response.status }, failureMessage);
+    if (input.classifyGasRejection && response.status >= 400 && response.status < 500
+      && response.status !== 408 && response.status !== 409) {
+      throw new CryptoGasEmailRejectedError(response.status);
+    }
     throw new ApiError(502, "INTERNAL_ERROR", "Failed to send email.");
   }
 
@@ -848,6 +860,40 @@ export async function sendWeeklyOrderReportEmail(input: WeeklyOrderReportEmailIn
     failureMessage: "weekly order report email delivery failed"
   });
 
+  return { accepted: true, providerMessageId: delivery.providerMessageId };
+}
+
+export async function sendCryptoGasAlertEmail(input: {
+  config: AppConfig;
+  logger: FastifyBaseLogger;
+  idempotencyKey: string;
+  mailFrom?: string;
+  network: string;
+  address: string;
+  balanceEth: string;
+  topUpEth: string;
+  targetEth: string;
+}) {
+  if (!input.config.RESEND_API_KEY || !(input.mailFrom ?? input.config.MAIL_FROM)) {
+    return { accepted: false, providerMessageId: null };
+  }
+  const lines = [
+    `cruush needs gas on ${input.network}.`,
+    `Current balance: ${input.balanceEth} ETH.`,
+    `Send ${input.topUpEth} ETH on ${input.network} to restore the ${input.targetEth} ETH working balance. Your sending fee is separate.`,
+    `Forwarding address: ${input.address}`,
+    "Check the network and address before approving the transfer. Each network has a separate ETH balance.",
+    "cruush accepts PYUSD and USDC payments. ETH is used only for network fees when forwarding those stablecoins to ELLIPAL.",
+    "No automatic purchase or swap has been made. Forwarding may wait if gas runs out.",
+  ];
+  const delivery = await sendResendEmail({
+    config: input.config, email: OWNER_FULL_ACCESS_EMAIL, logger: input.logger,
+    from: input.mailFrom, classifyGasRejection: true,
+    idempotencyKey: input.idempotencyKey, redactRecipientInFailureLog: true,
+    subject: `cruush gas refill needed: ${input.network}`,
+    html: lines.map(line => `<p>${escapeHtml(line)}</p>`).join(""),
+    text: lines.join("\n\n"), failureMessage: "owner gas warning email failed",
+  });
   return { accepted: true, providerMessageId: delivery.providerMessageId };
 }
 

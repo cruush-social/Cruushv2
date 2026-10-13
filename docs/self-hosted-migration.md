@@ -169,7 +169,7 @@ The next work is operational. For city beta, use a US-East production VPS, prefe
    - `server/sql/017_rate_limit_buckets.sql`
    - newer checked-in migrations through `server/sql/024_open_beta_storage_messaging.sql`
 
-   The server Docker image runs `npm run migrate` before `npm run start`, so normal container deploys apply the checked-in idempotent migrations automatically. If staging is already running an older image or a custom start command, run `npm --prefix server run migrate` once with the staging `DATABASE_URL`.
+   The server Docker image starts the API only. Before starting a new deployment, run `npm run migrate` from `/app` in a separate one-off container built from the same server image, with that job's own schema-owner `DATABASE_URL` and the migration crypto configuration. Require successful completion before starting the API with its restricted runtime `DATABASE_URL`. Do not use the long-running API environment for migration credentials. The runner selects the applicable checked-in migrations; the historical list above is not a complete current migration inventory. See [database credential cutover](database-credential-cutover.md) for the prerequisite checks and release sequence.
 
 4. Point the frontend at the deployed API
    - either same-origin through the reverse proxy

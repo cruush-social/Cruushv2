@@ -1,3 +1,4 @@
+import { formatVibeLabel } from './vibeLabels';
 import type { DlModePhotoRelationship } from './dlMode';
 import type { SideBadgeSelection } from './profileApi';
 
@@ -217,7 +218,7 @@ export function createSavedMapMarkerBadge(
 
   return {
     kind,
-    label,
+    label: badgeId.startsWith('vibes ') ? formatVibeLabel(label) : label,
     iconName: badgeId,
     badgeId,
     frame: selection.frame,

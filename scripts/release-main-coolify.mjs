@@ -123,6 +123,13 @@ const FRONTEND_BUILD = {
   healthCheckHost: 'localhost',
   minHealthCheckBudgetSeconds: 30,
 };
+const API_MIGRATION_BUILD_COMMAND = 'docker compose build api && sh server/ops/migrate-built-api.sh server/compose.v2.yml';
+function apiMigrationBuildCommand(sha, resourceUuid) {
+  if (!/^[0-9a-f]{40}$/i.test(sha ?? '')) throw new Error('Migration job requires a pinned deployment SHA.');
+  if (!/^[a-z0-9]+$/i.test(resourceUuid ?? '')) throw new Error('Migration job requires its API resource UUID.');
+  return `${API_MIGRATION_BUILD_COMMAND} ${sha} ${resourceUuid}`;
+}
+
 const API_BUILD = {
   kind: 'api',
   baseDirectory: '/server',
@@ -131,7 +138,7 @@ const API_BUILD = {
   // The API binds 0.0.0.0 only. `localhost` also resolves to ::1 inside the
   // container, and busybox wget tries that first, so the probe must name IPv4.
   healthCheckHost: '127.0.0.1',
-  // The API runs migrations before it listens, so the probe budget must outlast them.
+  // Preserve the existing startup allowance; migrations now run as a separate pre-deploy job.
   minHealthCheckBudgetSeconds: 600,
 };
 
@@ -217,6 +224,18 @@ function assertBuildConfig(app, target) {
     problems.push(`health_check_host is ${JSON.stringify(app.health_check_host)}, expected ${JSON.stringify(expected.healthCheckHost)}; a container that binds IPv4 only fails a localhost probe that resolves to ::1`);
   }
 
+  if (expected.kind === 'api') {
+    if (app.build_pack !== 'dockercompose' || app.docker_compose_location !== '/compose.v2.yml') {
+      problems.push('API requires the reviewed Docker Compose migration workflow.');
+    }
+    if (app.docker_compose_custom_build_command !== apiMigrationBuildCommand(app.git_commit_sha, target.uuid)) {
+      problems.push('API build must complete candidate migrations before stopping the running API.');
+    }
+    if (app.docker_compose_custom_start_command || app.pre_deployment_command) {
+      problems.push('API startup/pre-deployment overrides require review; never migrate in the old API.');
+    }
+  }
+
   const budget = Number(app.health_check_retries ?? 0) * Number(app.health_check_interval ?? 0);
   if (budget < expected.minHealthCheckBudgetSeconds) {
     problems.push(`health check budget is ${budget}s (retries x interval), needs at least ${expected.minHealthCheckBudgetSeconds}s or the deploy rolls back a healthy container`);
@@ -274,19 +293,8 @@ function valueIsEnabled(value) {
   return false;
 }
 
-function assertSourceConfig(app, target, expectedSha) {
+function assertBuildIdentityConfig(app, target) {
   const problems = [];
-  const gitBranch = String(findValueByNames(app, ['git_branch', 'gitBranch']) ?? '').trim();
-  const gitCommitSha = String(findValueByNames(app, ['git_commit_sha', 'gitCommitSha', 'commit_sha', 'commitSha']) ?? '').trim();
-
-  if (gitBranch !== 'main') {
-    problems.push(`git_branch is ${JSON.stringify(gitBranch || null)}, expected "main"`);
-  }
-
-  if (gitCommitSha && gitCommitSha !== 'HEAD' && gitCommitSha !== expectedSha) {
-    problems.push(`git_commit_sha is pinned to ${gitCommitSha}, expected empty, HEAD, or ${expectedSha}`);
-  }
-
   if (target.build.kind === 'api') {
     const includeSourceCommit = findValueByNames(app, [
       'include_source_commit',
@@ -317,6 +325,26 @@ function assertSourceConfig(app, target, expectedSha) {
       console.log(`${target.label}: Coolify does not report the build arg toggles over the API; verify them in the dashboard if SOURCE_COMMIT or APP_BUILD_SHA come through empty.`);
     }
   }
+
+  if (problems.length > 0) {
+    throw new Error(`${target.label} build identity configuration is invalid: ${problems.join('; ')}`);
+  }
+}
+
+function assertSourceConfig(app, target, expectedSha) {
+  const problems = [];
+  const gitBranch = String(findValueByNames(app, ['git_branch', 'gitBranch']) ?? '').trim();
+  const gitCommitSha = String(findValueByNames(app, ['git_commit_sha', 'gitCommitSha', 'commit_sha', 'commitSha']) ?? '').trim();
+
+  if (gitBranch !== 'main') {
+    problems.push(`git_branch is ${JSON.stringify(gitBranch || null)}, expected "main"`);
+  }
+
+  if (gitCommitSha && gitCommitSha !== 'HEAD' && gitCommitSha !== expectedSha) {
+    problems.push(`git_commit_sha is pinned to ${gitCommitSha}, expected empty, HEAD, or ${expectedSha}`);
+  }
+
+  assertBuildIdentityConfig(app, target);
 
   if (problems.length > 0) {
     throw new Error(`${target.label} Coolify source config drifted:\n  - ${problems.join('\n  - ')}`);
@@ -522,14 +550,15 @@ async function validateAndPatchApps(targets, dryRun, expectedSha) {
     console.log(`Validated ${target.label} domain ${target.expectedHost} and build config.`);
 
     if (dryRun) {
-      assertSourceConfig(app, target, expectedSha);
+      assertBuildIdentityConfig(app, target);
       console.log(`[dry-run] Would set ${target.label} git_branch=main, git_commit_sha=${expectedSha}, alpha env cutoff values, the disabled beta access geofence, reports inbox, and launch party pin.`);
       continue;
     }
 
     await coolifyRequest(`/applications/${encodeURIComponent(target.uuid)}`, {
       method: 'PATCH',
-      body: JSON.stringify({ git_branch: 'main', git_commit_sha: expectedSha }),
+      body: JSON.stringify({ git_branch: 'main', git_commit_sha: expectedSha,
+        ...(target.build.kind === 'api' ? {docker_compose_custom_build_command:apiMigrationBuildCommand(expectedSha, target.uuid)} : {}) }),
     });
     await coolifyRequest(`/applications/${encodeURIComponent(target.uuid)}/envs/bulk`, {
       method: 'PATCH',
@@ -679,6 +708,17 @@ async function main() {
   const sourceSha = run('git', ['rev-parse', args.source], { capture: true }).trim();
   console.log(`Verified ${args.source} at ${sourceSha}.`);
 
+  // Validate migration wiring before a push can trigger Coolify auto-deploy.
+  const targets = appTargets(args.target);
+  for (const target of targets) {
+    const app = await coolifyRequest(`/applications/${encodeURIComponent(target.uuid)}`);
+    assertExpectedDomain(app, target);
+    assertBuildConfig(app, target);
+    assertBuildIdentityConfig(app, target);
+  }
+  // Pin the next commit and its migration job before main push triggers auto-deploy.
+  await validateAndPatchApps(targets, args.dryRun, sourceSha);
+
   if (args.dryRun) {
     console.log(`[dry-run] Would push ${args.source}:main.`);
   } else {
@@ -690,11 +730,8 @@ async function main() {
     console.log(`Verified origin/main is ${pushedRemoteSha}.`);
   }
 
-  const targets = appTargets(args.target);
   const stagingTargets = targets.filter((target) => target.label.startsWith('staging'));
   const productionTargets = targets.filter((target) => target.label.startsWith('production'));
-
-  await validateAndPatchApps(targets, args.dryRun, sourceSha);
 
   if (stagingTargets.length > 0) {
     await deployTargets(stagingTargets, args.dryRun);
@@ -718,8 +755,11 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
 
 export {
   API_BUILD,
+  API_MIGRATION_BUILD_COMMAND,
+  apiMigrationBuildCommand,
   FRONTEND_BUILD,
   assertBuildConfig,
+  assertBuildIdentityConfig,
   assertBuildMetadataPayload,
   assertSourceConfig,
   releaseRuntimeEnvData,

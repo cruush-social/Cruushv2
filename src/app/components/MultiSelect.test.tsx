@@ -1,6 +1,7 @@
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import MultiSelect from './MultiSelect';
+import { formatVibeLabel } from '../lib/vibeLabels';
 import { Sheet, SheetContent, SheetDescription, SheetTitle } from './ui/sheet';
 
 function mockTriggerRect(button: HTMLElement, rect: Partial<DOMRect>) {
@@ -18,6 +19,40 @@ function mockTriggerRect(button: HTMLElement, rect: Partial<DOMRect>) {
 }
 
 describe('MultiSelect', () => {
+  it.each([false, true])('keeps canonical Vibe values when displaying formatted labels (grouped: %s)', (grouped) => {
+    const onChange = vi.fn();
+    const options = ['Queer arts', 'Queer nightlife'];
+    render(
+      <MultiSelect
+        ariaLabel="Vibes"
+        searchable
+        formatOptionLabel={formatVibeLabel}
+        options={grouped ? undefined : options}
+        optionGroups={grouped ? [
+          { label: 'Scenes', options },
+          { label: 'Style & Energy', options: ['Goth'] },
+        ] : undefined}
+        value={['Queer arts']}
+        onChange={onChange}
+      />,
+    );
+
+    const selectedArts = screen.getByText('Arts');
+    fireEvent.click(screen.getByRole('button', { name: 'Vibes' }));
+    expect(screen.getByRole('option', { name: 'Arts' })).toHaveAttribute('aria-selected', 'true');
+    expect(screen.queryByRole('option', { name: 'Queer arts' })).not.toBeInTheDocument();
+
+    fireEvent.change(screen.getByRole('searchbox', { name: 'Search Vibes' }), { target: { value: 'nightlife' } });
+    fireEvent.click(screen.getByRole('option', { name: 'Nightlife' }));
+    expect(onChange).toHaveBeenLastCalledWith(['Queer arts', 'Queer nightlife']);
+
+    fireEvent.click(within(selectedArts).getByRole('button'));
+    expect(onChange).toHaveBeenLastCalledWith(['Queer nightlife']);
+
+    fireEvent.change(screen.getByRole('searchbox', { name: 'Search Vibes' }), { target: { value: 'queer' } });
+    expect(screen.queryByRole('option')).not.toBeInTheDocument();
+  });
+
   it('filters a flat picker without losing selected values and resets search on reopen', () => {
     const onChange = vi.fn();
     render(<MultiSelect ariaLabel="Gender Identity" searchable options={['agender', 'nonbinary', 'trans man']} value={['agender']} onChange={onChange} />);

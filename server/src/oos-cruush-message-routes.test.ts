@@ -17,7 +17,7 @@ const m = vi.hoisted(() => ({
   byActor: vi.fn(), byTarget: vi.fn(), byParticipant: vi.fn(), find: vi.fn(), upsert: vi.fn(),
   entitlement: vi.fn(), privacy: vi.fn(), relationship: vi.fn(), policy: vi.fn(), distanceMode: vi.fn(),
   blockedIds: vi.fn(), assertNotBlocked: vi.fn(), hasBlock: vi.fn(),
-  locations: vi.fn(), location: vi.fn(), travelPins: vi.fn(), displayToken: vi.fn(), towns: vi.fn(),
+  locations: vi.fn(), location: vi.fn(), travelPins: vi.fn(), displayToken: vi.fn(), ghost: vi.fn(), towns: vi.fn(),
   canSend: vi.fn(), assertCanSend: vi.fn(), photoRelationships: vi.fn(), sharedCrowds: vi.fn(), audience: vi.fn(),
   moderate: vi.fn(), reward: vi.fn(), notify: vi.fn(), owner: vi.fn()
 }));
@@ -43,7 +43,8 @@ vi.mock("./user-blocks.js", async (original) => ({
 vi.mock("./location-privacy.js", async (original) => ({
   ...await original<typeof import("./location-privacy.js")>(),
   loadLocationEnvelopes: m.locations, loadLocationEnvelope: m.location,
-  makeDisplayLocationToken: m.displayToken
+  makeDisplayLocationToken: m.displayToken,
+  resolveViewerGhostCoordinate: m.ghost
 }));
 vi.mock("./travel-pins.js", async (original) => ({
   ...await original<typeof import("./travel-pins.js")>(), loadTravelPins: m.travelPins
@@ -124,6 +125,7 @@ describe("OOS cruush activity and new contacts", () => {
   let app: FastifyInstance;
   let profiles: ReturnType<typeof profile>[];
   let existingDm: boolean;
+  let conversationLastSeenAt: string | null;
   let accountStatuses: Map<string, string>;
   let existingGroupMember: "plain" | "encrypted" | false;
   let savedStates: Map<string, EncryptedOosState & { user_id: string }>;
@@ -143,6 +145,7 @@ describe("OOS cruush activity and new contacts", () => {
     vi.resetAllMocks();
     profiles = [profile(hiddenId, { outside_service_area_members: true }), profile(publicId), profile(viewerId)];
     existingDm = false;
+    conversationLastSeenAt = null;
     accountStatuses = new Map();
     existingGroupMember = false;
     savedStates = new Map([
@@ -167,6 +170,7 @@ describe("OOS cruush activity and new contacts", () => {
     m.travelPins.mockResolvedValue(new Map());
     m.towns.mockResolvedValue(new Map());
     m.displayToken.mockResolvedValue({ token: "synthetic-display-token", expiresAtMs: Date.now() + 60_000 });
+    m.ghost.mockResolvedValue({ coordinate: { lat: 40.715, lng: -74.001 }, resolvedAtMs: Date.now(), radiusMeters: 1609 });
     m.canSend.mockResolvedValue(true);
     m.photoRelationships.mockResolvedValue(new Map());
     m.sharedCrowds.mockResolvedValue(new Set());
@@ -203,7 +207,7 @@ describe("OOS cruush activity and new contacts", () => {
           content_ciphertext: values[2], content_nonce: values[3], content_auth_tag: values[4], content_key_version: values[5]
         }] };
       }
-      if (sql.includes("from conversation_members cm") && sql.includes("last_message")) return { rows: [conversation] };
+      if (sql.includes("from conversation_members cm") && sql.includes("last_message")) return { rows: [{ ...conversation, other_user_last_active: conversationLastSeenAt }] };
       if (sql.includes("from messages m")) return { rows: [historicalMessage] };
       if (sql.startsWith("update conversation_members") || sql.trimStart().startsWith("insert into conversation_members") || sql.includes("from conversation_members cm")) return { rows: [] };
       throw new Error("Unexpected test query: " + sql.slice(0, 70));
@@ -235,6 +239,61 @@ describe("OOS cruush activity and new contacts", () => {
       record("public-mutual", "mutual_cruush", viewerId, publicId)
     ]);
   }
+
+  it.each([
+    { baseMode: "GHOST", expected: "Online" },
+    { baseMode: "STEALTH", expected: "5m ago" },
+    { baseMode: undefined, expected: "5m ago" }
+  ])("shows $baseMode activity on mutual cards without granting precision", async ({ baseMode, expected }) => {
+    seedActivity();
+    profiles = profiles.map(row => ({ ...row, last_seen_at: new Date().toISOString() }));
+    m.relationship.mockResolvedValue({
+      isMutualCruush: true, canMessage: true, canRevealPreciseLocation: false, targetBaseMode: baseMode
+    });
+    const response = await app.inject({ method: "GET", url: "/api/cruush/me", headers });
+    expect(response.statusCode, response.body).toBe(200);
+    expect(response.json().data.mutual).toHaveLength(1);
+    expect(response.json().data.mutual[0]).toMatchObject({ lastActive: expected, canRevealPreciseLocation: false });
+    expect(m.displayToken).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    { baseMode: "GHOST", expected: "Online" },
+    { baseMode: "STEALTH", expected: "5m ago" },
+    { baseMode: undefined, expected: "5m ago" }
+  ])("shows $baseMode activity on existing DMs without changing access", async ({ baseMode, expected }) => {
+    conversationLastSeenAt = new Date().toISOString();
+    m.relationship.mockResolvedValue({
+      isMutualCruush: true, canMessage: true, canRevealPreciseLocation: false, targetBaseMode: baseMode
+    });
+    const response = await app.inject({ method: "GET", url: "/api/conversations", headers });
+    expect(response.statusCode, response.body).toBe(200);
+    expect(response.json().data).toHaveLength(1);
+    expect(response.json().data[0]).toMatchObject({ user: { id: hiddenId, lastActive: expected }, canMessage: true });
+    expect(m.displayToken).not.toHaveBeenCalled();
+  });
+
+  it("shows an online Ghost mutual on the map while retaining the Ghost token and distance", async () => {
+    seedActivity();
+    profiles = profiles.map(row => ({ ...row, last_seen_at: new Date().toISOString() }));
+    m.byParticipant.mockResolvedValue([record("public-mutual", "mutual_cruush", viewerId, publicId)]);
+    m.locations.mockResolvedValue(new Map([[viewerId, location(nyc)]]));
+    m.location.mockImplementation(async (_app, id) => location(nyc, id));
+    m.relationship.mockResolvedValue({
+      isMutualCruush: true, canMessage: true, canRevealPreciseLocation: false, targetBaseMode: "GHOST"
+    });
+    m.policy.mockResolvedValue({ baseMode: "GHOST", preciseToMutualCrowds: [], policyVersion: 1 });
+
+    const response = await app.inject({ method: "GET", url: "/api/cruush/mutual-map", headers });
+    expect(response.statusCode, response.body).toBe(200);
+    expect(response.json().data.profiles).toHaveLength(1);
+    expect(response.json().data.profiles[0]).toMatchObject({
+      lastActive: "Online", distanceLabel: "Nearby", canRevealPreciseLocation: false,
+      relationship: { precision: "fuzzy" }
+    });
+    expect(m.displayToken.mock.calls[0][2]).toMatchObject({ displayMode: "GHOST" });
+    expect(m.ghost).toHaveBeenCalledTimes(1);
+  });
 
   it.each(["active", "suspended", "banned"])("excludes only banned activity, including stored Sent snapshots (%s)", async accountStatus => {
     seedActivity();

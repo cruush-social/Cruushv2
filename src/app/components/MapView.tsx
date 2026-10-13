@@ -2,6 +2,7 @@ import { excludeOwnerPinOverlaps } from '../lib/ownerPinExclusion';
 import { showPurgatoryPresentation } from '../lib/purgatoryPresentation';
 import { useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import SignalBadge from './SignalBadge';
+import MapSignalCaption from './MapSignalCaption';
 import DlModeMark from './DlModeMark';
 import MileHighContrail from './MileHighContrail';
 import { flushSync } from 'react-dom';
@@ -2180,22 +2181,24 @@ export function MapMarkerPin({ marker, previewed = false }: { marker: MapMarker;
             </span>
             {(signalPreview || isOwnerGhostDecoy) && !exitActive ? (
               <span
-                className={`absolute left-1/2 top-0 z-30 flex w-max max-w-none origin-bottom -translate-x-1/2 -translate-y-full flex-col items-center gap-1 transition-opacity ${previewed ? 'scale-[0.7246376812] opacity-100 delay-150 duration-150' : pingActive ? 'opacity-100 duration-150' : 'opacity-0 duration-0'}`}
+                className={`absolute left-1/2 top-0 z-30 flex w-max max-w-none origin-bottom -translate-x-1/2 -translate-y-full flex-col items-center gap-1 transition-[opacity,scale] duration-150 ${previewed ? 'scale-[0.7246376812] opacity-100' : pingActive ? 'opacity-100' : 'opacity-0'}`}
                 data-signal-position="v2-frame-top"
                 data-testid={`marker-signal-stack-${marker.id}`}
               >
-                <SignalBadge
-                  borderColor={signalBorderColor}
-                  className={getMileHighRingClass(marker)}
-                  testId={`marker-signal-badge-${marker.id}`}
-                >
-                  {pingActive ? <PulseEkgSignalTrace /> : null}
-                  <span className="cruush-ghost-rotation-signal-symbol relative whitespace-nowrap [overflow-wrap:normal]" style={{ fontSize: MAP_HOVER_TITLE_FONT_SIZE_PX }}>
-                    {isOwnerGhostDecoy
-                      ? <GhostRotationCountdown expiresAtMs={marker.ghostRotationExpiresAtMs} />
-                      : signalPreview}
-                  </span>
-                </SignalBadge>
+                <MapSignalCaption active={!awaitingGhostPosition && (previewed || pingActive)} pulsing={pingActive} enabled={!isOwnerGhostDecoy}>
+                  <SignalBadge
+                    borderColor={signalBorderColor}
+                    className={getMileHighRingClass(marker)}
+                    testId={`marker-signal-badge-${marker.id}`}
+                  >
+                    {pingActive ? <PulseEkgSignalTrace /> : null}
+                    <span data-map-signal-text className="cruush-ghost-rotation-signal-symbol relative whitespace-nowrap [overflow-wrap:normal]" style={{ fontSize: MAP_HOVER_TITLE_FONT_SIZE_PX }}>
+                      {isOwnerGhostDecoy
+                        ? <GhostRotationCountdown expiresAtMs={marker.ghostRotationExpiresAtMs} />
+                        : signalPreview}
+                    </span>
+                  </SignalBadge>
+                </MapSignalCaption>
               </span>
             ) : null}
           </>}
@@ -2375,6 +2378,13 @@ function createMarkerElement(
     };
     button.addEventListener('pointerup', finishPointerInteraction);
     button.addEventListener('pointercancel', finishPointerInteraction);
+    if (isSpiderfyCluster(marker)) {
+      button.addEventListener('touchend', (event) => {
+        // Expansion can put a member under the held finger. Do not let the
+        // release synthesize a click on that newly positioned member.
+        if (longPressTriggered) event.preventDefault();
+      }, { passive: false });
+    }
     button.addEventListener('contextmenu', (event) => {
       if (lastPointerType === 'touch' && longPressTriggered) {
         event.preventDefault();
@@ -3220,11 +3230,6 @@ function MapView({
               if (nextSpiderfiedCluster) {
                 setSpiderfiedCluster(nextSpiderfiedCluster);
               }
-              return;
-            }
-
-            if (!spiderfiedCluster?.pinned && spiderfiedCluster?.memberIds.includes(selectedMarker.id)) {
-              setSpiderfiedCluster({ ...spiderfiedCluster, pinned: true });
               return;
             }
 

@@ -38,8 +38,10 @@ export default function OutsideServiceAreaCard({
 }: OutsideServiceAreaCardProps) {
   const frameRef = useRef<HTMLDivElement>(null);
   const cardRef = useRef<HTMLDivElement>(null);
+  const cityFormRef = useRef<HTMLFormElement>(null);
   const [mobileScale, setMobileScale] = useState(1);
   const [mobileTop, setMobileTop] = useState<number>();
+  const [keyboardOpen, setKeyboardOpen] = useState(false);
   useLayoutEffect(() => {
     const frame = frameRef.current;
     const card = cardRef.current;
@@ -49,7 +51,24 @@ export default function OutsideServiceAreaCard({
     const browseLimit = browseLimitVisible
       ? frame.parentElement?.querySelector<HTMLElement>('[data-testid="mile-high-club-browse-limit"]')
       : null;
+    const viewport = window.visualViewport;
+    let normalHeight = Math.max(window.innerHeight, document.documentElement.clientHeight);
+    let fittedScale = 1;
+    let focusedScale: number | null = null;
+    let keyboardActive = false;
+    let revealFrame = 0;
     const fit = () => {
+      const formFocused = cityFormRef.current?.contains(document.activeElement) === true;
+      const layoutHeight = Math.max(window.innerHeight, document.documentElement.clientHeight);
+      const visibleHeight = Math.min(window.innerHeight, viewport?.height ?? window.innerHeight);
+      if (formFocused && focusedScale == null) focusedScale = fittedScale;
+      else if (!formFocused && !keyboardActive) focusedScale = null;
+      if (!formFocused && !keyboardActive) normalHeight = layoutHeight;
+      const nextKeyboardActive = mobile.matches && (formFocused || keyboardActive)
+        && (viewport?.scale ?? 1) <= 1.01 && normalHeight - visibleHeight >= 120;
+      const wasKeyboardActive = keyboardActive;
+      keyboardActive = nextKeyboardActive;
+      setKeyboardOpen(nextKeyboardActive);
       const parentTop = frame.parentElement?.getBoundingClientRect().top ?? 0;
       const top = mobile.matches && browseLimit
         ? Math.max(128, browseLimit.getBoundingClientRect().bottom - parentTop + 16)
@@ -60,9 +79,29 @@ export default function OutsideServiceAreaCard({
       const availableHeight = recentlyActive
         ? Math.min(frameBottom, recentlyActive.getBoundingClientRect().top - 16) - frameTop
         : frameBottom - frameTop;
-      setMobileScale(mobile.matches && card.offsetHeight > 0
+      const nextScale = mobile.matches && card.offsetHeight > 0
         ? Math.max(0, Math.min(1, availableHeight / card.offsetHeight))
-        : 1);
+        : 1;
+      // Keep the existing fitted composition while the keyboard is open.
+      // The smaller frame scrolls instead of scaling text and controls away.
+      if (nextKeyboardActive) fittedScale = focusedScale ?? fittedScale;
+      else {
+        fittedScale = nextScale;
+        if (wasKeyboardActive || visibleHeight >= normalHeight) focusedScale = formFocused ? nextScale : null;
+      }
+      setMobileScale(fittedScale);
+      cancelAnimationFrame(revealFrame);
+      if (nextKeyboardActive && formFocused) {
+        revealFrame = requestAnimationFrame(() => {
+          const formBounds = cityFormRef.current?.getBoundingClientRect();
+          if (!formBounds) return;
+          const frameBounds = frame.getBoundingClientRect();
+          if (formBounds.bottom > frameBounds.bottom) frame.scrollTop += formBounds.bottom - frameBounds.bottom;
+          else if (formBounds.top < frameBounds.top) frame.scrollTop -= frameBounds.top - formBounds.top;
+        });
+      } else if (wasKeyboardActive) {
+        frame.scrollTop = 0;
+      }
     };
     const observer = new ResizeObserver(fit);
     observer.observe(frame);
@@ -70,16 +109,30 @@ export default function OutsideServiceAreaCard({
     if (recentlyActive) observer.observe(recentlyActive);
     if (browseLimit) observer.observe(browseLimit);
     mobile.addEventListener('change', fit);
+    card.addEventListener('focusin', fit);
+    card.addEventListener('focusout', fit);
+    window.addEventListener('resize', fit);
+    viewport?.addEventListener('resize', fit);
+    viewport?.addEventListener('scroll', fit);
     fit();
-    return () => { observer.disconnect(); mobile.removeEventListener('change', fit); };
+    return () => {
+      cancelAnimationFrame(revealFrame);
+      observer.disconnect();
+      mobile.removeEventListener('change', fit);
+      card.removeEventListener('focusin', fit);
+      card.removeEventListener('focusout', fit);
+      window.removeEventListener('resize', fit);
+      viewport?.removeEventListener('resize', fit);
+      viewport?.removeEventListener('scroll', fit);
+    };
   }, [browseLimitVisible]);
   const welcomeDayActive = welcomeDayStatus?.claimed === true
     && (!welcomeDayStatus.activeUntil || Date.parse(welcomeDayStatus.activeUntil) > Date.now());
   const canUseMileHighClub = hasCruushPlus || welcomeDayActive;
 
   return (
-    <div ref={frameRef} style={{ top: mobileTop }} className="pointer-events-auto absolute inset-x-4 top-32 bottom-[calc(9rem+env(safe-area-inset-bottom))] z-20 flex items-start justify-center sm:inset-0 sm:px-4 sm:pb-36 sm:pt-32">
-      <div ref={cardRef} style={{ transform: mobileScale < 1 ? `scale(${mobileScale})` : undefined, transformOrigin: 'top center' }} className="h-fit min-h-0 w-full max-w-md shrink-0 sm:max-h-full sm:overflow-y-auto rounded-3xl border border-white/10 bg-[color:var(--cruush-black-glass)] p-6 text-center text-white shadow-[0_24px_80px_rgba(0,0,0,0.68)] backdrop-blur-[var(--cruush-black-glass-blur)]">
+    <div ref={frameRef} data-testid="outside-service-area-card-frame" style={{ top: mobileTop, ...(keyboardOpen ? { overflowY: 'auto', overscrollBehavior: 'contain' } : {}) }} className="pointer-events-auto absolute inset-x-4 top-32 bottom-[calc(9rem+env(safe-area-inset-bottom))] z-20 flex items-start justify-center sm:inset-0 sm:px-4 sm:pb-36 sm:pt-32">
+      <div ref={cardRef} data-testid="outside-service-area-card" style={{ transform: mobileScale < 1 ? `scale(${mobileScale})` : undefined, transformOrigin: 'top center' }} className="h-fit min-h-0 w-full max-w-md shrink-0 sm:max-h-full sm:overflow-y-auto rounded-3xl border border-white/10 bg-[color:var(--cruush-black-glass)] p-6 text-center text-white shadow-[0_24px_80px_rgba(0,0,0,0.68)] backdrop-blur-[var(--cruush-black-glass-blur)]">
         <h2 className="text-2xl font-semibold">NYC open beta</h2>
         <p className="mt-3 text-sm text-white/72">
           You can still post, message, and connect on cruush. The map is available within 100 miles of the center of New York during the NYC open beta.
@@ -120,7 +173,7 @@ export default function OutsideServiceAreaCard({
           ) : null}
           {welcomeDayError ? <p className="mt-2 text-xs text-red-200" role="alert">{welcomeDayError}</p> : null}
         </div>
-        <form className="mt-5 flex gap-2" onSubmit={onSubmit}>
+        <form ref={cityFormRef} className="mt-5 flex gap-2" onSubmit={onSubmit}>
           <Input
             aria-label="Request a city"
             className="h-11 min-w-0 rounded-full border-white/14 bg-black/70 text-white placeholder:text-white/45"

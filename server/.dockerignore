@@ -1,0 +1,12 @@
+.git
+.dev
+.ai-queues
+.env
+.env.*
+*.env
+node_modules
+dist
+media
+*.log
+**/*.key
+**/*.pem

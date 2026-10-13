@@ -1,3 +1,4 @@
+import { formatVibeLabel } from '../lib/vibeLabels';
 import { useTrustRestrictions } from '../lib/trustRestrictions';
 import TrustRestrictionNotice from './TrustRestrictionNotice';
 import type { ChangeEvent, PointerEvent } from 'react';
@@ -113,6 +114,23 @@ function getSaveDisplayName(profile: ProfilePayload) {
   const storedUser = getStoredCurrentUser();
 
   return (storedUser?.display_name ?? storedUser?.name ?? 'cruush user').trim();
+}
+
+function getProfileSaveError(error: unknown) {
+  if (error instanceof ApiClientError && error.code === 'VALIDATION_ERROR'
+    && error.details && typeof error.details === 'object') {
+    const fieldErrors = (error.details as { fieldErrors?: unknown }).fieldErrors;
+    if (fieldErrors && typeof fieldErrors === 'object' && !Array.isArray(fieldErrors)) {
+      for (const [field, label] of [['display_name', 'Display Name'], ['bio', 'Bio']] as const) {
+        const messages = (fieldErrors as Record<string, unknown>)[field];
+        const message = Array.isArray(messages)
+          ? messages.find((value): value is string => typeof value === 'string' && value.trim().length > 0)
+          : undefined;
+        if (message) return `${label}: ${message}`;
+      }
+    }
+  }
+  return error instanceof Error ? error.message : 'Failed to save profile.';
 }
 
 function uniqueValues(values: string[]) {
@@ -871,7 +889,7 @@ export default function ProfileEdit({ embedded = false, onCancel, onSaved }: Pro
       return true;
     } catch (saveError) {
       if (profileSaveRequestRef.current === requestId) {
-        setError(saveError instanceof Error ? saveError.message : 'Failed to save profile.');
+        setError(getProfileSaveError(saveError));
         setProfileSaveState('error');
       }
       return false;
@@ -902,7 +920,7 @@ export default function ProfileEdit({ embedded = false, onCancel, onSaved }: Pro
         return;
       }
 
-      setError(saveError instanceof Error ? saveError.message : 'Failed to save profile.');
+      setError(getProfileSaveError(saveError));
 
       try {
         const freshProfile = await getMyProfile();
@@ -1334,6 +1352,7 @@ export default function ProfileEdit({ embedded = false, onCancel, onSaved }: Pro
               <Label htmlFor="display_name">Display Name</Label>
               <Input
                 id="display_name"
+                maxLength={80}
                 placeholder="Your display name"
                 value={normalizedProfile.display_name}
                 onChange={(e) => handleChange('display_name', e.target.value)}
@@ -1364,6 +1383,7 @@ export default function ProfileEdit({ embedded = false, onCancel, onSaved }: Pro
               <Label htmlFor="bio">Bio</Label>
               <Textarea
                 id="bio"
+                maxLength={2000}
                 placeholder="Tell people about yourself..."
                 value={normalizedProfile.bio}
                 onChange={e => handleChange('bio', e.target.value)}
@@ -1393,6 +1413,7 @@ export default function ProfileEdit({ embedded = false, onCancel, onSaved }: Pro
                 ariaLabel="Vibes"
                 maxSelections={MAX_PROFILE_VIBES}
                 optionGroups={VIBE_GROUPS}
+                formatOptionLabel={formatVibeLabel}
                 value={normalizedProfile.vibes}
                 onChange={(vals) => handleChange('vibes', limitToThree(vals))}
               />

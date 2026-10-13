@@ -1,3 +1,4 @@
+import { formatVibeLabel } from '../lib/vibeLabels';
 import { useEffect, useMemo, useState, type CSSProperties } from 'react';
 import { useNavigate } from 'react-router';
 import { formatDistanceLabel, useDistancePreferences } from '../lib/distancePreferences';
@@ -9,6 +10,7 @@ import ReportAction from './ReportAction';
 import CruushBadge from './CruushBadge';
 import CruushIconImage, { CruushIcon } from './CruushIconImage';
 import ProfilePhotoGallery from './ProfilePhotoGallery';
+import SingleLineSignal from './SingleLineSignal';
 import DesktopDockPanel from './DesktopDockPanel';
 import ProfileEdit from './ProfileEdit';
 import { PROFILE_OVERLAY_TEXT_STYLE, ProfileDetailsTabs, profileRecordToProfileView } from './ProfileView';
@@ -375,11 +377,11 @@ export default function MapProfilePopup({
                 does on the profile page. */}
             {profileView?.signal ? (
               <p
-                className="mt-2 truncate text-base leading-snug text-white"
+                className="mt-2 overflow-hidden whitespace-nowrap text-base leading-snug text-white"
                 data-testid="popup-overlay-signal"
                 style={PROFILE_OVERLAY_TEXT_STYLE}
               >
-                {profileView.signal}
+                <SingleLineSignal>{profileView.signal}</SingleLineSignal>
               </p>
             ) : null}
 
@@ -395,7 +397,7 @@ export default function MapProfilePopup({
                       isCurrentUser: isOwnProfile,
                     }))}
                   >
-                    {vibe}
+                    {formatVibeLabel(vibe)}
                   </span>
                 ))}
                 </SingleLineVibeRow>

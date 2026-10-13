@@ -212,6 +212,7 @@ const configSchema = z.object({
   WEB_PUSH_VAPID_PUBLIC_KEY: z.string().optional().default(""),
   WEB_PUSH_VAPID_PRIVATE_KEY: z.string().optional().default(""),
   WEB_PUSH_SUBJECT: z.string().trim().min(1).optional().default("mailto:hello@cruush.app"),
+  CRYPTO_GAS_ALERT_EMAIL_ENABLED: booleanEnvSchema,
   CRYPTO_PROCESSOR_ENABLED: booleanEnvSchema,
   CRYPTO_PROCESSOR_WALLET_XPUB: z.string().trim().optional().default(""),
   CRYPTO_PROCESSOR_BITCOIN_WALLET_XPUB: z.string().trim().optional().default(""),
@@ -881,6 +882,7 @@ type BuildInfoConfigKey =
 type AudienceConfigKey =
   | "RESEND_CRUUSH_APP_AUDIENCE_ID";
 type CryptoProcessorConfigKey =
+  | "CRYPTO_GAS_ALERT_EMAIL_ENABLED"
   | "CRYPTO_PROCESSOR_ENABLED"
   | "CRYPTO_PROCESSOR_WALLET_XPUB"
   | "CRYPTO_PROCESSOR_BITCOIN_WALLET_XPUB"

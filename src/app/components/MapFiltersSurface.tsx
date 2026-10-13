@@ -1,3 +1,4 @@
+import { formatVibeLabel } from '../lib/vibeLabels';
 import { useState } from 'react';
 import BugButtonSlot from './BugButtonSlot';
 import { Button } from './ui/button';
@@ -145,6 +146,7 @@ function FieldGroup({
         searchable={searchable}
         options={options}
         optionGroups={optionGroups}
+        formatOptionLabel={stateKey === 'vibes' ? formatVibeLabel : undefined}
         value={value[stateKey]}
         onChange={(items) => onChange(updateList(value, stateKey, items))}
       />}

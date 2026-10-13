@@ -6,6 +6,7 @@ import { getCheckoutSession } from '../lib/billingApi';
 import { cardForReward, EARNED_CRUUSH_PLUS_CARD_EVENT, type EarnedCruushPlusCard } from '../lib/earnedCruushPlusCard';
 import { hasPersistentNoticeFlag, setPersistentNoticeFlag } from '../lib/persistentNotice';
 import { acquireOneTimeDialog, onOneTimeDialogReleased, releaseOneTimeDialog } from '../lib/oneTimeDialogQueue';
+import { useExclusivePopup } from '../lib/popupQueue';
 
 export default function EarnedCruushPlusCards({ userId }: {
   userId: string;
@@ -14,6 +15,7 @@ export default function EarnedCruushPlusCards({ userId }: {
   const [queue, setQueue] = useState<EarnedCruushPlusCard[]>([]);
   const [open, setOpen] = useState(false);
   const activeCard = queue[0];
+  const showing = useExclusivePopup('earned-reward', open && Boolean(activeCard));
   const dialogKey = `earned-plus:${userId}`;
   const enqueue = useCallback((card: EarnedCruushPlusCard, replay = false) => {
     if (!replay && hasPersistentNoticeFlag(`cruush:plus-card:${userId}:${card.id}`)) return;
@@ -78,7 +80,7 @@ export default function EarnedCruushPlusCards({ userId }: {
     };
   }, [activeCard?.id, dialogKey]);
 
-  if (!open || !activeCard) return null;
+  if (!showing || !activeCard) return null;
   return <CruushPlusScratchCard key={activeCard.id} card={activeCard} onClose={accepted => {
     if (accepted) setPersistentNoticeFlag(`cruush:plus-card:${userId}:${activeCard.id}`);
     setOpen(false);

@@ -1,3 +1,4 @@
+import { formatVibeLabel } from '../lib/vibeLabels';
 import type { ComponentType } from 'react';
 import {
   BimboGlyph,
@@ -151,6 +152,6 @@ export function resolveSavedProfileBadge(badgeId: string) {
   const category = profileBadgeCategory(group, value);
   return {
     icon: profileBadgeGlyph(group, value, category),
-    label: value,
+    label: group === 'Vibes' ? formatVibeLabel(value) : value,
   };
 }

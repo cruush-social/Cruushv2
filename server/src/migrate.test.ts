@@ -18,6 +18,16 @@ const currentDir = path.dirname(fileURLToPath(import.meta.url));
 const serverRoot = path.resolve(currentDir, "..");
 
 describe("migration runner", () => {
+  it("starts the API independently while retaining the explicit migration command", async () => {
+    const dockerfile = await readFile(path.join(serverRoot, "Dockerfile"), "utf8");
+    const manifest = JSON.parse(await readFile(path.join(serverRoot, "package.json"), "utf8"));
+    const command = dockerfile.match(/^CMD (.+)$/m)?.[1];
+    expect(command).toBeDefined();
+    expect(JSON.parse(command!)).toEqual(["npm", "run", "start"]);
+    expect(manifest.scripts.start).toBe("node --enable-source-maps dist/index.js");
+    expect(manifest.scripts.migrate).toBe("node --enable-source-maps dist/migrate.js");
+  });
+
   it("still invokes the CLI while helper imports need no DATABASE_URL", async () => {
     await expect(promisify(execFile)(process.execPath, ["--import", "tsx", path.join(currentDir, "migrate.ts")], {
       cwd: serverRoot, env: { PATH: process.env.PATH, DATABASE_URL: "" }

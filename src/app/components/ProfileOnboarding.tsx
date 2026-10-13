@@ -1,3 +1,4 @@
+import { formatVibeLabel } from '../lib/vibeLabels';
 import { useTrustRestrictions } from '../lib/trustRestrictions';
 import TrustRestrictionNotice from './TrustRestrictionNotice';
 import { useEffect, useLayoutEffect, useRef, useState, type ChangeEvent, type FormEvent } from 'react';
@@ -914,6 +915,7 @@ export default function ProfileOnboarding({
                     ariaLabel="Vibes"
                     maxSelections={3}
                     optionGroups={VIBE_GROUPS}
+                    formatOptionLabel={formatVibeLabel}
                     value={profile.vibes}
                     onChange={(values) => setProfileField('vibes', limitToThree(values))}
                   />

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatPresenceLabel } from "./discovery-users.js";
+import { canShowOnlineStatus, formatPresenceLabel } from "./discovery-users.js";
 
 const now = Date.parse("2026-10-11T12:00:00Z");
 const minutesAgo = (minutes: number) => new Date(now - minutes * 60_000);
@@ -20,8 +20,15 @@ describe("formatPresenceLabel", () => {
       .toBe("3h ago");
   });
 
-  it("never reads Online, or closer than the window, for Ghost Mode members", () => {
-    expect(formatPresenceLabel({ lastSeenAt: minutesAgo(1), fallback: minutesAgo(3000), allowOnline: false, nowMs: now }))
+  it.each(["PUBLIC_PRECISE", "GHOST"])("shows recent %s activity as Online", (baseMode) => {
+    expect(formatPresenceLabel({ lastSeenAt: minutesAgo(1), allowOnline: canShowOnlineStatus(baseMode), nowMs: now }))
+      .toBe("Online");
+    expect(formatPresenceLabel({ lastSeenAt: minutesAgo(5), allowOnline: canShowOnlineStatus(baseMode), nowMs: now }))
+      .toBe("5m ago");
+  });
+
+  it.each(["STEALTH", undefined, null, "unknown"])("keeps %s activity outside the Online window", (baseMode) => {
+    expect(formatPresenceLabel({ lastSeenAt: minutesAgo(1), fallback: minutesAgo(3000), allowOnline: canShowOnlineStatus(baseMode), nowMs: now }))
       .toBe("5m ago");
   });
 });

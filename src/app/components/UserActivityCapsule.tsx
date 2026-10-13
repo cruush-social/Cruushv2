@@ -1,3 +1,4 @@
+import { formatVibeLabel } from '../lib/vibeLabels';
 /**
  * Protected cruush presentation and behavior.
  * Do not change artwork, geometry, styling, content, controls, privacy rules,
@@ -116,7 +117,7 @@ export default function UserActivityCapsule({
             isCurrentUser: vibeTone === 'current',
           }))}
         >
-          {vibe}
+          {formatVibeLabel(vibe)}
         </span>
       ))}
     </SingleLineVibeRow>

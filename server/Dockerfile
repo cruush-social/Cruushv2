@@ -44,5 +44,6 @@ COPY package.json package-lock.json ./
 RUN npm ci --omit=dev
 COPY --from=build /app/dist ./dist
 COPY sql ./sql
+COPY ops/run-migrations.mjs ./ops/run-migrations.mjs
 EXPOSE 3001
-CMD ["sh", "-c", "npm run migrate && npm run start"]
+CMD ["npm", "run", "start"]

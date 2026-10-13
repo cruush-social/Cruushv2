@@ -96,10 +96,12 @@ docker exec <container> wget -qO- http://127.0.0.1:3001/health   # works
 docker exec <container> wget -qO- http://localhost:3001/health   # refused
 ```
 
-The API's retry budget is separately large because its entrypoint is
-`npm run migrate && npm run start`, so it does not bind port 3001 until every
-migration in `server/sql` finishes — over two minutes on a cold database.
-`retries x interval` must exceed that. Raise retries, not interval.
+The API retains its existing generous retry budget. Its entrypoint is now
+`npm run start`; migrations must finish first in a separate job using the same
+candidate image and a separate schema-owner credential. The release helper does
+not run that job. See the [database credential cutover runbook](database-credential-cutover.md)
+before releasing this startup change. Set the API custom build command to `docker compose build api && sh server/ops/migrate-built-api.sh server/compose.v2.yml <DEPLOYMENT_SHA> <API_RESOURCE_UUID>`; it migrates the immutable candidate image before the existing API is stopped. A health-check retry budget does not replace
+the migration completion gate.
 
 ## Detecting a split brain
 

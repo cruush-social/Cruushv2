@@ -741,3 +741,27 @@ Julien: “lets make it safer,” then “Smaller jumps, preserve the minimum of
 
 ## 2026-10-11: View-once photo overlay
 Julien: “i think the view once photos should be like snapchat style right? they pop up?” and “agree” to “tap to open a full-screen photo overlay, then close it to return to chat. After closing, it shows Viewed and cannot reopen.” Recipient view-once photos open in a full-screen overlay; closing removes the temporary image. Keep expiry, DL/NSFW and one-time-access rules intact.
+
+## Ghost Mode online status, October 13, 2026
+
+Julien: “Yes it should still show online.” This answers “Should Ghost Mode hide location only, while still showing Online?” Recently active Ghost Mode members show the existing `Online` status within the existing five-minute activity window. Ghost Mode continues to protect location with its existing decoy, distance-label rules and precise-location grants. Preserve Dark Room visibility and online-status suppression, unknown-policy safeguards, all audience rules and existing presentation. This supersedes the earlier Ghost-specific `5m ago` minimum for online activity.
+
+## Dark Room profile online status, October 13, 2026
+
+Julien: “Dark Room users should also say they are online on their profile if they are”. An already-authorized, visible Dark Room full profile may show the existing `Online` status within the existing five-minute activity window. Preserve Dark Room map hiding, profile access and audience rules, location/distance privacy, unknown-policy safeguards and other surfaces' presence behavior. This supersedes Dark Room online-status suppression for the full profile only.
+
+## October 13, 2026 — Health capsule wrapping
+
+Julien: “Its okay for the health capsule to wrap 2 lines show me how small it looks add to que”. The reported full-profile Substance Boundaries capsule may wrap to two lines. The local mobile preview uses the existing smaller text token only for “no other drugs involved”; preserve the other Health labels, two-column layout, padding and capsule decoration. This records the requested preview, not release approval.
+
+## October 13, 2026 — Full-profile Vibes fit
+
+Julien: “Also on some profiles thr vibe capsules go on 2 lines instead of shrinking to fit on one line in the profiles themselves.” Full-profile Vibe rows shrink their existing capsule composition to fit one line, retaining complete labels, order, colors and proportions. Preserve already-fitting rows and all unrelated profile presentation.
+
+## October 13, 2026 — concise Vibe labels
+
+Julien: “Remove "queer" from vibe tags like "queer nightlife" its redunant”. Display the compound Vibe labels as “Arts” and “Nightlife”. Preserve the stored selection values and filter/visibility matching, and retain standalone identity, sexuality and Pride labels. Other wording and styling remain unchanged.
+
+## Precise-sharing additions reverted, October 12, 2026
+
+Julien: “Revert the precise location stuff doesnt it ask already for precise or approx distance”. Revert the new precise-sharing default and selected-person grant controls. Preserve the existing precise/approximate distance choice, existing sharing behavior and defaults, and the earlier Ghost triangulation hardening. This supersedes the preceding selected-person-sharing approval.

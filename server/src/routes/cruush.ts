@@ -40,7 +40,7 @@ import {
   upsertEncryptedRelationshipRecord,
   type EncryptedRelationshipRecord
 } from "../encrypted-relationships.js";
-import { formatDistanceMiles, formatPresenceLabel } from "../discovery-users.js";
+import { canShowOnlineStatus, formatDistanceMiles, formatPresenceLabel } from "../discovery-users.js";
 import {
   CROWD_OPTIONS,
   decryptProfileVisibility,
@@ -257,7 +257,7 @@ type MutualCruushRow = {
   precise_location_visibility: "none" | "mutual_cruushes" | null;
   can_message: boolean | null;
   can_reveal_precise_location: boolean | null;
-  target_base_mode: VisibilityBaseMode;
+  target_base_mode: VisibilityBaseMode | undefined;
   target_dark_room_distance_label: boolean;
 };
 
@@ -969,7 +969,7 @@ async function loadMutualCruushRows(app: FastifyInstance, userId: string) {
       precise_location_visibility: profile.precise_location_visibility,
       can_message: relationship.canMessage,
       can_reveal_precise_location: relationship.canRevealPreciseLocation,
-      target_base_mode: relationship.targetBaseMode ?? "GHOST",
+      target_base_mode: relationship.targetBaseMode,
       target_dark_room_distance_label: relationship.targetDarkRoomDistanceLabel === true
     };
   }));
@@ -1108,7 +1108,7 @@ async function mapTokenizedMutualCruushRow(
     lastActive: formatPresenceLabel({
       lastSeenAt: row.last_seen_at,
       fallback: row.updated_at,
-      allowOnline: displayMode !== "GHOST"
+      allowOnline: canShowOnlineStatus(policy.baseMode)
     }),
     canMessage: relationship.canMessage,
     canRevealPreciseLocation: relationship.canRevealPreciseLocation,
@@ -1179,7 +1179,7 @@ function mapMutualCruushRow(
     lastActive: formatPresenceLabel({
       lastSeenAt: row.last_seen_at,
       fallback: row.updated_at,
-      allowOnline: row.target_base_mode !== "GHOST" && row.target_base_mode !== "STEALTH"
+      allowOnline: canShowOnlineStatus(row.target_base_mode)
     }),
     canMessage: row.can_message === true,
     canRevealPreciseLocation: preciseAllowed,

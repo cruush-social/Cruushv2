@@ -731,8 +731,12 @@ These are not preferences. Breaking one is a bug.
   phone without wrapping. The editor input, the server payload schema, and the
   map preview all hold that number, and it lives in one place:
   `SIGNAL_MAX_LENGTH` in `server/src/profile-schema.ts`.
-- A signal renders on **one line**, everywhere. It truncates; it never wraps to
-  a second line and never grows the block it sits in.
+- A signal renders on **one line**, everywhere. Preserve all 35 allowed
+  characters and shrink only when needed to fit; never ellipsize or wrap it.
+  October 13, 2026, Julien: "Just show all 35 on one line then! Resize it to fit on one line on the profile too".
+- Map Signals stay horizontally centered above their own pins, including near
+  screen edges. Never shift the caption sideways independently of its pin.
+  October13,2026, Julien: "Signals should never be off center like that".
 
 ### Colour
 - Never change a colour, a surface opacity, or a shadow that the request did not
@@ -824,3 +828,6 @@ Julien: "I want to get thr stablecoin working for venmo paypal for sure" and "sw
 
 ### October 13, 2026 — technosovereign brand casing
 Julien: "technosovereign is all lowercase". Write the operator brand as `technosovereign` in public copy, checkout plans and provider inquiry drafts. Any required registered legal-entity field must use the verified registered name.
+
+### October 13, 2026 — stablecoin-only checkout and manual gas refill
+Julien: "Only stablecoin" and "Im confused so i only want to accept stablecoin". Accept PYUSD and USDC for new purchases; native ETH is network gas, never a subscription payment option. Julien superseded automatic-refill approval with "Actually shouldng it just tell me when i have to refill it for now?" and chose "Email me". Monitor gas balances and email only the owner when refilling is needed; no automatic purchases or swaps.

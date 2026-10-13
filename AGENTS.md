@@ -87,3 +87,5 @@ the applicable source. Current explicit user instructions override older decisio
 - 2026-10-11: Initial view-once overlay insertion matched both header and footer, creating two portals; removed the unintended header instance before verification.
 - 2026-10-12: Initial Rewards/Store Back repair assumed browser history; inspected the authenticated MemoryRouter and corrected the handlers and tests to preserve its actual history before delivery.
 - 2026-10-12: Initial notification-link repair retained camera suppression after later ordinary map navigation; constrained it to the consumed link's route state and verified normal navigation restores existing framing.
+
+- 2026-10-13: Assumed Coolify custom builds retained Git metadata and exported SOURCE_COMMIT to the chained runner; checked the installed helpers and replaced those assumptions with repository-root paths and explicit deployment SHA/resource pins before release.

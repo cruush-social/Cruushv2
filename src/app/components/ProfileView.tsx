@@ -1,3 +1,4 @@
+import { formatVibeLabel } from '../lib/vibeLabels';
 import { useContentVisibilityRefresh } from '../lib/contentVisibilityRevision';
 import { showPurgatoryPresentation } from '../lib/purgatoryPresentation';
 import { shouldMaskPhoto, useDlMode } from '../lib/dlMode';
@@ -17,6 +18,8 @@ import CruushIconImage, { CruushIcon } from './CruushIconImage';
 import mapIconWhite from '../assets/ui-icons/map-white.png';
 import { resolveVibeTone, vibeCapsuleStyle } from '../lib/vibeTone';
 import ProfilePhotoGallery from './ProfilePhotoGallery';
+import SingleLineVibeRow from './SingleLineVibeRow';
+import SingleLineSignal from './SingleLineSignal';
 import LoadingCardSkeletons from './LoadingCardSkeletons';
 import { getMutualCruushMap, revokeMutualCruush, revokeSentCruush, sendCruush } from '../lib/cruushApi';
 import { addCruushChangedListener } from '../lib/cruushEvents';
@@ -475,7 +478,12 @@ export default function ProfileView() {
       return null;
     }
 
-    return profileRecordToProfileView(profile, previewState, !profilePinsAllowed);
+    // Dark Room lists keep coarse presence, while the opened profile uses its
+    // current server status. A card's navigation state must not override it.
+    const profilePreviewState = profile.viewer_relationship?.location_mode === 'STEALTH'
+      ? { ...previewState, lastActive: undefined }
+      : previewState;
+    return profileRecordToProfileView(profile, profilePreviewState, !profilePinsAllowed);
   }, [previewState?.distance, previewState?.lastActive, profile, profilePinsAllowed]);
 
   useEffect(() => {
@@ -769,28 +777,30 @@ export default function ProfileView() {
               width on the photo rather than in a card under it. */}
           {profileView.signal ? (
             <p
-              className="mt-2 truncate text-base leading-snug text-white sm:text-lg"
+              className="mt-2 overflow-hidden whitespace-nowrap text-base leading-snug text-white sm:text-lg"
               data-testid="profile-overlay-signal"
               style={PROFILE_OVERLAY_TEXT_STYLE}
             >
-              {profileView.signal}
+              <SingleLineSignal>{profileView.signal}</SingleLineSignal>
             </p>
           ) : null}
 
           {profileView.vibes.length > 0 ? (
-            <div className="mt-2 flex flex-wrap gap-1.5" data-testid="profile-overlay-vibes">
-              {profileView.vibes.slice(0, 3).map((vibe) => (
-                <span
-                  className="max-w-full min-w-0 truncate rounded-full border px-2 py-0.5 text-[11px] uppercase leading-tight tracking-[0.08em]"
-                  key={vibe}
-                  style={vibeCapsuleStyle(resolveVibeTone({
-                    mutual: profileView.relationship?.mutual_cruush,
-                    isCurrentUser: isOwnProfile,
-                  }))}
-                >
-                  {vibe}
-                </span>
-              ))}
+            <div className="mt-2" data-testid="profile-overlay-vibes">
+              <SingleLineVibeRow>
+                {profileView.vibes.slice(0, 3).map((vibe) => (
+                  <span
+                    className="max-w-full min-w-0 truncate rounded-full border px-2 py-0.5 text-[11px] uppercase leading-tight tracking-[0.08em]"
+                    key={vibe}
+                    style={vibeCapsuleStyle(resolveVibeTone({
+                      mutual: profileView.relationship?.mutual_cruush,
+                      isCurrentUser: isOwnProfile,
+                    }))}
+                  >
+                    {formatVibeLabel(vibe)}
+                  </span>
+                ))}
+              </SingleLineVibeRow>
             </div>
           ) : null}
           {/* The controls ride on the photo itself rather than under it. */}
@@ -1059,7 +1069,12 @@ export function ProfileDetailsTabs({
               here reading the same field, so editing it looked like only one of
               them moved. One field, one place. */}
           <Section title="Substance Boundaries" compact={compact}>
-            <BadgeList items={profileView.substanceBoundariesList} compact={compact} />
+            <BadgeList
+              items={profileView.substanceBoundariesList}
+              compact={compact}
+              wrap={!compact}
+              smallerTextFor={compact ? undefined : (item) => item.toLowerCase() === 'no other drugs involved'}
+            />
           </Section>
         </div>
       </TabsContent>
@@ -1081,11 +1096,13 @@ function BadgeList({
   variant = 'default',
   compact = false,
   wrap = false,
+  smallerTextFor,
 }: {
   items: string[];
   variant?: 'default' | 'gradient';
   compact?: boolean;
   wrap?: boolean;
+  smallerTextFor?: (item: string) => boolean;
 }) {
   if (!items.length) {
     return <p className={`${compact ? 'text-sm' : 'text-base'} text-muted-foreground`}>Nothing listed yet.</p>;
@@ -1096,7 +1113,7 @@ function BadgeList({
       {items.map((item) => (
         <span
           key={item}
-          className={`${wrap ? 'max-w-full whitespace-normal break-words' : 'whitespace-nowrap'} rounded-full border lowercase ${compact ? 'px-2.5 py-1 text-xs' : 'px-3 py-1 text-base'}`}
+          className={`${wrap ? 'max-w-full whitespace-normal break-words' : 'whitespace-nowrap'} rounded-full border lowercase ${compact ? 'px-2.5 py-1 text-xs' : `px-3 py-1 ${smallerTextFor?.(item) ? 'text-sm' : 'text-base'}`}`}
                   style={variant === 'gradient'
             ? {
                 borderColor: 'transparent',

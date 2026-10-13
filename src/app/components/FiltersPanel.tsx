@@ -1,3 +1,4 @@
+import { formatVibeLabel } from '../lib/vibeLabels';
 import { useNavigate } from 'react-router';
 import { X } from 'lucide-react';
 import { Button } from './ui/button';
@@ -109,7 +110,7 @@ export default function FiltersPanel() {
 
             <div className="space-y-2">
               <Label>Vibes</Label>
-              <MultiSelect menuPortal ariaLabel="Vibes" optionGroups={VIBE_GROUPS} />
+              <MultiSelect menuPortal ariaLabel="Vibes" optionGroups={VIBE_GROUPS} formatOptionLabel={formatVibeLabel} />
             </div>
 
             <div className="space-y-2">

@@ -41,7 +41,7 @@ import {
 import { approvedContentReviewCte, moderateMessageTextOrAllowByKeyword } from "../moderation-service.js";
 import { OWNER_FULL_ACCESS_EMAIL, userHasOwnerFullAccess } from "../owner-access.js";
 import { getActiveAccountUserId, getAuthenticatedUserId } from "../request-auth.js";
-import { formatPresenceLabel } from "../discovery-users.js";
+import { canShowOnlineStatus, formatPresenceLabel } from "../discovery-users.js";
 import { getSharedDistanceLabelMode } from "../match-relationships.js";
 import { loadOutOfSightStatuses, resolveOutOfSightLocationLabel, type OutOfSightStatus } from "../out-of-sight-location.js";
 import { loadCurrentTownLabels } from "../current-town-labels.js";
@@ -523,7 +523,7 @@ async function getDirectConversationOptions(
   const audience = await getNsfwPhotoAudience(app, row.other_user_id);
   return {
     canMessage,
-    allowOnline: relationship.targetBaseMode === "PUBLIC_PRECISE",
+    allowOnline: canShowOnlineStatus(relationship.targetBaseMode),
     mutual: relationship.isMutualCruush,
     sharesCrowd,
     nsfwPhotoRestriction: resolveNsfwPhotoRestriction(audience, { isMutualCruush: relationship.isMutualCruush, sharesCrowd })

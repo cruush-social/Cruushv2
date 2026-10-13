@@ -1,3 +1,4 @@
+import { formatVibeLabel } from '../lib/vibeLabels';
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type Ref } from 'react';
 import { ChevronLeft, ChevronRight, Lock, RefreshCw, X } from 'lucide-react';
 import { Button } from './ui/button';
@@ -320,7 +321,7 @@ function CarouselTile({ item, featured, itemIndex, spinning, activePhotoIndex, o
                     key={vibe}
                     style={vibeCapsuleStyle(resolveVibeTone({ mutual: item.user.relationship?.mutualCruush === true }))}
                   >
-                    {vibe}
+                    {formatVibeLabel(vibe)}
                   </span>
                 ))}
               </div>

@@ -10,6 +10,8 @@ export type MultiSelectOptionGroup = {
   options: string[];
 };
 
+const identityOptionLabel = (option: string) => option;
+
 const MENU_MAX_HEIGHT = 288;
 const MENU_MIN_HEIGHT = 96;
 const MENU_OFFSET = 8;
@@ -33,6 +35,7 @@ type ResolvedMenuPlacement = 'bottom' | 'top';
 interface MultiSelectProps {
   options?: string[];
   optionGroups?: MultiSelectOptionGroup[];
+  formatOptionLabel?: (option: string) => string;
   value?: string[];
   onChange?: (value: string[]) => void;
   selectionMode?: 'multiple' | 'single';
@@ -49,6 +52,7 @@ interface MultiSelectProps {
 export default function MultiSelect({
   options = [],
   optionGroups,
+  formatOptionLabel = identityOptionLabel,
   value = [],
   onChange,
   selectionMode = 'multiple',
@@ -81,7 +85,7 @@ export default function MultiSelect({
   const searchGroups = normalizedSearchQuery
     ? groups.map((group) => ({
         ...group,
-        options: group.options.filter((option) => option.toLowerCase().includes(normalizedSearchQuery)),
+        options: group.options.filter((option) => formatOptionLabel(option).toLowerCase().includes(normalizedSearchQuery)),
       })).filter((group) => group.options.length > 0)
     : [];
   const tablistRef = useRef<HTMLDivElement | null>(null);
@@ -325,7 +329,7 @@ export default function MultiSelect({
                 selected.includes(option) ? 'bg-accent text-accent-foreground' : ''
               }`}
             >
-              {option}
+              {formatOptionLabel(option)}
             </button>
           ))}
         </div>
@@ -356,7 +360,7 @@ export default function MultiSelect({
                       isSelected ? 'bg-accent/80 font-medium text-accent-foreground' : ''
                     }`}
                   >
-                    <span>{option}</span>
+                    <span>{formatOptionLabel(option)}</span>
                     {isSelected ? <Check className="h-4 w-4 shrink-0 text-primary" /> : null}
                   </button>
                 );
@@ -429,7 +433,7 @@ export default function MultiSelect({
                       isSelected ? 'bg-accent/80 font-medium text-accent-foreground' : ''
                     }`}
                   >
-                    <span>{option}</span>
+                    <span>{formatOptionLabel(option)}</span>
                     {isSelected ? <Check className="h-4 w-4 shrink-0 text-primary" /> : null}
                   </button>
                 );
@@ -468,7 +472,7 @@ export default function MultiSelect({
 
   const renderSelectedBadge = (item: string) => (
     <Badge key={item} variant="secondary" className="gap-1">
-      {item}
+      {formatOptionLabel(item)}
       <button type="button" onClick={() => removeOption(item)} className="ml-1">
         <X className="w-3 h-3" />
       </button>

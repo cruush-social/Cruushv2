@@ -47,3 +47,16 @@
     white-space: nowrap;
   }
 }
+
+/* The map artwork extends behind the banner; its shell and controls keep their
+   existing bounds. Clip the other three edges at their original positions. */
+.cruush-map-sale-backdrop {
+  overflow: visible;
+  clip-path: inset(calc(-1 * var(--cruush-sale-banner-height, 0px)) 0 0 0);
+}
+
+/* Moving the page scrollport behind the banner must not move sticky page
+   controls into it. Nested scroll panels and desktop popups keep their own top. */
+.cruush-app-page-content > .min-h-screen > header.sticky {
+  top: var(--cruush-sale-banner-height, 0px);
+}

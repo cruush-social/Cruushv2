@@ -270,7 +270,7 @@ Migration rules:
 - Append new migrations; do not edit already-deployed migrations unless explicitly coordinating a destructive reset for local-only dev.
 - Add the new SQL filename to `server/src/migrate.ts`.
 - Add tests around schema-dependent route behavior when adding tables/columns used by app code.
-- Server Docker deploys should run `npm run migrate` before `npm run start`.
+- Before a server Docker deployment, run `npm run migrate` as a separate one-off job from the candidate image with its own schema-owner credential. Require success before starting the API with its restricted runtime credential. The API image defaults to `npm run start` only. See [database credential cutover](database-credential-cutover.md).
 
 Important tables and responsibilities:
 

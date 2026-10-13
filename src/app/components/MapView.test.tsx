@@ -1484,7 +1484,7 @@ describe('MapView', () => {
     expect(signalStack).toHaveClass(
       'scale-[0.7246376812]',
       'opacity-100',
-      'delay-150',
+      'duration-150',
       'max-w-none',
     );
     expect(signalStack.querySelector('.cruush-ghost-rotation-signal-symbol')).toHaveClass('whitespace-nowrap');
@@ -2584,7 +2584,7 @@ describe('spiderfy clusters', () => {
     expect(mapInstances[0].fitBounds).not.toHaveBeenCalled();
   });
 
-  it('opens a same-building people fan on hover and pins it open with a click', async () => {
+  it('opens a same-building people fan on hover, pins it with a click, and opens a retained member', async () => {
     const onPinClick = vi.fn();
     render(
       <MapView
@@ -2614,9 +2614,15 @@ describe('spiderfy clusters', () => {
     expect(screen.getByRole('button', { name: 'Open A on map' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Open B on map' })).toBeInTheDocument();
     expect(onPinClick).not.toHaveBeenCalled();
+
+    fireEvent.click(pinnedMember);
+    expect(onPinClick).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({ id: 'b' }));
+    expect(mapInstances[0].setZoom).not.toHaveBeenCalled();
+    expect(mapInstances[0].setCenter).not.toHaveBeenCalled();
+    expect(mapInstances[0].fitBounds).not.toHaveBeenCalled();
   });
 
-  it('opens a same-building people fan on a mobile long press and keeps it open after a tap', async () => {
+  it('opens a same-building people fan on a mobile long press and opens a member on its first tap', async () => {
     const onPinClick = vi.fn();
     render(
       <MapView
@@ -2636,6 +2642,10 @@ describe('spiderfy clusters', () => {
 
     const member = await screen.findByRole('button', { name: 'Open A on map' });
     fireEvent.pointerUp(cluster, { pointerType: 'touch' });
+    const holdRelease = new Event('touchend', { bubbles: true, cancelable: true });
+    fireEvent(cluster, holdRelease);
+    expect(holdRelease.defaultPrevented).toBe(true);
+    expect(onPinClick).not.toHaveBeenCalled();
     const memberPointerDown = new Event('pointerdown', { bubbles: true });
     Object.defineProperty(memberPointerDown, 'pointerType', { value: 'touch' });
     await act(async () => {
@@ -2644,17 +2654,17 @@ describe('spiderfy clusters', () => {
       fireEvent.click(member, { detail: 1 });
       await Promise.resolve();
     });
-    fireEvent.pointerLeave(member, { pointerType: 'mouse', relatedTarget: document.body });
-
-    expect(screen.getByRole('button', { name: 'Open A on map' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Open B on map' })).toBeInTheDocument();
-    expect(onPinClick).not.toHaveBeenCalled();
+    expect(onPinClick).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({ id: 'a' }));
+    expect(mapInstances[0].setZoom).not.toHaveBeenCalled();
+    expect(mapInstances[0].setCenter).not.toHaveBeenCalled();
+    expect(mapInstances[0].fitBounds).not.toHaveBeenCalled();
   });
 
   it('fans same-spot people out on tap instead of zooming', async () => {
+    const onPinClick = vi.fn();
     render(
       <MapView
-        onPinClick={vi.fn()}
+        onPinClick={onPinClick}
         markers={[
           { id: 'a', displayName: 'A', approximateLatitude: 40.7128, approximateLongitude: -73.99 },
           { id: 'b', displayName: 'B', approximateLatitude: 40.7128, approximateLongitude: -73.99 },
@@ -2666,6 +2676,16 @@ describe('spiderfy clusters', () => {
     const cluster = await screen.findByRole('button', { name: /sharing this map spot/ });
 
     await act(async () => {
+      const pointerDown = new Event('pointerdown', { bubbles: true });
+      Object.defineProperty(pointerDown, 'pointerType', { value: 'touch' });
+      fireEvent(cluster, pointerDown);
+      // Browser pointer activation focuses the cluster before its click.
+      fireEvent.focus(cluster);
+      await Promise.resolve();
+      fireEvent.pointerUp(cluster, { pointerType: 'touch' });
+      const shortRelease = new Event('touchend', { bubbles: true, cancelable: true });
+      fireEvent(cluster, shortRelease);
+      expect(shortRelease.defaultPrevented).toBe(false);
       fireEvent.click(cluster);
       await Promise.resolve();
       await Promise.resolve();
@@ -2684,6 +2704,10 @@ describe('spiderfy clusters', () => {
     // Keep the fan compact: each heart stays within one heart-width of the
     // shared coordinate instead of using the older extra-wide clearance.
     expect(Math.max(...offsets.map((offset: number[]) => Math.hypot(...offset)))).toBeLessThanOrEqual(95);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Open C on map' }));
+    expect(onPinClick).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({ id: 'c' }));
+    expect(mapInstances[0].setZoom).not.toHaveBeenCalled();
   });
 
   it('keeps an open fan fixed when a same-zoom viewport refresh changes its marker input', async () => {

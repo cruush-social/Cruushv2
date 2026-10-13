@@ -95,7 +95,7 @@ export default function AppViewport({ children, topBanner }: { children: ReactNo
     // A pinch belongs to the map when it starts on the map; elsewhere the page itself never zooms.
     <div data-testid="app-viewport" className="fixed inset-0 overflow-hidden bg-background text-foreground" style={{ touchAction: 'pan-x pan-y', ...(dmKeyboardViewport ? { top: dmKeyboardViewport.top, height: dmKeyboardViewport.height, bottom: 'auto' } : {}) }}>
       <div ref={banner} className="absolute inset-x-0 top-0 z-30">{topBanner}</div>
-      <div ref={content} data-testid="app-page-content" className={`scrollbar-hide absolute inset-0 overflow-y-auto overscroll-contain${onMap ? '' : ' cruush-app-page-content'}`} style={{ top: 'var(--cruush-sale-banner-height, 0px)', bottom: onMap ? 0 : 'var(--cruush-nav-clearance, 6rem)' }}>
+      <div ref={content} data-testid="app-page-content" className={`scrollbar-hide absolute inset-0 overscroll-contain${onMap ? ' overflow-visible' : ' overflow-y-auto cruush-app-page-content'}`} style={{ top: onMap ? 'var(--cruush-sale-banner-height, 0px)' : 0, paddingTop: onMap ? undefined : 'var(--cruush-sale-banner-height, 0px)', bottom: onMap ? 0 : 'var(--cruush-nav-clearance, 6rem)' }}>
         {children}
       </div>
     </div>

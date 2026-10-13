@@ -1,3 +1,4 @@
+import { formatVibeLabel } from '../lib/vibeLabels';
 import { useState } from 'react';
 import BugButtonSlot from './BugButtonSlot';
 import { Search } from 'lucide-react';
@@ -144,6 +145,7 @@ function FieldGroup({
         searchable={searchable}
         options={options}
         optionGroups={optionGroups}
+        formatOptionLabel={stateKey === 'vibes' ? formatVibeLabel : undefined}
         value={value[stateKey]}
         disableAddingOptions={limitReached && !fieldHasSelections}
         onAddingDisabled={onLimitReached}

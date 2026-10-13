@@ -1,5 +1,6 @@
+import { formatVibeLabel } from '../lib/vibeLabels';
 import { showPurgatoryPresentation } from '../lib/purgatoryPresentation';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router';
 import { Eye, RefreshCw, X } from 'lucide-react';
 import { Button } from './ui/button';
@@ -9,6 +10,7 @@ import CruushIconImage, { CruushIcon } from './CruushIconImage';
 import mapIconWhite from '../assets/ui-icons/map-white.png';
 import mileHighClubWhite from '../assets/ui-icons/mile-high-club-white.svg';
 import HeartPhoto from './HeartPhoto';
+import SingleLineSignal from './SingleLineSignal';
 import { revokeMutualCruush, revokeSentCruush, sendCruush } from '../lib/cruushApi';
 import { resolveMediaUrl } from '../lib/apiClient';
 import {
@@ -91,6 +93,18 @@ export default function ProfileCard({
   );
   const [carouselPhotoRelationship, setCarouselPhotoRelationship] = useState<DlModePhotoRelationship | undefined>(user.photoRelationship ?? user.photo_relationship);
   const [activeCarouselPhotoIndex, setActiveCarouselPhotoIndex] = useState(0);
+  const carouselSource = useRef({ id: user.id, photo: user.photo });
+  const pendingProfile = useRef<{ id: string; promise: ReturnType<typeof getProfileById> } | null>(null);
+  const loadProfile = (id: string) => {
+    if (pendingProfile.current?.id === id) return pendingProfile.current.promise;
+    const promise = getProfileById(id);
+    pendingProfile.current = { id, promise };
+    const clear = () => {
+      if (pendingProfile.current?.promise === promise) pendingProfile.current = null;
+    };
+    void promise.then(clear, clear);
+    return promise;
+  };
   const [membership, setMembership] = useState<{ id: string; outOfSight: boolean } | null>(null);
   const outOfSight = showPurgatoryPresentation(
     typeof user.outOfSight === 'boolean' ? user.outOfSight : membership?.id === user.id && membership.outOfSight,
@@ -128,30 +142,48 @@ export default function ProfileCard({
     : 'absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-4';
 
   useEffect(() => {
+    setMembership(null);
+    if (!user.id || typeof user.outOfSight === 'boolean') return undefined;
+    let cancelled = false;
+    const membershipRequest = loadProfile(user.id);
+    void membershipRequest.then((profile) => {
+      if (!cancelled) setMembership({ id: user.id, outOfSight: profile.outOfSight === true });
+    }).catch(() => {
+      // Unknown membership must not be inferred from distance or display labels.
+    });
+    return () => {
+      cancelled = true;
+      if (pendingProfile.current?.promise === membershipRequest) pendingProfile.current = null;
+    };
+  }, [carouselPresentation, user.id, user.photo, user.outOfSight]);
+
+  useEffect(() => {
+    const sourceChanged = carouselSource.current.id !== user.id || carouselSource.current.photo !== user.photo;
+    carouselSource.current = { id: user.id, photo: user.photo };
     if (carouselPresentation) {
       const suppliedPhotos = getCarouselPhotos(user);
-      setCarouselPhotos(suppliedPhotos);
-      setCarouselPhotoExplicit(getPhotoExplicitMap(user.photo_metadata));
-      setCarouselPhotoRelationship(user.photoRelationship ?? user.photo_relationship);
-      setActiveCarouselPhotoIndex(0);
+      if (sourceChanged || Array.isArray(user.photos)) {
+        setCarouselPhotos(suppliedPhotos);
+        setActiveCarouselPhotoIndex((index) => sourceChanged ? 0 : Math.min(index, Math.max(0, suppliedPhotos.length - 1)));
+      }
+      if (sourceChanged || Array.isArray(user.photo_metadata)) {
+        setCarouselPhotoExplicit(getPhotoExplicitMap(user.photo_metadata));
+      }
+      if (sourceChanged || user.photoRelationship !== undefined || user.photo_relationship !== undefined) {
+        setCarouselPhotoRelationship(user.photoRelationship ?? user.photo_relationship);
+      }
     }
 
-    setMembership(null);
     const needsGallery = carouselPresentation && !Array.isArray(user.photos);
-    const needsMembership = typeof user.outOfSight !== 'boolean';
-    if (!user.id || (!needsGallery && !needsMembership)) {
+    if (!user.id || !needsGallery) {
       return undefined;
     }
 
     let cancelled = false;
-    void getProfileById(user.id)
+    const galleryRequest = loadProfile(user.id);
+    void galleryRequest
       .then((profile) => {
         if (cancelled) {
-          return;
-        }
-
-        setMembership({ id: user.id, outOfSight: profile.outOfSight === true });
-        if (!needsGallery) {
           return;
         }
 
@@ -162,7 +194,7 @@ export default function ProfileCard({
         setCarouselPhotos(profilePhotos);
         setCarouselPhotoExplicit(getPhotoExplicitMap(profile.photo_metadata));
         setCarouselPhotoRelationship(profile.photo_relationship);
-        setActiveCarouselPhotoIndex(0);
+        setActiveCarouselPhotoIndex((index) => Math.min(index, Math.max(0, profilePhotos.length - 1)));
       })
       .catch(() => {
         // Keep discovery's primary photo usable. Unknown membership must not
@@ -171,8 +203,10 @@ export default function ProfileCard({
 
     return () => {
       cancelled = true;
+      // Do not reuse this older media request after authoritative inputs change.
+      if (pendingProfile.current?.promise === galleryRequest) pendingProfile.current = null;
     };
-  }, [carouselPresentation, user.id, user.photo, user.outOfSight]);
+  }, [carouselPresentation, user.id, user.photo, user.photos, user.photo_metadata, user.photoRelationship, user.photo_relationship, user.outOfSight]);
 
   const handleCruush = async () => {
     if (sendingCruush || revokingCruush || hasSentCruush || isAlreadyMutual) {
@@ -402,11 +436,11 @@ export default function ProfileCard({
 
             {user.signal ? (
               <p
-                className="mt-2 truncate text-base leading-snug text-white sm:text-lg"
+                className="mt-2 overflow-hidden whitespace-nowrap text-base leading-snug text-white sm:text-lg"
                 data-testid="carousel-profile-signal"
                 style={carouselTextOutlineStyle}
               >
-                {user.signal}
+                <SingleLineSignal>{user.signal}</SingleLineSignal>
               </p>
             ) : null}
 
@@ -418,7 +452,7 @@ export default function ProfileCard({
                     className="max-w-full min-w-0 truncate rounded-full border px-2 py-0.5 text-[11px] uppercase leading-tight tracking-[0.08em]"
                     style={vibeCapsuleStyle(resolveVibeTone({ mutual: isAlreadyMutual, isCurrentUser: user.isCurrentUser }))}
                   >
-                    {vibe}
+                    {formatVibeLabel(vibe)}
                   </span>
                 ))}
               </div>
@@ -597,7 +631,7 @@ export default function ProfileCard({
                   {/* Badge is a centred flex row, so text-overflow on the badge
                       itself clips the label at both ends instead of ellipsising
                       it. The label needs its own block box to truncate. */}
-                  <span className="block min-w-0 truncate">{vibe}</span>
+                  <span className="block min-w-0 truncate">{formatVibeLabel(vibe)}</span>
                 </Badge>
               ))}
             </div>

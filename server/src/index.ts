@@ -44,6 +44,7 @@ import { startPendingPhotoModerationRetryScheduler } from "./recheck-pending-pho
 import { startMapPingCleanupScheduler } from "./map-ping-cleanup.js";
 import { startPlaceCheckinExpiryScheduler } from "./place-checkin-expiry.js";
 import { syncAllVerifiedMembersToResendAudience } from "./resend-audience.js";
+import { startCryptoGasAlertScheduler } from "./crypto-gas-alerts.js";
 import { startCryptoWatcher } from "./crypto-watcher-runtime.js";
 import { createBitcoinSource } from "./bitcoin.js";
 import { createMempoolBitcoinSource, type MempoolBitcoinSource } from "./bitcoin-mempool-source.js";
@@ -92,6 +93,7 @@ let stopAccountDeletionMediaCleanupScheduler: (() => void) | null = null;
 let stopPendingPhotoModerationRetryScheduler: (() => void) | null = null;
 let stopMapPingCleanupScheduler: (() => void) | null = null;
 let stopCryptoWatcher: (() => void) | null = null;
+let stopCryptoGasAlerts: (() => void) | null = null;
 let stopPlaceCheckinExpiryScheduler: (() => void) | null = null;
 
 let stopSubscriptionExpiryScheduler: (() => void) | null = null;
@@ -114,6 +116,7 @@ const shutdown = async () => {
   stopPendingPhotoModerationRetryScheduler?.();
   stopMapPingCleanupScheduler?.();
   stopCryptoWatcher?.();
+  stopCryptoGasAlerts?.();
   stopPlaceCheckinExpiryScheduler?.();
   await app.close();
 };
@@ -140,6 +143,7 @@ stopMapPingCleanupScheduler = startMapPingCleanupScheduler(app);
 // endpoint are all explicitly configured.
 cryptoWatcherHandle = startCryptoWatcher(app, mempoolBitcoinSource ? { bitcoinSource: mempoolBitcoinSource } : {});
 stopCryptoWatcher = cryptoWatcherHandle?.stop ?? null;
+stopCryptoGasAlerts = startCryptoGasAlertScheduler(app);
 // Prime the active-address subscription immediately after watcher startup.
 if (mempoolBitcoinSource) void cryptoWatcherHandle?.runOnce();
 stopPlaceCheckinExpiryScheduler = startPlaceCheckinExpiryScheduler(app);

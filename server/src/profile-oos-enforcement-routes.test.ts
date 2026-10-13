@@ -13,14 +13,15 @@ import { registerUserRoutes } from "./routes/users.js";
 
 const mocks = vi.hoisted(() => ({
   locations: vi.fn(), location: vi.fn(), pins: vi.fn(), pin: vi.fn(),
-  relationship: vi.fn(), policy: vi.fn(), token: vi.fn(),
+  relationship: vi.fn(), policy: vi.fn(), token: vi.fn(), ghost: vi.fn(),
   canViewPhoto: vi.fn(), readMedia: vi.fn()
 }));
 vi.mock("./location-privacy.js", async (original) => ({
   ...await original<typeof import("./location-privacy.js")>(),
   loadLocationEnvelopes: mocks.locations, loadLocationEnvelope: mocks.location,
   loadVisibilityPolicy: vi.fn().mockResolvedValue(null),
-  makeDisplayLocationToken: mocks.token
+  makeDisplayLocationToken: mocks.token,
+  resolveViewerGhostCoordinate: mocks.ghost
 }));
 vi.mock("./travel-pins.js", async (original) => ({
   ...await original<typeof import("./travel-pins.js")>(),
@@ -130,6 +131,7 @@ describe("Out of Sight profile, discovery and media enforcement", () => {
     });
     mocks.policy.mockResolvedValue({ baseMode: "PUBLIC_PRECISE", preciseToMutualCrowds: [], policyVersion: 1 });
     mocks.token.mockResolvedValue({ tokenId: "test-location-token", expiresAtMs: Date.now() + 60_000 });
+    mocks.ghost.mockResolvedValue({ coordinate: { lat: 40.715, lng: -74.001 }, resolvedAtMs: Date.now(), radiusMeters: 1609 });
     mocks.canViewPhoto.mockResolvedValue(true);
     mocks.readMedia.mockResolvedValue(Buffer.from("encrypted-test-bytes"));
     query.mockImplementation(async (sql: string, params: unknown[] = []) => {
@@ -246,6 +248,49 @@ describe("Out of Sight profile, discovery and media enforcement", () => {
     expect(response.statusCode).toBe(200);
     expect(response.json().data.location.display_location_token.tokenId).toBe("test-location-token");
     expect(response.json().data.outOfSight).toBe(true);
+  });
+  it.each([
+    { baseMode: "GHOST", expected: "Online" },
+    { baseMode: "STEALTH", expected: "Online" },
+    { baseMode: undefined, expected: "5m ago" }
+  ])("shows $baseMode profile activity without granting location access", async ({ baseMode, expected }) => {
+    hidden = false;
+    physical = nyc;
+    savedStates.set(viewerId, savedState(viewerId, false));
+    mocks.relationship.mockResolvedValue({
+      isBlocked: false, isMutualCruush: false, canRevealPreciseLocation: false,
+      canMessage: true, targetBaseMode: baseMode, distanceLabelMode: "approximate"
+    });
+    mocks.policy.mockResolvedValue({ baseMode, preciseToMutualCrowds: [], policyVersion: 1 });
+
+    const response = await request(`/api/profiles/${targetId}`);
+    expect(response.statusCode, response.body).toBe(200);
+    const data = response.json().data;
+    expect(data.last_active).toBe(expected);
+    expect(data.viewer_relationship.can_reveal_precise_location).toBe(false);
+    expect(data.distance_label).toBe(baseMode === "STEALTH" ? null : "Nearby");
+    for (const key of ["location", "lat", "lng", "coordinates", "display_location_token"]) {
+      expect(data).not.toHaveProperty(key);
+    }
+    expect(mocks.token).not.toHaveBeenCalled();
+  });
+  it("shows an online Ghost discovery member with the unchanged fuzzy token and distance", async () => {
+    physical = nyc;
+    mocks.relationship.mockResolvedValue({
+      isBlocked: false, isMutualCruush: false, canRevealPreciseLocation: false,
+      canMessage: true, targetBaseMode: "GHOST", distanceLabelMode: "approximate"
+    });
+    mocks.policy.mockResolvedValue({ baseMode: "GHOST", preciseToMutualCrowds: [], policyVersion: 1 });
+
+    const response = await request("/api/users");
+    expect(response.statusCode, response.body).toBe(200);
+    expect(response.json().data.profiles).toHaveLength(1);
+    const data = response.json().data.profiles[0];
+    expect(data).toMatchObject({ lastActive: "Online", distanceLabel: "Nearby" });
+    expect(data).not.toHaveProperty("lat");
+    expect(data).not.toHaveProperty("lng");
+    expect(mocks.token.mock.calls[0][2]).toMatchObject({ displayMode: "GHOST" });
+    expect(mocks.ghost).toHaveBeenCalledTimes(1);
   });
   it.each([
     { kind: "outside", expected: true },

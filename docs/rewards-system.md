@@ -272,8 +272,10 @@ grant exists.
 
 1. Back up PostgreSQL.
 2. Set a strong `TWO_FACTOR_ENCRYPTION_KEY` in every API replica (recommended).
-3. Deploy the API image. Its existing startup command runs numbered migrations,
-   including migration 079, before starting Fastify.
+3. Run the candidate API image's `npm run migrate` as a separate one-off job with
+   its schema-owner credential and required migration crypto configuration. Require
+   success before deploying the API image with its restricted runtime credential;
+   API startup does not run migrations. See [database credential cutover](database-credential-cutover.md).
 4. Deploy the frontend image.
 5. Confirm one API replica logs `referral qualification complete`.
 6. Exercise the manual checks below.
