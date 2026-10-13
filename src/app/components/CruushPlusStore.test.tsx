@@ -269,6 +269,26 @@ describe('CruushPlusStore', () => {
     })));
   });
 
+  it.each([
+    ['PayPal', 'pyusd_arbitrum', 'paypal', 'PYUSD', 'arbitrum', 42161, 'https://www.paypal.com/myaccount/crypto/'],
+    ['Venmo', 'pyusd_ethereum', 'venmo', 'PYUSD', 'ethereum', 1, 'https://venmo.com/'],
+    ['A crypto wallet', 'usdc_base', 'wallet', 'USDC', 'base', 8453, 'ethereum:0xfixture@8453/transfer?uint256=19000000'],
+  ] as const)('opens the matching destination for a restored %s stablecoin order', async (name, rail, sendingApp, asset, network, chainId, expectedHref) => {
+    vi.mocked(getCryptoProcessorStatus).mockResolvedValue(processorStatus([rail]));
+    vi.mocked(getCurrentCryptoPaymentIntent).mockResolvedValue({
+      id: '00000000-0000-4000-8000-000000000010', userId: '00000000-0000-4000-8000-000000000001',
+      planId: 'plus_monthly', asset, network, rail, chainId, tokenAddress: '0xfixture', sendingApp,
+      amountUsdCents: 1899, quotedAmountAtomic: '19000000', paymentAddress: '0xfixture',
+      paymentUri: 'ethereum:0xfixture@8453/transfer?uint256=19000000', qrCodeDataUrl: null,
+      status: 'awaiting_payment', expiresAt: '2099-01-01T00:00:00Z', createdAt: null, updatedAt: null, paidAt: null,
+    });
+    renderStore();
+    const link = await screen.findByRole('link', { name: sendingApp === 'wallet' ? 'Open app' : `Open ${name}` });
+    expect(link).toHaveAttribute('href', expectedHref);
+    expect(screen.getByRole('button', { name: 'Copy amount' })).toBeEnabled();
+    expect(screen.getByRole('button', { name: 'Copy address' })).toBeEnabled();
+  });
+
   it('keeps stablecoin checkout disabled when no supported rail is ready', async () => {
     vi.mocked(getCryptoProcessorStatus).mockResolvedValue(processorStatus([]));
     renderStore();

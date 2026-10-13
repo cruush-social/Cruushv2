@@ -152,6 +152,11 @@ const BITCOIN_APP_LINKS = {
   venmo: 'https://venmo.com/about/crypto',
 } as const;
 
+const STABLECOIN_APP_LINKS = {
+  paypal: 'https://www.paypal.com/myaccount/crypto/',
+  venmo: 'https://venmo.com/',
+} as const;
+
 const STABLECOIN_PAYMENT_SOURCES = CRYPTO_PAYMENT_SOURCES.filter((source) => source.rail !== 'btc_bitcoin' && source.sendingApp !== 'cash_app');
 
 export default function CruushPlusStore({ product = 'cruush_plus' }: { product?: 'cruush_plus' | 'ping_pack' }) {
@@ -1143,7 +1148,7 @@ export default function CruushPlusStore({ product = 'cruush_plus' }: { product?:
                       </Button>
                       {intent.paymentUri ? (
                         <Button className="w-full" variant="outline" asChild>
-                          <a href={intent.rail === 'btc_bitcoin' && selectedPaymentSource.sendingApp !== 'wallet' ? BITCOIN_APP_LINKS[selectedPaymentSource.sendingApp] : intent.paymentUri} target={selectedPaymentSource.sendingApp === 'wallet' ? undefined : '_blank'} rel="noopener noreferrer">
+                          <a href={intent.rail === 'btc_bitcoin' && selectedPaymentSource.sendingApp !== 'wallet' ? BITCOIN_APP_LINKS[selectedPaymentSource.sendingApp] : selectedPaymentSource.sendingApp === 'paypal' || selectedPaymentSource.sendingApp === 'venmo' ? STABLECOIN_APP_LINKS[selectedPaymentSource.sendingApp] : intent.paymentUri} target={selectedPaymentSource.sendingApp === 'wallet' ? undefined : '_blank'} rel="noopener noreferrer">
                             {selectedPaymentSource.sendingApp === 'wallet' ? 'Open app' : `Open ${selectedPaymentSource.label}`}
                           </a>
                         </Button>
