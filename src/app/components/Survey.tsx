@@ -49,12 +49,9 @@ export default function Survey() {
     const complete = ['overall', 'ease', 'map', 'privacy'].every((key) => Boolean(ratings[key]))
       && Boolean(hesitation)
       && Boolean(processor)
-      && Boolean(price)
-      && Boolean(bestPart.trim())
-      && Boolean(improvement.trim())
-      && Boolean(bugs.trim());
+      && Boolean(price);
     if (!complete) {
-      setError('Complete every question before submitting.');
+      setError('Complete the ratings and dropdown questions before submitting.');
       return;
     }
 
@@ -73,11 +70,11 @@ export default function Survey() {
       '',
       `What monthly price would feel fair for cruush Plus?\n${price}`,
       '',
-      `What is working best?\n${bestPart || 'Not answered'}`,
+      `What is working best?\n${bestPart.trim() ? bestPart : 'Not answered'}`,
       '',
-      `What should we improve?\n${improvement || 'Not answered'}`,
+      `What should we improve?\n${improvement.trim() ? improvement : 'Not answered'}`,
       '',
-      `Bugs or confusing moments\n${bugs || 'Not answered'}`,
+      `Bugs or confusing moments\n${bugs.trim() ? bugs : 'Not answered'}`,
     ].join('\n');
     try {
       await createSupportRequest({

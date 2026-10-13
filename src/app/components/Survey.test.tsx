@@ -12,7 +12,7 @@ vi.mock('../lib/supportApi', () => ({
 }));
 
 describe('Survey', () => {
-  const completeSurvey = () => {
+  const completeSurvey = (includeWrittenAnswers = true) => {
     for (const label of [
       'How is cruush feeling overall?',
       'How easy is cruush to use?',
@@ -26,9 +26,11 @@ describe('Survey', () => {
     fireEvent.click(screen.getByRole('option', { name: 'The price' }));
     fireEvent.click(screen.getByRole('combobox', { name: 'What monthly price would feel fair for cruush Plus?' }));
     fireEvent.click(screen.getByRole('option', { name: '$5–$9.99 per month' }));
-    fireEvent.change(screen.getByLabelText('What is working best?'), { target: { value: 'The map.' } });
-    fireEvent.change(screen.getByLabelText('What should we improve?'), { target: { value: 'Nothing.' } });
-    fireEvent.change(screen.getByLabelText('Did you hit any bugs or confusing moments?'), { target: { value: 'No.' } });
+    if (includeWrittenAnswers) {
+      fireEvent.change(screen.getByLabelText('What is working best?'), { target: { value: 'The map.' } });
+      fireEvent.change(screen.getByLabelText('What should we improve?'), { target: { value: 'Nothing.' } });
+      fireEvent.change(screen.getByLabelText('Did you hit any bugs or confusing moments?'), { target: { value: 'No.' } });
+    }
   };
 
   beforeEach(() => {
@@ -106,5 +108,30 @@ describe('Survey', () => {
       createdAt: '2026-08-18T12:00:00.000Z',
     });
     expect(await screen.findByText('SURVEYGIFT')).toBeInTheDocument();
+  });
+
+  it.each(['', '   '])('accepts omitted written answers (%j)', async (answer) => {
+    createSupportRequest.mockResolvedValue({ id: 'survey-response-1' });
+    render(<MemoryRouter><Survey /></MemoryRouter>);
+    completeSurvey(false);
+    for (const textbox of screen.getAllByRole('textbox')) {
+      fireEvent.change(textbox, { target: { value: answer } });
+    }
+    fireEvent.click(screen.getByRole('button', { name: 'Send feedback' }));
+
+    expect(await screen.findByText('SURVEYGIFT')).toBeInTheDocument();
+    expect(createSupportRequest).toHaveBeenCalledTimes(1);
+    const payload = createSupportRequest.mock.calls[0][0];
+    expect(payload.source).toBe('survey');
+    expect(payload.message).toContain('What is working best?\nNot answered');
+    expect(payload.message).toContain('What should we improve?\nNot answered');
+    expect(payload.message).toContain('Bugs or confusing moments\nNot answered');
+  });
+
+  it('still requires the ratings and dropdown answers', () => {
+    render(<MemoryRouter><Survey /></MemoryRouter>);
+    fireEvent.click(screen.getByRole('button', { name: 'Send feedback' }));
+    expect(createSupportRequest).not.toHaveBeenCalled();
+    expect(screen.getByText('Complete the ratings and dropdown questions before submitting.')).toBeInTheDocument();
   });
 });
