@@ -2067,6 +2067,10 @@ export async function registerProfileRoutes(app: FastifyInstance) {
       throw new ApiError(402, "CRUUSH_PLUS_REQUIRED", "Upgrade to cruush+ to add more than 3 kinks.");
     }
 
+    if (kinkInterests.length > 10) {
+      throw new ApiError(400, "VALIDATION_ERROR", "Choose up to 10 profile kinks.");
+    }
+
     if (parsedPayload.hobbies.length > 3 && !entitlement?.cruushPlus) {
       throw new ApiError(402, "CRUUSH_PLUS_REQUIRED", "Upgrade to cruush+ to add up to 10 hobbies.");
     }

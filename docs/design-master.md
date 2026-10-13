@@ -348,7 +348,8 @@ Mutable taxonomy source:
 - This applies to pronouns, identities, presentations, ethnicities, body types, positions, roles, looking-for values, timing, hosting/travel, vibes, protection, kinks/fetishes, hobbies, and health/safety values.
 - Position is the top/bottom/versatile-style field, including vers top, vers bottom, stone bottom, stone top, hands only, and oral only. Role is the dominant/submissive/switch-style field, including service.
 - Kinks and fetishes use a catalog-backed tap-to-select list. The whole Kinks & Fetishes field has one visibility setting instead of per-kink role or seeking controls.
-- Basic profiles can save up to 3 kinks and 3 profile tags. cruush+ profiles have no product kink limit and can save up to 10 profile tags.
+- Basic profiles can save up to 3 kinks and 3 profile tags. cruush+ profiles can save up to 10 kinks and up to 10 profile tags.
+- October 13, 2026, Julien: "Also up to 10 kinks for cruush+". This supersedes the previous unlimited profile kink allowance; Basic remains at 3.
 - Hosting/Travel contains logistics only. Preferred spots is a separate field directly below it, accepts up to 3 choices, and includes the current Spot categories plus private-place choices.
 - Protection and Protection boundaries are separate fields. Protection boundaries use meaningful choices rather than unexplained yes values.
 - Identity values can appear on profiles and in Seeking filters, but Visibility Controls do not expose Identity filtering.
@@ -817,3 +818,9 @@ The black-glass consistency request applies only to Map Controls, the map top ba
 ## Tab treatment, October 9, 2026
 
 Julien: “the grey tab style IS THE STYLE.” Use the existing grey active-tab treatment for new selector tabs unless a later request explicitly names another fill. Do not substitute pink button fills.
+
+### October 13, 2026 — stablecoin checkout restoration
+Julien: "I want to get thr stablecoin working for venmo paypal for sure" and "switch ot back to stablecoin, remove cashapp as an option or we need a different method to take cashapp". Restore existing PayPal PYUSD on Arbitrum and Venmo PYUSD on Ethereum, with the existing USDC Base wallet option; remove Cash App from new checkout choices while retaining historical orders. Preserve server-owned prices and existing payment tracking. Reject orders below the sending app's minimum before publishing a new payment address. An embedded crypto-purchase provider is under discussion, not selected or integrated.
+
+### October 13, 2026 — technosovereign brand casing
+Julien: "technosovereign is all lowercase". Write the operator brand as `technosovereign` in public copy, checkout plans and provider inquiry drafts. Any required registered legal-entity field must use the verified registered name.

@@ -250,16 +250,56 @@ describe('CruushPlusStore', () => {
     expect(close).toHaveBeenCalledTimes(entry === 'popup' ? 1 : 0);
   });
 
-  it('disables new cruush+ purchases even when every stablecoin rail is ready', async () => {
+  it.each([
+    ['PayPal', 'pyusd_arbitrum', 'paypal'],
+    ['Venmo', 'pyusd_ethereum', 'venmo'],
+    ['A crypto wallet', 'usdc_base', 'wallet'],
+  ] as const)('starts stablecoin checkout from %s on its matching network', async (name, rail, sendingApp) => {
     vi.mocked(getCryptoProcessorStatus).mockResolvedValue(processorStatus(['usdc_arbitrum', 'pyusd_arbitrum', 'pyusd_ethereum', 'usdc_base']));
+    vi.mocked(createCryptoPaymentIntent).mockRejectedValue(new Error('Stop after request mapping.'));
     renderStore();
     const picker = await screen.findByLabelText('Where you are paying from');
-    for (const name of ['Cash App', 'PayPal', 'Venmo', 'A crypto wallet']) {
-      const button = within(picker).getByRole('button', { name });
-      expect(button).toBeDisabled();
-      fireEvent.click(button);
+    expect(within(picker).queryByRole('button', { name: 'Cash App' })).not.toBeInTheDocument();
+    expect(screen.queryByText('Sorry, we are now migrating to stablecoin.')).not.toBeInTheDocument();
+    const button = within(picker).getByRole('button', { name });
+    expect(button).toBeEnabled();
+    fireEvent.click(button);
+    await waitFor(() => expect(createCryptoPaymentIntent).toHaveBeenCalledWith(expect.objectContaining({
+      planId: 'plus_monthly', rail, sendingApp,
+    })));
+  });
+
+  it('keeps stablecoin checkout disabled when no supported rail is ready', async () => {
+    vi.mocked(getCryptoProcessorStatus).mockResolvedValue(processorStatus([]));
+    renderStore();
+    const picker = await screen.findByLabelText('Where you are paying from');
+    for (const name of ['PayPal', 'Venmo', 'A crypto wallet']) {
+      expect(within(picker).getByRole('button', { name })).toBeDisabled();
     }
     expect(createCryptoPaymentIntent).not.toHaveBeenCalled();
+  });
+
+  it.each(['usdc_arbitrum', 'btc_bitcoin'] as const)('uses stablecoin choices after an old %s Cash App order expires', async (rail) => {
+    vi.mocked(getCryptoProcessorStatus).mockResolvedValue(processorStatus(['usdc_arbitrum', 'pyusd_arbitrum', 'pyusd_ethereum', 'usdc_base']));
+    vi.mocked(getCurrentCryptoPaymentIntent).mockResolvedValue({
+      id: '00000000-0000-4000-8000-000000000010', userId: '00000000-0000-4000-8000-000000000001',
+      planId: 'plus_monthly', asset: rail === 'btc_bitcoin' ? 'BTC' : 'USDC',
+      network: rail === 'btc_bitcoin' ? 'bitcoin' : 'arbitrum', rail,
+      chainId: rail === 'btc_bitcoin' ? 0 : 42161, tokenAddress: '', sendingApp: 'cash_app',
+      amountUsdCents: 1899, quotedAmountAtomic: '18990000', paymentAddress: null,
+      paymentUri: null, qrCodeDataUrl: null, status: 'awaiting_payment',
+      expiresAt: '2020-01-01T00:00:00.000Z', createdAt: '2019-12-31T23:30:00.000Z',
+      updatedAt: '2019-12-31T23:30:00.000Z', paidAt: null,
+    });
+    renderStore();
+    expect(await screen.findByText(/this payment window expired/i)).toBeInTheDocument();
+    const picker = screen.getByLabelText('Where you are paying from');
+    expect(within(picker).queryByRole('button', { name: 'Cash App' })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Start a fresh payment' })).toBeDisabled();
+    fireEvent.click(within(picker).getByRole('button', { name: 'PayPal' }));
+    await waitFor(() => expect(createCryptoPaymentIntent).toHaveBeenCalledWith(expect.objectContaining({
+      rail: 'pyusd_arbitrum', sendingApp: 'paypal',
+    })));
   });
 
   it('shows plans without waiting for slower processor and Bitcoin checks', async () => {
@@ -490,7 +530,7 @@ describe('CruushPlusStore', () => {
     expect(screen.getByText('Carousel')).toBeInTheDocument();
     expect(screen.getByText('Spin through nearby profiles and browse again.')).toBeInTheDocument();
     expect(screen.getByText('All seeking and visibility controls')).toBeInTheDocument();
-    expect(screen.getByText('Use all seeking filters, combine more visibility controls, save visibility sets, add up to 10 searchable profile tags and 10 hobbies, and add as many profile kinks as fit you. Basic includes 3 tags, 3 hobbies and 3 kinks.')).toBeInTheDocument();
+    expect(screen.getByText('Use all seeking filters, combine more visibility controls, save visibility sets, add up to 10 searchable profile tags and 10 hobbies, and add up to 10 profile kinks. Basic includes 3 tags, 3 hobbies and 3 kinks.')).toBeInTheDocument();
     expect(screen.getByText('Dark Room')).toBeInTheDocument();
     expect(screen.getByText('Browse the map without appearing on it.')).toBeInTheDocument();
     const benefits = screen.getByRole('list', { name: 'cruush+ features' });

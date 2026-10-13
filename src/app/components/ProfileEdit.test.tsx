@@ -317,6 +317,37 @@ describe('ProfileEdit', () => {
     expect(await screen.findByText('Pick up to 10 with cruush+')).toBeInTheDocument();
   });
 
+  it.each([false, true])('caps saved kink selections by membership (cruush+: %s)', async (plus) => {
+    getMyBillingStatus.mockResolvedValue({ cruushPlus: plus });
+    const profile = await getMyProfile();
+    getMyProfile.mockResolvedValue({ ...profile, kinks: [], kink_interests: [] });
+    const { KINK_GROUPS } = await import('../lib/profileOptions');
+    const options = KINK_GROUPS[0].options.slice(0, 11);
+    expect(options).toHaveLength(11);
+    render(<MemoryRouter><ProfileEdit /></MemoryRouter>);
+    await selectProfileEditTab('Intimacy');
+    fireEvent.click(screen.getByRole('button', { name: 'Kinks & Fetishes' }));
+    const group = screen.getByRole('group', { name: KINK_GROUPS[0].label });
+    for (const option of options) fireEvent.click(within(group).getByRole('option', { name: option }));
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+    await waitFor(() => expect(saveMyProfile).toHaveBeenCalled());
+    const payload = saveMyProfile.mock.calls[0][0];
+    expect(payload.kinks).toEqual(options.slice(plus ? -10 : -3));
+    expect(payload.kink_interests).toHaveLength(plus ? 10 : 3);
+  });
+
+  it('does not silently remove existing cruush+ kinks above ten on save', async () => {
+    getMyBillingStatus.mockResolvedValue({ cruushPlus: true });
+    const profile = await getMyProfile();
+    const { KINKS } = await import('../lib/profileOptions');
+    getMyProfile.mockResolvedValue({ ...profile, kinks: KINKS.slice(0, 11), kink_interests: [] });
+    render(<MemoryRouter><ProfileEdit /></MemoryRouter>);
+    await selectProfileEditTab('Intimacy');
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+    expect(await screen.findByText('Choose up to 10 profile kinks.')).toBeInTheDocument();
+    expect(saveMyProfile).not.toHaveBeenCalled();
+  });
+
   it('keeps and saves three sexuality selections', async () => {
     render(
       <MemoryRouter initialEntries={['/profile/edit']}>

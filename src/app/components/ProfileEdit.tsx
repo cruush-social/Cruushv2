@@ -82,8 +82,7 @@ const CRUUSH_PLUS_PROFILE_HOBBIES = 10;
 const MAX_PROFILE_KINKS = 3;
 const BASIC_PROFILE_TAGS = 3;
 const CRUUSH_PLUS_PROFILE_TAGS = 10;
-/** cruush+ lifts the ceiling rather than raising it. */
-const UNLIMITED_PROFILE_KINKS = Number.POSITIVE_INFINITY;
+const CRUUSH_PLUS_PROFILE_KINKS = 10;
 const MAX_GENDER_IDENTITIES = MAX_PROFILE_GROUP_SELECTIONS;
 const PROFILE_PHOTO_LOAD_ERROR = 'This image could not be loaded. Try a JPG, PNG, or WebP file.';
 const PROFILE_PHOTO_SAVE_PATH_PATTERN = /^\/api\/media\/(?:profile-photos\/[0-9a-f-]{36}-[0-9a-f-]{8}-[0-9a-f-]{4}-[0-9a-f-]{4}-[0-9a-f-]{4}-[0-9a-f-]{12}\.(?:jpg|png|webp)|assets\/[0-9a-f-]{36}\/display)$/i;
@@ -581,6 +580,12 @@ function toProfileSavePayload(
   profileTagLimit: number = BASIC_PROFILE_TAGS,
   hobbyLimit: number = MAX_PROFILE_HOBBIES,
 ): ProfilePayload {
+  if (kinkLimit === CRUUSH_PLUS_PROFILE_KINKS && (
+    latestUniqueValues(profile.kinks ?? []).length > kinkLimit
+    || sanitizeKinkInterests(profile).length > kinkLimit
+  )) {
+    throw new Error('Choose up to 10 profile kinks.');
+  }
   return {
     display_name: getSaveDisplayName(profile),
     photos: sanitizeProfilePhotos(profile.photos ?? []),
@@ -808,7 +813,7 @@ export default function ProfileEdit({ embedded = false, onCancel, onSaved }: Pro
     }));
   };
 
-  // Basic profiles carry three kinks. cruush+ can use the full catalog.
+  // Basic profiles carry three kinks. cruush+ can select up to ten.
   const [cruushPlus, setCruushPlus] = useState(false);
 
   useEffect(() => {
@@ -831,7 +836,7 @@ export default function ProfileEdit({ embedded = false, onCancel, onSaved }: Pro
     };
   }, []);
 
-  const kinkLimit = cruushPlus ? UNLIMITED_PROFILE_KINKS : MAX_PROFILE_KINKS;
+  const kinkLimit = cruushPlus ? CRUUSH_PLUS_PROFILE_KINKS : MAX_PROFILE_KINKS;
   const profileTagLimit = cruushPlus ? CRUUSH_PLUS_PROFILE_TAGS : BASIC_PROFILE_TAGS;
   const hobbyLimit = cruushPlus ? CRUUSH_PLUS_PROFILE_HOBBIES : MAX_PROFILE_HOBBIES;
 
@@ -1591,7 +1596,7 @@ export default function ProfileEdit({ embedded = false, onCancel, onSaved }: Pro
                 value={normalizedProfile.kinks}
                 onChange={handleKinksChange}
               />
-              <p className="text-xs text-muted-foreground">Pick up to 3 on Basic. cruush+ has no profile kink limit.</p>
+              <p className="text-xs text-muted-foreground">Pick up to 3 on Basic. Pick up to 10 with cruush+.</p>
             </div>
             <div className="space-y-2">
               <Label>Kinks & Fetishes visibility</Label>

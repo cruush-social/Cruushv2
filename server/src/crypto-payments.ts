@@ -971,6 +971,14 @@ export async function createInHouseCryptoPaymentIntent(
         throw new ApiError(400, "VALIDATION_ERROR", `${label}: this order is below its ${sendingApp === "cash_app" ? "0.00005" : "0.001"} BTC sending minimum. Choose another method before buying.`);
       }
     }
+    if (rail === "pyusd_arbitrum" || rail === "pyusd_ethereum") {
+      const estimate = cryptoFundingEstimates({ rail, sendingApp, amountUsdCents: reservedAmountCents,
+        gasFeeUsdCents: collectionFee.feeUsdCents, quotedAmountAtomic })[0];
+      if (estimate && !estimate.meetsSendingMinimum) {
+        const minimum = Number(estimate.minimumSendAtomic) / 1_000_000;
+        throw new ApiError(400, "VALIDATION_ERROR", `${estimate.app}: this order is below its ${minimum} PYUSD sending minimum. Choose another method before buying.`);
+      }
+    }
     const watchStartBlock = input.watchStartBlock ?? 0n;
     if (watchStartBlock < 0n || watchStartBlock > 9_223_372_036_854_775_807n) {
       throw new Error("Crypto payment intent has an invalid watch-start block.");

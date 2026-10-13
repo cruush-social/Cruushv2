@@ -12,6 +12,7 @@ import { deriveCryptoReceivingAddress, fingerprintCryptoWalletXpub } from "./cry
 import type { AppConfig } from "./config.js";
 import type { DbClient } from "./db.js";
 import { ApiError } from "./errors.js";
+import { applyCheckoutCoupon, getCheckoutCoupon } from "./checkout-coupons.js";
 import { createMemoryRateLimiter } from "./rate-limit.js";
 import {
   CRYPTO_PAYMENT_INTENT_CREATE_RATE_LIMIT,
@@ -67,13 +68,13 @@ const disabledApp = buildServer(baseConfig(), {
 });
 
 describe("crypto payment routes", () => {
-  it.each(["usdc_arbitrum", "pyusd_arbitrum", "pyusd_ethereum", "usdc_base"])("refuses new cruush+ purchases on %s before publishing an order", async (rail) => {
+  it.each(["usdc_arbitrum", "pyusd_arbitrum", "pyusd_ethereum", "usdc_base"])("refuses unconfigured cruush+ purchases on %s before publishing an order", async (rail) => {
     const response = await disabledApp.inject({
-      method: "POST", url: "/api/crypto/payment-intents", headers: { "x-user-id": userId },
+      method: "POST", url: "/api/crypto/payment-intents", headers: { "x-user-id": `00000000-0000-4000-8000-00000000010${["usdc_arbitrum", "pyusd_arbitrum", "pyusd_ethereum", "usdc_base"].indexOf(rail)}` },
       payload: { planId: "plus_monthly", rail, idempotencyKey: "disabled-plus-purchase" }
     });
     expect(response.statusCode).toBe(503);
-    expect(response.json().error.message).toBe("cruush+ purchases are temporarily unavailable.");
+    expect(response.json().error.message).toBe("Crypto payments are not enabled.");
   });
 
   it.each([
@@ -580,7 +581,16 @@ describe("crypto payment routes", () => {
     }
   });
 
-  it("derives the plan amount on the server and returns one account-linked address", async () => {
+  it.each([
+    ["usdc_arbitrum", "USDC", "arbitrum", "cash_app", 42161, "0xaf88d065e77c8cC2239327C5EDb3A432268e5831", false],
+    ["pyusd_arbitrum", "PYUSD", "arbitrum", "paypal", 42161, "0x46850aD61C2B7d64d08c9C754F45254596696984", false],
+    ["pyusd_ethereum", "PYUSD", "ethereum", "venmo", 1, "0x6c3ea9036406852006290770BEdFcAbA0e23A0e8", false],
+    ["pyusd_ethereum", "PYUSD", "ethereum", "venmo", 1, "0x6c3ea9036406852006290770BEdFcAbA0e23A0e8", true],
+  ] as const)("derives server prices and validates the sending minimum for %s", async (rail, asset, network, sendingApp, chainId, token, belowMinimum) => {
+    const planId = belowMinimum ? "plus_weekly" : "plus_monthly";
+    const discount = belowMinimum ? applyCheckoutCoupon(1099, getCheckoutCoupon("CLUBS20")) : null;
+    const amountCents = discount?.amountUsdCents ?? 1899;
+    const metadata = { source: "store", sendingApp, ...(discount ? { discount } : {}) };
     const paymentAddress = deriveCryptoReceivingAddress(receiveChainXpub, 1);
     const readRailHead = vi.fn(async (_config: AppConfig, rail: string) =>
       rail === "usdc_base" ? 50_000_000n : 123_456n
@@ -588,16 +598,16 @@ describe("crypto payment routes", () => {
     const commonRow = {
       id: intentId,
       user_id: userId,
-      plan_id: "plus_monthly",
+      plan_id: planId,
       processor: "in_house" as const,
-      asset: "USDC" as const,
-      network: "arbitrum" as const,
-      amount_usd_cents: 950,
+      asset,
+      network,
+      amount_usd_cents: amountCents,
       derivation_index: 1,
       wallet_xpub_fingerprint: fingerprintCryptoWalletXpub(receiveChainXpub),
       watch_start_block: null,
       idempotency_key: "checkout-route-1",
-      metadata: { source: "store", sendingApp: "cash_app", sale: cruushPlusOrderSale(1899) },
+      metadata,
       expires_at: "2026-08-22T18:00:00Z",
       created_at: "2026-08-22T17:30:00Z",
       updated_at: "2026-08-22T17:30:00Z",
@@ -611,12 +621,13 @@ describe("crypto payment routes", () => {
     };
     const allocatedRow = {
       ...commonRow,
-      quoted_amount_atomic: "9510000",
+      quoted_amount_atomic: String((amountCents + 1) * 10000),
       payment_address: paymentAddress,
       watch_start_block: "123456",
       status: "awaiting_payment" as const
     };
     const query = vi.fn(async (sql: string, _values: unknown[] = []) => {
+      if (sql.includes("checkout_coupon_redemptions")) return { rows: [] };
       if (sql.includes("from crypto_chain_watch_cursors")) return { rows: [] };
       if (sql.includes("from crypto_payment_transfers")) return { rows: [] };
       if (sql.includes("pg_advisory_xact_lock")) return { rows: [] };
@@ -634,7 +645,8 @@ describe("crypto payment routes", () => {
       CRYPTO_PROCESSOR_WALLET_XPUB: receiveChainXpub,
       CRYPTO_PROCESSOR_WATCHER_ENABLED: true,
       CRYPTO_PROCESSOR_ARBITRUM_RPC_URL: "https://arbitrum.example/rpc-secret",
-      CRYPTO_PROCESSOR_BASE_RPC_URL: "https://base.example/rpc-secret"
+      CRYPTO_PROCESSOR_BASE_RPC_URL: "https://base.example/rpc-secret",
+      CRYPTO_PROCESSOR_ETHEREUM_RPC_URL: "https://ethereum.example/rpc-secret"
     }), {
       db: databaseWithTransaction(query),
       rateLimiter: createMemoryRateLimiter(),
@@ -650,26 +662,32 @@ describe("crypto payment routes", () => {
           "x-user-id": userId
         },
         payload: {
-          planId: "plus_monthly",
+          planId,
           idempotencyKey: "checkout-route-1",
-          sendingApp: "cash_app"
+          sendingApp, rail, ...(belowMinimum ? { couponCode: "CLUBS20" } : {})
         }
       });
 
+      if (belowMinimum) {
+        expect(response.statusCode).toBe(400);
+        expect(response.json().error.message).toBe("Venmo: this order is below its 10 PYUSD sending minimum. Choose another method before buying.");
+        expect(query.mock.calls.some(([sql]) => String(sql).includes("set payment_address = $2"))).toBe(false);
+        return;
+      }
       expect(response.statusCode).toBe(201);
       const body = response.json();
       expect(body).toMatchObject({
         data: {
           id: intentId,
-          planId: "plus_monthly",
-          amountUsdCents: 950,
-          quotedAmountAtomic: "9510000",
+          planId,
+          amountUsdCents: 1899,
+          quotedAmountAtomic: "19000000",
           gasFeeUsdCents: 1,
-          totalUsdCents: 951,
+          totalUsdCents: 1900,
           paymentAddress,
-          asset: "USDC",
-          network: "arbitrum",
-          sendingApp: "cash_app",
+          asset,
+          network,
+          sendingApp,
           status: "awaiting_payment"
         }
       });
@@ -680,25 +698,25 @@ describe("crypto payment routes", () => {
       );
       expect((compatibleLookup as unknown as [string, unknown[]] | undefined)?.[0]).toContain("metadata->>'sendingApp'");
       expect((compatibleLookup as unknown as [string, unknown[]] | undefined)?.[1]).toEqual(
-        expect.arrayContaining(["cash_app"])
+        expect.arrayContaining([sendingApp])
       );
       expect(body.data.paymentUri).toBe(
-        `ethereum:0xaf88d065e77c8cC2239327C5EDb3A432268e5831@42161/transfer?address=${paymentAddress}&uint256=9510000`
+        `ethereum:${token}@${chainId}/transfer?address=${paymentAddress}&uint256=19000000`
       );
       expect(body.data.qrCodeDataUrl).toMatch(/^data:image\/png;base64,/);
       expect(response.body).not.toContain("walletXpub");
       expect(response.body).not.toContain("idempotencyKey");
-      expect(readRailHead).toHaveBeenCalledWith(expect.any(Object), "usdc_arbitrum");
+      expect(readRailHead).toHaveBeenCalledWith(expect.any(Object), rail);
       expect(readRailHead).toHaveBeenCalledWith(expect.any(Object), "usdc_base");
       const positionAllocation = query.mock.calls.find(([sql]) =>
         String(sql).includes("insert into crypto_payment_watch_positions")
       );
       expect((positionAllocation as unknown as [string, unknown[]] | undefined)?.[1]).toEqual([
         intentId,
-        42161,
+        chainId,
         "123456",
         [1, 8453, 42161],
-        ["0", "50000000", null]
+        [chainId === 1 ? null : "123456", "50000000", chainId === 42161 ? null : "123456"]
       ]);
       expect(query.mock.calls.some(([sql]) =>
         String(sql).includes("crypto_chain_watch_cursors")
@@ -709,7 +727,7 @@ describe("crypto payment routes", () => {
       expect((addressAllocation as unknown as [string, unknown[]] | undefined)?.[1]).toEqual([
         intentId,
         paymentAddress,
-        "9510000",
+        "19000000",
         "123456",
         expect.any(String)
       ]);
@@ -717,7 +735,7 @@ describe("crypto payment routes", () => {
         String(sql).includes("insert into crypto_payment_intents")
       );
       expect((reservation as unknown as [string, unknown[]] | undefined)?.[1])
-        .toEqual(expect.arrayContaining([950, JSON.stringify({ source: "store", sendingApp: "cash_app", sale: cruushPlusOrderSale(1899) })]));
+        .toEqual(expect.arrayContaining([1899, JSON.stringify(metadata)]));
     } finally {
       await app.close();
     }

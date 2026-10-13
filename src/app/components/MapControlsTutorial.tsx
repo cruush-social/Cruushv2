@@ -76,7 +76,7 @@ const TUTORIAL_STEPS: TutorialStep[] = [
   {
     id: 'cruush-plus',
     title: 'cruush+',
-    description: 'cruush+ unlocks full activity, 5 Pulses per day, Mile High Club, photo hearts and more Confessional controls, the Carousel, all Seeking and Visibility controls, up to 10 profile tags, unlimited profile kinks, and Dark Room.',
+    description: 'cruush+ unlocks full activity, 5 Pulses per day, Mile High Club, photo hearts and more Confessional controls, the Carousel, all Seeking and Visibility controls, up to 10 profile tags, up to 10 profile kinks, and Dark Room.',
     actionLabel: 'Open cruush+',
   },
   {

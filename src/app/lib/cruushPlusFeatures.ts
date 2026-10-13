@@ -24,7 +24,7 @@ export const CRUUSH_PLUS_FEATURES = [
   },
   {
     title: 'All seeking and visibility controls',
-    description: 'Use all seeking filters, combine more visibility controls, save visibility sets, add up to 10 searchable profile tags and 10 hobbies, and add as many profile kinks as fit you. Basic includes 3 tags, 3 hobbies and 3 kinks.',
+    description: 'Use all seeking filters, combine more visibility controls, save visibility sets, add up to 10 searchable profile tags and 10 hobbies, and add up to 10 profile kinks. Basic includes 3 tags, 3 hobbies and 3 kinks.',
   },
   {
     title: 'Dark Room',

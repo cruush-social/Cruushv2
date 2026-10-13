@@ -15106,6 +15106,44 @@ describe("server", () => {
     expect(query.mock.calls.some((call) => String(call[0]).includes("insert into profiles"))).toBe(false);
   });
 
+  it.each(["legacy", "structured"])("rejects more than ten cruush+ profile kinks (%s)", async (format) => {
+    query.mockImplementation(async (sql: string) => ({
+      rows: sql.includes("from user_entitlements")
+        ? [{ cruush_plus_enabled: true, cruush_plus_expires_at: null }]
+        : []
+    }));
+    const kinks = Array.from({ length: 11 }, (_, index) => `kink-${index}`);
+    const response = await app.inject({
+      method: "PUT",
+      url: "/api/profiles/me",
+      headers: { "x-user-id": userId },
+      payload: {
+        ...emptyProfile,
+        display_name: "Member",
+        year_of_birth: 1994,
+        ...(format === "legacy" ? { kinks } : {
+          kink_interests: kinks.map((kink_id) => ({ kink_id, label: kink_id }))
+        })
+      }
+    });
+    expect(response.statusCode).toBe(400);
+    expect(response.json().error.message).toBe("Choose up to 10 profile kinks.");
+    expect(query.mock.calls.some((call) => String(call[0]).includes("insert into profiles"))).toBe(false);
+  });
+
+  it("requires cruush+ before a profile saves more than three kinks", async () => {
+    query.mockResolvedValue({ rows: [] });
+    const response = await app.inject({
+      method: "PUT",
+      url: "/api/profiles/me",
+      headers: { "x-user-id": userId },
+      payload: { ...emptyProfile, display_name: "Member", year_of_birth: 1994, kinks: ["leather", "latex", "rope", "pup-play"] }
+    });
+    expect(response.statusCode).toBe(402);
+    expect(response.json().error.code).toBe("CRUUSH_PLUS_REQUIRED");
+    expect(query.mock.calls.some((call) => String(call[0]).includes("insert into profiles"))).toBe(false);
+  });
+
   // The profile insert column list grows with the taxonomy, so read each value
   // back by column name instead of pinning a positional index that shifts every
   // time a field is added.

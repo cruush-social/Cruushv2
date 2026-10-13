@@ -152,7 +152,7 @@ const BITCOIN_APP_LINKS = {
   venmo: 'https://venmo.com/about/crypto',
 } as const;
 
-const STABLECOIN_PAYMENT_SOURCES = CRYPTO_PAYMENT_SOURCES.filter((source) => source.rail !== 'btc_bitcoin');
+const STABLECOIN_PAYMENT_SOURCES = CRYPTO_PAYMENT_SOURCES.filter((source) => source.rail !== 'btc_bitcoin' && source.sendingApp !== 'cash_app');
 
 export default function CruushPlusStore({ product = 'cruush_plus' }: { product?: 'cruush_plus' | 'ping_pack' }) {
   const isPulse = product === 'ping_pack';
@@ -519,15 +519,15 @@ export default function CruushPlusStore({ product = 'cruush_plus' }: { product?:
   // ready, keep the normal picker visible in its existing disabled state.
   const pickerSources = useMemo(
     () => {
-      const preservingBitcoinOrder = (paymentOpen || paymentPaid)
+      const preservingBitcoinOrder = ((paymentOpen && !locallyExpired) || paymentPaid)
         && selectedPaymentSource.rail === 'btc_bitcoin';
       const availableSources = CRYPTO_PAYMENT_SOURCES.filter((source) =>
-        ((preservingBitcoinOrder ? source.rail === 'btc_bitcoin' : source.rail !== 'btc_bitcoin')
+        ((preservingBitcoinOrder ? source.rail === 'btc_bitcoin' : source.rail !== 'btc_bitcoin' && source.sendingApp !== 'cash_app')
           && readyRailIds.has(source.rail))
-        || (source.id === selectedSourceId && (paymentOpen || paymentPaid)));
+        || (source.id === selectedSourceId && ((paymentOpen && !locallyExpired) || paymentPaid)));
       return availableSources.length > 0 ? availableSources : STABLECOIN_PAYMENT_SOURCES;
     },
-    [paymentOpen, paymentPaid, readyRailIds, selectedSourceId, selectedPaymentSource.rail],
+    [paymentOpen, paymentPaid, locallyExpired, readyRailIds, selectedSourceId, selectedPaymentSource.rail],
   );
 
   useEffect(() => {
@@ -569,8 +569,8 @@ export default function CruushPlusStore({ product = 'cruush_plus' }: { product?:
 
   const handleStartPayment = useCallback(async (source: CryptoPaymentSource) => {
     if (
-      !isPulse
-      || !selectedPlan
+      !selectedPlan
+      || !STABLECOIN_PAYMENT_SOURCES.some((available) => available.id === source.id)
       || !readyRailIds.has(source.rail)
       || startingRef.current
       || retryAt > Date.now()
@@ -841,7 +841,7 @@ export default function CruushPlusStore({ product = 'cruush_plus' }: { product?:
               It also lets us offer NSFW content from adult users.
             </p>
             <p>
-              Pay with USDC or PYUSD from Cash App, PayPal, Venmo or a compatible wallet.
+              Pay with USDC or PYUSD from PayPal, Venmo or a compatible wallet.
               {isPulse ? 'You pay once for the Pulse pack you choose.' : 'You pay once for the cruush+ time you choose.'} Nothing renews automatically.
             </p>
             <p>
@@ -967,7 +967,7 @@ export default function CruushPlusStore({ product = 'cruush_plus' }: { product?:
                       type="button"
                       aria-label={source.label}
                       aria-pressed={sourceSelected}
-                      disabled={!isPulse || !sourceReady || checkoutSelectionLocked || checkingMinimum || belowMinimum || retryAt > clockMs}
+                      disabled={!sourceReady || checkoutSelectionLocked || checkingMinimum || belowMinimum || retryAt > clockMs}
                       className={`${pickerSources.length % 2 === 1 && index === pickerSources.length - 1 ? 'col-span-2' : ''} border-x-0 border-y px-2 py-2 text-center disabled:opacity-50 ${sourceSelected ? 'border-primary bg-primary/10' : 'border-border'}`}
                       onClick={() => void handleStartPayment(source)}
                     >
@@ -979,9 +979,6 @@ export default function CruushPlusStore({ product = 'cruush_plus' }: { product?:
                   );
                 })}
               </div>
-                <div role="status" className="absolute inset-x-0 top-1/2 -translate-y-1/2 border-y border-border bg-background/95 px-3 py-3 text-center">
-                  <p className="text-sm font-semibold">Sorry, we are now migrating to stablecoin.</p>
-                </div>
               </div>
               {retryAt > clockMs ? <p role="status" className="text-sm text-muted-foreground sm:text-xs">Try again in {Math.ceil((retryAt - clockMs) / 1000)}s</p> : null}
               {!intent ? (
@@ -1002,7 +999,7 @@ export default function CruushPlusStore({ product = 'cruush_plus' }: { product?:
               {starting || intent ? <Button
                 className="h-12 w-full rounded-full text-base font-semibold text-white disabled:opacity-50"
                 type="button"
-                disabled={!isPulse || starting || !selectedRailReady || (paymentOpen && !locallyExpired) || paymentPaid}
+                disabled={starting || !STABLECOIN_PAYMENT_SOURCES.some((source) => source.id === selectedSourceId) || !selectedRailReady || (paymentOpen && !locallyExpired) || paymentPaid}
                 onClick={() => void handleStartPayment(selectedPaymentSource)}
                 style={{ background: 'var(--cruush-logo)' }}
               >
