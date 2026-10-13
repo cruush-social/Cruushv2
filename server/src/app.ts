@@ -21,6 +21,8 @@ import { registerMessageRoutes } from "./routes/messages.js";
 import { registerInternalRoutes } from "./routes/internal.js";
 import { registerMapPingRoutes } from "./routes/map-pings.js";
 import { registerNotificationRoutes } from "./routes/notifications.js";
+import { registerNewsletterUnsubscribeRoutes } from "./routes/newsletter-unsubscribe.js";
+import { NEWSLETTER_UNSUBSCRIBE_PATH } from "./newsletter-unsubscribe.js";
 import { registerPostRoutes } from "./routes/posts.js";
 import { registerPlaceRoutes } from "./routes/places.js";
 import { registerProfileRoutes } from "./routes/profiles.js";
@@ -191,6 +193,12 @@ export function buildServer(config: AppConfig, deps: BuildServerDeps = {}) {
       return;
     }
 
+    // RFC8058 POSTs carry an unsubscribe-only signed capability and no browser
+    // Origin/cookies. Only this exact route validates that independent token.
+    if (request.method === "POST" && request.routeOptions.url === NEWSLETTER_UNSUBSCRIBE_PATH) {
+      return;
+    }
+
     const origin = typeof request.headers.origin === "string" ? request.headers.origin : "";
     const requestOrigin = origin || (
       config.NODE_ENV === "production"
@@ -288,6 +296,7 @@ export function buildServer(config: AppConfig, deps: BuildServerDeps = {}) {
   void registerMessageRoutes(app);
   void registerMapPingRoutes(app);
   void registerNotificationRoutes(app);
+  void registerNewsletterUnsubscribeRoutes(app);
   void registerUserNoticeRoutes(app);
   void registerUserRoutes(app);
   void registerContentVisibilityRoutes(app);
