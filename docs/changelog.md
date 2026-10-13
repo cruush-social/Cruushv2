@@ -1,5 +1,22 @@
 # cruush changelog
 
+## Release 2.4 (October 13, 2026)
+
+- Recently active Ghost members now show Online. Dark Room members show Online on profiles you already have permission to view, with location privacy preserved.
+- Expanded map pins open the selected profile on the first deliberate tap.
+- Full-profile Vibes shrink onto one line, and the labels Queer arts and Queer nightlife now read Arts and Nightlife.
+- Long Health capsule text wraps inside its card, and full-profile Signals fit all 35 characters on one line.
+- The Purgatory card stays readable and scrollable while the keyboard is open.
+- Incoming cruush profiles and Back controls open the correct destination.
+- View-once message photos open in a full-screen viewer, and conversation presence, scrolling and composer clearance are more reliable.
+- Confessional preserves the Never time filter, and Carousel photos refresh when photo permissions change.
+- Login, installation, notification and reward prompts queue more consistently.
+- cruush+ profiles can select up to 10 kinks; Basic profiles retain 3.
+- Written survey answers are optional; ratings and dropdown answers remain required.
+- New checkout offers PayPal PYUSD on Arbitrum, Venmo PYUSD on Ethereum, and wallet USDC on Base. Cash App and Bitcoin are no longer offered for new orders; historical orders remain available.
+- Payment instructions match the selected method, with a beginner stablecoin guide and payment support after 30 minutes without confirmation.
+- Ghost Mode location protection is stronger, with tighter database access controls and verified backup restoration.
+
 ## Release 2.3 (October 11, 2026)
 
 - Conversations open at the newest loaded message, while scrolling back keeps older messages accessible.

@@ -1,0 +1,98 @@
+Subject: cruush 2.4 is here. Help me keep building.
+
+Hello sinners,
+
+I’m Julien, the autistic tranny you knew had to be behind cruush and the founder of technosovereign (https://technosovereign.com/). I live with my gay cat in Brooklyn. I’m a real-life cyborg: three parts of my body have serial numbers. I’m also a hardcore DJ and producer, and I only listen to techno. I’m the only out trans man trade on the apps in New York City, at least that was the case the last time I checked- I don’t even sound gay! Sorry, ladies, I’m not ready for love right now and I’m not a millionaire, yet. Anyway, follow me at @cyborgjulien (https://www.instagram.com/cyborgjulien/). I’m not on social media, ever, but that’s my Instagram.
+
+I need help with healthcare, legal costs, development, patents, and trademarks.
+
+Nine months. Three products. $10,000.
+
+My family funded development by buying equity. Zero venture capital. I’m responsible for 99% of the code and lead the design. Our custom logo/icons came from a hired designer; I drew some visuals in Figma. All the visuals are human-made. cruush’s architecture is my own human-made design, including original mechanisms I haven’t seen on other social platforms. I’ve already identified three potential patent candidates in cruush. I want to file three provisional patent applications as a first step toward full patent protection and register more trademarks for names used in the app. I need funds for filings and IP counsel to protect the work from copying and address legal risks that could force cruush offline.
+
+I work about 60 hours a week, often noon to midnight or 3 a.m. Every bug report notifies me. I haven’t taken a weekend off in months. My cofounder researches small AI models and more efficient ways to train them, and plans to return after graduation; another part-time developer audits cybersecurity.
+
+• cruush (https://technosovereign.com/work/cruush): queer connection, messaging, location privacy, automod, and payments.
+• sovereignpay (https://technosovereign.com/work/sovereignpay): crypto payments directly to legal businesses’ wallets without card-processing bank underwriting, with invoices, links, and tracking.
+• HEKA (https://technosovereign.com/work/hekatonomous): my agent for local models or your own API tokens, without a HEKA subscription. The public release will focus on 24/7 GitHub issue-to-fix workflows, with each step reviewed using multiple models and up to 100 subagents.
+
+HEKA and sovereignpay await consumer releases. I also want to build an open-source accessibility agent from HEKA that interprets screenshots, describes screens and follows voice commands without requiring special accessibility markup or a screen reader. I’ll develop and test it with blind users, aiming to make more websites, apps and games usable. My budget excludes approximately 2,340 hours of my labor. Published agency category budgets can reach six figures (https://cruush.app/blog/why-i-built-cruush.html); these are benchmarks, not quotes or valuations of my products.
+
+Queer sex deserves dignity
+
+As a trans man, other apps can make me feel like a slab of meat thrown to the dogs. I’m mostly there for other trans people and prefer women, yet receive rape threats within half an hour and leave depressed and turned off. I can’t imagine what femmes endure. Straight users are welcome on cruush; privacy from harassment and unwanted attention is essential.
+
+BASEMENT’s queer parties showed me different genders and sexualities sharing pleasure. I want that community online: magical, dignified, and cool to be seen on, with discreet users welcome. Connection, content, and features should be worth your money. No dark patterns, harmful “taboo” promotions, or open drug markets. I’m not interested in policing consensual DMs about drug use; triggering content should require consent. In my view, platforms profit from our bodies and attention. They need our community; we deserve options that respect us.
+
+Our camp/lore parodies satanic ritual panic and superstition, reclaiming labels used against queer desire. I refuse a boring-looking queer app.
+
+Labyrinths, the Grimoire, and Parties
+
+Grindr has its grid; Sniffies its map. I believe cruush will have Labyrinths: branching stories, private limits, and freedom to leave. Text first, illustrations later; approved-profile personalization, matching, invitations, and solo play are planned. Prototype pairing/delivery are simulated.
+
+The Grimoire is an ongoing weekly visual-novel concept based on cruush’s lore: play one of two characters from a larger recurring cast and explore both perspectives of the same scene. I’m developing it with an illustrator.
+
+Labyrinth prototype gallery and full-size screenshots: https://cruush.app/blog/why-i-built-cruush.html
+
+We’re working towards Parties: scheduled gatherings, audience/boundary controls, approval or open joining, private addresses, optional chat, Feed listings, and cancellation/expiry. Full opening follows these and E2EE; individual/group voice and video come later. I plan a censored iOS version and an Android release, while keeping the website uncensored for lawful adult content as long as I can.
+
+Ownership, independence, and giving back
+
+My privacy principle: What happens in cruush, stays on cruush. I’ll never sell cruush, even for a trillion dollars, or sell your data or train AI on it. I alone administer our Virginia server and database with European-owned Hetzner; access is protected through my phone and fingerprint. I work for myself; no employer can fire me from this work, and I won’t let a board push me out of cruush. I’m the only person I trust with this server. They’ll have to rip this key from my cold, dead hands. Sensitive content is encrypted server-side; authorized moderation/operational access remains. E2EE is future work.
+
+I plan to offer cruush.eu as an alternative server option on European infrastructure and eventually build my own server in Europe, aiming for total sovereignty and control. European card processing is also planned. If you’re a European citizen interested in a partnership, contact julien@cruush.app. I need help setting up the European side of the business and arranging card payments. I’ll require ID checks and related access restrictions only where legally required. When that day comes, I’ll build verification in-house and use it to offer optional verified badges. I want less dependence on American services and will explore alternatives to American bank underwriting that let cruush preserve its lawful adult content. My final goal: an off-grid version using compatible powered Meshtastic nodes, without a central server/company, outlasting me. A spark in the dark. Later ideas: spot navigation and area-only chat designed to disappear when everyone leaves.
+
+Future goals: profit-sharing for every member, queer technology/nightlife grants, and trans/GNC chemsex residential recovery and a halfway house in NYC. I’m open to nonprofit status; I believe a sustainable LLC could give back more.
+
+I want my body back
+
+After revision surgery on my phalloplasty in August, I woke in complete shock when I saw the results. It was my most traumatic moment. My doctors still haven’t explained what was actually done, and I still don’t understand my new anatomy. I did not consent to part of the procedure. I also received another implant: the previous one was too short, and this one is too long. I can’t use it at all. I’m furious and heartbroken. I hate how the results look, too. Other people tell me it’s not that bad, but it will always be ugly to me because I didn’t want it. I cannot top or have sex the way I actually want to. The pain is constant.
+
+I’d trade all the money in the world for my phalloplasty implant revision and clitoral burial procedure to have worked and created the more inconspicuous result I wanted. I’ll need further surgery to correct these issues, likely within three months. I need money set aside to support myself and keep cruush running during recovery. Working on cruush gives me peace.
+
+Other patients have described harm from the same doctor; I’m seeking advice about a possible class action and keeping names private. I haven’t found another willing in-state physician for reconstruction, so I face returning to that doctor.
+
+There is a story here. Help it spread.
+
+I love building. This is my best job ever. I’ve never kept a conventional job for a year; being my own boss reveals what my autism and determination can do. I believe only a small, family-funded project could make cruush. I’ve already chosen my values over profit, and I intend to hold that line.
+
+Funding is running out. My family covers basic survival; I don’t go out or spend on luxuries. I feel awful I haven’t repaid people who helped me. I’m determined to repay them and give back to my family quickly.
+
+Please help this story spread so I can keep developing full time instead of taking another job. If I have to take another job, cruush will have zero full-time staff. I believe people will support the work once they see it. Know a journalist? Please connect us.
+
+• Donate: Cash App at $frootkayke (https://cash.app/$frootkayke), note DONATION. Funds go to me for care, legal costs, development, IP, and repaying personal debts.
+• Buy cruush+: visit cruush (https://cruush.app). Pay through our new stablecoin checkout, with protected orders and payment confirmations. Read the guide (https://cruush.app/blog/stablecoin-payments.html). For manual Cash App purchases, you can use BTC or USD. Note cruush+, your account email, and purchase amount. I’ll apply the subscription directly and add your completed order to your order history. Card funding may be available.
+• Hire me: $150/hour, with queer business discounts and very low charity rates for queer people in dire need; put CHARITY in the subject. technosovereign builds bespoke websites, apps, audio tools and creative experiences. I aim to bring the same speed and efficiency I brought to cruush to my clients, along with independence from third-party providers. You own what I build for you outright and can self-host it. We offer in-house illustration and 3D modeling. I’m not a 3D modeler myself; I’m proficient in Adobe and write custom shaders and code animations. I can turn your vibe-coded prototype into real software or teach you how, set up automations, teach safer agent use, and organize documents and email/SMS marketing. Monthly hosting and admin support are available for a fee. Your project supports cruush. Contact julien@cruush.app.
+• Invest: I have technosovereign equity to sell. I see billion-dollar potential; valuation and terms are open for discussion. Reply or contact julien@cruush.app.
+• Tell everyone you know: forward this and introduce me to supporters. I am cruush. Help me keep building.
+
+Meet me in Edison. Join the street team.
+
+I’ll be at EXXXOTICA in Edison, New Jersey (https://www.exxxoticaexpo.com/edison-nj/) on Friday, October 23, looking for advertising partners and brand ambassadors. Find me in a cruush T-shirt and ask for a one-week free trial. Don’t be shy: I’d love to meet you in person and hear from you directly. I’m looking for volunteers for our social media and street team; street-team volunteers get a cool cruush T-shirt. Reply if you want to help. Please share your own affiliate link from Settings → Rewards, too.
+
+Thank you,
+
+Julien
+
+
+
+cruush 2.4 release
+
+Our stablecoin migration is here: PayPal PYUSD on Arbitrum, Venmo PYUSD on Ethereum, and wallet USDC on Base. Read the beginner stablecoin payment guide (https://cruush.app/blog/stablecoin-payments.html).
+
+Take the survey (https://cruush.app/survey), join r/cruushapp (https://www.reddit.com/r/cruushapp/), and follow @cruush.app on Instagram (https://www.instagram.com/cruush.app/). Help us shape what comes next.
+
+• Recently active Ghost members now show Online. Dark Room members show Online on profiles you already have permission to view, with location privacy preserved.
+• Expanded map pins open the selected profile on the first deliberate tap.
+• Full-profile Vibes shrink onto one line, and the labels Queer arts and Queer nightlife now read Arts and Nightlife.
+• Long Health capsule text wraps inside its card, and full-profile Signals fit all 35 characters on one line.
+• The Purgatory card stays readable and scrollable while the keyboard is open.
+• Incoming cruush profiles and Back controls open the correct destination.
+• View-once message photos open in a full-screen viewer, and conversation presence, scrolling and composer clearance are more reliable.
+• Confessional preserves the Never time filter, and Carousel photos refresh when photo permissions change.
+• Login, installation, notification and reward prompts queue more consistently.
+• cruush+ profiles can select up to 10 kinks; Basic profiles retain 3.
+• Written survey answers are optional; ratings and dropdown answers remain required.
+• New checkout offers PayPal PYUSD on Arbitrum, Venmo PYUSD on Ethereum, and wallet USDC on Base. Cash App and Bitcoin are no longer offered for new orders; historical orders remain available.
+• Payment instructions match the selected method, with a beginner stablecoin guide and payment support after 30 minutes without confirmation.
+• Ghost Mode location protection is stronger, with tighter database access controls and verified backup restoration.

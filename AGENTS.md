@@ -57,6 +57,9 @@ For backend or infrastructure work, consult `docs/master-architecture.md` and
 the applicable source. Current explicit user instructions override older decisions.
 
 ## Mistakes
+- 2026-10-13: Used the old preview directory for a combined-tree launcher lookup and assumed a tsx binary; corrected the paths and used the existing Node launcher.
+- 2026-10-13: Saved baseline test snapshots with runnable extensions, so focused Vitest runs collected the copies; preserved snapshots as text and reran only the actual source suites.
+- 2026-10-13: Left the requested checkout guide, delayed-payment help and gas-warning emails undeployed; published the guide and help, activated owner-only alerts, and verified production checkout and email-provider records.
 - 2026-10-11: Identified Purgatory as the third login popup from mounted components before checking eligibility; the rendered login showed the Affiliate program reminder, which was added to the same prompt-spacing logic.
 - 2026-10-11: Initially interpreted duplicate center icons in profile previews as side-badge placement; preserved the side badges and suppressed the default center mark beneath the supplied fallback.
 - 2026-10-10: Reused an older sale banner before finding the newer Purgatory sale session; recovered and applied its exact approved copy and price-picker styling, added the confirmed weekend countdown, and checked the shorter banner in the app.
@@ -89,3 +92,9 @@ the applicable source. Current explicit user instructions override older decisio
 - 2026-10-12: Initial notification-link repair retained camera suppression after later ordinary map navigation; constrained it to the consumed link's route state and verified normal navigation restores existing framing.
 
 - 2026-10-13: Assumed Coolify custom builds retained Git metadata and exported SOURCE_COMMIT to the chained runner; checked the installed helpers and replaced those assumptions with repository-root paths and explicit deployment SHA/resource pins before release.
+- 2026-10-13: Assumed the earlier email backdrop had the newer frame attributes; matched its observed background declaration and verified the restored dark frame instead.
+- 2026-10-13: Restored only the dark outer email backdrop and left its brighter panel fill; restored the older dark panel background too and checked the rendered result.
+- 2026-10-13: Used broad vendor cost bands as a combined product comparison without scoped bids; replaced the aggregate with sourced category benchmarks and kept valuation separate.
+- 2026-10-13: Shortening the service offer left a price fragment in the blog bio; restored the sentence subject and verified both rendered drafts.
+- 2026-10-13: Exact bio replacement tripped a generator check tied to the old phrase; updated the check to preserve requested wording and verified both rendered drafts.
+- 2026-10-13: Described European-owned hosting as a server physically in Europe; corrected the current Virginia location and labeled future European infrastructure as planned.

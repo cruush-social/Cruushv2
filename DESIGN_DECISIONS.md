@@ -765,3 +765,56 @@ Julien: “Remove "queer" from vibe tags like "queer nightlife" its redunant”.
 ## Precise-sharing additions reverted, October 12, 2026
 
 Julien: “Revert the precise location stuff doesnt it ask already for precise or approx distance”. Revert the new precise-sharing default and selected-person grant controls. Preserve the existing precise/approximate distance choice, existing sharing behavior and defaults, and the earlier Ghost triangulation hardening. This supersedes the preceding selected-person-sharing approval.
+
+
+## October 13, 2026 — delayed stablecoin payment support
+
+Julien selected “30 minutes (recommended)” when asked whether payment support should be offered after 30 or 60 minutes without confirmation. If the sending app reports a transfer was sent but cruush has not confirmed the order after 30 minutes, direct the user to existing payment support. This is a threshold for seeking help, not a guaranteed support response or refund deadline. The checkout and beginner guide already use the approved threshold.
+
+
+### October 13, 2026 — founder-stated long-term direction
+Recorded for the requested founder blog/email. These statements are goals, not implementation or release proof.
+
+Julien: "my company is alla bout sovereigny and products work without the company there"; "i want to make things that give people ownership back"; "My final goal is cruush work off grid"; "A network of nodes". The future sovereign version is intended to operate without a central server/company, using compatible powered local nodes; E2EE and Meshtastic remain work to develop/test.
+
+Julien: "I would never cruush even for a trillion dollars"; clarified "Never sell cruush". Founder commitment to independence, with potential equity discussions for technosovereign, is distinct from selling cruush or promising investment returns.
+
+Julien: "tell the first version of Labyrinths will be text based and later I want illustrated scenes"; "open app once these 2 features are built, and e2ee"; "add video calls and voice, both group ones and between individulas". Full opening is targeted after Labyrinths, member-hosted Party and E2EE readiness, followed by group/individual voice and video. Existing early access is distinct.
+
+Julien: "not coding foucsed, natural language focused"; "an alternativ efrom grok"; "we wil need raise a few million to create this model". Proposed local natural-language model with creative freedom for queer business owners is separate from HEKA and the unnamed open-source accessibility tool. Human feedback/simulation training and smaller footprint are research goals; millions are the founder's future funding estimate.
+
+Julien: "add a navigation option to help you to get your lcruisijng spot"; "people only within a rdefiend area and access a private chat, that dsiappears completely when everyone leaves the area"; "a signal-like appliccaiton and a stand alone wihtout cruising built into it". Later spot navigation and a potential standalone area-scoped secure communication product are goals, including shared-chat expiry when all leave; secure deletion is unverified.
+
+Julien: "also explain swings, to built off the code work for cruush, couples and coupes only"; "hot cold navigation ... cruise ship or in a hotel ... without sharing their pecise room number". Future couples-only product based on cruush foundations, with consent-based proximity cues instead of room-number disclosure.
+
+Julien: "there are no dark patterns in cruush, i won't need them"; "the value of cruush to be form the features and the community". Founder design position: people should return through useful features and community, with no deliberate pressure to keep checking.
+
+Julien: "i will not allow taboo or open drug markets on cruush, i dont wan tot encourage behavior that harms, i dont' care what people say in dms, but i dn't wanyone to face triggering content on cruush without their consent.". Founder public-content commitment: no harmful taboo promotions/open drug markets; respect consensual private communication and consent around triggering content. This copy record does not change existing moderation, age or visibility rules.
+
+Julien: "cruush to bring dignity be a software you feel cool to be seen on. i want to cruush to feel magical. i want sex to be fun and not taboo.". Experience direction: dignity, a cool-to-be-seen-on app, magical atmosphere and joyful consensual adult sexual expression. Harmful taboo promotions are distinct from consensual adult sexuality.
+
+Julien: "having peopel connect is a beautiful service that's the only real one i want ot profit, as well original content and features. i want to make curising actually fun isntead of making the leave the app feeling sick to your stomach and ashamed. i wan tto feel it scool to be on cruush, that theree is dignity in queer sex, and thatis't not dirty and you don't ahve to be discreet, if you don't want ot be, i fully support our discreet users, but i want people to want ot seen on cruush. i was inspried the queer parties at basement where isaw couples of every gende rand sexuality ahve sex under the same roof, i was told there is way you can mix gender son cruising app like this i have seen in real life alreayd, i wan tot bring the community together.". Founder experience/revenue direction: joyful connection plus original content/features, dignity in queer sex, welcome discreet users while making visible participation a choice, and community across genders/sexualities inspired by personal BASEMENT experiences. No privacy controls changed.
+
+Julien: "i want to make software that's acutally worth your money.". Product-value commitment in the founder copy.
+
+
+### October 13, 2026 — founder lore and Grimoire copy clarification
+Julien: "Explain the Grimoire too, an ongoing narrativ ebased on lore of cruush, a weekly visual novel you play as one of two POVS of reoccurring charactetrs." Record this as a planned weekly visual novel based in cruush lore, with two perspectives and a recurring cast; no chapter/art release is implied.
+Julien: "cruush neede dto camp to truly be queer ... parody of satantic ritual panic and supersituion ... recplain the harmful titles attributed to queer desire ... refuse to make a boring looking queer app." Founder intent: reclaim stigmatizing labels through camp, theatrical lore, playful parody, and intentional visual design.
+Julien: "swingrs". Latest future couples-product name is swingrs, superseding earlier draft wording; preserve earlier quoted records.
+
+Julien: "towards Parties not Party". The feature name in the founder blog/email is Parties.
+
+
+### October 13, 2026 — founder native/web and community direction
+Julien: "I will release a censored iOS version and Android release, but the main website will be uncensored as long as I can help it." Roadmap only: censored iOS version, Android release and lawful adult expression on web; no current native launch, moderation/age/privacy change.
+Julien: "I have no problems with straight people on cruush, but privacy from harassment and unwanted attention means we have a different experience on these apps than others." Community welcome with participant-controlled privacy and freedom from harassment.
+Julien: "I have already made decisions that prioritize my own values over profit ... as long as I am around ... cruush is like my Sonichu." Founder values and personal metaphor recorded; no financial guarantee or new governance implementation implied.
+
+
+### 2026-10-13: Founder direction for future ID verification
+Julien: “I will restrict and ID check unless I am legally obligated to ... in-house solution ... verified badges.” Direct clarification: “Yes, required only by law; badges optional.” Intended direction: mandatory ID checks and related access restrictions only where legally required; build future verification in-house and use it to offer optional verified badges. This draft-copy direction does not change existing age eligibility, verification, privacy or access controls.
+
+
+### 2026-10-13: Future European infrastructure alternative
+Julien: “hosting cruush.eu as an alternative server option ... European infrastructure ... right now our European-owned server is in Virginia ... build my own server in Europe ... total sovereignty and control over our own infrastructure.” Current location is Virginia with European-owned Hetzner. Future direction is a cruush.eu alternative on European infrastructure and a founder-built server in Europe, aiming for ownership and sovereignty. This records the direction only; no server migration, DNS change or deployment occurred.
