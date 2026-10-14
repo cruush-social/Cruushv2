@@ -1,3 +1,4 @@
+import { truncateSignal } from './profileLimits';
 import { ApiClientError, requestApi, requestApiWithUploadRetry } from './apiClient';
 import type { CruushBadge } from './billingApi';
 import type { DisplayLocationToken } from './displayLocationTokens';
@@ -316,7 +317,7 @@ export async function getProfileById(userId: string) {
 export async function saveMyProfile(profile: ProfilePayload) {
   const savedProfile = await requestApi<ProfileRecord>('/api/profiles/me', {
     method: 'PUT',
-    body: JSON.stringify(profile),
+    body: JSON.stringify({ ...profile, signal: truncateSignal(profile.signal) }),
   });
   notifyProfileChanged(savedProfile);
   return savedProfile;
@@ -330,7 +331,7 @@ export async function saveMyProfile(profile: ProfilePayload) {
 export async function saveMySignal(signal: string) {
   const saved = await requestApi<{ signal: string }>('/api/profiles/me/signal', {
     method: 'PUT',
-    body: JSON.stringify({ signal }),
+    body: JSON.stringify({ signal: truncateSignal(signal) }),
   });
   return saved.signal;
 }

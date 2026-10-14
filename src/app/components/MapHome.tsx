@@ -1060,6 +1060,20 @@ export default function MapHome(_props: MapHomeProps = {}) {
   const openPulseFromNotification = searchParams.get('pulse') === 'open';
   const [mapPingSheetOpen, setMapPingSheetOpen] = useState(openPulseFromNotification);
   const [mapPingClock, setMapPingClock] = useState(() => Date.now());
+  // Marker data changes at expiry, not on every second of an idle map.
+  // The open Pulse sheet owns its visible countdown separately.
+  useEffect(() => {
+    const now = Date.now();
+    const expirations = [
+      ...users.flatMap(user => [user.displayExpiresAtMs, user.activePing ? Date.parse(user.activePing.expiresAt) : null]),
+      ...(mapPingStatus?.receivedPings ?? []).map(ping => Date.parse(ping.expiresAt)),
+      mapPingStatus?.activePing ? Date.parse(mapPingStatus.activePing.expiresAt) : null,
+    ].filter((value): value is number => typeof value === 'number' && Number.isFinite(value) && value > mapPingClock);
+    if (!expirations.length) return;
+    const timer = window.setTimeout(() => setMapPingClock(Date.now()),
+      Math.min(2_147_483_647, Math.max(0, Math.min(...expirations) - now)));
+    return () => window.clearTimeout(timer);
+  }, [users, mapPingStatus, mapPingClock]);
   const [activeEvents, setActiveEvents] = useState<LaunchEvent[]>([]);
   const [selectedEventSlug, setSelectedEventSlug] = useState<string | null>(null);
   const [eventPass, setEventPass] = useState<EventPassReveal | null>(null);
@@ -1119,7 +1133,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
       user.displayExpiresAtMs != null && user.displayExpiresAtMs <= mapPingClock)
       ? currentUsers.filter((user) => user.displayExpiresAtMs == null || user.displayExpiresAtMs > mapPingClock)
       : currentUsers);
-  }, [mapPingClock]);
+  }, [users, mapPingClock]);
   const discoveryRefreshRef = useRef<{
     inFlight: MapDiscoveryRequest | null;
     pending: MapDiscoveryRequest | null;
@@ -1345,14 +1359,12 @@ export default function MapHome(_props: MapHomeProps = {}) {
         void refresh();
       }
     }, MAP_PING_STATUS_REFRESH_INTERVAL_MS);
-    const clockIntervalId = window.setInterval(() => setMapPingClock(Date.now()), 1000);
 
     return () => {
       isMounted = false;
       window.removeEventListener('focus', refreshOnResume);
       document.removeEventListener('visibilitychange', refreshOnResume);
       window.clearInterval(refreshIntervalId);
-      window.clearInterval(clockIntervalId);
     };
   }, [refreshMapPingStatus]);
 

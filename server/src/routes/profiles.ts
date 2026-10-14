@@ -24,10 +24,9 @@ import {
   profilePayloadSchema,
   sideBadgesSchema,
   profileVisibilityRulesSchema,
-  SIGNAL_MAX_LENGTH,
+  signalSchema,
   type ProfilePayload
 } from "../profile-schema.js";
-import { optionalSingleLineTextSchema } from "../input-schema.js";
 import { moderateProfileOrReject } from "../moderation-service.js";
 import {
   lockMapPingSenderInTransaction,
@@ -1775,7 +1774,7 @@ export async function registerProfileRoutes(app: FastifyInstance) {
   app.put("/api/profiles/me/signal", async (request, reply) => {
     const userId = await getActiveAccountUserId(request);
     const { signal } = z.object({
-      signal: optionalSingleLineTextSchema(SIGNAL_MAX_LENGTH)
+      signal: signalSchema
     }).strict().parse(request.body);
     const result = await app.db.query<{ signal: string | null }>(
       `update profiles

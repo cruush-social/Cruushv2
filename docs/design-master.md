@@ -831,3 +831,10 @@ Julien: "technosovereign is all lowercase". Write the operator brand as `technos
 
 ### October 13, 2026 — stablecoin-only checkout and manual gas refill
 Julien: "Only stablecoin" and "Im confused so i only want to accept stablecoin". Accept PYUSD and USDC for new purchases; native ETH is network gas, never a subscription payment option. Julien superseded automatic-refill approval with "Actually shouldng it just tell me when i have to refill it for now?" and chose "Email me". Monitor gas balances and email only the owner when refilling is needed; no automatic purchases or swaps.
+
+### October 14, 2026 — signal cap and Confessional halo clearance
+Julien: "The maximum of acceptable characters is 35 characters for the signal if there are more than 35 characters just cut off whatever comes next" and "someone should not be able to put in more than 35 characters". Cap new signal input and stored updates at 35 characters, and truncate legacy overlong signals when displayed. Keep the existing single-line presentation.
+Julien: "there was more of a padding between the vibe tags and the top of the Purgatory Halo bring it back". Restore the visible gap in Confessional cards by lowering only the Purgatory heart stack when Vibes are present. Preserve artwork, tag positions, sizes, colors and the rest of the card.
+
+### October 14, 2026 — photo crop framing
+Julien: "The canvas crops my image before I get to crop it can you please stop that I think you need to put a border around the area where it would be cropped to so I can tell where it's going to be cropped". The shared photo crop editor initially fits the complete source image inside its existing 4:5 viewport. A visible border marks the actual exported area. Preview and export use the same fit, zoom, rotation and translation; preserve existing controls and output dimensions.

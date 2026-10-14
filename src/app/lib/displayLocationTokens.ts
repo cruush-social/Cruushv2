@@ -37,6 +37,9 @@ type BrowserDisplayKey = {
 };
 
 let cachedDisplayKey: BrowserDisplayKey | null = null;
+let pendingDisplayKey: Promise<BrowserDisplayKey> | null = null;
+let cacheGeneration = 0;
+const importedKeys = new WeakMap<BrowserDisplayKey, Promise<CryptoKey>>();
 
 function base64UrlToBytes(value: string) {
   const padded = `${value}${'='.repeat((4 - (value.length % 4)) % 4)}`;
@@ -63,8 +66,18 @@ async function getDisplayKey() {
     return cachedDisplayKey;
   }
 
-  cachedDisplayKey = await requestApi<BrowserDisplayKey>('/api/location/display-key');
-  return cachedDisplayKey;
+  if (!pendingDisplayKey) {
+    const generation = cacheGeneration;
+    const request = requestApi<BrowserDisplayKey>('/api/location/display-key').then(key => {
+      if (generation !== cacheGeneration) throw new Error('Display location key cache was cleared. Refresh the map.');
+      cachedDisplayKey = key;
+      return key;
+    }).finally(() => {
+      if (pendingDisplayKey === request) pendingDisplayKey = null;
+    });
+    pendingDisplayKey = request;
+  }
+  return pendingDisplayKey;
 }
 
 export async function decryptDisplayLocationToken(token: DisplayLocationToken) {
@@ -75,13 +88,14 @@ export async function decryptDisplayLocationToken(token: DisplayLocationToken) {
     throw new Error('Display location key is stale. Refresh the map.');
   }
 
-  const cryptoKey = await crypto.subtle.importKey(
-    'raw',
-    base64UrlToBytes(displayKey.key),
-    { name: 'AES-GCM' },
-    false,
-    ['decrypt'],
-  );
+  let keyImport = importedKeys.get(displayKey);
+  if (!keyImport) {
+    keyImport = crypto.subtle.importKey(
+      'raw', base64UrlToBytes(displayKey.key), { name: 'AES-GCM' }, false, ['decrypt'],
+    ).catch(error => { importedKeys.delete(displayKey); throw error; });
+    importedKeys.set(displayKey, keyImport);
+  }
+  const cryptoKey = await keyImport;
   const plaintext = await crypto.subtle.decrypt(
     {
       name: 'AES-GCM',
@@ -101,5 +115,7 @@ export async function decryptDisplayLocationToken(token: DisplayLocationToken) {
 }
 
 export function clearDisplayLocationKeyCache() {
+  cacheGeneration += 1;
+  pendingDisplayKey = null;
   cachedDisplayKey = null;
 }

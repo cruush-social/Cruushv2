@@ -1,6 +1,7 @@
+import { truncateSignal } from '../lib/profileLimits';
 import { useLayoutEffect, useRef, useState } from 'react';
 
-/** Fit the full Signal while preserving its parent's existing line box. */
+/** Fit the capped Signal while preserving its parent's existing line box. */
 export default function SingleLineSignal({ children }: { children: string }) {
   const textRef = useRef<HTMLSpanElement>(null);
   const [scale, setScale] = useState(1);
@@ -47,7 +48,7 @@ export default function SingleLineSignal({ children }: { children: string }) {
       className="inline-block w-max whitespace-nowrap align-baseline"
       style={{ transform: scale < 1 ? `scale(${scale})` : undefined, transformOrigin: 'left center' }}
     >
-      {children}
+      {truncateSignal(children)}
     </span>
   );
 }

@@ -18,6 +18,8 @@ import MapHome, {
 } from './MapHome';
 import { MapServiceAreaProvider, useMapServiceArea } from './MapServiceAreaContext';
 
+const { markerInputs } = vi.hoisted(() => ({ markerInputs: [] as any[][] }));
+
 const { getNearbyUsers } = vi.hoisted(() => ({
   getNearbyUsers: vi.fn(),
 }));
@@ -300,6 +302,7 @@ vi.mock('./MapView', async () => {
       onMapClick?: () => void;
       onMapReady?: (map: typeof mapControls) => void;
     }) => {
+      markerInputs.push(markers);
       React.useEffect(() => {
         onMapReady?.(mapControls);
       }, [onMapReady]);
@@ -1897,6 +1900,25 @@ describe('MapHome', () => {
       delete eventfulMap.off;
       delete eventfulMap.getBounds;
     }
+  });
+
+  it('keeps marker data stable while idle and updates exactly when a Pulse expires', async () => {
+    navigator.geolocation.getCurrentPosition = vi.fn();
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    const [baseUser] = await getNearbyUsers();
+    const expiresAt = new Date(Date.now() + 10_000).toISOString();
+    getNearbyUsers.mockResolvedValue([{ ...baseUser, activePing: { id: 'expiring', expiresAt } }]);
+    const view = render(<MemoryRouter initialEntries={['/map']}><MapHome /></MemoryRouter>);
+    try {
+      await screen.findByRole('button', { name: 'Pin Jordan' });
+      await act(async () => vi.advanceTimersByTimeAsync(500));
+      const markers = markerInputs.at(-1);
+      expect(screen.getByTestId('marker-user-1')).toHaveAttribute('data-active-ping', 'expiring');
+      await act(async () => vi.advanceTimersByTimeAsync(3_000));
+      expect(markerInputs.at(-1)).toBe(markers);
+      await act(async () => vi.advanceTimersByTimeAsync(7_000));
+      expect(screen.getByTestId('marker-user-1')).toHaveAttribute('data-active-ping', '');
+    } finally { view.unmount(); vi.useRealTimers(); }
   });
 
   it('waits for discovery retryAfterSeconds while removing expired pins, then recovers automatically', async () => {

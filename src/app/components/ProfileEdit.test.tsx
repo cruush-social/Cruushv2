@@ -66,6 +66,26 @@ async function selectProfileEditTab(name: 'Photos' | 'Badges' | 'Basics' | 'Inti
 }
 
 describe('ProfileEdit', () => {
+  it.each([
+    [1200, 600, 1600, 800],
+    [600, 1200, 1000, 2000],
+  ])('fits the whole %sx%s source and exports the outlined area', async (width, height, drawWidth, drawHeight) => {
+    const drawImage = vi.fn();
+    const onConfirm = vi.fn().mockResolvedValue(undefined);
+    HTMLCanvasElement.prototype.getContext = vi.fn(() => ({
+      drawImage, fillRect: vi.fn(), save: vi.fn(), restore: vi.fn(), translate: vi.fn(), rotate: vi.fn(),
+    })) as unknown as HTMLCanvasElement['getContext'];
+    render(<ProfilePhotoCropper onCancel={vi.fn()} onConfirm={onConfirm} processing={false} sourceUrl="data:image/png;base64,AQID" />);
+    const preview = screen.getByAltText('Profile crop preview');
+    Object.defineProperties(preview, { naturalWidth: { value: width }, naturalHeight: { value: height } });
+    fireEvent.load(preview);
+    expect(preview).toHaveClass('object-contain');
+    expect(preview.parentElement).toContainElement(screen.getByTestId('photo-crop-boundary'));
+    fireEvent.click(screen.getByRole('button', { name: 'Use cropped photo' }));
+    await waitFor(() => expect(onConfirm).toHaveBeenCalledTimes(1));
+    expect(drawImage).toHaveBeenCalledWith(preview, -drawWidth / 2, -drawHeight / 2, drawWidth, drawHeight);
+  });
+
   it('exports the same translation shown in a responsive crop preview', async () => {
     const translate = vi.fn();
     const drawImage = vi.fn();

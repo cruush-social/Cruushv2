@@ -8,6 +8,10 @@ import {
 } from "./profile-schema.js";
 
 describe("profile schema", () => {
+  it("cuts legacy and new signals at 35 characters before storage", () => {
+    const result = profilePayloadSchema.parse({ ...emptyProfile, display_name: "Rowan", signal: "a".repeat(36) });
+    expect(result.signal).toBe("a".repeat(35));
+  });
   it("defaults the Out of Sight visibility rule off", () => {
     const { outside_service_area_members: _omitted, ...legacyRules } = emptyProfile.visibility_rules;
     const parsed = profilePayloadSchema.parse({

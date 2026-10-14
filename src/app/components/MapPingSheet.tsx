@@ -7,7 +7,7 @@ import {
   type CSSProperties,
   type PointerEvent as ReactPointerEvent,
 } from 'react';
-import { SIGNAL_MAX_LENGTH } from '../lib/profileLimits';
+import { SIGNAL_MAX_LENGTH, truncateSignal } from '../lib/profileLimits';
 import PulseLedIcon from './PulseLedIcon';
 import BugButtonSlot from './BugButtonSlot';
 import { MapMarkerPin } from './MapView';
@@ -234,7 +234,7 @@ export default function MapPingSheet({
     Number.isFinite(activePingTimestamp) &&
     activePingTimestamp > now,
   );
-  const normalizedSignal = signal?.trim() ?? '';
+  const normalizedSignal = truncateSignal(signal).trim();
   // A Pulse asks people to look at you, which is the opposite of being off the
   // map, so it stays shut while Dark Room is on.
   const sendDisabled = trust.restricted('map_pings') || loading || sending || !status || !hasMapLocation ||
@@ -475,7 +475,7 @@ export default function MapPingSheet({
                   aria-label="Your signal"
                   className="bg-input-background"
                   maxLength={SIGNAL_MAX_LENGTH}
-                  onChange={(event) => setSignalDraft(event.target.value.replace(/\s+/g, ' '))}
+                  onChange={(event) => setSignalDraft(truncateSignal(event.target.value.replace(/\s+/g, ' ')))}
                   value={signalDraft}
                 />
                 <div className="flex justify-end gap-2">

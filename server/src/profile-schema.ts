@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { multilineTextSchema, optionalSingleLineTextSchema, singleLineTextSchema } from "./input-schema.js";
+import { multilineTextSchema, optionalSingleLineTextSchema, singleLineTextSchema, normalizeSingleLineText } from "./input-schema.js";
 import {
   findStructuredProfileFieldForTag,
   normalizeStructuredProfileOption,
@@ -8,6 +8,7 @@ import {
 
 // The map preview, the profile overlay, and the editor all hold to this.
 export const SIGNAL_MAX_LENGTH = 35;
+export const signalSchema = z.string().transform(value => normalizeSingleLineText(value).slice(0, SIGNAL_MAX_LENGTH)).optional().default("");
 
 const currentYear = new Date().getFullYear();
 
@@ -328,7 +329,7 @@ export const profilePayloadSchema = z.object({
   tags: profileTagsSchema,
   // A signal is one short line. Thirty five characters is the hard rule: it is
   // what the field holds on a phone without wrapping.
-  signal: optionalSingleLineTextSchema(SIGNAL_MAX_LENGTH),
+  signal: signalSchema,
   pronouns: upToThreeArrayField,
   custom_pronouns: shortStringField,
   year_of_birth: z.number().int().min(currentYear - 120).max(currentYear - 18).nullable().optional().default(null),

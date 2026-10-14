@@ -7,6 +7,14 @@ import { saveMySignal } from './profileApi';
  * rejected and the edit silently never landed. It goes to a narrow route now.
  */
 describe('saveMySignal', () => {
+  it('cuts off pasted or legacy overlong signals before sending', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true, status: 200,
+      headers: new Headers({ 'content-type': 'application/json' }),
+      text: async () => JSON.stringify({ data: { signal: 'a'.repeat(35) } }) });
+    vi.stubGlobal('fetch', fetchMock);
+    await saveMySignal('a'.repeat(35) + 'overflow');
+    expect(JSON.parse(fetchMock.mock.calls[0][1].body).signal).toBe('a'.repeat(35));
+  });
   afterEach(() => {
     vi.unstubAllGlobals();
   });

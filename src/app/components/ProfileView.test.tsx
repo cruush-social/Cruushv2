@@ -430,7 +430,7 @@ describe('ProfileView', () => {
     );
 
     // The signal reads on the photo itself rather than in a card under it.
-    expect(await screen.findByTestId('profile-overlay-signal')).toHaveTextContent('Looking for late-night art kids near the venue.');
+    expect((await screen.findByTestId('profile-overlay-signal')).textContent).toBe('Looking for late-night art kids nea');
     // It reads there once. A second copy under the photo only pushed the rest
     // of the profile down, and the same goes for the vibe capsules. The
     // Identities check keeps the two below honest: without it they would still

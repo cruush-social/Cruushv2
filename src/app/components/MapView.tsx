@@ -1,6 +1,7 @@
 import { excludeOwnerPinOverlaps } from '../lib/ownerPinExclusion';
 import { showPurgatoryPresentation } from '../lib/purgatoryPresentation';
 import { useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react';
+import { truncateSignal } from '../lib/profileLimits';
 import SignalBadge from './SignalBadge';
 import MapSignalCaption from './MapSignalCaption';
 import DlModeMark from './DlModeMark';
@@ -2137,7 +2138,7 @@ export function MapMarkerPin({ marker, previewed = false }: { marker: MapMarker;
     && (expiredGhostDeadline === otherGhostDeadline || otherGhostDeadline <= Date.now());
   const isOwnerGhostDecoy = isCurrentUser && marker.displayMode === 'GHOST';
   const isPerson = marker.kind == null || marker.kind === 'person';
-  const signalPreview = isPerson ? truncateMarkerPreview(marker.signal) : '';
+  const signalPreview = isPerson ? truncateSignal(marker.signal?.trim().replace(/\s+/g, ' ')) : '';
   const pingActive = Boolean(marker.activePing);
   const travellerActive = marker.travelling === true
     && !(isCurrentUser && marker.ownerStealthActive === true)

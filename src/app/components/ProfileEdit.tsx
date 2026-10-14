@@ -6,7 +6,7 @@ import { createPortal } from 'react-dom';
 import { DROPDOWN_TRIGGER_CLASS } from '../lib/controlStyles';
 import PhotoUploadSpinner from './PhotoUploadSpinner';
 import { PHOTO_MAX_COMPRESSED_BYTES, PHOTO_UPLOAD_FORMAT_MESSAGE, PHOTO_UPLOAD_ACCEPT, PHOTO_UPLOAD_EXTENSION_TYPES } from '../lib/photoUploadFormats';
-import { SIGNAL_MAX_LENGTH } from '../lib/profileLimits';
+import { SIGNAL_MAX_LENGTH, truncateSignal } from '../lib/profileLimits';
 import { lazy, Suspense, useState, useEffect, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router';
 import { Eye, RotateCcw, RotateCw, Star, Trash2, Upload } from 'lucide-react';
@@ -381,7 +381,7 @@ export function ProfilePhotoCropper({
 
       const imageWidth = image.naturalWidth || image.width || canvas.width;
       const imageHeight = image.naturalHeight || image.height || canvas.height;
-      const baseScale = Math.max(canvas.width / imageWidth, canvas.height / imageHeight);
+      const baseScale = Math.min(canvas.width / imageWidth, canvas.height / imageHeight);
       const drawScale = baseScale * zoom;
       const drawWidth = imageWidth * drawScale;
       const drawHeight = imageHeight * drawScale;
@@ -430,7 +430,7 @@ export function ProfilePhotoCropper({
           <img
             ref={imageRef}
             alt={subjectLabel ? `${subjectLabel} crop preview` : 'Profile crop preview'}
-            className="h-full w-full select-none object-cover"
+            className="h-full w-full select-none object-contain"
             draggable={false}
             onError={() => {
               setImageStatus('error');
@@ -450,6 +450,11 @@ export function ProfilePhotoCropper({
             style={{
               transform: `translate(${offset.x}px, ${offset.y}px) rotate(${rotation}deg) scale(${zoom})`,
             }}
+          />
+          <div
+            aria-hidden="true"
+            className="pointer-events-none absolute inset-0 z-10 border-2 border-white/80"
+            data-testid="photo-crop-boundary"
           />
         </div>
 
@@ -609,7 +614,7 @@ function toProfileSavePayload(
     photos: sanitizeProfilePhotos(profile.photos ?? []),
     bio: (profile.bio ?? '').trim(),
     tags: uniqueValues(profile.tags ?? []).map(normalizeProfileTag).filter((tag) => Boolean(tag) && !findStructuredProfileFieldForTag(tag)).slice(0, profileTagLimit),
-    signal: (profile.signal ?? '').trim(),
+    signal: truncateSignal(profile.signal).trim(),
     pronouns: limitToThree(profile.pronouns ?? []),
     custom_pronouns: (profile.custom_pronouns ?? '').trim(),
     year_of_birth: profile.year_of_birth ?? null,
@@ -1132,7 +1137,7 @@ export default function ProfileEdit({ embedded = false, onCancel, onSaved }: Pro
     ...profile,
     photos: sanitizeProfilePhotos(profile.photos || []),
     tags: uniqueValues(profile.tags || []).map(normalizeProfileTag).filter((tag) => Boolean(tag) && !findStructuredProfileFieldForTag(tag)).slice(0, profileTagLimit),
-    signal: profile.signal ?? '',
+    signal: truncateSignal(profile.signal),
     pronouns: profile.pronouns || [],
     identities: limitGenderIdentities(profile.identities || []),
     presentation: limitToThree(profile.presentation || []),
@@ -1400,7 +1405,7 @@ export default function ProfileEdit({ embedded = false, onCancel, onSaved }: Pro
                 maxLength={SIGNAL_MAX_LENGTH}
                 placeholder="A short hover note for your map pin"
                 value={normalizedProfile.signal}
-                onChange={(e) => handleChange('signal', e.target.value)}
+                onChange={(e) => handleChange('signal', truncateSignal(e.target.value))}
                 className="bg-input-background"
               />
               <p className="text-xs text-muted-foreground">This appears when someone hovers over your heart pin on the map.</p>

@@ -1221,7 +1221,7 @@ export default function LocalFeed({ embedded = false, onClose }: { embedded?: bo
                   className="bg-black/72 hover:bg-black/86"
                   outOfSight={showPurgatoryPresentation(post.user.outOfSight, post.user.travelling)}
                   heart={(
-                    <div className="-mt-1 w-20" data-testid={`feed-post-profile-stack-${post.id}`}>
+                    <div className={`${showPurgatoryPresentation(post.user.outOfSight, post.user.travelling) && post.user.vibes?.length ? "mt-1" : "-mt-1"} w-20`} data-testid={`feed-post-profile-stack-${post.id}`}>
                       <HeartPhoto
                         borderTone={borderTone}
                         className="w-full"
