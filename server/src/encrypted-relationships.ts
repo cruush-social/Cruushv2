@@ -364,8 +364,12 @@ export async function upsertEncryptedRelationshipRecord(
 ) {
   const indexes = createRelationshipIndexes(context.config, payload);
   const encrypted = encryptRelationshipPayload(context.config, payload);
+  const accountIds = [...new Set([payload.actorUserId, payload.targetUserId, ...payload.participantUserIds])];
   const result = await context.db.query<EncryptedRelationshipRecordRow>(
-    `insert into encrypted_relationship_records (
+    `with account_owners as materialized (
+       select id from app_users where id = any($17::uuid[]) order by id for key share
+     )
+     insert into encrypted_relationship_records (
        record_lookup_index,
        actor_user_index,
        target_user_index,
@@ -384,7 +388,8 @@ export async function upsertEncryptedRelationshipRecord(
        created_at,
        updated_at
      )
-     values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, now())
+     select $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15::timestamptz, $16::timestamptz, now()
+     where (select count(*) from account_owners) = $18
      on conflict (record_lookup_index, index_key_version) do update
      set actor_user_index = excluded.actor_user_index,
          target_user_index = excluded.target_user_index,
@@ -436,7 +441,9 @@ export async function upsertEncryptedRelationshipRecord(
       encrypted.encryption_key_version,
       indexes.index_key_version,
       payload.expiresAt,
-      payload.createdAt
+      payload.createdAt,
+      accountIds,
+      accountIds.length
     ]
   );
 

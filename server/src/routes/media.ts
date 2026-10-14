@@ -148,13 +148,9 @@ async function sendEncryptedMedia(
   }
   const entityTag = buildMediaEntityTag(mediaObject);
 
-  // "no-cache" tells the client to revalidate on every view rather than to skip
-  // storing the body. Authentication and the per-surface authorization checks
-  // therefore run again on each request, so a block, a deletion or a withdrawn
-  // moderation approval takes effect immediately instead of lingering in a
-  // browser cache. A matching validator still avoids the object read, the
-  // decrypt and the transfer.
-  reply.header("cache-control", "private, no-cache").header("etag", entityTag);
+  // Do not retain decrypted member media in the browser's HTTP cache.
+  // Authentication and per-surface access still precede any validator reply.
+  reply.header("cache-control", "private, no-store, max-age=0").header("etag", entityTag);
 
   const observation = {
     viewerUserId,
@@ -355,6 +351,9 @@ export async function registerMediaRoutes(app: FastifyInstance) {
     exposeHeadRoute: false,
     logLevel: "silent",
     handler: async (request, reply) => {
+    if (app.config.STREAM_NO_AI_TRAINING_VERIFIED !== true) {
+      throw new ApiError(404, "NOT_FOUND", "Media not found.");
+    }
     const params = mediaAssetIdParamsSchema.safeParse(request.params);
     const query = moderationMediaQuerySchema.safeParse(request.query);
 

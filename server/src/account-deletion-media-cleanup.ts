@@ -26,18 +26,24 @@ function retryDelaySeconds(attemptCount: number) {
 export async function cleanupAccountDeletionMedia(
   db: DbClient,
   config: AppConfig,
-  limit = 100
+  limit = 100,
+  objectKeys?: string[]
 ): Promise<AccountDeletionMediaCleanupResult> {
   const claimed = await db.query<CleanupCandidate>(
     `with candidates as (
        select object_key
        from account_deletion_media_cleanup
        where completed_at is null
-         and next_attempt_at <= now()
-         and (lease_until is null or lease_until < now())
+         and ($3::text[] is null or object_key = any($3::text[]))
+         and ($3::text[] is not null or (
+           next_attempt_at <= now()
+           and (lease_until is null or lease_until < now())
+         ))
        order by created_at asc
        for update skip locked
        limit $1
+     ), completed_jobs as (
+       delete from account_deletion_media_cleanup where completed_at is not null
      )
      update account_deletion_media_cleanup cleanup
      set attempt_count = cleanup.attempt_count + 1,
@@ -45,7 +51,7 @@ export async function cleanupAccountDeletionMedia(
      from candidates
      where cleanup.object_key = candidates.object_key
      returning cleanup.object_key, cleanup.attempt_count`,
-    [limit, CLEANUP_LEASE_SECONDS]
+    [limit, CLEANUP_LEASE_SECONDS, objectKeys ?? null]
   );
 
   const result: AccountDeletionMediaCleanupResult = {
@@ -58,16 +64,13 @@ export async function cleanupAccountDeletionMedia(
     try {
       await deleteEncryptedMediaObject(config, candidate.object_key);
       await db.query(
-        `update account_deletion_media_cleanup
-         set completed_at = now(),
-             lease_until = null,
-             last_error = null
+        `delete from account_deletion_media_cleanup
          where object_key = $1
            and attempt_count = $2`,
         [candidate.object_key, candidate.attempt_count]
       );
       result.completed += 1;
-    } catch (error) {
+    } catch {
       await db.query(
         `update account_deletion_media_cleanup
          set next_attempt_at = now() + ($2::integer * interval '1 second'),
@@ -78,7 +81,7 @@ export async function cleanupAccountDeletionMedia(
         [
           candidate.object_key,
           retryDelaySeconds(candidate.attempt_count),
-          error instanceof Error ? error.message : String(error),
+          "storage_unavailable",
           candidate.attempt_count
         ]
       );
@@ -87,6 +90,26 @@ export async function cleanupAccountDeletionMedia(
   }
 
   return result;
+}
+
+export async function cleanupOwnedAccountDeletionMedia(
+  db: DbClient, config: AppConfig, objectKeys: string[], maxWaitMs = 5_000
+) {
+  if (!objectKeys.length) return { scanned: 0, completed: 0, failed: 0 };
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const cleanup = cleanupAccountDeletionMedia(db, config, objectKeys.length, objectKeys)
+    .catch(() => null);
+  try {
+    return await Promise.race([
+      cleanup,
+      new Promise<null>(resolve => {
+        timer = setTimeout(() => resolve(null), maxWaitMs);
+        timer.unref();
+      })
+    ]);
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
 }
 
 export function startAccountDeletionMediaCleanupScheduler(

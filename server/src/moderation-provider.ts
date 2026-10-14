@@ -392,7 +392,7 @@ type StreamConfig = Pick<
   | "STREAM_API_SECRET"
   | "STREAM_MODERATION_CONFIG_KEY"
   | "STREAM_PSEUDONYM_KEY"
->;
+> & Partial<Pick<AppConfig, "STREAM_NO_AI_TRAINING_VERIFIED">>;
 
 type StreamCheckResponse = {
   recommended_action?: string;
@@ -995,6 +995,9 @@ export class StreamModerationProvider implements ModerationProvider {
   }
 
   async moderateText(input: TextModerationInput): Promise<ProviderModerationResult> {
+    if (this.config.STREAM_NO_AI_TRAINING_VERIFIED !== true) {
+      return new UnavailableModerationProvider(this.name, "Stream no-AI-training terms have not been verified.").moderateText();
+    }
     return this.check({
       userId: input.userId,
       surface: input.surface,
@@ -1007,6 +1010,9 @@ export class StreamModerationProvider implements ModerationProvider {
   }
 
   async moderateImage(input: ImageModerationInput): Promise<ProviderModerationResult> {
+    if (this.config.STREAM_NO_AI_TRAINING_VERIFIED !== true) {
+      return new UnavailableModerationProvider(this.name, "Stream no-AI-training terms have not been verified.").moderateImage();
+    }
     if (input.providerTaskId) {
       return this.resumeImageTask(input.providerTaskId, input.surface);
     }
@@ -1114,6 +1120,9 @@ export function createModerationProviderOrUnavailable(
 
 export function createModerationProvider(config: Pick<AppConfig, "MODERATION_PROVIDER"> & StreamConfig): ModerationProvider {
   if (config.STREAM_MODERATION_ENABLED) {
+    if (config.STREAM_NO_AI_TRAINING_VERIFIED !== true) {
+      return new UnavailableModerationProvider("stream", "Stream no-AI-training terms have not been verified.");
+    }
     return new StreamModerationProvider(config);
   }
 

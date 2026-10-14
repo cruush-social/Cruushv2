@@ -49,7 +49,7 @@ type ActivityStreakRow = {
 
 type RewardGrantRow = {
   id: string;
-  user_id: string;
+  user_id: string | null;
   source: RewardSource;
   days: number;
   milestone_key: string | null;
@@ -825,7 +825,7 @@ export async function reverseRewardGrant(
     );
     const grant = result.rows[0];
 
-    if (!grant) {
+    if (!grant || !grant.user_id) {
       throw new ApiError(404, "NOT_FOUND", "Reward grant not found.");
     }
 

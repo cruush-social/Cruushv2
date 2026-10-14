@@ -38,6 +38,7 @@ import SupportRequestForm from './SupportRequestForm';
 import AppPageHeader from './AppPageHeader';
 import {
   clearCurrentUser,
+  clearDeletedAccountUser,
   getStoredCurrentUser,
   getVerificationPreviewUrl,
   setVerificationPreviewUrl,
@@ -338,7 +339,7 @@ export default function Settings({ embedded = false, onBack, onClose, onOpenMile
         password: deletePassword,
         confirmation: 'DELETE',
       });
-      clearCurrentUser();
+      clearDeletedAccountUser(storedUser?.id);
       window.location.href = '/';
     } catch (error) {
       setDeleteError(error instanceof Error ? error.message : 'Failed to delete account.');

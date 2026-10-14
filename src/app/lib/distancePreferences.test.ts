@@ -4,6 +4,7 @@ import { act, renderHook, waitFor } from '@testing-library/react';
 vi.mock('./apiClient', () => ({ requestApi: vi.fn() }));
 import {
   DISTANCE_PREFERENCES_STORAGE_KEY,
+  clearDeletedAccountDistancePreferences,
   formatDistanceLabel,
   formatDistanceWithAway,
   getDistancePreferences,
@@ -76,5 +77,22 @@ describe('distancePreferences', () => {
     vi.mocked(requestApi).mockRejectedValueOnce(new Error('offline'));
     expect(await saveDistancePreferences({ mode: 'precise' }).then(() => 'unexpected success', error => error.message)).toBe('offline');
     expect(getDistancePreferences().mode).toBe('approximate');
+  });
+
+  it('does not restore a deleted account preference when its pending sync finishes', async () => {
+    let finishSync!: (value: { mode: 'precise'; configured: boolean }) => void;
+    localStorage.setItem(`${DISTANCE_PREFERENCES_STORAGE_KEY}:owner`, 'deleted-user');
+    localStorage.setItem(DISTANCE_PREFERENCES_STORAGE_KEY, '{"mode":"precise"}');
+    vi.mocked(requestApi).mockImplementationOnce(() => new Promise(resolve => { finishSync = resolve; }));
+    const sync = renderHook(() => useSyncDistancePreferences('deleted-user'));
+    await waitFor(() => expect(finishSync).toBeTypeOf('function'));
+
+    act(() => clearDeletedAccountDistancePreferences('deleted-user', true));
+    await act(async () => finishSync({ mode: 'precise', configured: true }));
+
+    expect(localStorage.getItem(DISTANCE_PREFERENCES_STORAGE_KEY)).toBeNull();
+    expect(localStorage.getItem(`${DISTANCE_PREFERENCES_STORAGE_KEY}:owner`)).toBeNull();
+    expect(getDistancePreferences().mode).toBe('approximate');
+    sync.unmount();
   });
 });

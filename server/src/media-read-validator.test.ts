@@ -108,7 +108,7 @@ describe("media read validators", () => {
     });
 
     expect(response.statusCode).toBe(200);
-    expect(response.headers["cache-control"]).toBe("private, no-cache");
+    expect(response.headers["cache-control"]).toBe("private, no-store, max-age=0");
     expect(response.headers.etag).toMatch(/^"[0-9a-f]{32}"$/);
     expect(response.rawPayload.equals(plaintext)).toBe(true);
 

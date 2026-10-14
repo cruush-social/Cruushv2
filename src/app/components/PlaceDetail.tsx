@@ -105,7 +105,7 @@ export default function PlaceDetail({ embedded = false, onBack, onClose, placeId
   const [detailAmenities, setDetailAmenities] = useState<PlaceAmenity[]>([]);
   const [detailAccess, setDetailAccess] = useState('');
   const [sendingDetails, setSendingDetails] = useState(false);
-  const [checkinVisibility, setCheckinVisibility] = useState<'hidden' | 'public' | 'checked_in' | 'mutuals' | 'crowd'>('hidden');
+  const [checkinVisibility, setCheckinVisibility] = useState<'hidden' | 'public' | 'checked_in' | 'mutuals' | 'crowd'>('public');
   const [hasCruushPlus, setHasCruushPlus] = useState(false);
   const [availableCrowdTargets, setAvailableCrowdTargets] = useState<string[]>([]);
   const [selectedCrowdTargets, setSelectedCrowdTargets] = useState<string[]>([]);
@@ -191,7 +191,7 @@ export default function PlaceDetail({ embedded = false, onBack, onClose, placeId
     setMessage('');
     setCheckinVibes([]);
     setCheckinAmenities([]);
-    setCheckinVisibility('hidden');
+    setCheckinVisibility('public');
     setSelectedCrowdTargets([]);
     setDetailsOpen(false);
     setDetailVibes([]);
@@ -607,7 +607,6 @@ export default function PlaceDetail({ embedded = false, onBack, onClose, placeId
               </div>
             ) : (
               <div className="p-3">
-                <p className="mb-3 text-base text-white/70">Check in to read other members' Pink Book posts. Your posts stay until you delete them.</p>
                 <textarea disabled={trust.restricted('pink_book')} aria-label="Pink Book post for check-in" className="mb-4 min-h-20 w-full resize-none rounded-md border border-white/10 bg-black/30 p-3 text-base text-white outline-none focus:border-primary/45 disabled:opacity-50" placeholder="Write a Pink Book post (optional)" value={message} onChange={(event) => setMessage(event.target.value)} maxLength={1000} />
                 <Accordion type="single" collapsible className="mb-4">
                   <AccordionItem value="spot-vibes">

@@ -364,6 +364,7 @@ describe("image child-face and profile-photo human detection", () => {
     };
     const result = await detectProfilePhotoHuman({
       PROFILE_PHOTO_REKOGNITION_ENABLED: true,
+      REKOGNITION_NO_AI_TRAINING_VERIFIED: true,
       PROFILE_PHOTO_REKOGNITION_REGION: "us-east-1",
       PROFILE_PHOTO_REKOGNITION_HUMAN_CONFIDENCE: 90,
       PROFILE_PHOTO_REKOGNITION_ANIMAL_CONFIDENCE: 80,

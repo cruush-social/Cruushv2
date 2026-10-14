@@ -10,7 +10,7 @@ vi.mock("./media-storage.js", () => ({
   deleteEncryptedMediaObject
 }));
 
-import { cleanupAccountDeletionMedia } from "./account-deletion-media-cleanup.js";
+import { cleanupAccountDeletionMedia, cleanupOwnedAccountDeletionMedia } from "./account-deletion-media-cleanup.js";
 
 const config = {} as AppConfig;
 
@@ -31,7 +31,7 @@ function createDb(candidate: { object_key: string; attempt_count: number }): DbC
 }
 
 describe("account deletion media cleanup", () => {
-  it("deletes claimed objects and marks them complete", async () => {
+  it("deletes claimed objects and removes their identifying cleanup key", async () => {
     deleteEncryptedMediaObject.mockResolvedValueOnce(undefined);
     const db = createDb({ object_key: "originals/account.enc", attempt_count: 1 });
 
@@ -42,7 +42,8 @@ describe("account deletion media cleanup", () => {
     });
 
     expect(deleteEncryptedMediaObject).toHaveBeenCalledWith(config, "originals/account.enc");
-    expect(db.calls[1]?.[0]).toContain("set completed_at = now()");
+    expect(db.calls[1]?.[0]).toContain("delete from account_deletion_media_cleanup");
+    expect(db.calls[0]?.[0]).toContain("delete from account_deletion_media_cleanup where completed_at is not null");
   });
 
   it("keeps failed objects queued with a retry delay", async () => {
@@ -56,5 +57,29 @@ describe("account deletion media cleanup", () => {
     });
 
     expect(db.calls[1]?.[0]).toContain("set next_attempt_at");
+  });
+
+  it("scopes immediate deletion to owned keys without waiting for the scheduler", async () => {
+    deleteEncryptedMediaObject.mockResolvedValueOnce(undefined);
+    const db = createDb({ object_key: "originals/account.enc", attempt_count: 1 });
+    expect(await cleanupOwnedAccountDeletionMedia(db, config, ["originals/account.enc"]))
+      .toEqual({ scanned: 1, completed: 1, failed: 0 });
+    expect(db.calls[0]?.[0]).toContain("object_key = any($3::text[])");
+  });
+
+  it("bounds the response wait when object storage stalls while keeping cleanup active", async () => {
+    vi.useFakeTimers();
+    let finish!: () => void;
+    deleteEncryptedMediaObject.mockImplementationOnce(() => new Promise<void>(resolve => { finish = resolve; }));
+    const db = createDb({ object_key: "originals/account.enc", attempt_count: 1 });
+    try {
+      const cleanup = cleanupOwnedAccountDeletionMedia(db, config, ["originals/account.enc"], 20);
+      await vi.advanceTimersByTimeAsync(20);
+      expect(await cleanup).toBeNull();
+      expect(db.calls).toHaveLength(1);
+      finish();
+      await vi.advanceTimersByTimeAsync(0);
+      expect(db.calls[1]?.[0]).toContain("delete from account_deletion_media_cleanup");
+    } finally { vi.useRealTimers(); }
   });
 });

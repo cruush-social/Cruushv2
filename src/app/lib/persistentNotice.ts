@@ -84,3 +84,38 @@ export function clearPersistentNoticeFlag(key: string) {
   const domain = sharedDomain ? `; Domain=${sharedDomain}` : '';
   document.cookie = `${noticeCookieName(key)}=; Max-Age=0; Path=/; SameSite=Lax${secure}${domain}`;
 }
+
+/** Removes account notices even when only their cookie fallback remains. */
+export function clearDeletedAccountNoticeFlags(userId: string) {
+  if (typeof window === 'undefined') return;
+
+  const firstPostKey = `cruush:first-feed-post-prompt-seen:${userId}`;
+  const rewardPrefix = `cruush:plus-card:${userId}:`;
+  const keys = [firstPostKey];
+  try {
+    for (let index = 0; index < window.localStorage.length; index += 1) {
+      const key = window.localStorage.key(index);
+      if (key?.startsWith(rewardPrefix)) keys.push(key);
+    }
+  } catch { /* Cookie cleanup remains possible when storage is unavailable. */ }
+  for (const key of keys) {
+    try { clearPersistentNoticeFlag(key); } catch { /* Continue with the other copies. */ }
+  }
+
+  if (typeof document === 'undefined') return;
+  const firstPostCookie = noticeCookieName(firstPostKey);
+  const rewardCookiePrefix = noticeCookieName(rewardPrefix);
+  try {
+    const secure = window.location.protocol === 'https:' ? '; Secure' : '';
+    const sharedDomain = getSharedCookieDomain(window.location.hostname);
+    for (const entry of document.cookie.split(';')) {
+      const name = entry.trim().split('=')[0];
+      if (name !== firstPostCookie && !name.startsWith(rewardCookiePrefix)) continue;
+      // Remove both the current shared cookie and historical host-only copies.
+      document.cookie = `${name}=; Max-Age=0; Path=/; SameSite=Lax${secure}`;
+      if (sharedDomain) {
+        document.cookie = `${name}=; Max-Age=0; Path=/; SameSite=Lax${secure}; Domain=${sharedDomain}`;
+      }
+    }
+  } catch { /* A blocked cookie store must not interrupt successful deletion. */ }
+}

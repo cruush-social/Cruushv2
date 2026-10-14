@@ -1039,7 +1039,7 @@ export function ProfileDetailsTabs({
             <BadgeList items={profileView.hosting} compact={compact} />
           </Section>
 
-          <Section title="Preferred Spots" compact={compact}>
+          <Section title="Preferred Spots" compact={compact} className={profileView.relationshipStatus.length > 0 ? 'col-span-2' : ''}>
             <BadgeList items={profileView.preferredSpots} compact={compact} />
           </Section>
 

@@ -35,7 +35,7 @@ export type CryptoPaymentTransferRow = {
 
 export type CryptoReconciliationRecord = {
   intentId: string;
-  userId: string;
+  userId: string | null;
   planId: string;
   productType: "cruush_plus" | "ping_pack";
   status: string;
@@ -88,7 +88,7 @@ const INTENT_COLUMNS = `
 
 type IntentRow = {
   id: string;
-  user_id: string;
+  user_id: string | null;
   plan_id: string;
   product_type?: "cruush_plus" | "ping_pack";
   status: string;

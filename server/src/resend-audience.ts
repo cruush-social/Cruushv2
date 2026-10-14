@@ -1,12 +1,13 @@
+import { createHash } from "node:crypto";
+import { runTransaction, type DbClient } from "./db.js";
+
 type AudienceConfig = {
   APP_DEPLOYMENT_STAGE?: string;
   RESEND_API_KEY?: string;
   RESEND_CRUUSH_APP_AUDIENCE_ID?: string;
 };
 
-type VerifiedMemberDb = {
-  query: <T>(sql: string) => Promise<{ rows: T[] }>;
-};
+type VerifiedMemberDb = Pick<DbClient, "query" | "transaction">;
 
 const REQUEST_INTERVAL_MS = 1_000;
 const REQUEST_TIMEOUT_MS = 10_000;
@@ -19,6 +20,22 @@ class AudienceSyncFailure extends Error {
   constructor(message: string, readonly retryable: boolean, readonly stopSweep: boolean) {
     super(message);
   }
+}
+
+class AudienceAccountUnavailable extends Error {}
+
+export async function withResendContactLock<T>(
+  db: VerifiedMemberDb,
+  email: string,
+  operation: (client: DbClient) => Promise<T>
+) {
+  return runTransaction({ ...db, end: async () => undefined }, async (client) => {
+    // The same lock fences all app workers without putting an address in its
+    // lock name. Provider removal and creation cannot cross each other.
+    const contactHash = createHash("sha256").update(email.trim().toLowerCase()).digest("hex");
+    await client.query("select pg_advisory_xact_lock(hashtextextended($1, 0))", [`cruush:resend-contact:${contactHash}`]);
+    return operation(client);
+  });
 }
 
 function retryDelayMs(response: Response) {
@@ -36,26 +53,36 @@ function retryDelayMs(response: Response) {
   return 0;
 }
 
-function requestAudience(url: string, init: RequestInit): Promise<Response> {
+export function requestAudience(url: string, init: RequestInit, options: {
+  timeoutMs?: number;
+  deadlineAt?: number;
+  preserveBody?: boolean;
+  execute?: (send: () => Promise<Response>) => Promise<Response>;
+} = {}): Promise<Response> {
   // Startup reconciliation and individual verification events share the same
   // local queue. Provider headers also account for traffic from other processes.
   const request = requestQueue.then(async () => {
     const waitMs = Math.max(0, nextRequestAt - Date.now());
-    if (waitMs > MAX_PROVIDER_WAIT_MS) {
+    if (waitMs > MAX_PROVIDER_WAIT_MS || Date.now() + waitMs >= (options.deadlineAt ?? Infinity)) {
       throw new AudienceSyncFailure("provider_retry_deferred", false, true);
     }
     if (waitMs > 0) await new Promise<void>((resolve) => setTimeout(resolve, waitMs));
     nextRequestAt = Date.now() + REQUEST_INTERVAL_MS;
-    let response: Response;
-    try {
-      response = await fetch(url, { ...init, signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS) });
-    } catch {
-      // Fetch errors can include the contact URL. Never propagate that URL to logs.
-      throw new AudienceSyncFailure("provider_request_failed", true, true);
-    }
+    const send = async () => {
+      const remaining = (options.deadlineAt ?? Infinity) - Date.now();
+      if (remaining <= 0) throw new AudienceSyncFailure("provider_retry_deferred", false, true);
+      try {
+        return await fetch(url, { ...init, signal: AbortSignal.timeout(Math.max(1,
+          Math.min(options.timeoutMs ?? REQUEST_TIMEOUT_MS, remaining))) });
+      } catch {
+        // Fetch errors can include the contact URL. Never propagate it to logs.
+        throw new AudienceSyncFailure("provider_request_failed", true, true);
+      }
+    };
+    const response = options.execute ? await options.execute(send) : await send();
     nextRequestAt = Math.max(nextRequestAt, Date.now() + retryDelayMs(response));
     // Only status and rate headers are needed; do not retain contact payloads.
-    await response.body?.cancel().catch(() => undefined);
+    if (!options.preserveBody) await response.body?.cancel().catch(() => undefined);
     return response;
   });
   requestQueue = request.then(() => undefined, () => undefined);
@@ -71,22 +98,34 @@ function responseFailure(stage: "lookup" | "create", response: Response) {
   );
 }
 
-export async function syncVerifiedMemberToResendAudience(input: { config: AudienceConfig; email: string; logger: { warn: (context: unknown, message: string) => void } }) {
-  const { config, email, logger } = input;
+export async function syncVerifiedMemberToResendAudience(input: { config: AudienceConfig; db: VerifiedMemberDb; email: string; logger: { warn: (context: unknown, message: string) => void } }) {
+  const { config, db, email, logger } = input;
   if (config.APP_DEPLOYMENT_STAGE !== "production" || !config.RESEND_API_KEY || !config.RESEND_CRUUSH_APP_AUDIENCE_ID) return "skipped" as const;
   const base = `https://api.resend.com/audiences/${encodeURIComponent(config.RESEND_CRUUSH_APP_AUDIENCE_ID)}/contacts`;
   const headers = { Authorization: `Bearer ${config.RESEND_API_KEY}` };
+  const execute = (send: () => Promise<Response>) => withResendContactLock(db, email, async (client) => {
+    // Lock through the provider handoff. Account deletion waits for an in-flight
+    // create, then removes its contact; stale queued creates see no account.
+    const member = await client.query(
+      `select id from app_users where email = $1 and email_verified_at is not null
+       and coalesce(account_status, 'active') <> 'deleted' for key share`,
+      [email]
+    );
+    if (!member.rows.length) throw new AudienceAccountUnavailable();
+    return send();
+  });
   for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt += 1) {
     try {
       // Always restart with lookup, including after an ambiguous create result.
       // Existing contacts and their unsubscribe preferences are never updated.
-      const existing = await requestAudience(`${base}/${encodeURIComponent(email)}`, { headers });
+      const existing = await requestAudience(`${base}/${encodeURIComponent(email)}`, { headers }, { execute });
       if (existing.ok) return "synced" as const;
       if (existing.status !== 404) throw responseFailure("lookup", existing);
-      const created = await requestAudience(base, { method: "POST", headers: { ...headers, "Content-Type": "application/json" }, body: JSON.stringify({ email }) });
+      const created = await requestAudience(base, { method: "POST", headers: { ...headers, "Content-Type": "application/json" }, body: JSON.stringify({ email }) }, { execute });
       if (created.ok || created.status === 409) return "synced" as const;
       throw responseFailure("create", created);
     } catch (error) {
+      if (error instanceof AudienceAccountUnavailable) return "skipped" as const;
       const failure = error instanceof AudienceSyncFailure
         ? error
         : new AudienceSyncFailure("audience_sync_failed", false, true);
@@ -117,13 +156,13 @@ export async function syncAllVerifiedMembersToResendAudience(input: {
   let synced = 0;
   let failed = 0;
   for (let index = 0; index < result.rows.length; index += 1) {
-    const outcome = await syncVerifiedMemberToResendAudience({ config: input.config, email: result.rows[index].email, logger: input.logger });
+    const outcome = await syncVerifiedMemberToResendAudience({ config: input.config, db: input.db, email: result.rows[index].email, logger: input.logger });
     if (outcome === "deferred") {
       input.logger.warn({ synced, failed, remaining: result.rows.length - index }, "verified member audience reconciliation deferred");
       return;
     }
     if (outcome === "synced") synced += 1;
-    else failed += 1;
+    else if (outcome === "failed") failed += 1;
   }
   if (failed > 0) {
     input.logger.warn({ synced, failed }, "verified member audience reconciliation incomplete");

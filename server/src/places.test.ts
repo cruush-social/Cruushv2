@@ -112,7 +112,7 @@ describe("Spot check-in contract", () => {
       longitude: -73.98,
       accuracyMeters: 10,
       observedAt: "2026-08-31T20:00:00.000Z"
-    })).toMatchObject({ durationHours, visible: false });
+    })).toMatchObject({ durationHours, visible: true });
   });
 
   it.each(["hidden", "public", "checked_in"])("accepts %s check-in visibility", (visibility) => {

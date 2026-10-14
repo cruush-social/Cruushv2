@@ -376,13 +376,16 @@ type DetectorConfig = RekognitionSafetyConfig & Pick<
   | "PROFILE_PHOTO_REKOGNITION_ENABLED"
   | "PROFILE_PHOTO_REKOGNITION_REGION"
   | "PROFILE_PHOTO_REKOGNITION_TIMEOUT_MS"
->;
+> & Partial<Pick<AppConfig, "REKOGNITION_NO_AI_TRAINING_VERIFIED">>;
 
 export async function detectImageChildFaces(
   config: DetectorConfig,
   imageBytes: Buffer,
   client?: RekognitionImageClient
 ): Promise<ProviderModerationResult> {
+  if (config.REKOGNITION_NO_AI_TRAINING_VERIFIED !== true) {
+    return detectorError(Date.now(), new Error("Rekognition no-AI-training opt-out has not been verified."));
+  }
   if (!config.PROFILE_PHOTO_REKOGNITION_ENABLED) {
     return {
       provider: "aws_rekognition",
@@ -422,6 +425,9 @@ export async function detectProfilePhotoHuman(
   imageBytes: Buffer,
   client?: RekognitionImageClient
 ): Promise<ProviderModerationResult> {
+  if (config.REKOGNITION_NO_AI_TRAINING_VERIFIED !== true) {
+    return detectorError(Date.now(), new Error("Rekognition no-AI-training opt-out has not been verified."));
+  }
   if (!config.PROFILE_PHOTO_REKOGNITION_ENABLED) {
     return {
       provider: "aws_rekognition",
@@ -599,6 +605,9 @@ export async function detectPublicImageSafety(
   imageBytes: Buffer,
   client?: RekognitionImageClient
 ): Promise<ProviderModerationResult> {
+  if (config.REKOGNITION_NO_AI_TRAINING_VERIFIED !== true) {
+    return detectorError(Date.now(), new Error("Rekognition no-AI-training opt-out has not been verified."));
+  }
   if (!config.PROFILE_PHOTO_REKOGNITION_ENABLED) {
     return {
       provider: "aws_rekognition",

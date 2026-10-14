@@ -1630,11 +1630,12 @@ export function formatDistanceLabel(input: {
   return `${distanceMiles(input.viewerLat, input.viewerLng, input.targetLat, input.targetLng).toFixed(1)} mi`;
 }
 
-function privacyBlindIndex(config: AppConfig, scope: string, value: string) {
-  const keyVersion = getLocationIndexKeyVersion(config);
+export function createPrivacyAuditBlindIndex(config: AppConfig, scope: string, value: string, keyVersion = getLocationIndexKeyVersion(config)) {
   const key = deriveKey(getLocationIndexSecret(config), "privacy-audit-index", keyVersion);
   return createHmac("sha256", key).update(`${scope}:${value}:${keyVersion}`).digest("hex");
 }
+
+const privacyBlindIndex = createPrivacyAuditBlindIndex;
 
 function revokeActionToken(config: AppConfig, subjectUserId: string, viewerUserId: string, permissionType: string) {
   const keyVersion = getLocationIndexKeyVersion(config);
@@ -1688,7 +1689,10 @@ export async function recordPrivacyAuditEvent(context: LocationPrivacyContext, p
   );
 
   await context.db.query(
-    `insert into encrypted_privacy_audit_events (
+    `with account_owners as materialized (
+       select id from app_users where id = any($15::uuid[]) order by id for key share
+     )
+     insert into encrypted_privacy_audit_events (
        permission_lookup_index,
        subject_user_index,
        viewer_user_index,
@@ -1702,9 +1706,11 @@ export async function recordPrivacyAuditEvent(context: LocationPrivacyContext, p
        event_dek_auth_tag,
        key_version,
        created_at_ms,
-       revoked_at_ms
+       revoked_at_ms,
+       index_key_version
      )
-     values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+     select $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13::bigint, $14::bigint, $17
+     where (select count(*) from account_owners) = $16
      on conflict (permission_lookup_index) do update
      set status_index = excluded.status_index,
          event_ciphertext = excluded.event_ciphertext,
@@ -1715,7 +1721,8 @@ export async function recordPrivacyAuditEvent(context: LocationPrivacyContext, p
          event_dek_auth_tag = excluded.event_dek_auth_tag,
          key_version = excluded.key_version,
          created_at_ms = excluded.created_at_ms,
-         revoked_at_ms = excluded.revoked_at_ms`,
+         revoked_at_ms = excluded.revoked_at_ms,
+         index_key_version = excluded.index_key_version`,
     [
       permissionLookupIndex,
       privacyBlindIndex(context.config, "subject", payload.subjectUserId),
@@ -1730,7 +1737,10 @@ export async function recordPrivacyAuditEvent(context: LocationPrivacyContext, p
       encrypted.dekAuthTag,
       keyVersion,
       payload.createdAtMs,
-      payload.revokedAtMs
+      payload.revokedAtMs,
+      [...new Set([payload.subjectUserId, payload.viewerUserId])],
+      new Set([payload.subjectUserId, payload.viewerUserId]).size,
+      getLocationIndexKeyVersion(context.config)
     ]
   );
 }

@@ -87,6 +87,23 @@ let preferenceUserId: string | null = null;
 let preferenceRevision = 0;
 let pendingSave: Promise<unknown> = Promise.resolve();
 
+export function clearDeletedAccountDistancePreferences(userId: string | null, clearUnowned: boolean) {
+  if (typeof window === 'undefined') return;
+  if (preferenceUserId === userId || (clearUnowned && preferenceUserId === null)) {
+    preferenceRevision += 1;
+    preferenceUserId = null;
+    transientPreferences = null;
+  }
+  try {
+    const ownerKey = `${DISTANCE_PREFERENCES_STORAGE_KEY}:owner`;
+    const owner = window.localStorage.getItem(ownerKey);
+    if ((userId && owner === userId) || (!owner && clearUnowned)) {
+      window.localStorage.removeItem(DISTANCE_PREFERENCES_STORAGE_KEY);
+      window.localStorage.removeItem(ownerKey);
+    }
+  } catch { /* The server preference is already removed with the account. */ }
+}
+
 export async function saveDistancePreferences(preferences: DistancePreferences) {
   const revision = ++preferenceRevision;
   const userId = preferenceUserId;

@@ -96,41 +96,6 @@ export default function MapPresenceSettings() {
       />
 
       <main className="mx-auto max-w-xl space-y-6 px-4 py-6">
-        <div className="space-y-2 rounded-lg border border-white/10 bg-white/[0.035] p-3">
-          <Label>Distance labels</Label>
-          <div className="grid gap-2">
-            {DISTANCE_LABEL_OPTIONS.map((option) => {
-              const selected = distancePreferences.mode === option.value;
-
-              return (
-                <button
-                  aria-pressed={selected}
-                  className={`rounded-lg border p-3 text-left transition ${
-                    selected
-                      ? 'border-primary/45 text-white'
-                      : 'border-white/10 bg-white/[0.035] text-white/72 hover:bg-white/[0.06]'
-                  }`}
-                  key={option.value}
-                  onClick={() => {
-                    setError(null);
-                    void saveDistancePreferences({ mode: option.value }).catch(() => setError('Could not save your map presence setting.'));
-                  }}
-                  style={selected ? { background: 'var(--cruush-gradient-soft-18)' } : undefined}
-                  type="button"
-                >
-                  <span className="block text-sm text-white">{option.label}</span>
-                  <span className="mt-1 block text-xs text-muted-foreground">{option.description}</span>
-                </button>
-              );
-            })}
-          </div>
-        </div>
-
-        <p className="rounded-lg border border-white/10 bg-white/[0.035] p-3 text-sm text-muted-foreground">
-          Your privacy settings keep applying while you are away. Ghost Mode still fuzzes your pin, Dark Room still
-          hides you completely, and any audiences you hid yourself from stay hidden until you change them.
-        </p>
-
         {error ? (
           <div className="rounded-md border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">
             {error}
@@ -181,6 +146,41 @@ export default function MapPresenceSettings() {
             </div>
           </div>
         )}
+        <div className="space-y-2 rounded-lg border border-white/10 bg-white/[0.035] p-3">
+          <Label>Distance labels</Label>
+          <div className="grid gap-2">
+            {DISTANCE_LABEL_OPTIONS.map((option) => {
+              const selected = distancePreferences.mode === option.value;
+
+              return (
+                <button
+                  aria-pressed={selected}
+                  className={`rounded-lg border p-3 text-left transition ${
+                    selected
+                      ? 'border-primary/45 text-white'
+                      : 'border-white/10 bg-white/[0.035] text-white/72 hover:bg-white/[0.06]'
+                  }`}
+                  key={option.value}
+                  onClick={() => {
+                    setError(null);
+                    void saveDistancePreferences({ mode: option.value }).catch(() => setError('Could not save your map presence setting.'));
+                  }}
+                  style={selected ? { background: 'var(--cruush-gradient-soft-18)' } : undefined}
+                  type="button"
+                >
+                  <span className="block text-sm text-white">{option.label}</span>
+                  <span className="mt-1 block text-xs text-muted-foreground">{option.description}</span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        <p className="rounded-lg border border-white/10 bg-white/[0.035] p-3 text-sm text-muted-foreground">
+          Your privacy settings keep applying while you are away. Ghost Mode still fuzzes your pin, Dark Room still
+          hides you completely, and any audiences you hid yourself from stay hidden until you change them.
+        </p>
+
       </main>
     </div>
   );

@@ -246,7 +246,7 @@ describe.skipIf(!realPostgresUrl)("account deletion integrity with real PostgreS
     }
   });
 
-  it("deletes an account while retaining and anonymizing its support history", async () => {
+  it("deletes an account with its ordinary support requests and replies", async () => {
     await insertUserWithSession({
       id: supportUserId,
       email: "account-deletion-support@example.test",
@@ -277,113 +277,17 @@ describe.skipIf(!realPostgresUrl)("account deletion integrity with real PostgreS
 
     await deleteAccount(supportUserId, supportSessionToken);
 
-    const requests = await db.query<{
-      id: string;
-      requester_user_id: string | null;
-      requester_account_deleted_at: string | Date | null;
-      contact_email: string | null;
-      category: string;
-      subject: string;
-      message: string;
-      status: string;
-      created_at: string | Date;
-      updated_at: string | Date;
-    }>(
-      `select id::text, requester_user_id::text, requester_account_deleted_at,
-              contact_email, category, subject, message, status, created_at, updated_at
-       from support_requests
-       where id in ($1::uuid, $2::uuid)
-       order by id`,
-      [supportRequestWithoutEmailId, supportRequestWithEmailId]
-    );
-
-    expect(requests.rows).toHaveLength(2);
-    expect(requests.rows.map((row) => ({
-      id: row.id,
-      requesterUserId: row.requester_user_id,
-      requesterAccountDeleted: row.requester_account_deleted_at !== null,
-      contactEmail: row.contact_email,
-      category: row.category,
-      subject: row.subject,
-      message: row.message,
-      status: row.status,
-      createdAt: new Date(row.created_at).toISOString(),
-      updatedAt: new Date(row.updated_at).toISOString()
-    }))).toEqual([
-      {
-        id: supportRequestWithoutEmailId,
-        requesterUserId: null,
-        requesterAccountDeleted: true,
-        contactEmail: null,
-        category: "bug",
-        subject: "Deletion blocker",
-        message: "Keep this support evidence.",
-        status: "open",
-        createdAt: "2026-08-10T12:00:00.000Z",
-        updatedAt: "2026-08-10T12:01:00.000Z"
-      },
-      {
-        id: supportRequestWithEmailId,
-        requesterUserId: null,
-        requesterAccountDeleted: true,
-        contactEmail: null,
-        category: "question",
-        subject: "Deletion follow-up",
-        message: "Keep this second support record.",
-        status: "in_progress",
-        createdAt: "2026-08-10T12:02:00.000Z",
-        updatedAt: "2026-08-10T12:03:00.000Z"
-      }
-    ]);
-
+    const requests = await db.query("select id from support_requests where id = any($1::uuid[])",
+      [[supportRequestWithoutEmailId, supportRequestWithEmailId]]);
+    expect(requests.rows).toEqual([]);
+    expect((await db.query("select id from support_request_replies where id = $1", [supportReplyId])).rows).toEqual([]);
     await expect(db.query(
-      `insert into support_request_replies (
-         id, support_request_id, recipient_email, subject, message, delivery_status, created_at
-       )
-       values ($1::uuid, $2::uuid, 'must-not-survive@example.test',
-               'Post-deletion reply guard', 'Keep this guarded reply.', 'pending',
-               timestamptz '2026-08-10 12:05:00+00')`,
+      `insert into support_request_replies (id, support_request_id, recipient_email, subject, message, delivery_status)
+       values ($1, $2, 'must-not-survive@example.test', 'Deleted request', 'Cannot recreate reply.', 'pending')`,
       [supportReplyAfterDeletionId, supportRequestWithEmailId]
-    )).rejects.toMatchObject({ code: "23514" });
-
-    const replies = await db.query<{
-      id: string;
-      recipient_email: string;
-      subject: string;
-      message: string;
-      delivery_status: string;
-      created_at: string | Date;
-    }>(
-      `select id::text, recipient_email, subject, message, delivery_status, created_at
-       from support_request_replies
-       where id = $1::uuid
-       order by id`,
-      [supportReplyId]
-    );
-    expect(replies.rows.map((row) => ({
-      id: row.id,
-      recipientEmail: row.recipient_email,
-      subject: row.subject,
-      message: row.message,
-      deliveryStatus: row.delivery_status,
-      createdAt: new Date(row.created_at).toISOString()
-    }))).toEqual([
-      {
-        id: supportReplyId,
-        recipientEmail: "deleted-account@invalid",
-        subject: "Preserved reply",
-        message: "Keep this support reply.",
-        deliveryStatus: "sent",
-        createdAt: "2026-08-10T12:04:00.000Z"
-      }
-    ]);
-
-    await expect(db.query(
-      `update support_requests
-       set contact_email = 'must-not-return@example.test'
-       where id = $1::uuid`,
-      [supportRequestWithoutEmailId]
-    )).rejects.toMatchObject({ code: "23514" });
+    )).rejects.toMatchObject({ code: "23503" });
+    expect((await db.query("update support_requests set contact_email = 'must-not-return@example.test' where id = $1 returning id",
+      [supportRequestWithoutEmailId])).rows).toEqual([]);
   });
 
   it("deletes a reported account while retaining anonymized report evidence", async () => {
@@ -573,6 +477,7 @@ describe.skipIf(!realPostgresUrl)("account deletion integrity with real PostgreS
       `create trigger aaa_account_deletion_test_barrier
        before delete on app_users
        for each row
+       when (old.id in ('${concurrentUserAId}'::uuid, '${concurrentUserBId}'::uuid))
        execute function account_deletion_integrity_test_barrier()`
     );
     await db.query(
@@ -590,6 +495,7 @@ describe.skipIf(!realPostgresUrl)("account deletion integrity with real PostgreS
       `create trigger aaa_report_update_test_barrier
        before update on reports
        for each row
+       when (old.id in ('${concurrentReportIds[0]}'::uuid, '${concurrentReportIds[1]}'::uuid))
        execute function account_deletion_report_update_test_barrier()`
     );
 
@@ -707,15 +613,15 @@ describe.skipIf(!realPostgresUrl)("account deletion integrity with real PostgreS
        as $body$
        begin
          perform pg_advisory_xact_lock_shared(${supportUpdateBarrierLockId});
-         return new;
+         return old;
        end;
        $body$`
     );
     await db.query(
       `create trigger zzz_support_update_test_barrier
-       after update of requester_user_id on support_requests
+       before delete on support_requests
        for each row
-       when (old.requester_user_id is not null and new.requester_user_id is null)
+       when (old.requester_user_id is not null)
        execute function account_deletion_support_update_test_barrier()`
     );
 
@@ -736,7 +642,7 @@ describe.skipIf(!realPostgresUrl)("account deletion integrity with real PostgreS
            from pg_stat_activity
            where datname = current_database()
              and wait_event = 'advisory'
-             and query like 'delete from app_users%'`
+             and position('support_request' in lower(query)) > 0`
         );
         deletionWaiting = Number(waiting.rows[0]?.count ?? 0) >= 1;
 
@@ -785,7 +691,6 @@ describe.skipIf(!realPostgresUrl)("account deletion integrity with real PostgreS
       if (deletionOutcome.status === "fulfilled") {
         expect(deletionOutcome.value.statusCode).toBe(204);
       }
-      expect(replyOutcome.status).toBe("rejected");
       if (replyOutcome.status === "rejected") {
         expect(replyOutcome.reason).toMatchObject({ code: "23514" });
       }
@@ -796,7 +701,7 @@ describe.skipIf(!realPostgresUrl)("account deletion integrity with real PostgreS
          where id = $1::uuid`,
         [replyRaceReplyId]
       );
-      expect(reply.rows[0]?.recipient_email).toBe("deleted-account@invalid");
+      expect(reply.rows).toEqual([]);
     } finally {
       await control.query("select pg_advisory_unlock($1)", [supportUpdateBarrierLockId]);
       await Promise.allSettled([
@@ -808,7 +713,7 @@ describe.skipIf(!realPostgresUrl)("account deletion integrity with real PostgreS
     }
   }, 15_000);
 
-  it("scrubs a support reply committed while account deletion waits", async () => {
+  it("deletes a support reply committed while account deletion waits", async () => {
     if (!realPostgresUrl) {
       return;
     }
@@ -852,7 +757,7 @@ describe.skipIf(!realPostgresUrl)("account deletion integrity with real PostgreS
            from pg_stat_activity
            where datname = current_database()
              and wait_event is not null
-             and query like 'delete from app_users%'`
+             and position('support_request' in lower(query)) > 0`
         );
         deletionWaiting = Number(waiting.rows[0]?.count ?? 0) >= 1;
 
@@ -876,7 +781,7 @@ describe.skipIf(!realPostgresUrl)("account deletion integrity with real PostgreS
          where id = $1::uuid`,
         [replyInsertRaceReplyId]
       );
-      expect(reply.rows[0]?.recipient_email).toBe("deleted-account@invalid");
+      expect(reply.rows).toEqual([]);
     } finally {
       if (!replyCommitted) {
         await replyClient.query("rollback");
@@ -1138,8 +1043,8 @@ describe.skipIf(!realPostgresUrl)("account deletion integrity with real PostgreS
       sequence_value: "2",
       user_count: "0",
       session_count: "0",
-      support_count: "1",
-      support_anonymized: true
+      support_count: "0",
+      support_anonymized: null
     });
   });
 

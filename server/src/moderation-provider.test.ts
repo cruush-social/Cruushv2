@@ -349,6 +349,7 @@ describe("moderation provider", () => {
       MODERATION_PROVIDER: "mock",
       MODERATION_TIMEOUT_MS: 5000,
       STREAM_MODERATION_ENABLED: true,
+      STREAM_NO_AI_TRAINING_VERIFIED: true,
       STREAM_API_KEY: "",
       STREAM_API_SECRET: "",
       STREAM_MODERATION_CONFIG_KEY: ""
@@ -360,6 +361,7 @@ describe("moderation provider", () => {
       MODERATION_PROVIDER: "mock",
       MODERATION_TIMEOUT_MS: 5000,
       STREAM_MODERATION_ENABLED: true,
+      STREAM_NO_AI_TRAINING_VERIFIED: true,
       STREAM_API_KEY: "",
       STREAM_API_SECRET: "",
       STREAM_MODERATION_CONFIG_KEY: ""
@@ -384,6 +386,7 @@ describe("moderation provider", () => {
     const provider = new StreamModerationProvider({
       MODERATION_TIMEOUT_MS: 5000,
       STREAM_MODERATION_ENABLED: true,
+      STREAM_NO_AI_TRAINING_VERIFIED: true,
       STREAM_API_KEY: "retry-key",
       STREAM_API_SECRET: "retry-secret",
       STREAM_MODERATION_CONFIG_KEY: "retry-config"
@@ -402,6 +405,7 @@ describe("moderation provider", () => {
     const provider = new StreamModerationProvider({
       MODERATION_TIMEOUT_MS: 5000,
       STREAM_MODERATION_ENABLED: true,
+      STREAM_NO_AI_TRAINING_VERIFIED: true,
       STREAM_API_KEY: "circuit-key",
       STREAM_API_SECRET: "circuit-secret",
       STREAM_MODERATION_CONFIG_KEY: "circuit-config"
@@ -433,6 +437,7 @@ describe("moderation provider", () => {
     const provider = new StreamModerationProvider({
       MODERATION_TIMEOUT_MS: 5000,
       STREAM_MODERATION_ENABLED: true,
+      STREAM_NO_AI_TRAINING_VERIFIED: true,
       STREAM_API_KEY: "diagnostic-key",
       STREAM_API_SECRET: "diagnostic-secret",
       STREAM_MODERATION_CONFIG_KEY: "diagnostic-config"
@@ -508,6 +513,7 @@ describe("moderation provider", () => {
     const provider = new StreamModerationProvider({
       MODERATION_TIMEOUT_MS: 5000,
       STREAM_MODERATION_ENABLED: true,
+      STREAM_NO_AI_TRAINING_VERIFIED: true,
       STREAM_API_KEY: "async-resume-key",
       STREAM_API_SECRET: "async-resume-secret",
       STREAM_MODERATION_CONFIG_KEY: "async-resume-config"
@@ -540,6 +546,7 @@ describe("moderation provider", () => {
     const provider = new StreamModerationProvider({
       MODERATION_TIMEOUT_MS: 5000,
       STREAM_MODERATION_ENABLED: true,
+      STREAM_NO_AI_TRAINING_VERIFIED: true,
       STREAM_API_KEY: "async-running-key",
       STREAM_API_SECRET: "async-running-secret",
       STREAM_MODERATION_CONFIG_KEY: "async-running-config"
@@ -570,6 +577,7 @@ describe("moderation provider", () => {
     const provider = new StreamModerationProvider({
       MODERATION_TIMEOUT_MS: 5000,
       STREAM_MODERATION_ENABLED: true,
+      STREAM_NO_AI_TRAINING_VERIFIED: true,
       STREAM_API_KEY: "async-failed-key",
       STREAM_API_SECRET: "async-failed-secret",
       STREAM_MODERATION_CONFIG_KEY: "async-failed-config"

@@ -167,11 +167,15 @@ export async function upsertClubEnrollment(context: ClubEnrollmentContext, paylo
   const indexes = indexesFor(context.config, payload);
   const encrypted = encryptPayload(context.config, payload);
   const result = await context.db.query<EncryptedClubEnrollmentRow>(
-    `insert into encrypted_club_enrollments (
+    `with account_owner as materialized (
+       select id from app_users where id = $12::uuid for key share
+     )
+     insert into encrypted_club_enrollments (
        record_lookup_index, club_index, user_index, record_type_index, status_index,
        record_ciphertext, record_nonce, record_auth_tag,
        encryption_key_version, index_key_version, created_at, updated_at
-     ) values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, now())
+     ) select $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11::timestamptz, now()
+     where exists (select 1 from account_owner)
      on conflict (record_lookup_index, index_key_version) do update
      set club_index = excluded.club_index,
          user_index = excluded.user_index,
@@ -194,7 +198,8 @@ export async function upsertClubEnrollment(context: ClubEnrollmentContext, paylo
       encrypted.recordAuthTag,
       encrypted.encryptionKeyVersion,
       indexes.indexKeyVersion,
-      payload.createdAt
+      payload.createdAt,
+      payload.userId
     ]
   );
   const row = result.rows[0];

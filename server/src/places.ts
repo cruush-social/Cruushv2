@@ -72,7 +72,7 @@ export const placeCheckinSchema = z.object({
   boardDurationHours: z.union([
     z.literal(1), z.literal(3), z.literal(6), z.literal(12), z.literal(24), z.literal(168), z.null()
   ]).optional(),
-  visible: z.boolean().default(false),
+  visible: z.boolean().default(true),
   visibility: z.enum(["hidden", "public", "checked_in", "mutuals", "crowd"]).optional(),
   crowdTargets: crowdTargetsSchema,
   ...coordinatesSchema,

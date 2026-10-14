@@ -5,9 +5,11 @@ const baseConfig = {
   NODE_ENV: "production" as const,
   APP_DEPLOYMENT_STAGE: "production" as const,
   STREAM_MODERATION_ENABLED: false,
+  STREAM_NO_AI_TRAINING_VERIFIED: true,
   STREAM_IMAGE_BRIDGE_ENABLED: false,
   PROFILE_PHOTO_STREAM_AUTOMOD_ENABLED: false,
   PROFILE_PHOTO_REKOGNITION_ENABLED: false,
+  REKOGNITION_NO_AI_TRAINING_VERIFIED: true,
   ALPHA_PROFILE_PHOTO_UPLOADS_WITHOUT_PHOTODNA_ENABLED: false,
   ALPHA_TEST_ENABLED: false,
   ALPHA_TEST_ENDS_AT: "",
@@ -88,14 +90,14 @@ describe("deployed photo upload availability", () => {
     });
   });
 
-  it("allows profile and message photo uploads during the active alpha test even before PhotoDNA is ready", () => {
+  it("requires a verified image scanner during the alpha test", () => {
     expect(photoUploadAvailability({
       ...baseConfig,
       ALPHA_TEST_ENABLED: true,
       ALPHA_TEST_ENDS_AT: "2099-07-28T23:59:00-04:00"
     })).toEqual({
-      profilePhotos: true,
-      messagePhotos: true
+      profilePhotos: false,
+      messagePhotos: false
     });
 
     expect(photoUploadAvailability({
@@ -119,6 +121,14 @@ describe("deployed photo upload availability", () => {
       profilePhotos: false,
       messagePhotos: false
     });
+  });
+
+  it("keeps configured scanners unavailable without explicit no-training verification", () => {
+    expect(photoUploadAvailability({ ...baseConfig,
+      STREAM_MODERATION_ENABLED: true, STREAM_IMAGE_BRIDGE_ENABLED: true, PROFILE_PHOTO_STREAM_AUTOMOD_ENABLED: true,
+      PROFILE_PHOTO_REKOGNITION_ENABLED: true, STREAM_NO_AI_TRAINING_VERIFIED: false, REKOGNITION_NO_AI_TRAINING_VERIFIED: false,
+      ALPHA_TEST_ENABLED: true, ALPHA_TEST_ENDS_AT: "2099-01-01T00:00:00Z"
+    })).toEqual({ profilePhotos: false, messagePhotos: false });
   });
 
   it("preserves local mock upload coverage", () => {

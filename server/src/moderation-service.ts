@@ -1068,6 +1068,21 @@ export async function moderateImageOrReject(
   input: ModerateImageInput,
   options: { allowProfilePhotoManualReview?: boolean } = {}
 ) {
+  const verifiedImageProvider =
+    (app.config.STREAM_MODERATION_ENABLED === true && app.config.STREAM_NO_AI_TRAINING_VERIFIED === true) ||
+    (app.config.PROFILE_PHOTO_REKOGNITION_ENABLED === true && app.config.REKOGNITION_NO_AI_TRAINING_VERIFIED === true);
+  // Keep synthetic local mock QA available. Member uploads in production, or
+  // with configured remote providers, need an approved real image-safety path.
+  if (!verifiedImageProvider && (
+    app.config.NODE_ENV === "production" ||
+    app.config.STREAM_MODERATION_ENABLED === true ||
+    app.config.PROFILE_PHOTO_REKOGNITION_ENABLED === true
+  )) {
+    const blockedProvider = providerErrorResult("privacy_guard", Date.now(),
+      new Error("No image-safety provider has verified no-AI-training terms."));
+    return handlePolicyDecision(app, input.userId, input.surface, "image", blockedProvider,
+      mapProviderResultToPolicy({ surface: input.surface, contentType: "image", providerResult: blockedProvider }));
+  }
   const provider = createModerationProviderOrUnavailable(app.config);
   const useProfilePhotoRekognitionFallback = canUseProfilePhotoRekognitionFallback(app, input.surface);
   const useMessagePhotoRekognitionFallback = canUseMessagePhotoRekognitionFallback(app, input.surface);

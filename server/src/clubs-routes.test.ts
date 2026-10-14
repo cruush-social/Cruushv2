@@ -145,7 +145,11 @@ describe("encrypted Club directory routes", () => {
     expect(mocks.upsertClubEnrollment).toHaveBeenCalledTimes(2);
     expect(query.mock.calls[0]?.[0]).not.toMatch(/club_memberships|owner_user_id/);
     expect(query.mock.calls.slice(1).every((call) => String(call[0]).includes("member_index"))).toBe(true);
-    expect(query.mock.calls.slice(1).every((call) => !JSON.stringify(call[1]).includes(memberId))).toBe(true);
+    const writes = query.mock.calls.slice(1);
+    expect(writes.every((call) => !JSON.stringify(call[1]?.slice(0, 3)).includes(memberId))).toBe(true);
+    expect(writes.every((call) => String(call[0]).includes("select $1, null, $2"))).toBe(true);
+    expect(writes.every((call) => String(call[0]).includes("where id = $4::uuid for key share"))).toBe(true);
+    expect(writes.map((call) => call[1]?.[3])).toEqual([userId, memberId]);
   });
 
   it("creates a Club with only its owner", async () => {
@@ -194,7 +198,10 @@ describe("encrypted Club directory routes", () => {
     expect(mocks.deleteClubEnrollment).toHaveBeenCalledWith(expect.anything(), { clubId, userId: memberId, type: "join_request" });
     const chatInsert = query.mock.calls.find((call) => String(call[0]).includes("insert into conversation_members"));
     expect(String(chatInsert?.[0])).toContain("member_index");
-    expect(JSON.stringify(chatInsert?.[1])).not.toContain(memberId);
+    expect(JSON.stringify(chatInsert?.[1]?.slice(0, 2))).not.toContain(memberId);
+    expect(String(chatInsert?.[0])).toContain("select $1, null, $2");
+    expect(String(chatInsert?.[0])).toContain("where id = $3::uuid for key share");
+    expect(chatInsert?.[1]?.[2]).toBe(memberId);
   });
 
   it("creates an open Coven only when selected and returns the selected mode", async () => {
@@ -216,7 +223,9 @@ describe("encrypted Club directory routes", () => {
     expect(mocks.deleteClubEnrollment).toHaveBeenCalledWith(expect.anything(), { clubId, userId, type: "join_request" });
     const chatInsert = query.mock.calls.find((call) => String(call[0]).includes("insert into conversation_members"));
     expect(String(chatInsert?.[0])).toContain("null, $2");
-    expect(JSON.stringify(chatInsert?.[1])).not.toContain(userId);
+    expect(JSON.stringify(chatInsert?.[1]?.slice(0, 2))).not.toContain(userId);
+    expect(String(chatInsert?.[0])).toContain("where id = $3::uuid for key share");
+    expect(chatInsert?.[1]?.[2]).toBe(userId);
   });
 
   it.each(["owner", "admin", "moderator", "member"] as const)("does not downgrade an existing %s on repeated open join", async (role) => {

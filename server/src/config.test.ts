@@ -53,6 +53,15 @@ function validProductionEnv(overrides: NodeJS.ProcessEnv = {}): NodeJS.ProcessEn
 }
 
 describe("loadConfig", () => {
+  it("requires an explicit no-training attestation for each remote content provider", () => {
+    const baseEnv = { DATABASE_URL: "postgres://localhost/cruush", SESSION_SECRET: "local-fixture-secret" };
+    const keys = ["STREAM_NO_AI_TRAINING_VERIFIED", "REKOGNITION_NO_AI_TRAINING_VERIFIED", "PHOTODNA_NO_AI_TRAINING_VERIFIED"] as const;
+    for (const key of keys) {
+      expect(loadConfig(baseEnv)[key]).toBe(false);
+      expect(loadConfig({ ...baseEnv, [key]: "true" })[key]).toBe(true);
+      expect(() => loadConfig({ ...baseEnv, [key]: "unverified" })).toThrow();
+    }
+  });
   it("keeps human moderation dormant unless explicitly enabled", () => {
     const baseEnv = {
       DATABASE_URL: "postgres://postgres:postgres@localhost:5432/cruush",

@@ -7,7 +7,7 @@ export type PolicySection = {
 
 export const legalUpdated = "July 10, 2026";
 export const termsUpdated = "October 2, 2026";
-export const privacyUpdated = "October 2, 2026";
+export const privacyUpdated = "October 13, 2026";
 export const billingUpdated = "october 11, 2026";
 export const legalContact = "hello@cruush.app";
 export const legalEntity = "cruush technologies LLC";
@@ -185,6 +185,7 @@ export const privacySections: PolicySection[] = [
   {
     title: "What this policy covers",
     body: [
+      "We will never sell your data or use it to train AI. Deleting your account removes your personal account data from the live service immediately when deletion succeeds. The account deletion and retention sections below explain what is removed and the limited records or copies that may remain.",
       `This Privacy Policy explains how ${legalEntity}, doing business as cruush, collects, uses, shares, stores, and protects information for the cruush website, waitlist, launch communications, account flows, content moderation, safety reporting, and U.S. app access.`,
       "cruush is intended for adults in the United States. We do not knowingly collect personal information from anyone under 18."
     ]
@@ -222,7 +223,7 @@ export const privacySections: PolicySection[] = [
     title: "How we use information",
     body: [
       "We use information to operate cruush, manage the waitlist, provide accounts, show nearby users, support cruushes, process subscriptions, send service, launch, event, and ticket communications when you opt in, provide support, enforce our policies, investigate reports, prevent abuse, improve the product, comply with law, and protect users and the service.",
-      "We will never sell user data nor use it to train AI."
+      "We will never sell your data or use your profiles, photos, messages, location, or activity to train or fine-tune AI models. Automated safety checks evaluate content for prohibited material; they are not permission to train models on your content."
     ]
   },
   {
@@ -230,13 +231,14 @@ export const privacySections: PolicySection[] = [
     body: [
       "cruush may host adult user content, including explicit photos. We may process, blur, review, restrict, preserve, remove, or report content and related metadata when needed for moderation, safety, law enforcement requests, child-safety obligations, trafficking prevention, 2257-related review, or legal compliance.",
       "For third-party automated photo moderation, cruush may temporarily decrypt and securely transmit a photo to a moderation provider. Automated results may reject or restrict an upload. This provider processing is not zero-knowledge, even when cruush stores the photo using server-side encryption before and after the check.",
-      "Messages, photos, and reports may be accessible to authorized cruush systems or personnel when needed to operate, secure, investigate, moderate, recover, or improve the service. cruush is not zero-knowledge and is not fully private from cruush."
+      "cruush uses server-side encryption, not end-to-end encryption. The service can decrypt content, and authorized personnel may access relevant information for necessary service operation, support, security, safety investigations, or legal obligations. That access does not permit selling your data or training AI on it."
     ]
   },
   {
     title: "Service providers",
     body: [
-      "We use service providers for database hosting, email delivery, analytics, security, abuse prevention, automated content moderation, payment processing, hosting, file handling, SMS delivery if enabled, and customer support. Current providers include Stream for automated moderation when enabled, Resend for email, Cloudflare Turnstile for abuse prevention, PostHog for aggregate traffic analysis, and database infrastructure for waitlist and app records.",
+      "We use service providers for database hosting, email delivery, analytics, security, abuse prevention, automated content moderation, payment processing, hosting, file handling, SMS delivery if enabled, and customer support. These include Stream and AWS Rekognition for moderation when enabled and approved, Resend for email, Cloudflare Turnstile for abuse prevention, PostHog for usage measurement, and database infrastructure for waitlist and app records.",
+      "Member content is not submitted to Stream, AWS Rekognition, or PhotoDNA unless that provider's no-training terms or applicable opt-out have been verified. If an approved safety check is unavailable, an upload may be rejected rather than sent to an unapproved provider or allowed without the required check.",
       "A moderation provider may process or retain submitted images, derived moderation results, or limited technical metadata under its own contract, security controls, and retention practices. cruush limits what it sends but cannot promise that every provider performs zero-retention processing.",
       "Payment processors, app stores, event-ticketing providers, and other third parties may process information under their own terms and privacy practices when you use those services."
     ]
@@ -256,10 +258,21 @@ export const privacySections: PolicySection[] = [
     ]
   },
   {
+    title: "Account deletion",
+    body: [
+      "You can delete your account in Settings. When deletion succeeds, your account and profile, messages and posts you authored, live location and visibility records, photos and their live decryption keys, account-linked cruush and profile-view records, Coven memberships, support submissions, and appeal documents are removed from the active service. Your sessions are revoked immediately, so the deleted account cannot keep using the app.",
+      "Photo and attachment files are scheduled for deletion as part of the same request, and removal starts before the deletion response is returned. If file storage is unavailable or removal takes longer, the service retries automatically; live access and the associated decryption keys have already been removed. This is immediate removal from the live service, not a promise that every backup or external copy vanishes at the same moment.",
+      "For a verified account email, deletion also requests removal of the email-provider contact. If the provider is unavailable, only the encrypted contact information needed to finish that request is retained while removal is retried. It is erased when removal is confirmed, or after verifying that a later account owns the address so the old request does not delete that account's current contact.",
+      "Deleting your account does not delete another member's content or recall screenshots, downloads, already-delivered email, or public blockchain transactions. The limited retention exceptions below also apply."
+    ]
+  },
+  {
     title: "Retention",
     body: [
-      "We keep information for as long as needed to operate cruush, provide the waitlist and app, maintain accounts, process billing, resolve disputes, prevent abuse, comply with law, and support safety investigations.",
-      "After deletion or account closure, we may retain limited records, reports, content metadata, safety evidence, billing records, legal records, and abuse-prevention data as needed for security, compliance, disputes, and enforcement."
+      "While your account is active, we keep information needed to provide the service. Account deletion removes the live personal account data described above, rather than leaving the profile hidden or deactivated.",
+      "Limited payment and forwarding records, formal safety reports, legally required evidence, and security or abuse-prevention records may remain for their specific accounting, dispute, safety, or legal purpose. Payment records are unlinked from the deleted account; wallet addresses and transactions can still be identifiable on public blockchains. Records that remain are not used for AI training.",
+      "Older encrypted activity records that cannot be reliably matched to your account may remain outside your live profile until they can be safely identified and removed.",
+      "Backups, provider-held records, and previously delivered communications may outlast live-account deletion. Those copies are not covered by an instant-erasure promise and are subject to the relevant retention and legal requirements. We cannot remotely erase copies saved by another person."
     ]
   },
   {

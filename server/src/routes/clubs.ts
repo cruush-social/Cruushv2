@@ -546,10 +546,13 @@ export async function registerClubRoutes(app: FastifyInstance) {
           })
         );
         await db.query(
-          `insert into conversation_members (conversation_id, user_id, member_index, role, last_read_at)
-           values ($1, null, $2, 'member', case when $3 then now() else null end)
+          `with existing_account as (
+             select id from app_users where id = $4::uuid for key share
+           )
+           insert into conversation_members (conversation_id, user_id, member_index, role, last_read_at)
+           select $1, null, $2, 'member', case when $3 then now() else null end from existing_account
            on conflict (conversation_id, member_index) where member_index is not null do nothing`,
-          [row.conversation_id, createClubEnrollmentUserIndex(app.config, enrollment.userId), enrollment.role === "owner"]
+          [row.conversation_id, createClubEnrollmentUserIndex(app.config, enrollment.userId), enrollment.role === "owner", enrollment.userId]
         );
       }
       return row;

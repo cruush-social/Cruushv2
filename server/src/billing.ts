@@ -274,6 +274,7 @@ async function countCryptoPlanSupplyReservations(db: DbClient, planId: CruushPlu
        select user_id
        from crypto_payment_intents
        where plan_id = $1
+         and user_id is not null
          and product_type = 'cruush_plus'
          and (
            status in ('confirming', 'paid', 'refunded')

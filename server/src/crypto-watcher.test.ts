@@ -202,6 +202,24 @@ describe("scan range planning", () => {
 });
 
 describe("watchable intents", () => {
+  it("excludes payment history whose account has been deleted", async () => {
+    const { db, calls } = stubDb([[/from crypto_payment_intents/, [{
+      id: intentId,
+      user_id: null,
+      plan_id: "plus_monthly",
+      status: "confirming",
+      payment_address: paymentAddress,
+      quoted_amount_atomic: "18990000",
+      asset: "USDC",
+      network: "base",
+      watch_start_block: "900",
+      expires_at: "2099-01-01T00:00:00.000Z"
+    }]]]);
+
+    expect(await loadWatchableIntents(db, 8453, DEFAULT_CRYPTO_SETTLEMENT_POLICY)).toEqual([]);
+    expect(calls[0]!.sql).toContain("and user_id is not null");
+  });
+
   it("keeps expired intents watchable for bounded transfer evidence", async () => {
     const { db, calls } = stubDb([[/from crypto_payment_intents/, []]]);
 
@@ -1617,6 +1635,10 @@ describe.skipIf(!realPostgresUrl)("watcher settlement concurrency with real Post
   let db: DbClient;
 
   async function cleanFixtures() {
+    await pool.query(
+      "delete from crypto_payment_intents where id = any($1::uuid[])",
+      [[realIntentBeforeExpiry, realIntentReorganized, realIntentOverlappingPass]]
+    );
     await pool.query(
       "delete from app_users where id = any($1::uuid[])",
       [[realUserBeforeExpiry, realUserReorganized, realUserOverlappingPass]]

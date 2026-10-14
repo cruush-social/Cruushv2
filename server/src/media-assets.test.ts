@@ -12,6 +12,7 @@ import {
 } from "./media-assets.js";
 import { processUploadedImage } from "./media-image.js";
 import { readEncryptedMediaObject } from "./media-storage.js";
+import * as mediaStorage from "./media-storage.js";
 
 const tempDirs: string[] = [];
 const ownerUserId = "11111111-1111-4111-8111-111111111111";
@@ -74,6 +75,25 @@ async function imageWithMetadata() {
 }
 
 describe("privacy-hardened media assets", () => {
+  it("queues orphan ciphertext for retry when an upload loses account ownership and storage deletion fails", async () => {
+    const { app, query, request } = await setup(false);
+    const processed = await processUploadedImage(await imageWithMetadata(), "image/jpeg");
+    query.mockRejectedValueOnce(Object.assign(new Error("Account FK disappeared"), { code: "23503" }));
+    const remove = vi.spyOn(mediaStorage, "deleteEncryptedMediaObject").mockRejectedValue(new Error("storage unavailable"));
+    try {
+      await expect(createPendingMediaAsset(app, request, { ownerUserId, surface: "profile_photo", processed }))
+        .rejects.toMatchObject({ code: "INTERNAL_ERROR" });
+      const queued = query.mock.calls.filter(([sql]) => String(sql).includes("insert into account_deletion_media_cleanup"));
+      expect(queued).toHaveLength(3);
+      expect(queued.map(([, values]) => String(values?.[0]))).toEqual(expect.arrayContaining([
+        expect.stringMatching(/^originals\/.+\.enc$/),
+        expect.stringMatching(/^variants\/.+\/thumbnail\.webp\.enc$/),
+        expect.stringMatching(/^variants\/.+\/display\.webp\.enc$/)
+      ]));
+      expect(query.mock.calls.some(([sql]) => String(sql).includes("delete from media_objects"))).toBe(true);
+    } finally { remove.mockRestore(); }
+  });
+
   it.each(["profile_photo", "feed_photo"] as const)(
     "encrypts only sanitized canonical bytes for %s and does not create a legacy grant for shared automod",
     async (surface) => {
@@ -179,7 +199,7 @@ describe("privacy-hardened media assets", () => {
     expect(query.mock.calls.some(([sql]) => String(sql).includes("delete from media_objects"))).toBe(false);
   });
 
-  it("applies the active alpha PhotoDNA bypass to message-photo assets", async () => {
+  it("refuses production mock-only message photos even during the active alpha PhotoDNA bypass", async () => {
     const { app, request } = await setup(false, {
       NODE_ENV: "production",
       PHOTODNA_ENABLED: true,
@@ -196,13 +216,7 @@ describe("privacy-hardened media assets", () => {
     await expect(moderatePendingMediaAsset(app, request, asset, {
       filename: "neutral-message-photo.jpg",
       moderationSurface: "direct_message"
-    })).resolves.toMatchObject({
-      moderation: {
-        provider: "mock",
-        photoDnaStatus: "not_configured",
-        decision: expect.objectContaining({ decision: "allow" })
-      }
-    });
+    })).rejects.toMatchObject({ code: "MODERATION_UNAVAILABLE", statusCode: 503 });
   });
 
   it("uses the signed bridge for message-photo assets without profile-photo automod", async () => {

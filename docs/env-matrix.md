@@ -125,6 +125,7 @@ Index keys and signing/hash keys are outside this fallback mechanism.
 | `NODE_ENV` | server | no | `server/src/config.ts`, `server/src/migration-config.ts` | **missing from .env.example** |
 | `PHOTODNA_API_URL` | server | yes | `server/src/config.ts` |  |
 | `PHOTODNA_ENABLED` | server | yes | `server/src/config.ts` |  |
+| `PHOTODNA_NO_AI_TRAINING_VERIFIED` | server | yes | `server/src/config.ts`, `server/src/photodna.ts` | Boolean, false by default. True only after verifying the configured provider contract forbids member-content model training/improvement. |
 | `PHOTODNA_OPERATION_PATH` | server | yes | `server/src/config.ts` |  |
 | `PHOTODNA_SUBSCRIPTION_KEY` | server | yes | `server/src/config.ts` |  |
 | `PHOTODNA_TIMEOUT_MS` | server | yes | `server/src/config.ts` |  |
@@ -138,6 +139,7 @@ Index keys and signing/hash keys are outside this fallback mechanism.
 | `PROFILE_PHOTO_REKOGNITION_MINIMUM_AGE` | server | yes | `server/src/config.ts` |  |
 | `PROFILE_PHOTO_REKOGNITION_REGION` | server | yes | `server/src/check-rekognition-health.ts`, `server/src/rekognition-live.test.ts` |  |
 | `PROFILE_PHOTO_REKOGNITION_TIMEOUT_MS` | server | yes | `server/src/config.ts` |  |
+| `REKOGNITION_NO_AI_TRAINING_VERIFIED` | server | yes | `server/src/config.ts`, `server/src/profile-photo-human-detection.ts` | Boolean, false by default. True only after verifying the effective AWS Organizations rekognition optOut policy for the API credential's account. |
 | `PROFILE_PHOTO_STREAM_AUTOMOD_ENABLED` | server | yes | `server/src/config.ts` |  |
 | `PROFILE_TOKEN_KEY` | server | yes | `server/src/config.ts` |  |
 | `PROFILE_TOKEN_KEY_VERSION` | server | yes | `server/src/config.ts` |  |
@@ -161,6 +163,7 @@ Index keys and signing/hash keys are outside this fallback mechanism.
 | `STREAM_IMAGE_BRIDGE_ENABLED` | server | yes | `server/src/config.ts` |  |
 | `STREAM_MODERATION_CONFIG_KEY` | server | yes | `server/src/config.ts` |  |
 | `STREAM_MODERATION_ENABLED` | server | yes | `server/src/config.ts` |  |
+| `STREAM_NO_AI_TRAINING_VERIFIED` | server | yes | `server/src/config.ts`, `server/src/moderation-provider.ts` | Boolean, false by default. True only with a verified signed no-training/model-improvement agreement overriding Stream Terms 11.1. |
 | `STREAM_PSEUDONYM_KEY` | server | yes | `server/src/config.ts` |  |
 | `SUPPORT_INBOX_EMAIL` | server | yes | `server/src/check-rekognition-health.ts`, `server/src/config.ts` |  |
 | `TOWN_BOUNDARY_DATABASE_PATH` | server | yes | `server/src/config.ts` | Optional absolute path to the read-only public town SQLite dataset with its adjacent validated manifest. API only; no member data. |

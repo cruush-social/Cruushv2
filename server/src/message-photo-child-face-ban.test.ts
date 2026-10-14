@@ -88,6 +88,7 @@ describe("message-photo child-face enforcement", () => {
         config: {
           PROFILE_PHOTO_STREAM_AUTOMOD_ENABLED: true,
           PROFILE_PHOTO_REKOGNITION_ENABLED: true,
+          REKOGNITION_NO_AI_TRAINING_VERIFIED: true,
           PROFILE_PHOTO_REKOGNITION_REGION: "us-east-1",
           PROFILE_PHOTO_REKOGNITION_HUMAN_CONFIDENCE: 90,
           PROFILE_PHOTO_REKOGNITION_ANIMAL_CONFIDENCE: 80,
@@ -137,6 +138,7 @@ describe("message-photo child-face enforcement", () => {
         config: {
           PROFILE_PHOTO_STREAM_AUTOMOD_ENABLED: false,
           PROFILE_PHOTO_REKOGNITION_ENABLED: true,
+          REKOGNITION_NO_AI_TRAINING_VERIFIED: true,
           PROFILE_PHOTO_REKOGNITION_REGION: "us-east-1",
           PROFILE_PHOTO_REKOGNITION_HUMAN_CONFIDENCE: 90,
           PROFILE_PHOTO_REKOGNITION_ANIMAL_CONFIDENCE: 80,
@@ -184,6 +186,7 @@ describe("message-photo child-face enforcement", () => {
         config: {
           PROFILE_PHOTO_STREAM_AUTOMOD_ENABLED: false,
           PROFILE_PHOTO_REKOGNITION_ENABLED: true,
+          REKOGNITION_NO_AI_TRAINING_VERIFIED: true,
           PROFILE_PHOTO_REKOGNITION_REGION: "us-east-1",
           PROFILE_PHOTO_REKOGNITION_HUMAN_CONFIDENCE: 90,
           PROFILE_PHOTO_REKOGNITION_ANIMAL_CONFIDENCE: 80,

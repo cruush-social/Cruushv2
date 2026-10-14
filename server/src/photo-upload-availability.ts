@@ -34,11 +34,12 @@ export function photoUploadAvailability(
     | "ALPHA_TEST_ENABLED"
     | "ALPHA_TEST_ENDS_AT"
     | "PHOTODNA_ENABLED"
-  >
+  > & Partial<Pick<AppConfig, "STREAM_NO_AI_TRAINING_VERIFIED" | "REKOGNITION_NO_AI_TRAINING_VERIFIED">>
 ) {
   const deployed = config.NODE_ENV === "production";
   const streamModerationReady =
-    config.STREAM_MODERATION_ENABLED !== false;
+    config.STREAM_MODERATION_ENABLED === true &&
+    config.STREAM_NO_AI_TRAINING_VERIFIED === true;
   const streamImageBridgeReady =
     streamModerationReady &&
     config.STREAM_IMAGE_BRIDGE_ENABLED === true;
@@ -46,7 +47,8 @@ export function photoUploadAvailability(
     streamImageBridgeReady &&
     config.PROFILE_PHOTO_STREAM_AUTOMOD_ENABLED === true;
   const messagePhotoStreamReady = streamImageBridgeReady;
-  const rekognitionReady = config.PROFILE_PHOTO_REKOGNITION_ENABLED === true;
+  const rekognitionReady = config.PROFILE_PHOTO_REKOGNITION_ENABLED === true &&
+    config.REKOGNITION_NO_AI_TRAINING_VERIFIED === true;
   // Stream and Rekognition are independent availability paths. Requiring both made
   // every single-provider incident a complete upload outage, defeating the fallback.
   // When neither can return a decision, the encrypted upload is retained for retry.
@@ -54,11 +56,13 @@ export function photoUploadAvailability(
     rekognitionReady || profilePhotoStreamReady;
   const deployedMessagePhotoSafetyReady =
     rekognitionReady || messagePhotoStreamReady;
-  const alphaPhotoUploadBypass = activeAlphaPhotoUploadBypass(config);
+  const requiresVerifiedSafety = deployed ||
+    config.STREAM_MODERATION_ENABLED === true ||
+    config.PROFILE_PHOTO_REKOGNITION_ENABLED === true;
   const profilePhotosAvailable =
-    !deployed || deployedProfilePhotoSafetyReady || alphaPhotoUploadBypass;
+    !requiresVerifiedSafety || deployedProfilePhotoSafetyReady;
   const messagePhotosAvailable =
-    !deployed || deployedMessagePhotoSafetyReady || alphaPhotoUploadBypass;
+    !requiresVerifiedSafety || deployedMessagePhotoSafetyReady;
 
   return {
     profilePhotos: profilePhotosAvailable,

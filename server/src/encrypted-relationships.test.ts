@@ -67,7 +67,7 @@ function createRecordReturningDb() {
 }
 
 describe("encrypted relationship storage", () => {
-  it("encrypts records non-deterministically and does not send raw relationship data to storage", async () => {
+  it("encrypts persisted relationship fields and locks existing accounts before storage", async () => {
     const db = createRecordReturningDb();
     const payload = buildEncryptedRelationshipPayload({
       type: "cruush",
@@ -85,7 +85,7 @@ describe("encrypted relationship storage", () => {
     const firstParams = db.query.mock.calls[0]?.[1] as unknown[];
     const second = await upsertEncryptedRelationshipRecord({ config, db }, payload);
     const secondParams = db.query.mock.calls[1]?.[1] as unknown[];
-    const serializedParams = JSON.stringify(firstParams);
+    const serializedParams = JSON.stringify(firstParams.slice(0, 16));
 
     expect(first?.payload).toEqual(payload);
     expect(second?.payload).toEqual(payload);
@@ -96,6 +96,10 @@ describe("encrypted relationship storage", () => {
     expect(serializedParams).not.toContain("Jordan");
     expect(serializedParams).not.toContain("cruush");
     expect(serializedParams).not.toContain("active");
+    expect(firstParams[16]).toEqual([payload.actorUserId, payload.targetUserId]);
+    expect(firstParams[17]).toBe(2);
+    expect(db.query.mock.calls[0]?.[0]).toContain("for key share");
+    expect(db.query.mock.calls[0]?.[0]).toContain("where (select count(*) from account_owners) = $18");
   });
 
   it("keeps blind indexes stable per version and changes across versions", () => {

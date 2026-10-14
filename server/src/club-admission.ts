@@ -91,10 +91,13 @@ export async function admitLockedClubMember(context: LockedClubAdmission, userId
     type: "membership", status: "active", clubId, userId, role: "member"
   }));
   await context.db.query(
-    `insert into conversation_members (conversation_id, user_id, member_index, role)
-     values ($1, null, $2, 'member')
+    `with existing_account as (
+       select id from app_users where id = $3::uuid for key share
+     )
+     insert into conversation_members (conversation_id, user_id, member_index, role)
+     select $1, null, $2, 'member' from existing_account
      on conflict (conversation_id, member_index) where member_index is not null do nothing`,
-    [context.club.conversation_id, createClubEnrollmentUserIndex(context.config, userId)]
+    [context.club.conversation_id, createClubEnrollmentUserIndex(context.config, userId), userId]
   );
   await deleteClubEnrollment(context, { clubId, userId, type: "join_request" });
   return true;

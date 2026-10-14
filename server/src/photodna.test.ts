@@ -4,6 +4,7 @@ import type { AppConfig } from "./config.js";
 
 const baseConfig = {
   PHOTODNA_ENABLED: true,
+  PHOTODNA_NO_AI_TRAINING_VERIFIED: true,
   PHOTODNA_API_URL: "https://photodna.example.test",
   PHOTODNA_OPERATION_PATH: "/match",
   PHOTODNA_SUBSCRIPTION_KEY: "subscription-key",

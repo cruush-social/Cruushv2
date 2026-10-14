@@ -35,6 +35,7 @@ export async function runBitcoinWatcherPass(app: { db: DbClient; config: AppConf
               exists(select 1 from crypto_bitcoin_transfers transfer where transfer.intent_id = crypto_payment_intents.id and transfer.status <> 'reorganized') as has_transfer
        from crypto_payment_intents
        where asset = 'BTC' and network = 'bitcoin' and payment_address is not null
+         and user_id is not null
          and quoted_amount_atomic is not null
          and status in ('awaiting_payment', 'confirming', 'expired', 'cancelled')
          and (status = 'confirming' or expires_at > now() - ($1::integer * interval '1 day'))

@@ -110,7 +110,7 @@ function multipartFilePayload(content: Buffer) {
   };
 }
 
-function createTestApp() {
+function createTestApp(overrides: Partial<AppConfig> = {}) {
   const query = vi.fn(async (sql: string, params: unknown[] = []) => {
     if (sql.includes("with inserted_media as")) {
       return { rows: [{ id: params[0] }] };
@@ -155,6 +155,7 @@ function createTestApp() {
     MEDIA_OBJECT_STORAGE_DRIVER: "local",
     PROFILE_PHOTO_STREAM_AUTOMOD_ENABLED: true,
     PROFILE_PHOTO_REKOGNITION_ENABLED: true,
+    REKOGNITION_NO_AI_TRAINING_VERIFIED: true,
     PROFILE_PHOTO_REKOGNITION_REGION: "us-east-1",
     PROFILE_PHOTO_REKOGNITION_HUMAN_CONFIDENCE: 90,
     PROFILE_PHOTO_REKOGNITION_ANIMAL_CONFIDENCE: 80,
@@ -165,6 +166,7 @@ function createTestApp() {
     SEVERE_ACCESS_BAN_HMAC_KEY: "0123456789abcdef0123456789abcdef",
     TRUST_PROXY_HOPS: 1,
     STREAM_MODERATION_ENABLED: true,
+    STREAM_NO_AI_TRAINING_VERIFIED: true,
     STREAM_IMAGE_BRIDGE_ENABLED: true,
     MODERATION_MEDIA_BASE_URL: "https://moderation-media-staging.cruush.app",
     STREAM_PSEUDONYM_KEY: "0123456789abcdef0123456789abcdef",
@@ -172,7 +174,8 @@ function createTestApp() {
     BANK_PROFILE_PHOTO_MANUAL_REVIEW_ENABLED: false,
     BANK_PROFILE_PHOTO_TESTER_USER_IDS: [userId],
     MEDIA_ENCRYPTION_KEY: "0123456789abcdef0123456789abcdef",
-    MEDIA_ENCRYPTION_KEY_VERSION: "v1"
+    MEDIA_ENCRYPTION_KEY_VERSION: "v1",
+    ...overrides
   } as AppConfig;
   const app = buildServer(config, {
     db: { query, end } as unknown as DbClient,
@@ -210,6 +213,20 @@ describe("shared Stream profile-photo automod route", () => {
   afterEach(() => {
     vi.clearAllMocks();
     vi.unstubAllGlobals();
+  });
+
+  it("refuses uploads before storing or exporting content when no scanner has verified no-training terms", async () => {
+    const { app, query } = createTestApp({ STREAM_NO_AI_TRAINING_VERIFIED: false, REKOGNITION_NO_AI_TRAINING_VERIFIED: false,
+      ALPHA_TEST_ENABLED: true, ALPHA_TEST_ENDS_AT: "2099-01-01T00:00:00Z" });
+    const multipart = multipartFilePayload(validPng());
+    try {
+      const response = await app.inject({ method: "POST", url: "/api/profile-photos",
+        headers: { "x-user-id": userId, "content-type": multipart.contentType }, payload: multipart.payload });
+      expect(response.statusCode).toBe(503);
+      expect(providerState.lastImageUrl).toBeNull();
+      expect(query.mock.calls.some(([sql]) => String(sql).includes("insert into media_objects"))).toBe(false);
+      expect(query.mock.calls.some(([sql]) => String(sql).includes("with inserted_media"))).toBe(false);
+    } finally { await app.close(); }
   });
 
   it("publishes only when Stream keeps and Rekognition detects a human", async () => {

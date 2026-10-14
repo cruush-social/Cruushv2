@@ -108,10 +108,12 @@ const configSchema = z.object({
   MODERATION_PROVIDER: z.enum(["mock"]).optional().default("mock"),
   MODERATION_TIMEOUT_MS: z.coerce.number().int().positive().optional().default(5000),
   STREAM_MODERATION_ENABLED: booleanEnvSchema,
+  STREAM_NO_AI_TRAINING_VERIFIED: booleanEnvSchema,
   HUMAN_MODERATION_ENABLED: booleanEnvSchema,
   STREAM_IMAGE_BRIDGE_ENABLED: booleanEnvSchema,
   PROFILE_PHOTO_STREAM_AUTOMOD_ENABLED: booleanEnvSchema,
   PROFILE_PHOTO_REKOGNITION_ENABLED: booleanEnvSchema,
+  REKOGNITION_NO_AI_TRAINING_VERIFIED: booleanEnvSchema,
   PROFILE_PHOTO_REKOGNITION_REGION: z.string().trim().min(1).optional().default("us-east-1"),
   PROFILE_PHOTO_REKOGNITION_HUMAN_CONFIDENCE: z.coerce.number().min(50).max(100).optional().default(90),
   PROFILE_PHOTO_REKOGNITION_ANIMAL_CONFIDENCE: z.coerce.number().min(50).max(100).optional().default(80),
@@ -131,6 +133,7 @@ const configSchema = z.object({
   BANK_PROFILE_PHOTO_MANUAL_REVIEW_ENABLED: booleanEnvSchema,
   BANK_PROFILE_PHOTO_TESTER_USER_IDS: uuidListEnvSchema,
   PHOTODNA_ENABLED: booleanEnvSchema,
+  PHOTODNA_NO_AI_TRAINING_VERIFIED: booleanEnvSchema,
   PHOTODNA_API_URL: z.string().url().optional().or(z.literal("")).default(""),
   PHOTODNA_OPERATION_PATH: z.string().trim().optional().default(""),
   PHOTODNA_SUBSCRIPTION_KEY: z.string().optional().default(""),
@@ -808,10 +811,12 @@ type ModerationConfigKey =
   | "MODERATION_PROVIDER"
   | "MODERATION_TIMEOUT_MS"
   | "STREAM_MODERATION_ENABLED"
+  | "STREAM_NO_AI_TRAINING_VERIFIED"
   | "HUMAN_MODERATION_ENABLED"
   | "STREAM_IMAGE_BRIDGE_ENABLED"
   | "PROFILE_PHOTO_STREAM_AUTOMOD_ENABLED"
   | "PROFILE_PHOTO_REKOGNITION_ENABLED"
+  | "REKOGNITION_NO_AI_TRAINING_VERIFIED"
   | "PROFILE_PHOTO_REKOGNITION_REGION"
   | "PROFILE_PHOTO_REKOGNITION_HUMAN_CONFIDENCE"
   | "PROFILE_PHOTO_REKOGNITION_ANIMAL_CONFIDENCE"
@@ -831,6 +836,7 @@ type ModerationConfigKey =
   | "BANK_PROFILE_PHOTO_MANUAL_REVIEW_ENABLED"
   | "BANK_PROFILE_PHOTO_TESTER_USER_IDS"
   | "PHOTODNA_ENABLED"
+  | "PHOTODNA_NO_AI_TRAINING_VERIFIED"
   | "PHOTODNA_API_URL"
   | "PHOTODNA_OPERATION_PATH"
   | "PHOTODNA_SUBSCRIPTION_KEY"

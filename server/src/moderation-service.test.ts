@@ -71,6 +71,7 @@ function createStreamApp() {
       MODERATION_PROVIDER: "stream",
       MODERATION_TIMEOUT_MS: 5000,
       STREAM_MODERATION_ENABLED: true,
+      STREAM_NO_AI_TRAINING_VERIFIED: true,
       STREAM_API_KEY: "stream-key",
       STREAM_API_SECRET: "stream-secret",
       STREAM_MODERATION_CONFIG_KEY: `cruush-test-${++streamAppSequence}`
@@ -407,6 +408,7 @@ describe("independent photo-provider diagnostics", () => {
     const app = createStreamApp();
     Object.assign(app.config, {
       PROFILE_PHOTO_REKOGNITION_ENABLED: true,
+      REKOGNITION_NO_AI_TRAINING_VERIFIED: true,
       STREAM_MODERATION_CONFIG_KEY: "stream-diagnostic-fallback"
     });
     const streamFailure = Object.assign(new Error("Stream service unavailable"), { statusCode: 503, code: "STREAM_UNAVAILABLE" });
@@ -452,6 +454,7 @@ describe("independent photo-provider diagnostics", () => {
     const app = createStreamApp();
     Object.assign(app.config, {
       PROFILE_PHOTO_REKOGNITION_ENABLED: true,
+      REKOGNITION_NO_AI_TRAINING_VERIFIED: true,
       STREAM_MODERATION_CONFIG_KEY: "stream-diagnostic-total-outage"
     });
     streamModerationCheck.mockRejectedValue(Object.assign(new Error("Stream service unavailable"), { statusCode: 503 }));
@@ -483,6 +486,7 @@ describe("independent photo-provider diagnostics", () => {
     const app = createStreamApp();
     Object.assign(app.config, {
       PROFILE_PHOTO_REKOGNITION_ENABLED: true,
+      REKOGNITION_NO_AI_TRAINING_VERIFIED: true,
       STREAM_MODERATION_CONFIG_KEY: "stream-healthy-rekognition-outage"
     });
     streamModerationCheck.mockResolvedValue({
@@ -528,6 +532,7 @@ describe("independent photo-provider diagnostics", () => {
     const app = createStreamApp();
     Object.assign(app.config, {
       PROFILE_PHOTO_REKOGNITION_ENABLED: true,
+      REKOGNITION_NO_AI_TRAINING_VERIFIED: true,
       STREAM_MODERATION_CONFIG_KEY: "stream-message-healthy-rekognition-outage"
     });
     streamModerationCheck.mockResolvedValue({
@@ -564,7 +569,8 @@ describe("independent photo-provider diagnostics", () => {
   it("keeps explicit private-message photos sendable while exposing the explicit label to DL Mode", async () => {
     const app = createApp();
     Object.assign(app.config, {
-      PROFILE_PHOTO_REKOGNITION_ENABLED: true
+      PROFILE_PHOTO_REKOGNITION_ENABLED: true,
+      REKOGNITION_NO_AI_TRAINING_VERIFIED: true
     });
     detectPublicImageSafety.mockResolvedValue(streamResult({
       provider: "aws_rekognition",
@@ -604,6 +610,7 @@ describe("feed image moderation fallback", () => {
     const app = createApp();
     Object.assign(app.config, {
       PROFILE_PHOTO_REKOGNITION_ENABLED: true,
+      REKOGNITION_NO_AI_TRAINING_VERIFIED: true,
       PROFILE_PHOTO_REKOGNITION_FACE_CONFIDENCE: 90,
       PROFILE_PHOTO_REKOGNITION_MINIMUM_AGE: 18,
       PROFILE_PHOTO_REKOGNITION_TIMEOUT_MS: 5000

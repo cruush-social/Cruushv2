@@ -44,6 +44,7 @@ import { startPendingPhotoModerationRetryScheduler } from "./recheck-pending-pho
 import { startMapPingCleanupScheduler } from "./map-ping-cleanup.js";
 import { startPlaceCheckinExpiryScheduler } from "./place-checkin-expiry.js";
 import { syncAllVerifiedMembersToResendAudience } from "./resend-audience.js";
+import { startResendContactDeletionScheduler } from "./resend-contact-deletion.js";
 import { startCryptoGasAlertScheduler } from "./crypto-gas-alerts.js";
 import { startCryptoWatcher } from "./crypto-watcher-runtime.js";
 import { createBitcoinSource } from "./bitcoin.js";
@@ -102,6 +103,7 @@ let stopSiteReminderScheduler: (() => void) | null = null;
 let stopOutOfSightWelcomeEmailScheduler: (() => void) | null = null;
 let stopSinnersWelcomeEmailScheduler: (() => void) | null = null;
 let stopBugReportEmailRetentionScheduler: (() => void) | null = null;
+let stopResendContactDeletionScheduler: (() => void) | null = null;
 
 const shutdown = async () => {
   stopSubscriptionExpiryScheduler?.();
@@ -110,6 +112,7 @@ const shutdown = async () => {
   stopOutOfSightWelcomeEmailScheduler?.();
   stopSinnersWelcomeEmailScheduler?.();
   stopBugReportEmailRetentionScheduler?.();
+  stopResendContactDeletionScheduler?.();
   stopReferralScheduler?.();
   stopMessageExpiryScheduler?.();
   stopAccountDeletionMediaCleanupScheduler?.();
@@ -153,6 +156,7 @@ stopSiteReminderScheduler = startSiteReminderScheduler(app);
 stopOutOfSightWelcomeEmailScheduler = startOutOfSightWelcomeEmailScheduler(app);
 stopSinnersWelcomeEmailScheduler = startSinnersWelcomeEmailScheduler(app);
 stopBugReportEmailRetentionScheduler = startBugReportEmailRetentionScheduler(app);
+stopResendContactDeletionScheduler = startResendContactDeletionScheduler(app);
 // Side Quest nudges are off for now at Julien's request: no prompt, and no
 // notification standing in for one. The sweep is left in place, so turning
 // them back on is this one line.

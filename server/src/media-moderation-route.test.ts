@@ -25,6 +25,7 @@ describe("signed Stream moderation media route", () => {
       DATABASE_URL: "postgres://unused",
       CORS_ORIGIN: "https://cruush.test",
       SESSION_SECRET: "test-signed-moderation-route-secret",
+      STREAM_NO_AI_TRAINING_VERIFIED: true,
       APP_URL: "https://cruush.test",
       MEDIA_STORAGE_DIR: mediaDir,
       MEDIA_PUBLIC_BASE_URL: "https://api.cruush.test",
@@ -65,6 +66,10 @@ describe("signed Stream moderation media route", () => {
     });
     const signed = new URL(createMediaModerationInspectionUrl(config, assetId));
     const requestUrl = `${signed.pathname}${signed.search}`;
+    config.STREAM_NO_AI_TRAINING_VERIFIED = false;
+    expect((await app.inject({ method: "GET", url: requestUrl })).statusCode).toBe(404);
+    expect(query).not.toHaveBeenCalled();
+    config.STREAM_NO_AI_TRAINING_VERIFIED = true;
     const valid = await app.inject({ method: "GET", url: requestUrl });
     const head = await app.inject({ method: "HEAD", url: requestUrl });
     const tampered = new URL(signed);

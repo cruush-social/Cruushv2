@@ -725,6 +725,7 @@ function buildCsamTestApp(overrides: Partial<AppConfig> = {}) {
   return buildServer({
     ...app.config,
     PHOTODNA_ENABLED: true,
+    PHOTODNA_NO_AI_TRAINING_VERIFIED: true,
     PHOTODNA_API_URL: "https://photodna.example.test",
     PHOTODNA_OPERATION_PATH: "/match",
     PHOTODNA_SUBSCRIPTION_KEY: "photo-dna-key",
@@ -3148,24 +3149,12 @@ describe("server", () => {
     const sessionToken = "test-session-token";
     const passwordHash = await hashPassword("current-password");
 
-    query
-      .mockResolvedValueOnce({
-        rows: [{
-          user_id: userId,
-          account_status: "active"
-        }]
-      })
-      .mockResolvedValueOnce({
-        rows: [{
-          id: userId,
-          password_hash: passwordHash
-        }]
-      })
-      .mockResolvedValueOnce({ rows: [] })
-      .mockResolvedValueOnce({ rows: [] })
-      .mockResolvedValueOnce({ rows: [] })
-      .mockResolvedValueOnce({ rows: [{ id: userId }] })
-      .mockResolvedValueOnce({ rows: [] });
+    query.mockImplementation(async (sql: string) => {
+      if (sql.includes("from app_sessions s")) return { rows: [{ user_id: userId, account_status: "active" }] };
+      if (sql.includes("select id, password_hash")) return { rows: [{ id: userId, password_hash: passwordHash }] };
+      if (sql.trim().startsWith("delete from app_users")) return { rows: [{ id: userId }] };
+      return { rows: [] };
+    });
 
     const response = await app.inject({
       method: "DELETE",
@@ -3183,11 +3172,11 @@ describe("server", () => {
     expect(query.mock.calls[0]?.[0]).toContain("from app_sessions s");
     expect(query.mock.calls[0]?.[1]).toEqual([hashSessionToken(sessionToken)]);
     expect(query.mock.calls[2]?.[0]).toBe("begin");
-    expect(query.mock.calls[3]?.[0]).toContain("insert into account_deletion_media_cleanup");
-    expect(query.mock.calls[3]?.[0]).toContain("media_variants");
-    expect(query.mock.calls[4]?.[0]).toContain("delete from app_sessions");
-    expect(query.mock.calls[5]?.[0]).toContain("delete from app_users");
-    expect(query.mock.calls[6]?.[0]).toBe("commit");
+    expect(query.mock.calls.some(([sql]) => String(sql).includes("insert into account_deletion_media_cleanup"))).toBe(true);
+    expect(query.mock.calls.some(([sql]) => String(sql).includes("media_variants"))).toBe(true);
+    expect(query.mock.calls.some(([sql]) => String(sql).includes("delete from app_sessions"))).toBe(true);
+    expect(query.mock.calls.some(([sql]) => String(sql).includes("delete from app_users"))).toBe(true);
+    expect(query.mock.calls.some(([sql]) => sql === "commit")).toBe(true);
     expect(response.headers["set-cookie"]).toContain("cruush_session=");
     expect(response.headers["set-cookie"]).toContain("Max-Age=0");
   });
@@ -3208,24 +3197,12 @@ describe("server", () => {
 
   it("lets a banned account delete itself when an owned media object cannot be cleaned up", async () => {
     const passwordHash = await hashPassword("current-password");
-    query
-      .mockResolvedValueOnce({
-        rows: [{
-          user_id: userId,
-          account_status: "banned"
-        }]
-      })
-      .mockResolvedValueOnce({
-        rows: [{
-          id: userId,
-          password_hash: passwordHash
-        }]
-      })
-      .mockResolvedValueOnce({ rows: [] })
-      .mockResolvedValueOnce({ rows: [] })
-      .mockResolvedValueOnce({ rows: [] })
-      .mockResolvedValueOnce({ rows: [{ id: userId }] })
-      .mockResolvedValueOnce({ rows: [] });
+    query.mockImplementation(async (sql: string) => {
+      if (sql.includes("from app_sessions s")) return { rows: [{ user_id: userId, account_status: "banned" }] };
+      if (sql.includes("select id, password_hash")) return { rows: [{ id: userId, password_hash: passwordHash }] };
+      if (sql.trim().startsWith("delete from app_users")) return { rows: [{ id: userId }] };
+      return { rows: [] };
+    });
 
     const response = await app.inject({
       method: "DELETE",
@@ -3240,8 +3217,8 @@ describe("server", () => {
     });
 
     expect(response.statusCode).toBe(204);
-    expect(query.mock.calls[3]?.[0]).toContain("insert into account_deletion_media_cleanup");
-    expect(query.mock.calls[5]?.[0]).toContain("delete from app_users");
+    expect(query.mock.calls.some(([sql]) => String(sql).includes("insert into account_deletion_media_cleanup"))).toBe(true);
+    expect(query.mock.calls.some(([sql]) => String(sql).includes("delete from app_users"))).toBe(true);
   });
 
   it("completes the account deletion flow for a suspended account", async () => {
@@ -3403,10 +3380,10 @@ describe("server", () => {
 
     expect(response.statusCode).toBe(404);
     expect(query.mock.calls[2]?.[0]).toBe("begin");
-    expect(query.mock.calls[3]?.[0]).toContain("insert into account_deletion_media_cleanup");
-    expect(query.mock.calls[4]?.[0]).toContain("delete from app_sessions");
-    expect(query.mock.calls[5]?.[0]).toContain("delete from app_users");
-    expect(query.mock.calls[6]?.[0]).toBe("rollback");
+    expect(query.mock.calls.some(([sql]) => String(sql).includes("insert into account_deletion_media_cleanup"))).toBe(true);
+    expect(query.mock.calls.some(([sql]) => String(sql).includes("delete from app_sessions"))).toBe(true);
+    expect(query.mock.calls.some(([sql]) => String(sql).includes("delete from app_users"))).toBe(true);
+    expect(query.mock.calls.some(([sql]) => sql === "rollback")).toBe(true);
   });
 
   it("revokes the current session when the account is deleted", async () => {
@@ -3477,6 +3454,7 @@ describe("server", () => {
       .mockResolvedValueOnce({
         rows: []
       })
+      .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({
         rows: [{
           id: postId
@@ -3494,7 +3472,9 @@ describe("server", () => {
     expect(response.statusCode).toBe(204);
     expect(query.mock.calls[0]?.[0]).toContain("from app_sessions s");
     expect(query.mock.calls[0]?.[1]).toEqual([hashSessionToken("active-session-token")]);
-    expect(query.mock.calls[2]?.[0]).toContain("delete from posts");
+    expect(query.mock.calls[2]?.[0]).toContain("from feed_post_attachments");
+    expect(query.mock.calls[2]?.[1]).toEqual([userId, postId]);
+    expect(query.mock.calls[3]?.[0]).toContain("delete from posts");
   });
 
   it("revokes suspended cookie-backed sessions on routes using the shared auth helper", async () => {
@@ -7682,7 +7662,9 @@ describe("server", () => {
       .mockResolvedValueOnce({ rows: [{ role: "moderator" }] })
       .mockResolvedValueOnce({ rows: [{ id: recipientOne }, { id: recipientTwo }] })
       .mockResolvedValueOnce({ rows: [notificationRow(recipientOne, "notification-1")] })
+      .mockResolvedValueOnce({ rows: [{ id: "notification-1" }] })
       .mockResolvedValueOnce({ rows: [notificationRow(recipientTwo, "notification-2")] })
+      .mockResolvedValueOnce({ rows: [{ id: "notification-2" }] })
       .mockResolvedValueOnce({ rows: [] });
 
     const response = await app.inject({
@@ -7699,7 +7681,10 @@ describe("server", () => {
     expect(response.statusCode).toBe(200);
     expect(query.mock.calls[1]?.[0]).toContain("email_verified_at is not null");
     expect(response.json().data).toEqual({ recipients: 2, notificationsCreated: 2, pushesAttempted: 2 });
-    expect(query.mock.calls[4]?.[0]).toContain("insert into moderation_access_events");
+    expect(query.mock.calls[3]?.[0]).toContain("account_status = 'deleted'");
+    expect(query.mock.calls[3]?.[1]).toEqual(["notification-1", recipientOne]);
+    expect(query.mock.calls[5]?.[1]).toEqual(["notification-2", recipientTwo]);
+    expect(query.mock.calls[6]?.[0]).toContain("insert into moderation_access_events");
   });
 
   it.each([
@@ -9226,7 +9211,8 @@ describe("server", () => {
     );
     const outageApp = buildServer({
       ...app.config,
-      PROFILE_PHOTO_REKOGNITION_ENABLED: true
+      PROFILE_PHOTO_REKOGNITION_ENABLED: true,
+      REKOGNITION_NO_AI_TRAINING_VERIFIED: true
     }, {
       db: { query, end },
       rateLimiter
@@ -9278,7 +9264,8 @@ describe("server", () => {
     );
     const outageApp = buildServer({
       ...app.config,
-      PROFILE_PHOTO_REKOGNITION_ENABLED: true
+      PROFILE_PHOTO_REKOGNITION_ENABLED: true,
+      REKOGNITION_NO_AI_TRAINING_VERIFIED: true
     }, {
       db: { query, end },
       rateLimiter
@@ -17119,6 +17106,57 @@ describe("server", () => {
       expect(JSON.parse(String(targets?.[1]?.[1]))[0].crowd).toBe("Gay");
       expect(query.mock.calls.some(([sql]) => sql.includes("for share of author_crowd_token"))).toBe(true);
     } else expect(targets).toBeUndefined();
+  });
+
+  it.each([
+    { audience: "omitted", choice: {}, expectedVisibility: "public", expectedVisible: true },
+    { audience: "legacy hidden", choice: { visible: false }, expectedVisibility: "hidden", expectedVisible: false },
+    { audience: "explicit hidden", choice: { visibility: "hidden" }, expectedVisibility: "hidden", expectedVisible: false },
+    { audience: "checked-in members", choice: { visibility: "checked_in" }, expectedVisibility: "checked_in", expectedVisible: true },
+    { audience: "explicit public over legacy hidden", choice: { visibility: "public", visible: false }, expectedVisibility: "public", expectedVisible: true }
+  ])("defaults new Spot check-ins to public while preserving $audience", async ({ choice, expectedVisibility, expectedVisible }) => {
+    const placeId = "10000000-0000-4000-8000-000000000001";
+    query.mockImplementation(async (sql: string) => {
+      if (sql.includes("from places where id")) return { rows: [{ id: placeId, name: "Existing Spot", latitude: 40.7, longitude: -74 }] };
+      if (sql.includes("insert into place_checkin_events")) return { rows: [{ place_id: placeId }], rowCount: 1 };
+      if (sql.includes("insert into place_checkins")) return { rows: [{ expires_at: new Date(Date.now() + 3600000) }] };
+      return { rows: [] };
+    });
+    const response = await app.inject({
+      method: "POST",
+      url: `/api/places/${placeId}/check-ins`,
+      headers: { "x-user-id": userId },
+      payload: { ...choice, durationHours: 1, latitude: 40.7, longitude: -74, accuracyMeters: 10, observedAt: new Date().toISOString() }
+    });
+
+    expect(response.statusCode, response.body).toBe(201);
+    expect(response.json().data).toMatchObject({ visibility: expectedVisibility, visible: expectedVisible });
+    const checkin = query.mock.calls.find(([sql]) => sql.includes("insert into place_checkins"));
+    expect(checkin?.[1]?.slice(2, 4)).toEqual([expectedVisible, expectedVisibility]);
+    // Existing legacy modes govern presence only; the generated Feed post is public.
+    const feed = query.mock.calls.find(([sql]) => sql.includes("insert into posts"));
+    expect(feed?.[1]?.[15]).toBe("public");
+  });
+
+  it.each([
+    { reason: "stale location", latitude: 40.7, ageMs: 3 * 60 * 1000, expectedCode: "STALE_LOCATION", expectedStatus: 400 },
+    { reason: "distant location", latitude: 41.7, ageMs: 0, expectedCode: "CHECKIN_TOO_FAR", expectedStatus: 403 }
+  ])("keeps $reason eligibility for public-default Spot check-ins", async ({ latitude, ageMs, expectedCode, expectedStatus }) => {
+    const placeId = "10000000-0000-4000-8000-000000000001";
+    query.mockImplementation(async (sql: string) => {
+      if (sql.includes("from places where id")) return { rows: [{ id: placeId, name: "Existing Spot", latitude: 40.7, longitude: -74 }] };
+      return { rows: [] };
+    });
+    const response = await app.inject({
+      method: "POST",
+      url: `/api/places/${placeId}/check-ins`,
+      headers: { "x-user-id": userId },
+      payload: { durationHours: 1, latitude, longitude: -74, accuracyMeters: 10, observedAt: new Date(Date.now() - ageMs).toISOString() }
+    });
+
+    expect(response.statusCode, response.body).toBe(expectedStatus);
+    expect(response.json().error.code).toBe(expectedCode);
+    expect(query.mock.calls.some(([sql]) => sql.includes("insert into place_checkins") || sql.includes("insert into posts"))).toBe(false);
   });
 
   it("stores new Spot board text only as encrypted content", async () => {

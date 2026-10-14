@@ -22,6 +22,7 @@ describe.skipIf(!databaseUrl)('Bitcoin settlement in PostgreSQL', () => {
   });
   afterAll(async () => {
     if (!db) return;
+    await db.query('delete from crypto_payment_intents where user_id = any($1::uuid[])', [users]);
     await db.query('delete from app_users where id = any($1::uuid[])', [users]);
     await db.end();
   });

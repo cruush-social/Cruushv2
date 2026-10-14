@@ -57,6 +57,10 @@ For backend or infrastructure work, consult `docs/master-architecture.md` and
 the applicable source. Current explicit user instructions override older decisions.
 
 ## Mistakes
+- 2026-10-13: Asked Julien to prove provider opt-outs again after he had confirmed them and prior assisted opt-out history existed; accepted his verification, recovered the prior session, and preserved approved provider operation.
+- 2026-10-13: Assumed the check-in accordion request included Spot vibes and Amenities; restored both content accordions after Julien clarified to keep them and defer design work.
+- 2026-10-13: An extra argument separator caused a delegated check-in test command to collect the full suite; reran Vitest directly with the focused paths and test names.
+- 2026-10-13: Printed a local seeded QA password while reading fixture source; switched credential reads to private script variables and limited output to counts and results.
 - 2026-10-13: Used the old preview directory for a combined-tree launcher lookup and assumed a tsx binary; corrected the paths and used the existing Node launcher.
 - 2026-10-13: Saved baseline test snapshots with runnable extensions, so focused Vitest runs collected the copies; preserved snapshots as text and reran only the actual source suites.
 - 2026-10-13: Left the requested checkout guide, delayed-payment help and gas-warning emails undeployed; published the guide and help, activated owner-only alerts, and verified production checkout and email-provider records.

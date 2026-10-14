@@ -581,9 +581,13 @@ export async function registerPlaceRoutes(app: FastifyInstance) {
       const supporterToken = placeSuggestionSupporterToken(app.config, duplicate.id, userId);
       const support = await runTransaction(app.db, async (db) => {
         const inserted = await db.query(
-          `insert into place_suggestions (place_id, supporter_token) values ($1, $2)
+          `with account_owner as materialized (
+             select id from app_users where id = $3::uuid for key share
+           )
+           insert into place_suggestions (place_id, supporter_token)
+           select $1, $2 where exists (select 1 from account_owner)
            on conflict do nothing returning place_id`,
-          [duplicate.id, supporterToken]
+          [duplicate.id, supporterToken, userId]
         );
         return (await db.query<{ suggestion_count: number; auto_shortlisted_at: string | Date | null }>(
           `update places set
@@ -612,17 +616,22 @@ export async function registerPlaceRoutes(app: FastifyInstance) {
     const encrypted = encryptPlaceSuggestion(app.config, payload);
     await runTransaction(app.db, async (db) => {
       await db.query(
-        `insert into places (
+        `with account_owner as materialized (
+           select id from app_users where id = $7::uuid for key share
+         )
+         insert into places (
            id, slug, name, description, latitude, longitude, address, facility_type,
            status, source_kind, source_url, submitted_by, suggestion_ciphertext,
            suggestion_nonce, suggestion_auth_tag, suggestion_key_version
-         ) values (
+         ) select
            $1, $2, '[encrypted suggestion]', '', 0, 0, null, 'other',
            'pending', 'community', null, null, $3, $4, $5, $6
-         )`,
-        [id, `suggestion-${id}`, encrypted.ciphertext, encrypted.nonce, encrypted.authTag, encrypted.keyVersion]
+         where exists (select 1 from account_owner)`,
+        [id, `suggestion-${id}`, encrypted.ciphertext, encrypted.nonce, encrypted.authTag, encrypted.keyVersion, userId]
       );
-      await db.query(`insert into place_suggestions (place_id, supporter_token) values ($1, $2)`, [id, supporterToken]);
+      await db.query(`with account_owner as materialized (select id from app_users where id = $3::uuid for key share)
+        insert into place_suggestions (place_id, supporter_token)
+        select $1, $2 where exists (select 1 from account_owner)`, [id, supporterToken, userId]);
     });
     return reply.code(201).send({ data: { id, status: "pending", suggestionCount: 1, autoShortlisted: false } });
   });
@@ -1034,17 +1043,20 @@ export async function registerPlaceRoutes(app: FastifyInstance) {
         const supporterToken = placeSuggestionSupporterToken(app.config, `details:${placeId}`, userId);
         const encrypted = encryptPlaceSuggestion(app.config, { accessInstructions });
         await db.query(
-          `insert into place_detail_suggestions (
+          `with account_owner as materialized (
+             select id from app_users where id = $7::uuid for key share
+           )
+           insert into place_detail_suggestions (
              place_id, supporter_token, suggestion_ciphertext, suggestion_nonce,
              suggestion_auth_tag, suggestion_key_version, updated_at
-           ) values ($1, $2, $3, $4, $5, $6, now())
+           ) select $1, $2, $3, $4, $5, $6, now() where exists (select 1 from account_owner)
            on conflict (place_id, supporter_token) do update set
              suggestion_ciphertext = excluded.suggestion_ciphertext,
              suggestion_nonce = excluded.suggestion_nonce,
              suggestion_auth_tag = excluded.suggestion_auth_tag,
              suggestion_key_version = excluded.suggestion_key_version,
              status = 'pending', updated_at = now()`,
-          [placeId, supporterToken, encrypted.ciphertext, encrypted.nonce, encrypted.authTag, encrypted.keyVersion]
+          [placeId, supporterToken, encrypted.ciphertext, encrypted.nonce, encrypted.authTag, encrypted.keyVersion, userId]
         );
       }
     });

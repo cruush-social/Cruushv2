@@ -24,6 +24,7 @@ describe("moderation media capability route", () => {
       DATABASE_URL: "postgres://unused",
       CORS_ORIGIN: "https://staging.cruush.app",
       SESSION_SECRET: "test-moderation-route-secret",
+      STREAM_NO_AI_TRAINING_VERIFIED: true,
       APP_URL: "https://staging.cruush.app",
       MEDIA_STORAGE_DIR: mediaDir,
       MEDIA_OBJECT_STORAGE_DRIVER: "local",
@@ -87,6 +88,19 @@ describe("moderation media capability route", () => {
     expect(replay.statusCode).toBe(404);
     expect(query.mock.calls.filter(([sql]) => String(sql).includes("redeemed_at = now()"))).toHaveLength(2);
   }, 15_000);
+
+  it("refuses an existing provider capability before redemption when no-training approval is absent", async () => {
+    const query = vi.fn().mockResolvedValue({ rows: [{ object_key: "existing-private-object" }] });
+    const app = buildServer({ NODE_ENV: "test", DATABASE_URL: "postgres://unused", CORS_ORIGIN: "https://cruush.test",
+      SESSION_SECRET: "fixture-secret", APP_URL: "https://cruush.test" } as AppConfig,
+      { db: { query, end: vi.fn() } as unknown as DbClient });
+    try {
+      for (const method of ["GET", "HEAD"] as const) {
+        expect((await app.inject({ method, url: `/api/moderation-media/${"A".repeat(43)}` })).statusCode).toBe(404);
+      }
+      expect(query).not.toHaveBeenCalled();
+    } finally { await app.close(); }
+  });
 
   it("returns 404 for an invalid, expired, revoked, or unknown token", async () => {
     const config = {

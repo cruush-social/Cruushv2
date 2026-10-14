@@ -33,6 +33,9 @@ export async function registerModerationMediaRoutes(app: FastifyInstance) {
     logLevel: "silent",
     async handler(request, reply) {
       applyCapabilityHeaders(reply);
+      if (app.config.STREAM_NO_AI_TRAINING_VERIFIED !== true) {
+        throw unavailable();
+      }
       const token = (request.params as { token?: unknown }).token;
 
       if (typeof token !== "string" || !tokenPattern.test(token)) {

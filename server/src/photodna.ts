@@ -63,6 +63,9 @@ export async function checkPhotoDna(config: AppConfig, imageBytes: Buffer): Prom
       status: "not_configured"
     };
   }
+  if (config.PHOTODNA_NO_AI_TRAINING_VERIFIED !== true) {
+    throw new Error("PhotoDNA no-AI-training terms have not been verified.");
+  }
 
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), config.PHOTODNA_TIMEOUT_MS ?? 5000);

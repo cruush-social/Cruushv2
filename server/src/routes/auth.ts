@@ -42,6 +42,10 @@ import {
   verifyEmailPayloadSchema
 } from "../auth-schema.js";
 import { runTransaction } from "../db.js";
+import { cleanupOwnedAccountDeletionMedia } from "../account-deletion-media-cleanup.js";
+import { deleteAccountPrivateData } from "../account-deletion-private-data.js";
+import { deleteAccountSupportData } from "../account-deletion-support.js";
+import { cleanupResendContactDeletions, queueResendContactDeletion } from "../resend-contact-deletion.js";
 import { verifyClientSecurityCheck } from "../client-security-check.js";
 import { ensureDevelopmentAdminUser, isDevelopmentAdminLogin } from "../development-admin.js";
 import { verifyTurnstileToken } from "../turnstile.js";
@@ -1213,6 +1217,7 @@ export async function registerAuthRoutes(app: FastifyInstance) {
     await app.db.query("delete from password_reset_tokens where user_id = $1", [changeRequest.user_id]);
 
     void syncVerifiedMemberToResendAudience({
+      db: app.db,
       config: request.server.config,
       email: updated.rows[0].email,
       logger: request.log
@@ -1253,10 +1258,24 @@ export async function registerAuthRoutes(app: FastifyInstance) {
       throw new ApiError(401, "AUTH_REQUIRED", "Password is incorrect.");
     }
 
+    let ownedObjectKeys: string[] = [];
+    let resendDeletionId: string | null = null;
     for (let attempt = 1; attempt <= ACCOUNT_DELETION_TRANSACTION_ATTEMPTS; attempt += 1) {
       try {
-        await runTransaction(app.db, async (db) => {
-          await db.query(
+        const deletion = await runTransaction(app.db, async (db) => {
+          // Serialize FK-backed media publication before taking the cleanup
+          // snapshot, so a committed upload cannot cascade without its key.
+          const lockedAccount = await db.query<{ email: string; email_verified_at: string | Date | null }>(
+            "select id, email, email_verified_at from app_users where id = $1 for update", [session.userId]
+          );
+          // An unverified alias or support address is not proof of ownership.
+          const verifiedEmail = lockedAccount.rows[0]?.email_verified_at ? lockedAccount.rows[0].email : null;
+          const accountEmails = verifiedEmail ? [verifiedEmail] : [];
+          const resendId = verifiedEmail ? await queueResendContactDeletion({
+            db, config: app.config, userId: session.userId, email: verifiedEmail
+          }) : null;
+          const supportObjectKeys = await deleteAccountSupportData(db, session.userId);
+          const cleanupKeys = await db.query<{ object_key: string }>(
             `insert into account_deletion_media_cleanup (object_key)
              select object_key
              from media_objects
@@ -1266,7 +1285,8 @@ export async function registerAuthRoutes(app: FastifyInstance) {
              from media_variants variants
              join media_objects media on media.id = variants.media_object_id
              where media.owner_user_id = $1
-             on conflict (object_key) do nothing`,
+             on conflict (object_key) do update set next_attempt_at = now()
+             returning object_key`,
             [session.userId]
           );
 
@@ -1274,6 +1294,9 @@ export async function registerAuthRoutes(app: FastifyInstance) {
             "delete from app_sessions where user_id = $1",
             [session.userId]
           );
+          // Delete actor snapshots before SET NULL loses their account link.
+          await db.query("delete from app_notifications where actor_user_id = $1", [session.userId]);
+          await db.query("delete from rate_limit_buckets where position($1 in bucket_key) > 0", [session.userId]);
 
           const deletedUser = await db.query<{ id: string }>(
             `delete from app_users
@@ -1285,7 +1308,11 @@ export async function registerAuthRoutes(app: FastifyInstance) {
           if (!deletedUser.rows[0]) {
             throw new ApiError(404, "NOT_FOUND", "Account not found.");
           }
+          await deleteAccountPrivateData(db, app.config, session.userId, accountEmails);
+          return { objectKeys: [...new Set([...supportObjectKeys, ...cleanupKeys.rows.map(row => row.object_key)])], resendId };
         });
+        ownedObjectKeys = deletion.objectKeys;
+        resendDeletionId = deletion.resendId;
         break;
       } catch (error) {
         if (!isPostgresDeadlock(error) || attempt === ACCOUNT_DELETION_TRANSACTION_ATTEMPTS) {
@@ -1296,6 +1323,15 @@ export async function registerAuthRoutes(app: FastifyInstance) {
     }
 
     clearSessionCookie(reply, request);
+
+    const mediaCleanup = await cleanupOwnedAccountDeletionMedia(app.db, app.config, ownedObjectKeys);
+    if (!mediaCleanup || mediaCleanup.failed > 0) {
+      app.log.warn({ pendingObjects: ownedObjectKeys.length }, "account media deletion remains queued for retry");
+    }
+    if (resendDeletionId) {
+      await cleanupResendContactDeletions({ db: app.db, config: app.config, log: app.log }, { ids: [resendDeletionId], timeoutMs: 3_000 })
+        .catch(() => app.log.warn({ pending: 1 }, "contact deletion remains queued for retry"));
+    }
 
     return reply.code(204).send();
   });
@@ -1559,7 +1595,7 @@ export async function registerAuthRoutes(app: FastifyInstance) {
       [verificationToken.user_id]
     );
 
-    void syncVerifiedMemberToResendAudience({ config: request.server.config, email: updatedUser.rows[0].email, logger: request.log });
+    void syncVerifiedMemberToResendAudience({ db: app.db, config: request.server.config, email: updatedUser.rows[0].email, logger: request.log });
 
     return reply.send({
       data: {

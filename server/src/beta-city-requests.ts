@@ -51,11 +51,13 @@ function decryptValue(config: AppConfig, purpose: string, encrypted: EncryptedVa
   ]).toString("utf8");
 }
 
-function hashValue(config: AppConfig, purpose: string, plaintext: string) {
+export function betaCityRequestHash(config: AppConfig, purpose: string, plaintext: string) {
   return createHmac("sha256", deriveKey(config.SESSION_SECRET, `beta-city-request-${purpose}-hash`, valueKeyVersion()))
     .update(normalizeForHash(plaintext))
     .digest("hex");
 }
+
+const hashValue = betaCityRequestHash;
 
 export async function saveBetaCityRequest(
   app: Pick<FastifyInstance, "config" | "db">,

@@ -40,11 +40,13 @@ const { toastSuccess, toastError } = vi.hoisted(() => ({
 
 const {
   clearCurrentUser,
+  clearDeletedAccountUser,
   getStoredCurrentUser,
   getVerificationPreviewUrl,
   setVerificationPreviewUrl,
 } = vi.hoisted(() => ({
   clearCurrentUser: vi.fn(),
+  clearDeletedAccountUser: vi.fn(),
   getStoredCurrentUser: vi.fn(),
   getVerificationPreviewUrl: vi.fn(),
   setVerificationPreviewUrl: vi.fn(),
@@ -91,6 +93,7 @@ vi.mock('../lib/blockApi', () => ({
 
 vi.mock('../lib/sessionUser', () => ({
   clearCurrentUser,
+  clearDeletedAccountUser,
   getStoredCurrentUser,
   getVerificationPreviewUrl,
   setVerificationPreviewUrl,
@@ -117,11 +120,13 @@ describe('Settings', () => {
     toastSuccess.mockReset();
     toastError.mockReset();
     clearCurrentUser.mockReset();
+    clearDeletedAccountUser.mockReset();
     getStoredCurrentUser.mockReset();
     getVerificationPreviewUrl.mockReset();
     setVerificationPreviewUrl.mockReset();
 
     getStoredCurrentUser.mockReturnValue({
+      id: 'settings-user',
       display_name: 'Jordan',
       email_verified_at: '2026-04-29T12:00:00.000Z',
     });
@@ -529,7 +534,22 @@ describe('Settings', () => {
       password: 'current-password',
       confirmation: 'DELETE',
     }));
-    expect(clearCurrentUser).toHaveBeenCalled();
+    expect(clearDeletedAccountUser).toHaveBeenCalledWith('settings-user');
+    expect(clearCurrentUser).not.toHaveBeenCalled();
+  });
+
+  it('keeps local account data when account deletion is rejected', async () => {
+    deleteAccount.mockRejectedValue(new Error('Incorrect password.'));
+    render(<MemoryRouter><Settings /></MemoryRouter>);
+    fireEvent.click(await screen.findByRole('button', { name: 'Delete account' }));
+    fireEvent.change(screen.getByLabelText('Password'), { target: { value: 'wrong-password' } });
+    fireEvent.change(screen.getByLabelText('Type DELETE'), { target: { value: 'DELETE' } });
+    const buttons = screen.getAllByRole('button', { name: 'Delete account' });
+    fireEvent.click(buttons[buttons.length - 1]);
+
+    expect(await screen.findByText('Incorrect password.')).toBeInTheDocument();
+    expect(clearDeletedAccountUser).not.toHaveBeenCalled();
+    expect(clearCurrentUser).not.toHaveBeenCalled();
   });
 
   it('keeps account-deletion actions inside the changing iPhone visual viewport', async () => {

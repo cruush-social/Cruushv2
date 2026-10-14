@@ -16,7 +16,12 @@ describe('content visibility revision', () => {
       expect(response.statusCode).toBe(200);
       expect(response.json()).toEqual({ data: { revision: 'opaque-ban-revision' } });
       expect(response.headers['cache-control']).toBe('private, no-store');
-      expect(query.mock.calls[0][0]).toContain("account_status = 'banned'");
+      // A successful deletion removes the account row, so the count must include
+      // active accounts as well as retained moderation/deletion rows.
+      expect(query.mock.calls[0][0]).toContain("count(*)");
+      expect(query.mock.calls[0][0]).toContain("max(account_status_updated_at)");
+      expect(query.mock.calls[0][0]).toContain("max(created_at)");
+      expect(query.mock.calls[0][0]).not.toContain("where account_status");
     } finally { await app.close(); }
   });
   it('rejects unauthenticated requests before reading moderation state', async () => {

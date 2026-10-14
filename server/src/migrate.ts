@@ -249,7 +249,11 @@ const migrationFiles = [
   "223_place_checkin_audiences.sql",
   "224_feed_window_default_thirty_days.sql",
   "225_profile_last_seen.sql",
-  "226_crypto_gas_alerts.sql"
+  "226_crypto_gas_alerts.sql",
+  "227_account_deletion_payment_history.sql",
+  "228_account_deletion_reward_privacy.sql",
+  "229_privacy_audit_index_versions.sql",
+  "230_resend_contact_deletion_outbox.sql"
 ];
 const rewardSafetyPreflightFiles = [
   "079_daily_check_in_rewards.sql",

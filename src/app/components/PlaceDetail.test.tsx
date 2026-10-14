@@ -295,7 +295,7 @@ describe('PlaceDetail request isolation', () => {
     expect(screen.queryByText('Late Spot A post')).not.toBeInTheDocument();
   });
 
-  it('keeps Hidden default and offers only eligible crowd choices to cruush+ members', async () => {
+  it('starts Public and offers only eligible crowd choices to cruush+ members', async () => {
     getMyBillingStatus.mockResolvedValue({ cruushPlus: true });
     getMyProfile.mockResolvedValue({ crowds: ['Gay', 'T4T'], is_trans: false });
     getPlace.mockResolvedValue(makePlace('spot-a', 'Spot A'));
@@ -303,7 +303,7 @@ describe('PlaceDetail request isolation', () => {
     checkIntoPlace.mockResolvedValue({});
     render(placeDetail('spot-a'));
     const picker = await screen.findByRole('button', { name: 'Check-in visibility' });
-    expect(screen.getByText('Hidden', { exact: true })).toBeVisible();
+    expect(screen.getByText('Public', { exact: true })).toBeVisible();
     fireEvent.click(picker);
     expect(await screen.findByRole('option', { name: 'Gay', exact: true })).toBeVisible();
     expect(screen.queryByRole('option', { name: 'T4T', exact: true })).not.toBeInTheDocument();
@@ -316,14 +316,65 @@ describe('PlaceDetail request isolation', () => {
     await waitFor(() => expect(checkIntoPlace).toHaveBeenCalledWith('spot-a', expect.objectContaining({ visibility: 'crowd', crowdTargets: ['Gay'] })));
   });
 
-  it('offers public, checked-in-only, and hidden check-in visibility', async () => {
+  it('posts a new check-in publicly without changing the visibility selector', async () => {
+    getPlace.mockResolvedValue(makePlace('spot-a', 'Spot A'));
+    getPlaceBoard.mockResolvedValue([]);
+    checkIntoPlace.mockResolvedValue({});
+    render(placeDetail('spot-a'));
+    const post = await screen.findByRole('textbox', { name: 'Pink Book post for check-in' });
+    expect(within(screen.getByRole('button', { name: 'Check-in visibility' }).closest('fieldset')!).getByText('Public', { exact: true })).toBeVisible();
+    fireEvent.change(post, { target: { value: 'Here with a Pink Book post' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Spot vibes', exact: true }));
+    fireEvent.click(screen.getByRole('button', { name: 'Chill' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Check in', exact: true }));
+    expect(getCurrentPosition).toHaveBeenCalledTimes(1);
+    act(() => locationSuccess?.({
+      coords: { latitude: 40.7, longitude: -74, accuracy: 10 }, timestamp: Date.now(),
+    } as GeolocationPosition));
+
+    await waitFor(() => expect(checkIntoPlace).toHaveBeenCalledWith('spot-a', expect.objectContaining({
+      content: 'Here with a Pink Book post', visible: true, visibility: 'public', vibes: ['chill'],
+    })));
+  });
+
+  it('resets the next Spot to Public after choosing Hidden for the previous Spot', async () => {
+    getPlace.mockImplementation((placeId: string) => Promise.resolve(
+      placeId === 'spot-a' ? makePlace('spot-a', 'Spot A') : makePlace('spot-b', 'Spot B'),
+    ));
+    getPlaceBoard.mockResolvedValue([]);
+    checkIntoPlace.mockResolvedValue({});
+    const view = render(placeDetail('spot-a'));
+    fireEvent.click(await screen.findByRole('button', { name: 'Check-in visibility' }));
+    fireEvent.click(screen.getByRole('option', { name: 'Hidden' }));
+    expect(within(screen.getByRole('button', { name: 'Check-in visibility' }).closest('fieldset')!).getByText('Hidden', { exact: true })).toBeVisible();
+
+    view.rerender(placeDetail('spot-b'));
+    await screen.findByRole('heading', { name: 'Spot B' });
+    expect(within(screen.getByRole('button', { name: 'Check-in visibility' }).closest('fieldset')!).getByText('Public', { exact: true })).toBeVisible();
+    fireEvent.click(screen.getByRole('button', { name: 'Spot vibes', exact: true }));
+    fireEvent.click(screen.getByRole('button', { name: 'Chill' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Check in', exact: true }));
+    act(() => locationSuccess?.({
+      coords: { latitude: 40.7, longitude: -74, accuracy: 10 }, timestamp: Date.now(),
+    } as GeolocationPosition));
+
+    await waitFor(() => expect(checkIntoPlace).toHaveBeenCalledWith('spot-b', expect.objectContaining({
+      visible: true, visibility: 'public',
+    })));
+    expect(checkIntoPlace).toHaveBeenCalledTimes(1);
+  });
+
+  it.each([
+    ['Only people checked in', 'checked_in', true],
+    ['Hidden', 'hidden', false],
+  ] as const)('preserves explicit %s visibility instead of the public default', async (label, visibility, visible) => {
     getPlace.mockResolvedValue(makePlace('spot-a', 'Spot A'));
     getPlaceBoard.mockResolvedValue([]);
     checkIntoPlace.mockResolvedValue({
       placeId: 'spot-a',
       boardPostId: null,
-      visible: true,
-      visibility: 'checked_in',
+      visible,
+      visibility,
       expiresAt: '2026-08-31T19:00:00.000Z',
     });
 
@@ -332,7 +383,10 @@ describe('PlaceDetail request isolation', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Spot vibes', exact: true }));
     fireEvent.click(screen.getByRole('button', { name: 'Chill' }));
     fireEvent.click(screen.getByRole('button', { name: 'Check-in visibility' }));
-    fireEvent.click(screen.getByRole('option', { name: 'Only people checked in' }));
+    expect(screen.getByRole('option', { name: 'Public' })).toBeVisible();
+    expect(screen.getByRole('option', { name: 'Only people checked in' })).toBeVisible();
+    expect(screen.getByRole('option', { name: 'Hidden' })).toBeVisible();
+    fireEvent.click(screen.getByRole('option', { name: label }));
     fireEvent.click(screen.getByRole('button', { name: 'Check in', exact: true }));
 
     act(() => {
@@ -351,8 +405,8 @@ describe('PlaceDetail request isolation', () => {
     });
 
     await waitFor(() => expect(checkIntoPlace).toHaveBeenCalledWith('spot-a', expect.objectContaining({
-      visible: true,
-      visibility: 'checked_in',
+      visible,
+      visibility,
     })));
   });
 

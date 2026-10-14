@@ -64,10 +64,13 @@ export async function runClubEnrollmentBackfill(context: Context, options: Optio
       const conversationId = conversationByClub.get(row.club_id);
       if (conversationId) {
         await db.query(
-          `insert into conversation_members (conversation_id, user_id, member_index, role)
-           values ($1, null, $2, 'member')
+          `with existing_account as (
+             select id from app_users where id = $3::uuid for key share
+           )
+           insert into conversation_members (conversation_id, user_id, member_index, role)
+           select $1, null, $2, 'member' from existing_account
            on conflict (conversation_id, member_index) where member_index is not null do nothing`,
-          [conversationId, createClubEnrollmentUserIndex(context.config, row.user_id)]
+          [conversationId, createClubEnrollmentUserIndex(context.config, row.user_id), row.user_id]
         );
       }
     }

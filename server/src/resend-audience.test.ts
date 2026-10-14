@@ -73,6 +73,7 @@ describe("verified Resend audience reconciliation", () => {
     const outcome = await settle(syncVerifiedMemberToResendAudience({
       config: { APP_DEPLOYMENT_STAGE: "production", RESEND_API_KEY: "key", RESEND_CRUUSH_APP_AUDIENCE_ID: "audience" },
       email: "first@example.com",
+      db: { query: vi.fn().mockResolvedValue({ rows: [{ id: "verified-member" }] }) },
       logger,
     }));
 
@@ -108,6 +109,7 @@ describe("verified Resend audience reconciliation", () => {
     const outcome = await settle(syncVerifiedMemberToResendAudience({
       config: { APP_DEPLOYMENT_STAGE: "production", RESEND_API_KEY: "key", RESEND_CRUUSH_APP_AUDIENCE_ID: "audience" },
       email: "private@example.com",
+      db: { query: vi.fn().mockResolvedValue({ rows: [{ id: "verified-member" }] }) },
       logger,
     }));
 

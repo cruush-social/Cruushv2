@@ -203,6 +203,17 @@ async function deleteObjectsBestEffort(
     } catch (error) {
       complete = false;
       request.log.error({ err: error, assetId, stage: "media_cleanup" }, "media object cleanup failed");
+      // A failed upload can lose its account FK race during deletion. Retain
+      // its object key for retry even when no media metadata row survived.
+      try {
+        await app.db.query(
+          `insert into account_deletion_media_cleanup (object_key) values ($1)
+           on conflict (object_key) do update set completed_at = null, next_attempt_at = now()`,
+          [objectKey]
+        );
+      } catch {
+        request.log.error({ stage: "media_cleanup_retry" }, "media object cleanup could not be queued");
+      }
     }
   }
 

@@ -724,6 +724,7 @@ Julien: “basicaly every page should load in pops ups in luding co ven chats on
 - October 11, 2026 message entry: Julien: “also messages should load on the most recently sent one”. Open direct, group and club conversations at the newest loaded message across full-page, popup and dock presentations. Retain the latest position while initial content settles; stop automatic retention when the reader scrolls through older messages. Preserve existing message ordering, composer layout and history access.
 
 - October 11 profile relationship status: Julien reported “Bugs dude the overlap?? make it hang.” with the “single, not looking” pill spilling into Looking For. Allow that field’s pill text to wrap within its existing card; preserve the grid, font, padding and decoration.
+- October 13 Preferred Spots: Julien said “Maybs make preferred spots one column to fit unless there's a missing one”. No eighth field is missing. When Relationship Status leaves Preferred Spots alone in the final row, Preferred Spots spans that row; preserve already paired rows and all other card presentation.
 
 - October 11, 2026 release naming: Julien: “call this release 2.2”. The current release is 2.2; the Settings version label matches the existing v2.2 changelog.
 
@@ -818,3 +819,13 @@ Julien: “I will restrict and ID check unless I am legally obligated to ... in-
 
 ### 2026-10-13: Future European infrastructure alternative
 Julien: “hosting cruush.eu as an alternative server option ... European infrastructure ... right now our European-owned server is in Virginia ... build my own server in Europe ... total sovereignty and control over our own infrastructure.” Current location is Virginia with European-owned Hetzner. Future direction is a cruush.eu alternative on European infrastructure and a founder-built server in Europe, aiming for ownership and sovereignty. This records the direction only; no server migration, DNS change or deployment occurred.
+
+## Privacy and deletion commitment, October 13, 2026
+
+Julien: “Users are so suspicious of privacy concerns, maybe update our policy too, enaure them will never see their data or use it to train ai. Explain we delete user data instantly when you delete your profile. And if that isnt the case, make it so.” Member data must not be used to train AI. Deleting an account must immediately remove its personal content and access from the active service. Public policy must distinguish verified removal and operator/provider access from backup, external-copy, required safety/evidence and payment-record retention; never claim an implemented capability before verification. The requested staff-access boundary is under audit. This records the requested direction, not proof of deployment or completed erasure.
+
+October 13 clarification: Julien said “I opted out” and answered “Which service did you opt out of?” with “all of them”. Preserve every provider training opt-out. This is the owner's confirmation of those choices; it is separate from independently inspecting effective provider settings or contractual coverage.
+
+## Spot check-in defaults, October 13, 2026
+
+Julien: “Okay cool for the spots, remlve the accordian on check in and lets make check in posts publicb by default so remove the copy too”. New Spot check-ins default to Public. Explicit private audience choices remain supported; existing posts and other privacy settings retain their audience. Remove the introductory check-in paragraph; preserve selection rules, styling, duration controls, location/age eligibility and posting behavior. Later clarification: “I just hate the check in looks, lets fuxk with it later dont get rid of the the accordians with contnet”. Preserve the Spot vibes and Amenities content accordions and defer further check-in design work.

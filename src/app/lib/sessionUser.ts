@@ -1,5 +1,8 @@
 import { ApiClientError } from './apiClient';
 import { getAuthSession, type AuthSessionPayload } from './authApi';
+import { clearDeletedAccountDistancePreferences } from './distancePreferences';
+import { clearOnboardingDraft } from './onboardingDraft';
+import { clearDeletedAccountNoticeFlags } from './persistentNotice';
 
 type StoredCruushUser = {
   age?: number | null;
@@ -12,6 +15,7 @@ type StoredCruushUser = {
 };
 
 const VERIFICATION_PREVIEW_URL_KEY = 'cruush_verification_preview_url';
+const deletedAccountIds = new Set<string>();
 
 function readStoredUser() {
   const storedUser = localStorage.getItem('cruush_user');
@@ -29,6 +33,8 @@ function readStoredUser() {
 
 export function persistCurrentUser(user: StoredCruushUser) {
   const existingUser = readStoredUser();
+  const userId = user.id ?? existingUser?.id;
+  if (userId && deletedAccountIds.has(userId)) return;
   const nextUser: StoredCruushUser = {
     ...existingUser,
     ...user,
@@ -44,6 +50,53 @@ export function clearCurrentUser() {
   sessionStorage.clear();
 }
 
+/** Account erasure is broader than logout, but never clears another account's cache. */
+export function clearDeletedAccountUser(deletedUserId?: string | null) {
+  let currentUserId: string | null = null;
+  try { currentUserId = getStoredUserId(); } catch { /* Attempt known-key erasure below. */ }
+  const userId = deletedUserId ?? currentUserId;
+  const ownsCurrentSession = !currentUserId || currentUserId === userId;
+  const remove = (key: string) => {
+    try { localStorage.removeItem(key); } catch { /* Continue with other account data. */ }
+  };
+
+  if (userId) {
+    deletedAccountIds.add(userId);
+    const accountKeys = [
+      `cruush:pulse-gesture-intro-seen:${userId}`,
+      `cruush:affiliate-login-day:v1:${userId}`,
+    ];
+    // Earlier versions carry the same account ID and must also be erased.
+    const versionedPrefixes = [
+      'cruush:first-entry-push:', 'cruush:first-entry-push-completed:',
+      'cruush:first-entry-install:', 'cruush:first-entry-purgatory:',
+      'cruush:affiliate-login-day:',
+    ];
+    try {
+      for (let index = 0; index < localStorage.length; index += 1) {
+        const key = localStorage.key(index);
+        if (key && versionedPrefixes.some(prefix => key.startsWith(prefix)
+          && /^v\d+$/.test(key.slice(prefix.length, -(userId.length + 1)))
+          && key.endsWith(`:${userId}`))) accountKeys.push(key);
+      }
+    } catch { /* Fixed keys and cookie fallbacks can still be removed. */ }
+    // These fixed keys also work when the browser blocks key enumeration.
+    for (const prefix of versionedPrefixes) accountKeys.push(`${prefix}v1:${userId}`);
+    accountKeys.forEach(remove);
+    clearDeletedAccountNoticeFlags(userId);
+  }
+
+  clearDeletedAccountDistancePreferences(userId, ownsCurrentSession);
+  if (!ownsCurrentSession) return;
+  clearOnboardingDraft();
+  [
+    'cruush_auth', 'cruush_user', VERIFICATION_PREVIEW_URL_KEY,
+    'cruush.activity.seenAt', 'feed.mutual.seenAt',
+    'cruush:dl-mode-enabled', 'cruush:dl-mode-show-only-exception',
+  ].forEach(remove);
+  try { sessionStorage.clear(); } catch { /* The browser may deny storage access. */ }
+}
+
 export function getStoredUserId() {
   return readStoredUser()?.id ?? null;
 }
@@ -53,6 +106,7 @@ export function getStoredCurrentUser() {
 }
 
 export function persistSessionUser(session: AuthSessionPayload) {
+  if (deletedAccountIds.has(session.user.id)) return;
   const yearOfBirth = session.profile?.yearOfBirth ?? null;
   const displayName = session.profile?.displayName?.trim() || session.user.displayName;
 
@@ -91,6 +145,7 @@ export function clearVerificationPreviewUrl() {
 export async function loadCurrentSession() {
   try {
     const session = await getAuthSession();
+    if (deletedAccountIds.has(session.user.id)) return null;
     persistSessionUser(session);
     return session;
   } catch (error) {

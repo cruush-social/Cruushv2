@@ -93,7 +93,7 @@ export type WatcherPassResult = {
 
 type IntentRow = {
   id: string;
-  user_id: string;
+  user_id: string | null;
   plan_id: string;
   amount_usd_cents?: number;
   product_type?: "cruush_plus" | "ping_pack";
@@ -200,6 +200,7 @@ export async function loadWatchableIntents(
             watch_start_block::text as watch_start_block, expires_at
      from crypto_payment_intents
      where status = any($1::text[])
+       and user_id is not null
        and payment_address is not null
        and quoted_amount_atomic is not null
        -- Abandoned checkouts stop being watched after the late-arrival window.
@@ -216,7 +217,7 @@ export async function loadWatchableIntents(
 
   return result.rows.flatMap((row) => {
     const rail = railIdFor(row.asset, row.network);
-    if (!rail || rail === "btc_bitcoin") {
+    if (!row.user_id || !rail || rail === "btc_bitcoin") {
       return [];
     }
 
@@ -611,6 +612,7 @@ export async function settleIntentInTransaction(
   const current = locked.rows[0];
   if (
     !current
+    || !current.user_id
     || !(["awaiting_payment", "confirming", "expired"] as CryptoPaymentStatus[]).includes(current.status)
     || (current.status === "expired" && !policy.acceptLatePayment)
     || current.entitlement_granted_at != null
@@ -857,7 +859,7 @@ export async function ingestCryptoPaymentReceipt(
       [input.intentId, source.chainId, userId]
     );
     const intentRow = locked.rows[0];
-    if (!intentRow || !intentRow.payment_address || !intentRow.quoted_amount_atomic) {
+    if (!intentRow || !intentRow.user_id || !intentRow.payment_address || !intentRow.quoted_amount_atomic) {
       throw new ApiError(409, "VALIDATION_ERROR", "Crypto payment intent has no payable address.");
     }
     const intendedRailId = railIdFor(intentRow.asset, intentRow.network);
