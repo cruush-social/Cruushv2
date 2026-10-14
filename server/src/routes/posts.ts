@@ -788,9 +788,11 @@ export async function registerPostRoutes(app: FastifyInstance) {
           const displayed = location ? await resolveVisibilityLocation(app, {
             viewerUserId: userId, subjectUserId, location
           }) : null;
+          // Browse the viewer-authorized point. Padding this caller-controlled
+          // cutoff with the private Ghost radius exposes that radius by probing.
           distanceEligibility.set(subjectUserId, displayed !== null &&
             visibilityDistanceMiles({ lat: query.lat!, lng: query.lng! }, displayed.coordinate)
-              + displayed.uncertaintyMiles <= (query.distanceMiles as number));
+              <= (query.distanceMiles as number));
         }));
       }
       const audienceVisibility = await Promise.all(

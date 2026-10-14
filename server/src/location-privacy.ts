@@ -35,6 +35,8 @@ export type VisibilityPolicyPayload = {
   baseMode: VisibilityBaseMode;
   ghostActivatedAtMs?: number | null;
   ghostSessionVersion?: number | null;
+  // Encrypted internal identity; changing sessions must not resample the place.
+  ghostSpatialVersion?: number | null;
   ghostRotationMinutes?: number;
   ghostLeashVisible?: boolean;
   ghostRotationSchedule?: { startsAtMs: number; firstEpoch: number } | null;
@@ -438,6 +440,7 @@ export function buildDefaultVisibilityPolicy(
     baseMode: "GHOST",
     ghostActivatedAtMs: nowMs,
     ghostSessionVersion: 1,
+    ghostSpatialVersion: 1,
     ghostRotationMinutes: 15,
     ghostLeashVisible: true,
     ghostRadiusMeters: DEFAULT_GHOST_RADIUS_METERS,
@@ -474,6 +477,7 @@ function buildFailClosedVisibilityPolicy(
     baseMode: "STEALTH",
     ghostActivatedAtMs: null,
     ghostSessionVersion: null,
+    ghostSpatialVersion: null,
     preciseToMutualCruushes: false,
     preciseToMutualCrowds: [],
     darkRoomDistanceLabel: false,
@@ -510,6 +514,14 @@ export function normalizeVisibilityPolicy(
       ? previous.ghostSessionVersion ?? previous.policyVersion
       : policyVersion
     : null;
+  // Latch an active legacy session's derivation before leaving Ghost. Existing
+  // anchors retain their exact seed on upgrade; later sessions reuse it while
+  // their activation time, rotation salt and cadence still start normally.
+  const ghostSpatialVersion = previous.ghostSpatialVersion ?? (
+    previous.baseMode === "GHOST"
+      ? ghostRotationPolicyVersion(previous)
+      : ghostSessionVersion
+  );
   const preciseToMutualCruushes = typeof input.preciseToMutualCruushes === "boolean"
     ? input.preciseToMutualCruushes
     : input.preciseLocationVisibility === "mutual_cruushes"
@@ -537,6 +549,7 @@ export function normalizeVisibilityPolicy(
     baseMode,
     ghostActivatedAtMs,
     ghostSessionVersion,
+    ghostSpatialVersion,
     ghostRotationMinutes,
     ghostLeashVisible: input.ghostLeashVisible ?? previous.ghostLeashVisible !== false,
     ghostRotationSchedule,
@@ -1043,6 +1056,12 @@ function ghostRotationPolicyVersion(policy: VisibilityPolicyPayload) {
   return policy.ghostSessionVersion ?? policy.policyVersion;
 }
 
+function ghostSpatialPolicyVersion(policy: VisibilityPolicyPayload) {
+  // Legacy active policies keep their old anchor until the next policy write
+  // stores this identity in the encrypted payload.
+  return policy.ghostSpatialVersion ?? ghostRotationPolicyVersion(policy);
+}
+
 export function getGhostRotationState(policy: VisibilityPolicyPayload, nowMs = Date.now()) {
   const intervalMs = normalizeGhostRotationMinutes(policy.ghostRotationMinutes) * 60_000;
   const schedule = policy.ghostRotationSchedule;
@@ -1279,6 +1298,7 @@ export function deriveGhostCoordinate(input: {
   rotationEpoch: number;
   derivationSalt: string;
   radiusMeters: number;
+  // Spatial identity, separate from the rotation token's session version.
   policyVersion: number;
   anchorAttempt?: number;
 }) {
@@ -1446,7 +1466,7 @@ export async function resolveViewerGhostCoordinate(context: LocationPrivacyConte
       rotationEpoch: rotation.rotationEpoch,
       derivationSalt: rotation.derivationSalt,
       radiusMeters: rotation.radiusMeters,
-      policyVersion: rotation.policyVersion
+      policyVersion: ghostSpatialPolicyVersion(input.policy)
     }),
     // Keep the animation metadata on the same side of the epoch boundary as
     // these coordinates, even when land lookup finishes after the deadline.

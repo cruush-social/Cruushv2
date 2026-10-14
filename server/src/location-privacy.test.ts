@@ -617,6 +617,109 @@ describe("location privacy", () => {
     )).toBeGreaterThan(0);
   });
 
+  it("keeps the same spatial land pool across Dark Room and Ghost sessions for every viewer", async () => {
+    vi.useFakeTimers();
+    const start = Date.UTC(2026, 9, 14, 12);
+    vi.setSystemTime(start);
+    try {
+      const db = createPolicyDb();
+      const location = {
+        version: 1 as const, subjectUserId, locationVersion: 1,
+        latE7: 407110000, lonE7: -740020000, accuracyM: 10,
+        source: "GPS" as const, deviceReportedAtMs: start, collectedAtMs: start,
+        expiresAtMs: start + 48 * 60 * 60_000, keyVersion: "v1"
+      };
+      const active = await saveVisibilityPolicy({ config, db }, subjectUserId, { baseMode: "GHOST" });
+      // The existing active session supplies the legacy spatial derivation.
+      const pool = new Set([0, 1].flatMap(rotationEpoch => Array.from({ length: 16 }, (_, i) =>
+        JSON.stringify(deriveGhostCoordinate({
+          config, subjectUserId, centerLat: 40.711, centerLng: -74.002,
+          radiusMeters: 1609, policyVersion: active.ghostSessionVersion!, rotationEpoch,
+          derivationSalt: `land-pool-v1:${i}`
+        }))
+      )));
+      vi.setSystemTime(start + 60_000);
+      const hidden = await saveVisibilityPolicy({ config, db }, subjectUserId, { baseMode: "STEALTH" });
+      const storedHidden = await loadVisibilityPolicyStrict({ config, db }, subjectUserId);
+      vi.setSystemTime(start + 2 * 60_000);
+      const reentered = await saveVisibilityPolicy({ config, db }, subjectUserId, { baseMode: "GHOST" });
+
+      expect(hidden.ghostSessionVersion).toBeNull();
+      expect(hidden.ghostSpatialVersion).toBe(active.ghostSpatialVersion);
+      expect(storedHidden).toEqual(hidden);
+      expect(reentered.ghostSessionVersion).not.toBe(active.ghostSessionVersion);
+      expect(reentered.ghostSpatialVersion).toBe(active.ghostSpatialVersion);
+      for (const policy of [active, hidden, reentered]) {
+        expect(publicPrivacySettings(policy)).not.toHaveProperty("ghostSpatialVersion");
+      }
+      expect(getGhostRotationState(reentered, start + 2 * 60_000)).toEqual({
+        rotationEpoch: 0, expiresAtMs: start + 17 * 60_000
+      });
+      const request = requestWithSession();
+      const displayKey = issueBrowserDisplayKey(config, request, viewerUserId);
+      const token = await makeDisplayLocationToken({ config, db }, request, {
+        subjectUserId, viewerUserId, policy: reentered, location, displayMode: "GHOST"
+      });
+      expect(decryptDisplayLocationTokenForTest({ key: displayKey.key, token }))
+        .not.toHaveProperty("ghostSpatialVersion");
+      for (let epoch = 0; epoch < 96; epoch++) {
+        const input = { subjectUserId, viewerUserId, policy: reentered, location,
+          nowMs: start + (2 + epoch * 15) * 60_000 };
+        const first = await resolveViewerGhostCoordinate({ config, db }, input);
+        const second = await resolveViewerGhostCoordinate({ config, db }, {
+          ...input, viewerUserId: "another-synthetic-viewer"
+        });
+        expect(pool.has(JSON.stringify(first.coordinate))).toBe(true);
+        expect(second.coordinate).toEqual(first.coordinate);
+      }
+    } finally { vi.useRealTimers(); }
+  });
+
+  it("lazily retains the active legacy spatial seed without changing its decoy", async () => {
+    const start = Date.UTC(2026, 9, 14, 12);
+    const location = {
+      version: 1 as const, subjectUserId, locationVersion: 1,
+      latE7: 407110000, lonE7: -740020000, accuracyM: 10,
+      source: "GPS" as const, deviceReportedAtMs: start, collectedAtMs: start,
+      expiresAtMs: start + 60 * 60_000, keyVersion: "v1"
+    };
+    for (const legacySessionVersion of [13, undefined]) {
+      const legacy = {
+        ...normalizeVisibilityPolicy(config, subjectUserId, { baseMode: "GHOST" }, undefined, start),
+        policyVersion: 17, ghostSessionVersion: legacySessionVersion, ghostSpatialVersion: undefined
+      };
+      const db = createPolicyDb();
+      const before = await resolveViewerGhostCoordinate({ config, db }, {
+        subjectUserId, viewerUserId, policy: legacy, location, nowMs: start + 1
+      });
+      const upgraded = normalizeVisibilityPolicy(config, subjectUserId, {
+        ghostLeashVisible: false, ghostSpatialVersion: 999
+      }, legacy, start + 60_000);
+      expect(upgraded.ghostSpatialVersion).toBe(legacySessionVersion ?? 17);
+      const after = await resolveViewerGhostCoordinate({ config, db }, {
+        subjectUserId, viewerUserId, policy: upgraded, location, nowMs: start + 60_000
+      });
+      expect(after.coordinate).toEqual(before.coordinate);
+      const hidden = normalizeVisibilityPolicy(config, subjectUserId, { baseMode: "STEALTH" }, upgraded, start + 2 * 60_000);
+      const resumed = normalizeVisibilityPolicy(config, subjectUserId, { baseMode: "GHOST" }, hidden, start + 3 * 60_000);
+      expect(resumed.ghostSpatialVersion).toBe(upgraded.ghostSpatialVersion);
+      expect(resumed.ghostSessionVersion).not.toBe(legacySessionVersion ?? 17);
+    }
+  });
+
+  it("initializes legacy inactive spatial identity on first Ghost activation", () => {
+    const start = Date.UTC(2026, 9, 14, 12);
+    const legacy = {
+      ...normalizeVisibilityPolicy(config, subjectUserId, { baseMode: "STEALTH" }, undefined, start),
+      policyVersion: 20, ghostSpatialVersion: undefined
+    };
+    const active = normalizeVisibilityPolicy(config, subjectUserId, { baseMode: "GHOST" }, legacy, start + 60_000);
+    expect(active.ghostSpatialVersion).toBe(active.ghostSessionVersion);
+    const hidden = normalizeVisibilityPolicy(config, subjectUserId, { baseMode: "STEALTH" }, active, start + 2 * 60_000);
+    const resumed = normalizeVisibilityPolicy(config, subjectUserId, { baseMode: "GHOST" }, hidden, start + 3 * 60_000);
+    expect(resumed.ghostSpatialVersion).toBe(active.ghostSpatialVersion);
+  });
+
   it("holds the active decoy across Ghost setting edits and applies a new radius at the next rotation", async () => {
     vi.useFakeTimers();
     const activatedAtMs = new Date("2026-08-09T16:07:00.000Z").getTime();

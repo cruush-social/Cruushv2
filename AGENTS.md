@@ -57,6 +57,7 @@ For backend or infrastructure work, consult `docs/master-architecture.md` and
 the applicable source. Current explicit user instructions override older decisions.
 
 ## Mistakes
+- 2026-10-14: Guessed the privacy-settings endpoint during a local check; read the client's actual endpoint and repeated the saved-state verification.
 - 2026-10-13: Asked Julien to prove provider opt-outs again after he had confirmed them and prior assisted opt-out history existed; accepted his verification, recovered the prior session, and preserved approved provider operation.
 - 2026-10-13: Assumed the check-in accordion request included Spot vibes and Amenities; restored both content accordions after Julien clarified to keep them and defer design work.
 - 2026-10-13: An extra argument separator caused a delegated check-in test command to collect the full suite; reran Vitest directly with the focused paths and test names.
