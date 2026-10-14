@@ -769,7 +769,7 @@ export default function ProfileView() {
                   <span className="min-w-0 truncate">{displayedDistance === 'Dark Room' || isServerCoarseLocationLabel(displayedDistance) ? displayedDistance : formatDistanceWithAway(displayedDistance, distancePreferences.mode)}</span>
                 </>
               ) : null}
-              {profileView.lastActive ? <span className="shrink-0">{displayedDistance ? '• ' : ''}{profileView.lastActive === 'Online' ? <span aria-hidden="true" className="mr-1.5 inline-block size-2 rounded-full bg-[#C8FF31] align-middle" /> : null}{profileView.lastActive}</span> : null}
+              {profileView.lastActive ? <span className="shrink-0">{displayedDistance ? '• ' : ''}{profileView.lastActive}{profileView.lastActive === 'Online' ? <span aria-hidden="true" className="ml-1.5 inline-block size-2 rounded-full bg-[#C8FF31] align-middle" /> : null}</span> : null}
             </div>
           ) : null}
 

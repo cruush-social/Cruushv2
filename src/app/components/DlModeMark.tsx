@@ -44,9 +44,8 @@ export default function DlModeMark({
           />
         </mask>
         <linearGradient id={gradientId} x1="120" x2="980" y1="120" y2="1310" gradientUnits="userSpaceOnUse">
-          <stop offset="0%" stopColor="#FF0072" />
-          <stop offset="52%" stopColor="#6F00FF" />
-          <stop offset="100%" stopColor="#0BA8FF" />
+          <stop offset="0%" stopColor="#FFB6C1" />
+          <stop offset="100%" stopColor="#FF00FF" />
         </linearGradient>
       </defs>
       <rect
