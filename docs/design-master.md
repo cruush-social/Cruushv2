@@ -838,3 +838,6 @@ Julien: "there was more of a padding between the vibe tags and the top of the Pu
 
 ### October 14, 2026 — photo crop framing
 Julien: "The canvas crops my image before I get to crop it can you please stop that I think you need to put a border around the area where it would be cropped to so I can tell where it's going to be cropped". The shared photo crop editor initially fits the complete source image inside its existing 4:5 viewport. A visible border marks the actual exported area. Preview and export use the same fit, zoom, rotation and translation; preserve existing controls and output dimensions.
+
+### October 14, 2026 — blog author credits
+Julien: "Remember the tagline after my name on the blog posts under authorship and never do that again". Blog bylines use Julien’s name only, with no descriptive tagline, identity label or role appended. Keep the publication date separate. This governs author credits, not first-person article content.
