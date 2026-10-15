@@ -61,6 +61,15 @@ jobs:
           cache: npm
           cache-dependency-path: server/package-lock.json
       - run: npm ci --prefix server
+      - name: Generate crypto keys for disposable migration databases
+        run: |
+          node --input-type=module <<'NODE'
+          import { randomBytes } from 'node:crypto';
+          import { appendFileSync } from 'node:fs';
+          const keys = ['SESSION_SECRET', 'LOCATION_ENCRYPTION_KEY']
+            .map((name) => `${name}=${randomBytes(32).toString('hex')}`).join('\n');
+          appendFileSync(process.env.GITHUB_ENV, `${keys}\n`);
+          NODE
       - name: Apply every migration
         run: npm --prefix server run migrate:dev
       - name: Exercise reward constraints and triggers in PostgreSQL
