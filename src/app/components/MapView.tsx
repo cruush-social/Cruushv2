@@ -2605,7 +2605,7 @@ function MapView({
   );
   const focusLatitude = focusCoordinates?.approximateLatitude ?? null;
   const focusLongitude = focusCoordinates?.approximateLongitude ?? null;
-  const renderedMarkers = useMemo(
+  const clusteredMarkers = useMemo(
     () => {
       const clusteredMarkers = applyPersonMarkerClusters(
         denseMarkerResult.markers,
@@ -2615,17 +2615,21 @@ function MapView({
       );
       // Clustering can collapse nearby members, but individual member
       // coordinates stay exactly where the API placed them at every zoom.
-      const withPlaceClusters = applyPlaceMarkerClusters(clusteredMarkers, currentZoom);
-      return separateOverlappingMarkers(withPlaceClusters, currentZoom,
+      return applyPlaceMarkerClusters(clusteredMarkers, currentZoom);
+    },
+    [currentZoom, denseMarkerResult.markers, focusCoordinates, spiderfiedCluster, ghostClusterVisibilityTick],
+  );
+  const renderedMarkers = useMemo(
+    () => {
+      return separateOverlappingMarkers(clusteredMarkers, currentZoom,
         mapInstance && typeof mapInstance.project === 'function'
           ? marker => mapInstance.project([marker.approximateLongitude, marker.approximateLatitude]) : undefined,
         mapInstance && typeof mapInstance.project === 'function' && containerRef.current?.clientWidth && containerRef.current?.clientHeight
           ? { width: containerRef.current.clientWidth, height: containerRef.current.clientHeight } : undefined);
 
     },
-    [currentZoom, denseMarkerResult.markers, focusCoordinates, spiderfiedCluster, ghostClusterVisibilityTick, mapInstance, viewportBounds],
+    [clusteredMarkers, currentZoom, mapInstance, viewportBounds],
   );
-  const renderedMarkerSignature = useMemo(() => JSON.stringify(renderedMarkers.map(mapMarkerSemanticSignature)), [renderedMarkers]);
   const renderedMarkersRef = useRef(renderedMarkers);
   renderedMarkersRef.current = renderedMarkers;
   const mountedMarkers = useMemo(
@@ -3058,7 +3062,7 @@ function MapView({
       },
     });
     moveMapServiceOutsideMaskToTop(map);
-  }, [mapInstance, mapLoadStatus, radiusCircle]);
+  }, [mapInstance, mapLoadStatus, radiusCircle?.center.approximateLatitude, radiusCircle?.center.approximateLongitude, radiusCircle?.radiusMeters]);
 
   useEffect(() => {
     const map = mapInstance ?? mapRef.current;
@@ -3113,7 +3117,7 @@ function MapView({
       },
     });
     moveMapServiceOutsideMaskToTop(map);
-  }, [ghostLeash, mapInstance, mapLoadStatus, renderedMarkerSignature]);
+  }, [ghostLeash?.from.approximateLatitude, ghostLeash?.from.approximateLongitude, ghostLeash?.to.approximateLatitude, ghostLeash?.to.approximateLongitude, mapInstance, mapLoadStatus]);
 
   useEffect(() => {
     const map = mapInstance ?? mapRef.current;

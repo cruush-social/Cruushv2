@@ -86,6 +86,7 @@ export type PlaceBoardMessage = {
 };
 
 export async function getPlaces(options: {
+  signal?: AbortSignal;
   latitude?: number;
   longitude?: number;
   sort?: PlaceSort;
@@ -115,7 +116,7 @@ export async function getPlaces(options: {
   if (options.tags?.length) params.set('tags', options.tags.join(','));
   if (options.vibes?.length) params.set('vibes', options.vibes.join(','));
   if (options.amenities?.length) params.set('amenities', options.amenities.join(','));
-  return requestApi<PlaceRecord[]>(`/api/places?${params.toString()}`, { method: 'GET' });
+  return requestApi<PlaceRecord[]>(`/api/places?${params.toString()}`, { method: 'GET', signal: options.signal });
 }
 
 export async function getPlace(placeId: string) {

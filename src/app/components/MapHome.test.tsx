@@ -521,6 +521,20 @@ describe('Spot map loading', () => {
     expect(getPlaces).toHaveBeenNthCalledWith(2, expect.objectContaining({ limit: 100, offset: 100 }));
   });
 
+  it('stops a superseded load before requesting another Spot page', async () => {
+    getPlaces.mockReset();
+    const controller = new AbortController();
+    const page = deferred<ReturnType<typeof placeRecord>[]>();
+    getPlaces.mockReturnValueOnce(page.promise);
+    const loading = getAllPlacesForMap({ signal: controller.signal });
+    const rejected = expect(loading).rejects.toMatchObject({ name: 'AbortError' });
+    expect(getPlaces).toHaveBeenCalledWith(expect.objectContaining({ signal: controller.signal }));
+    controller.abort();
+    page.resolve(Array.from({ length: 100 }, (_, index) => placeRecord(`spot-${index}`)));
+    await rejected;
+    expect(getPlaces).toHaveBeenCalledTimes(1);
+  });
+
   it('stops paging when a full page repeats Spots it has already collected', async () => {
     const firstPage = Array.from({ length: 100 }, (_, index) => placeRecord(`spot-${index}`));
     getPlaces.mockClear();

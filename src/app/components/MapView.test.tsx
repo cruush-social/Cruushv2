@@ -1227,6 +1227,40 @@ describe('MapView', () => {
     expect(mapInstances[0].fitBounds).not.toHaveBeenCalled();
   });
 
+  it('only resends Ghost geometry when its coordinates or radius change', async () => {
+    const props = (longitude = -74.004, radiusMeters = 1609) => ({
+      onPinClick: vi.fn(),
+      markers: [{ id: 'me', displayName: 'You', approximateLatitude: 40.714,
+        approximateLongitude: longitude, isCurrentUser: true }],
+      radiusCircle: { center: { approximateLatitude: 40.714, approximateLongitude: longitude }, radiusMeters },
+      ghostLeash: { from: { approximateLatitude: 40.714, approximateLongitude: longitude },
+        to: { approximateLatitude: 40.72, approximateLongitude: -74.001 } },
+    });
+    const view = render(<MapView {...props()} />);
+    await waitFor(() => expect(mapInstances[0]).toBeDefined());
+    act(() => mapInstances[0].trigger('load'));
+    await waitFor(() => expect(mapInstances[0].getSource('owner-ghost-leash')).toBeDefined());
+    const radius = mapInstances[0].getSource('owner-ghost-radius');
+    const leash = mapInstances[0].getSource('owner-ghost-leash');
+    radius.setData.mockClear();
+    leash.setData.mockClear();
+    view.rerender(<MapView {...props()} />);
+    expect(radius.setData).not.toHaveBeenCalled();
+    expect(leash.setData).not.toHaveBeenCalled();
+    view.rerender(<MapView {...props(-74.003, 2000)} />);
+    expect(radius.setData).toHaveBeenCalledTimes(1);
+    expect(leash.setData).toHaveBeenCalledTimes(1);
+    view.rerender(<MapView {...props(-74.003, 2500)} />);
+    expect(radius.setData).toHaveBeenCalledTimes(2);
+    expect(leash.setData).toHaveBeenCalledTimes(1);
+    view.rerender(<MapView {...props()} radiusCircle={null} ghostLeash={null} />);
+    expect(mapInstances[0].getSource('owner-ghost-radius')).toBeUndefined();
+    expect(mapInstances[0].getSource('owner-ghost-leash')).toBeUndefined();
+    view.rerender(<MapView {...props()} />);
+    expect(mapInstances[0].getSource('owner-ghost-radius')).toBeDefined();
+    expect(mapInstances[0].getSource('owner-ghost-leash')).toBeDefined();
+  });
+
   it('renders photo markers with current and nearby styling', async () => {
     render(
       <MapView

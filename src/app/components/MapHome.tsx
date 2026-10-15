@@ -225,12 +225,14 @@ export async function getAllPlacesForMap(options: Parameters<typeof getPlaces>[0
   let offset = 0;
 
   while (collected.length < SPOT_MAP_VIEW_LIMIT) {
+    options?.signal?.throwIfAborted();
     const page = await getPlaces({
       ...options,
       limit: Math.min(SPOT_MAP_PAGE_SIZE, SPOT_MAP_VIEW_LIMIT - collected.length),
       offset,
     });
 
+    options?.signal?.throwIfAborted();
     const sizeBeforePage = collected.length;
     page.forEach((place) => {
       if (!knownIds.has(place.id)) {
@@ -2368,12 +2370,15 @@ export default function MapHome(_props: MapHomeProps = {}) {
       { latitude: mapViewport.south, longitude: mapViewport.east },
     ].some((point) => distanceMilesBetween(origin, point) > DISCOVERY_BROWSE_RADIUS_MILES);
   }, [currentUserMapLocation, mapViewport?.signature]);
+  const spotQueryLatitude = spotQueryViewport?.center.latitude ?? currentUserMapLocation?.approximateLatitude;
+  const spotQueryLongitude = spotQueryViewport?.center.longitude ?? currentUserMapLocation?.approximateLongitude;
   useEffect(() => {
-    let cancelled = false;
+    const controller = new AbortController();
 
     void getAllPlacesForMap({
-      latitude: spotQueryViewport?.center.latitude ?? currentUserMapLocation?.approximateLatitude,
-      longitude: spotQueryViewport?.center.longitude ?? currentUserMapLocation?.approximateLongitude,
+      signal: controller.signal,
+      latitude: spotQueryLatitude,
+      longitude: spotQueryLongitude,
       query: spotMapFilters.query || undefined,
       excludedFacilityTypes: spotMapFilters.excludedFacilityTypes,
       tags: spotMapFilters.tags,
@@ -2381,19 +2386,21 @@ export default function MapHome(_props: MapHomeProps = {}) {
       amenities: spotMapFilters.amenities,
       radiusMiles: Math.min(spotQueryViewport?.radiusMiles ?? spotMapFilters.radiusMiles, spotMapFilters.radiusMiles),
     }).then((nextPlaces) => {
-      if (!cancelled) {
+      if (!controller.signal.aborted) {
         setPlaces(nextPlaces);
       }
     }).catch((placesError: unknown) => {
-      console.warn('Error loading default Spots layer:', placesError);
+      if (!controller.signal.aborted) {
+        console.warn('Error loading default Spots layer:', placesError);
+      }
     });
 
     return () => {
-      cancelled = true;
+      controller.abort();
     };
   }, [
-    currentUserMapLocation?.approximateLatitude,
-    currentUserMapLocation?.approximateLongitude,
+    spotQueryLatitude,
+    spotQueryLongitude,
     spotQueryViewport?.signature,
     currentProfile?.id,
     spotMapFilters.excludedFacilityTypes,
