@@ -49,7 +49,7 @@ import 'maplibre-gl/dist/maplibre-gl.css';
 import beachUmbrellaIcon from '../assets/ui-icons/beach-umbrella-1689481.png';
 import purgatoryHeartOverlay from '../assets/ui-icons/purgatory-heart-pin-overlay.svg';
 import { CruushIcon, GhostColoredIcon } from './CruushIconImage';
-import { resolveMediaUrl } from '../lib/apiClient';
+import { resolveMediaThumbnailUrl } from '../lib/apiClient';
 import { getProfileGradientStops } from '../lib/profileGradient';
 import { applyDenseVenueMarkers, type DenseVenueConfig } from '../lib/denseVenueMarkers';
 import {
@@ -1697,8 +1697,8 @@ function MarkerHeart({ marker, isCurrentUser }: { marker: MapMarker; isCurrentUs
     sharesCrowd: marker.photoRelationship?.sharesCrowd ?? marker.hasSharedCrowd === true,
   })
     ? retryingPhoto === marker.photo
-      ? withMapPhotoRetry(resolveMediaUrl(marker.photo))
-      : resolveMediaUrl(marker.photo)
+      ? withMapPhotoRetry(resolveMediaThumbnailUrl(marker.photo))
+      : resolveMediaThumbnailUrl(marker.photo)
     : null;
   const resolvedPhoto = !isOwnStealthMarker ? visiblePhoto : null;
   const darkRoomPhoto = isOwnStealthMarker ? visiblePhoto : null;

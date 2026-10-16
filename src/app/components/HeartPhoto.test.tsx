@@ -7,6 +7,15 @@ import { ACCESSIBILITY_PREFERENCES_STORAGE_KEY } from '../lib/accessibilityPrefe
 import purgatoryHeartOverlay from '../assets/ui-icons/purgatory-heart-pin-overlay.svg';
 
 describe('HeartPhoto', () => {
+  it('loads the protected thumbnail in a small preview without exposing masked photos', () => {
+    const photo = '/api/media/assets/11111111-1111-4111-8111-111111111111/display';
+    const { rerender } = render(<HeartPhoto label="Small preview" masked={false} photo={photo} />);
+    const heart = screen.getByRole('img', { name: 'Small preview' });
+    expect(heart.querySelector('pattern image')?.getAttribute('href')).toContain('/thumbnail');
+    rerender(<HeartPhoto label="Small preview" masked photo={photo} />);
+    expect(heart.querySelector('pattern image')).toBeNull();
+  });
+
   afterEach(() => {
     window.localStorage.removeItem(ACCESSIBILITY_PREFERENCES_STORAGE_KEY);
   });

@@ -4,7 +4,7 @@ import type { KeyboardEvent, MouseEvent, ReactNode } from 'react';
 import DlModeMark from './DlModeMark';
 import { useId } from 'react';
 import profileEditIconWhite from '../assets/ui-icons/humanity-profile-selected-winged-heart-symmetric.png';
-import { resolveMediaUrl } from '../lib/apiClient';
+import { resolveMediaThumbnailUrl } from '../lib/apiClient';
 import { HEART_PIN_PATH, HEART_PIN_THEMES, type HeartPinTheme } from '../lib/heartPin';
 import { getProfileGradientStops } from '../lib/profileGradient';
 import MileHighContrail from './MileHighContrail';
@@ -56,7 +56,7 @@ export default function HeartPhoto({
   const gradientStops = userId && !showPhoto && theme !== 'current' ? getProfileGradientStops(userId) : resolvedTheme.stops;
   const resolvedBorderColor = borderColor
     ?? (staticMileHigh ? USER_BORDER_COLORS['mile-high'] : borderTone ? USER_BORDER_COLORS[borderTone] : resolvedTheme.border);
-  const resolvedPhoto = showPhoto && photo ? resolveMediaUrl(photo) : null;
+  const resolvedPhoto = showPhoto && photo ? resolveMediaThumbnailUrl(photo) : null;
   const handleClick = onClick
     ? (event: MouseEvent<HTMLDivElement>) => {
         event.preventDefault();

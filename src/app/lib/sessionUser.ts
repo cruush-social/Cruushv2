@@ -1,4 +1,4 @@
-import { ApiClientError } from './apiClient';
+import { ApiClientError, invalidatePendingApiReads } from './apiClient';
 import { getAuthSession, type AuthSessionPayload } from './authApi';
 import { clearDeletedAccountDistancePreferences } from './distancePreferences';
 import { clearOnboardingDraft } from './onboardingDraft';
@@ -35,6 +35,7 @@ export function persistCurrentUser(user: StoredCruushUser) {
   const existingUser = readStoredUser();
   const userId = user.id ?? existingUser?.id;
   if (userId && deletedAccountIds.has(userId)) return;
+  if (userId !== existingUser?.id) invalidatePendingApiReads();
   const nextUser: StoredCruushUser = {
     ...existingUser,
     ...user,
@@ -44,6 +45,7 @@ export function persistCurrentUser(user: StoredCruushUser) {
 }
 
 export function clearCurrentUser() {
+  invalidatePendingApiReads();
   localStorage.removeItem('cruush_auth');
   localStorage.removeItem('cruush_user');
   localStorage.removeItem(VERIFICATION_PREVIEW_URL_KEY);
@@ -88,6 +90,7 @@ export function clearDeletedAccountUser(deletedUserId?: string | null) {
 
   clearDeletedAccountDistancePreferences(userId, ownsCurrentSession);
   if (!ownsCurrentSession) return;
+  invalidatePendingApiReads();
   clearOnboardingDraft();
   [
     'cruush_auth', 'cruush_user', VERIFICATION_PREVIEW_URL_KEY,

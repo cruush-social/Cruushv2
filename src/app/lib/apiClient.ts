@@ -69,6 +69,19 @@ export function resolveMediaUrl(pathOrUrl: string | null | undefined) {
   return resolveApiUrl(pathOrUrl);
 }
 
+/** Small previews use the existing protected variant, with the same access checks. */
+export function resolveMediaThumbnailUrl(pathOrUrl: string | null | undefined) {
+  if (!pathOrUrl) return resolveMediaUrl(pathOrUrl);
+  const base = getApiBaseUrl();
+  const absolute = Boolean(base && pathOrUrl.startsWith(`${base}/`));
+  const path = absolute ? pathOrUrl.slice(base.length) : pathOrUrl;
+  const thumbnail = path.replace(
+    /^(\/api\/media\/assets\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\/display(?=[?#]|$)/i,
+    '$1/thumbnail',
+  );
+  return resolveMediaUrl(absolute ? `${base}${thumbnail}` : thumbnail);
+}
+
 export async function parseApiResponse<T>(response: Response): Promise<T> {
   const bodyText = await response.text();
   let body: ({ data?: T } & ApiErrorBody) | {} = {};
@@ -96,7 +109,21 @@ export async function parseApiResponse<T>(response: Response): Promise<T> {
   return parsedBody.data as T;
 }
 
-export async function requestApi<T>(path: string, init?: RequestInit): Promise<T> {
+const pendingReads = new Map<string, Promise<unknown>>();
+
+export function invalidatePendingApiReads() {
+  pendingReads.clear();
+}
+
+if (typeof window !== 'undefined') {
+  window.addEventListener('storage', (event) => {
+    if (event.key === null || event.key === 'cruush_user' || event.key === 'cruush_auth') {
+      invalidatePendingApiReads();
+    }
+  });
+}
+
+async function performApiRequest<T>(url: string, init?: RequestInit): Promise<T> {
   const headers = new Headers(init?.headers);
   const isFormDataBody = typeof FormData !== 'undefined' && init?.body instanceof FormData;
 
@@ -106,7 +133,7 @@ export async function requestApi<T>(path: string, init?: RequestInit): Promise<T
 
   let response: Response;
   try {
-    response = await fetch(`${getApiBaseUrl()}${path}`, {
+    response = await fetch(url, {
       ...init,
       headers,
       credentials: 'include',
@@ -116,6 +143,34 @@ export async function requestApi<T>(path: string, init?: RequestInit): Promise<T
   }
 
   return parseApiResponse<T>(response);
+}
+
+export async function requestApi<T>(path: string, init?: RequestInit): Promise<T> {
+  const url = `${getApiBaseUrl()}${path}`;
+  const mutation = !['GET', 'HEAD'].includes((init?.method ?? 'GET').toUpperCase());
+  if (mutation) {
+    invalidatePendingApiReads();
+    try {
+      return await performApiRequest<T>(url, init);
+    } finally {
+      invalidatePendingApiReads();
+    }
+  }
+
+  // Only share ordinary reads. Explicit options (especially AbortSignal) retain
+  // their independent request lifecycle. Completed responses are never cached.
+  if (init) return performApiRequest<T>(url, init);
+  let pending = pendingReads.get(url) as Promise<T> | undefined;
+  if (!pending) {
+    pending = performApiRequest<T>(url);
+    pendingReads.set(url, pending);
+  }
+  try {
+    // Each caller previously parsed its own JSON; keep independent result objects.
+    return structuredClone(await pending);
+  } finally {
+    if (pendingReads.get(url) === pending) pendingReads.delete(url);
+  }
 }
 
 const UPLOAD_RETRY_DELAYS_MS = [1000, 2500];
