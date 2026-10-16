@@ -321,10 +321,26 @@ describe('ModeratorReview', () => {
     renderReview();
     fireEvent.click(await screen.findByRole('tab', { name: 'Surveys & support' }));
     expect(await screen.findByRole('heading', { name: 'Survey ratings' })).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: 'Open subscription survey responses' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Open survey responses' }));
     fireEvent.click(await screen.findByRole('button', { name: 'Open survey response from Survey QA' }));
     expect(screen.getByText(/What is the biggest reason you have not subscribed/)).toHaveTextContent('The price');
     expect(screen.getByRole('tab', { name: 'Surveys', exact: true })).toHaveAttribute('aria-selected', 'true');
+  });
+
+  it('opens a saved legacy survey response', async () => {
+    getSurveyResponses.mockResolvedValue({ surveys: [{ id: 'legacy', displayName: 'Legacy QA', email: null, subject: 'cruush survey response', message: 'Overall experience: 4', status: 'dismissed', createdAt: '2026-09-08T12:00:00.000Z' }], page: { limit: 25, offset: 0, total: 1, hasMore: false } });
+    renderReview();
+    fireEvent.click(await screen.findByRole('tab', { name: 'Surveys', exact: true }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Open survey response from Legacy QA' }));
+    expect(screen.getByText('Overall experience: 4')).toBeInTheDocument();
+  });
+
+  it('does not report an empty survey list when loading failed', async () => {
+    getSurveyResponses.mockRejectedValue(new Error('Network failure'));
+    renderReview();
+    fireEvent.click(await screen.findByRole('tab', { name: 'Surveys', exact: true }));
+    expect(await screen.findByText('Unable to load survey responses right now.')).toBeInTheDocument();
+    expect(screen.queryByText('No survey responses yet.')).not.toBeInTheDocument();
   });
 
   it('contains the mobile moderation header controls without page-level overflow', async () => {

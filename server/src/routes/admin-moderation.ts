@@ -1176,11 +1176,8 @@ export async function registerAdminModerationRoutes(app: FastifyInstance) {
        from support_requests
        left join app_users users on users.id = support_requests.requester_user_id
        left join profiles profile on profile.id = users.id
-       where support_requests.source = 'survey'
-         and (
-           lower(trim(support_requests.subject)) = 'cruush subscription survey response'
-           or support_requests.message like '%What is the biggest reason you have not subscribed?%'
-         )
+       where (support_requests.source = 'survey'
+         or lower(trim(support_requests.subject)) = 'cruush survey response')
        order by support_requests.created_at desc, support_requests.id desc
        limit $1 offset $2`,
       [query.limit, query.offset]

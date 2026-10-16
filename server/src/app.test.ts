@@ -8658,17 +8658,24 @@ describe("server", () => {
     expect(query.mock.calls[0]?.[1]?.slice(0, 2)).toEqual([null, null]);
   });
 
-  it("returns complete subscription survey results only to moderators", async () => {
+  it("returns current and legacy survey results only to moderators", async () => {
     query.mockResolvedValueOnce({ rows: [] });
     const denied = await app.inject({ method: "GET", url: "/api/admin/moderation/surveys", headers: { "x-user-id": userId } });
     expect(denied.statusCode).toBe(403);
     query.mockResolvedValueOnce({ rows: [{ role: "moderator" }] }).mockResolvedValueOnce({ rows: [{
-      id: "survey-qa", display_name: "Survey QA", email: "qa@example.test", subject: "cruush subscription survey response", message: "What is the biggest reason you have not subscribed?\nThe price", status: "closed", created_at: "2026-10-08T12:00:00.000Z", total_count: "1"
+      id: "survey-qa", display_name: "Survey QA", email: "qa@example.test", subject: "cruush subscription survey response", message: "What is the biggest reason you have not subscribed?\nThe price", status: "closed", created_at: "2026-10-08T12:00:00.000Z", total_count: "2"
+    }, {
+      id: "legacy-survey", display_name: "Legacy QA", email: "legacy@example.test", subject: "cruush survey response", message: "Overall experience: 4", status: "dismissed", created_at: "2026-09-08T12:00:00.000Z", total_count: "2"
     }] });
     const response = await app.inject({ method: "GET", url: "/api/admin/moderation/surveys", headers: { "x-user-id": userId } });
     expect(response.statusCode).toBe(200);
-    expect(response.json().data).toMatchObject({ surveys: [{ email: null, status: "closed", message: "What is the biggest reason you have not subscribed?\nThe price" }], page: { total: 1, hasMore: false } });
-    expect(query.mock.calls.at(-1)?.[0]).toContain("cruush subscription survey response");
+    expect(response.json().data.page).toMatchObject({ total: 2, hasMore: false });
+    expect(response.json().data.surveys).toHaveLength(2);
+    expect(response.json().data.surveys[0]).toMatchObject({ email: null, status: "closed", message: "What is the biggest reason you have not subscribed?\nThe price" });
+    expect(response.json().data.surveys[1]).toMatchObject({ subject: "cruush survey response", message: "Overall experience: 4", status: "dismissed", email: null });
+    expect(query.mock.calls.at(-1)?.[0]).toContain("support_requests.source = 'survey'");
+    expect(query.mock.calls.at(-1)?.[0]).toContain("or lower(trim(support_requests.subject)) = 'cruush survey response'");
+    expect(query.mock.calls.at(-1)?.[0]).not.toContain("What is the biggest reason you have not subscribed?");
   });
 
   it("requires a reply email for signed-out support requests", async () => {

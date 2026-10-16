@@ -906,7 +906,7 @@ export default function ModeratorReview() {
           <section aria-labelledby="surveys-heading" className="min-w-0">
             <div className="flex items-end justify-between gap-3 border-b border-border pb-4">
               <div>
-                <h2 id="surveys-heading" className="text-lg">Subscription survey</h2>
+                <h2 id="surveys-heading" className="text-lg">Survey responses</h2>
                 <p className="text-sm text-muted-foreground">{surveyPageStart}-{surveyPageEnd} of {surveyPage.total}</p>
               </div>
               <div className="flex items-center gap-1">
@@ -920,7 +920,7 @@ export default function ModeratorReview() {
             </div>
 
             {surveysError ? <div className="mt-4 rounded-md border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">{surveysError}</div> : null}
-            {surveys.length === 0 && !surveysLoading ? (
+            {surveys.length === 0 && !surveysLoading && !surveysError ? (
               <div className="py-14 text-center text-sm text-muted-foreground">No survey responses yet.</div>
             ) : (
               <div className="divide-y divide-border">
@@ -935,7 +935,7 @@ export default function ModeratorReview() {
                   >
                     <div className="min-w-0 flex-1">
                       <div className="flex flex-wrap items-center gap-2">
-                        <Badge>Subscription survey</Badge>
+                        <Badge>Survey</Badge>
                         <Badge variant={statusVariant(survey.status)}>{formatCode(survey.status)}</Badge>
                       </div>
                       <p className="mt-2 truncate font-medium">{survey.displayName}</p>
@@ -1125,8 +1125,8 @@ export default function ModeratorReview() {
               </div>
             </div>
 
-            <button type="button" onClick={() => setView('surveys')} className="mt-5 flex w-full items-center justify-between gap-3 rounded-lg border border-border bg-card p-4 text-left" aria-label="Open subscription survey responses">
-              <span className="font-medium">Subscription survey responses</span>
+            <button type="button" onClick={() => setView('surveys')} className="mt-5 flex w-full items-center justify-between gap-3 rounded-lg border border-border bg-card p-4 text-left" aria-label="Open survey responses">
+              <span className="font-medium">Survey responses</span>
               <span className="text-sm text-muted-foreground">{surveysLoading ? '…' : surveysError ? '-' : surveyPage.total}</span>
               <ChevronRight className="h-4 w-4 shrink-0" />
             </button>
