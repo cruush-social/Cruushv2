@@ -48,14 +48,18 @@ const supportDeviceSchema = z.object({
 export const createSupportRequestPayloadSchema = z.object({
   category: supportRequestCategorySchema,
   subject: singleLineTextSchema({ min: 3, max: 140 }),
-  message: multilineTextSchema({ min: 10, max: 4000 }),
+  message: multilineTextSchema({ min: 10, max: 12000 }),
   contactEmail: optionalEmailSchema,
   linkAccountEmail: z.boolean().optional().default(false),
   source: supportRequestSourceSchema.optional().default("unknown"),
   pageUrl: singleLineTextSchema({ max: 1000 }).optional().default(""),
   device: supportDeviceSchema.optional(),
   screenshot: supportScreenshotSchema.optional()
-}).strict();
+}).strict().superRefine((payload, context) => {
+  if (payload.source !== "survey" && payload.message.length > 4000) {
+    context.addIssue({ code: z.ZodIssueCode.custom, path: ["message"], message: "Message must contain at most 4000 characters." });
+  }
+});
 
 export const generalSuspensionAppealPayloadSchema = z.object({
   contactEmail: optionalEmailSchema,

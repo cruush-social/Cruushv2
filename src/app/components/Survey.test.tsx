@@ -2,6 +2,7 @@ import { fireEvent, render, screen, waitFor, within } from '@testing-library/rea
 import { MemoryRouter } from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import Survey from './Survey';
+import { ApiClientError } from '../lib/apiClient';
 
 const { createSupportRequest } = vi.hoisted(() => ({
   createSupportRequest: vi.fn(),
@@ -134,4 +135,41 @@ describe('Survey', () => {
     expect(createSupportRequest).not.toHaveBeenCalled();
     expect(screen.getByText('Complete the ratings and dropdown questions before submitting.')).toBeInTheDocument();
   });
+  it('submits a long written answer intact', async () => {
+    createSupportRequest.mockResolvedValue({ id: 'long-survey' });
+    render(<MemoryRouter><Survey /></MemoryRouter>);
+    completeSurvey();
+    const answer = 'Detailed feedback. '.repeat(300);
+    fireEvent.change(screen.getByLabelText('What should we improve?'), { target: { value: answer } });
+    fireEvent.click(screen.getByRole('button', { name: 'Send feedback' }));
+    expect(await screen.findByText('SURVEYGIFT')).toBeInTheDocument();
+    expect(createSupportRequest.mock.calls[0][0].message).toContain(answer);
+  });
+
+  it('preserves oversized answers and lets the member shorten and resubmit', async () => {
+    createSupportRequest.mockResolvedValue({ id: 'shortened-survey' });
+    render(<MemoryRouter><Survey /></MemoryRouter>);
+    completeSurvey();
+    const field = screen.getByLabelText('What should we improve?');
+    const answer = 'x'.repeat(12000);
+    fireEvent.change(field, { target: { value: answer } });
+    fireEvent.click(screen.getByRole('button', { name: 'Send feedback' }));
+    expect(createSupportRequest).not.toHaveBeenCalled();
+    expect(field).toHaveValue(answer);
+    expect(screen.getByText('Your survey is too long. Please shorten your written answers and try again.')).toBeInTheDocument();
+    fireEvent.change(field, { target: { value: 'Shortened feedback' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Send feedback' }));
+    expect(await screen.findByText('SURVEYGIFT')).toBeInTheDocument();
+  });
+
+  it('shows the API retry guidance and retains answers after rate limiting', async () => {
+    createSupportRequest.mockRejectedValueOnce(new ApiClientError(429, 'RATE_LIMITED', 'Too many support requests. Try again later.'));
+    render(<MemoryRouter><Survey /></MemoryRouter>);
+    completeSurvey();
+    fireEvent.click(screen.getByRole('button', { name: 'Send feedback' }));
+    expect(await screen.findByText('Too many support requests. Try again later.')).toBeInTheDocument();
+    expect(screen.getByLabelText('What is working best?')).toHaveValue('The map.');
+    expect(screen.getByRole('button', { name: 'Send feedback' })).toBeEnabled();
+  });
+
 });

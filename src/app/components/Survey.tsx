@@ -5,6 +5,7 @@ import { Label } from './ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { Textarea } from './ui/textarea';
 import AppPageHeader from './AppPageHeader';
+import { ApiClientError } from '../lib/apiClient';
 import { createSupportRequest } from '../lib/supportApi';
 import { useBackOrFallback } from '../lib/useBackOrFallback';
 
@@ -55,9 +56,6 @@ export default function Survey() {
       return;
     }
 
-    submittingRef.current = true;
-    setSubmitting(true);
-    setError('');
     const body = [
       `Overall experience (1–5): ${ratings.overall || 'Not answered'}`,
       `Ease of use (1–5): ${ratings.ease || 'Not answered'}`,
@@ -76,6 +74,14 @@ export default function Survey() {
       '',
       `Bugs or confusing moments\n${bugs.trim() ? bugs : 'Not answered'}`,
     ].join('\n');
+    if (body.length > 12000) {
+      setError('Your survey is too long. Please shorten your written answers and try again.');
+      return;
+    }
+
+    submittingRef.current = true;
+    setSubmitting(true);
+    setError('');
     try {
       await createSupportRequest({
         category: 'comment',
@@ -85,10 +91,12 @@ export default function Survey() {
         pageUrl: window.location.href,
       });
       setSent(true);
-    } catch {
+    } catch (submitError) {
       submittingRef.current = false;
       setSubmitting(false);
-      setError(`We couldn't send your feedback. Please try again or email ${SURVEY_RECIPIENT}.`);
+      setError(submitError instanceof ApiClientError && submitError.status < 500
+        ? submitError.message
+        : `We couldn't send your feedback. Please try again or email ${SURVEY_RECIPIENT}.`);
     }
   };
 
