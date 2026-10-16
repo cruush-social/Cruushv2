@@ -6,7 +6,7 @@ import { CruushIcon, type CruushIconName } from './CruushIconImage';
 import CruushPlusWord from './CruushPlusWord';
 import HeartPhoto from './HeartPhoto';
 import DlModePhotoPlaceholder from './DlModePhotoPlaceholder';
-import { resolveMediaUrl } from '../lib/apiClient';
+import { resolveMediaUrl, resolveMediaThumbnailUrl } from '../lib/apiClient';
 import { useDlMode, shouldMaskPhoto, getNsfwPhotoRestriction } from '../lib/dlMode';
 import type { DiscoveryUser } from '../lib/usersApi';
 import { PROFILE_OVERLAY_TEXT_STYLE } from './ProfileView';
@@ -264,7 +264,7 @@ function CarouselTile({ item, featured, itemIndex, spinning, activePhotoIndex, o
       : [];
     const photoUrl = featured ? (allPhotos[activePhotoIndex ?? 0] ?? item.user.photo) : item.user.photo;
     const photo = photoUrl && !shouldMaskPhoto(dlModeActive, item.user.photoExplicit, { ...item.user.photoRelationship, isMutualCruush: item.user.relationship?.mutualCruush === true, sharesCrowd: item.user.photoRelationship?.sharesCrowd ?? item.user.hasSharedCrowd === true })
-      ? resolveMediaUrl(photoUrl)
+      ? (featured ? resolveMediaUrl(photoUrl) : resolveMediaThumbnailUrl(photoUrl))
       : null;
     const initial = item.user.name.trim().charAt(0).toUpperCase() || '?';
 

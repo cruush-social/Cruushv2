@@ -3675,6 +3675,9 @@ describe('MapHome', () => {
 
   it('passes discovery badge metadata and last active labels into map markers', async () => {
     useIsMobile.mockReturnValue(false);
+    const protectedPhoto = '/api/media/assets/11111111-1111-4111-8111-111111111111/display';
+    const existingUsers = await getNearbyUsers();
+    getNearbyUsers.mockResolvedValue(existingUsers.map((user) => ({ ...user, photo: protectedPhoto })));
 
     render(
       <MemoryRouter initialEntries={['/map']}>
@@ -3719,6 +3722,7 @@ describe('MapHome', () => {
     expect(screen.getByTestId('recently-active-tray').style.getPropertyValue('-webkit-overflow-scrolling')).toBe('touch');
     const recentImage = recentTile.querySelector('img');
     expect(recentImage).not.toBeNull();
+    expect(recentImage?.getAttribute('src')).toContain(protectedPhoto.replace('/display', '/thumbnail'));
     fireEvent.error(recentImage!);
     const fallback = await screen.findByTestId('recently-active-fallback-user-1');
     expect(fallback).toBeInTheDocument();

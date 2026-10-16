@@ -38,7 +38,7 @@ import {
 import { CRUUSH_PLUS_CHANGED_EVENT, getMyBillingStatus, type BillingStatus } from '../lib/billingApi';
 import { addCruushChangedListener } from '../lib/cruushEvents';
 import { addNotificationsChangedListener, getNotificationSummary, getNearbyNotificationArea, type NearbyNotificationArea } from '../lib/notificationsApi';
-import { ApiClientError, resolveMediaUrl } from '../lib/apiClient';
+import { ApiClientError, resolveMediaThumbnailUrl } from '../lib/apiClient';
 import { emailEventPass, getActiveEvents, joinEventChat, revealEventPass, type EventPassReveal, type LaunchEvent } from '../lib/eventsApi';
 import type { DenseVenueConfig } from '../lib/denseVenueMarkers';
 import { getProfileGradientCss } from '../lib/profileGradient';
@@ -915,7 +915,7 @@ function RecentlyActivePhoto({
         className="h-full w-full object-cover"
         draggable={false}
         onError={() => setPhotoFailed(true)}
-        src={resolveMediaUrl(user.photo)}
+        src={resolveMediaThumbnailUrl(user.photo)}
       />
     );
   }

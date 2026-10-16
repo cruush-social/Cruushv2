@@ -70,7 +70,7 @@ import {
   type ClubApplicant,
   type ClubDetailRecord,
 } from '../lib/clubsApi';
-import { ApiClientError, resolveMediaUrl } from '../lib/apiClient';
+import { ApiClientError, resolveMediaUrl, resolveMediaThumbnailUrl } from '../lib/apiClient';
 import { useDlMode, shouldMaskPhoto, getNsfwPhotoRestriction, getNsfwPhotoRestrictionLabel, type NsfwPhotoRestriction } from '../lib/dlMode';
 import { resolveUserBorderTone } from '../lib/userBorderTone';
 import { MESSAGE_PHOTO_UPLOAD_ACCEPT, prepareMessagePhotoForUpload } from '../lib/messagePhotoProcessing';
@@ -2463,7 +2463,7 @@ export default function PrivateGroupChat({
                                 ) : (
                                   <img
                                     alt={favorite.label || 'Favorite image'}
-                                    src={resolveMediaUrl(favorite.thumbnailUrl || favorite.url)}
+                                    src={resolveMediaThumbnailUrl(favorite.thumbnailUrl || favorite.url)}
                                     className="h-full w-full object-cover"
                                   />
                                 )}

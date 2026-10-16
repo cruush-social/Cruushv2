@@ -6,7 +6,7 @@ import { CruushIcon } from './CruushIconImage';
 import LoadingCardSkeletons from './LoadingCardSkeletons';
 import AppPageHeader from './AppPageHeader';
 import DlModePhotoPlaceholder from './DlModePhotoPlaceholder';
-import { resolveMediaUrl } from '../lib/apiClient';
+import { resolveMediaThumbnailUrl } from '../lib/apiClient';
 import { shouldMaskPhoto, useDlMode, getNsfwPhotoRestriction } from '../lib/dlMode';
 import { getCruushMatchSettings, type CruushMatchSettings } from '../lib/cruushSettingsApi';
 import {
@@ -159,7 +159,7 @@ export default function PrivacyAudit() {
             <div key={item.revoke_action_token} className="rounded-lg border border-white/10 bg-card p-4">
               <div className="flex items-start gap-3">
                 {item.viewer.photo && !shouldMaskPhoto(dlModeActive, item.viewer.photoExplicit, item.viewer.photoRelationship) ? (
-                  <img alt="" className="h-12 w-12 rounded-full object-cover" src={resolveMediaUrl(item.viewer.photo)} />
+                  <img alt="" className="h-12 w-12 rounded-full object-cover" src={resolveMediaThumbnailUrl(item.viewer.photo)} />
                 ) : (
                   <div className="flex h-12 w-12 items-center justify-center rounded-full" style={{ background: 'var(--cruush-gradient)' }}>
                     {item.viewer.photo && shouldMaskPhoto(dlModeActive, item.viewer.photoExplicit, item.viewer.photoRelationship)
