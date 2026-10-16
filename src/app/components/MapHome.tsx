@@ -12,14 +12,11 @@ import CruushPlusButton from './CruushPlusButton';
 import MapTopBar from './MapTopBar';
 import MapControls from './MapControls';
 import DarkRoomMark from './DarkRoomMark';
-import MapProfilePopup from './MapProfilePopup';
-import CruiseCarouselSlot from './CruiseCarouselSlot';
 import MapSidePanel, { type MapSidePanelView } from './MapSidePanel';
 import MapFiltersSurface, { DEFAULT_FILTER_STATE, type FilterState } from './MapFiltersSurface';
 import MapVisibilitySurface, { DEFAULT_VISIBILITY_STATE, type VisibilityControlState } from './MapVisibilitySurface';
 import MapPingSheet from './MapPingSheet';
 import PlacesDrawer from './PlacesDrawer';
-import SpotBoardDialog from './SpotBoardDialog';
 import PulseLedIcon from './PulseLedIcon';
 import LoadingCardSkeletons from './LoadingCardSkeletons';
 import { MAP_CONTROLS_TUTORIAL_STORAGE_KEY } from './MapControlsTutorial';
@@ -270,6 +267,9 @@ type MobileVisualViewportBounds = {
 };
 
 const MapView = lazy(() => import('./MapView'));
+const MapProfilePopup = lazy(() => import('./MapProfilePopup'));
+const CruiseCarouselSlot = lazy(() => import('./CruiseCarouselSlot'));
+const SpotBoardDialog = lazy(() => import('./SpotBoardDialog'));
 
 export { canUseDeveloperMapToolsEmail };
 
@@ -3238,21 +3238,23 @@ export default function MapHome(_props: MapHomeProps = {}) {
         ) : null}
 
         {!isMobile && luckySlot ? (
-          <CruiseCarouselSlot
-            key={`map-lucky-${luckySlot.mode}-${luckySlot.nonce}`}
-            mode={luckySlot.mode}
-            candidateUsers={displayedUsers}
-            targetUser={luckySlot.mode === 'profile' ? luckySlot.targetUser : null}
-            variant="panel"
-            onClose={() => setLuckySlot(null)}
-            onComplete={luckySlot.mode === 'profile'
-              ? () => {
-                  handleUserSelect(luckySlot.targetUser);
-                }
-              : undefined}
-            onRetry={handleFeelingLucky}
-            onUpgrade={() => navigate(buildCruushPlusStorePath('cruise_carousel', 'cruise_carousel'))}
-          />
+          <Suspense fallback={null}>
+            <CruiseCarouselSlot
+              key={`map-lucky-${luckySlot.mode}-${luckySlot.nonce}`}
+              mode={luckySlot.mode}
+              candidateUsers={displayedUsers}
+              targetUser={luckySlot.mode === 'profile' ? luckySlot.targetUser : null}
+              variant="panel"
+              onClose={() => setLuckySlot(null)}
+              onComplete={luckySlot.mode === 'profile'
+                ? () => {
+                    handleUserSelect(luckySlot.targetUser);
+                  }
+                : undefined}
+              onRetry={handleFeelingLucky}
+              onUpgrade={() => navigate(buildCruushPlusStorePath('cruise_carousel', 'cruise_carousel'))}
+            />
+          </Suspense>
         ) : null}
 
         {!usesFullPageProfile && _props.routePopupSlot !== 'right' && sidePanelView ? (
@@ -3286,30 +3288,32 @@ export default function MapHome(_props: MapHomeProps = {}) {
         ) : null}
 
         {!usesFullPageProfile && _props.routePopupSlot !== 'left' && selectedUser && !luckySlot ? (
-          <MapProfilePopup
-            user={selectedUser}
-            onClose={() => setSelectedUser(null)}
-            fixed={selectedUser.isCurrentUser === true}
-            isOwnProfile={selectedUser.isCurrentUser === true}
-            onBlockedUser={handleBlockedUser}
-            onOpenMessages={(userId) => {
-              setSelectedUser(null);
-              setPendingMessageUserId(userId);
-              setSidePanelView('messages');
-            }}
-            onProfileSaved={(savedProfile) => {
-              const nextProfile = {
-                ...emptyProfilePayload,
-                ...savedProfile,
-              };
-              const nextLocation = travelMapLocation ?? userApproximateLocation ?? profileLocationToApproximateCoordinates(nextProfile);
+          <Suspense fallback={null}>
+            <MapProfilePopup
+              user={selectedUser}
+              onClose={() => setSelectedUser(null)}
+              fixed={selectedUser.isCurrentUser === true}
+              isOwnProfile={selectedUser.isCurrentUser === true}
+              onBlockedUser={handleBlockedUser}
+              onOpenMessages={(userId) => {
+                setSelectedUser(null);
+                setPendingMessageUserId(userId);
+                setSidePanelView('messages');
+              }}
+              onProfileSaved={(savedProfile) => {
+                const nextProfile = {
+                  ...emptyProfilePayload,
+                  ...savedProfile,
+                };
+                const nextLocation = travelMapLocation ?? userApproximateLocation ?? profileLocationToApproximateCoordinates(nextProfile);
 
-              setCurrentProfile(nextProfile);
-              setSelectedUser((currentUser) => currentUser?.isCurrentUser === true
-                ? profileRecordToOwnDiscoveryUser(nextProfile, nextLocation, travelPin)
-                : currentUser);
-            }}
-          />
+                setCurrentProfile(nextProfile);
+                setSelectedUser((currentUser) => currentUser?.isCurrentUser === true
+                  ? profileRecordToOwnDiscoveryUser(nextProfile, nextLocation, travelPin)
+                  : currentUser);
+              }}
+            />
+          </Suspense>
         ) : null}
 
         {selectedEvent ? (
@@ -3581,15 +3585,19 @@ export default function MapHome(_props: MapHomeProps = {}) {
           </div>
         )}
 
-        <SpotBoardDialog
-          docked={desktopPageLayout === 'popups'}
-          open={!usesFullPageProfile && spotBoardPlaceId != null}
-          onOpenChange={(open) => {
-            if (!open) setSpotBoardPlaceId(null);
-          }}
-          placeId={spotBoardPlaceId}
-          spotName={selectedPlace?.name ?? null}
-        />
+        {spotBoardPlaceId != null ? (
+          <Suspense fallback={null}>
+            <SpotBoardDialog
+              docked={desktopPageLayout === 'popups'}
+              open={!usesFullPageProfile && spotBoardPlaceId != null}
+              onOpenChange={(open) => {
+                if (!open) setSpotBoardPlaceId(null);
+              }}
+              placeId={spotBoardPlaceId}
+              spotName={selectedPlace?.name ?? null}
+            />
+          </Suspense>
+        ) : null}
 
         <PlacesDrawer
           open={placesOpen}

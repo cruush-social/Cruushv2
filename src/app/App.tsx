@@ -26,7 +26,8 @@ import LoadingCardSkeletons from './components/LoadingCardSkeletons';
 import { MapServiceAreaProvider } from './components/MapServiceAreaContext';
 import GlobalSaleBanner from './components/GlobalSaleBanner';
 
-const MapHome = lazyRoute(() => import('./components/MapHome'));
+const loadMapHome = () => import('./components/MapHome');
+const MapHome = lazyRoute(loadMapHome);
 const LocalFeed = lazyRoute(() => import('./components/LocalFeed'));
 const FeedPhotoPreview = lazyRoute(() => import('./components/FeedPhotoPreview'));
 const BadgePickerPreview = lazyRoute(() => import('./components/BadgePickerPreview'));
@@ -135,6 +136,9 @@ function getInitialAppRoute() {
 export function getInitialAppEntries(initialRoute = getInitialAppRoute()) {
   const url = new URL(initialRoute, 'https://cruush.app');
   const { pathname } = url;
+  // The authenticated root already redirects here. Seed its final destination
+  // so shared navigation effects do not fetch twice during that redirect.
+  if (pathname === '/') return ['/map'];
   let fallback: string | null = null;
 
   const eventPassGuideMatch = pathname.match(/^\/events\/([^/]+)\/pass-guide\/?$/);
@@ -285,6 +289,12 @@ export default function App({
     }
 
     let isActive = true;
+
+    // Download code alongside the session check; mounting and data access still
+    // wait for the existing authentication and onboarding gates below.
+    if (window.location.pathname === '/' || window.location.pathname === '/map') {
+      void loadMapHome().catch(() => undefined);
+    }
 
     const bootstrap = async () => {
       try {

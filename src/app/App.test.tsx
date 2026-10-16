@@ -318,6 +318,8 @@ describe('App', () => {
     expect(getInitialAppEntries('/events/event-1/pass-guide')).toEqual(['/events/event-1', '/events/event-1/pass-guide']);
     expect(getInitialAppEntries('/feed?view=nearby#latest')).toEqual(['/map', '/feed?view=nearby#latest']);
     expect(getInitialAppEntries('/map')).toEqual(['/map']);
+    expect(getInitialAppEntries('/')).toEqual(['/map']);
+    expect(getInitialAppEntries('/?unused=1#latest')).toEqual(['/map']);
   });
 
   it('makes Back work after a direct authenticated page load', async () => {

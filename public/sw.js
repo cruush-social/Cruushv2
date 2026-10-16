@@ -1,5 +1,5 @@
-const CACHE_NAME = 'cruush-app-shell-v197';
-const REFRESH_ID = 'v197';
+const CACHE_NAME = 'cruush-app-shell-v198';
+const REFRESH_ID = 'v198';
 
 async function deleteCachedShells() {
   const keys = await caches.keys();
