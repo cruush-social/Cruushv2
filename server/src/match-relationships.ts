@@ -1,3 +1,4 @@
+import { reuseRequestRead } from "./request-read-scope.js";
 import { resolveViewerPrecisionGrant } from "./visibility-location.js";
 import type { FastifyInstance } from "fastify";
 import {
@@ -173,6 +174,15 @@ export function effectiveVisibilityPolicyForEntitlement(
 }
 
 export async function getEffectiveVisibilityPolicy(
+  app: FastifyInstance,
+  userId: string,
+  storedPolicy?: VisibilityPolicyPayload
+): Promise<VisibilityPolicyPayload> {
+  if (storedPolicy) return readEffectiveVisibilityPolicy(app, userId, storedPolicy);
+  return reuseRequestRead(app, `effective-policy:${userId}`, () => readEffectiveVisibilityPolicy(app, userId));
+}
+
+async function readEffectiveVisibilityPolicy(
   app: FastifyInstance,
   userId: string,
   storedPolicy?: VisibilityPolicyPayload
@@ -549,6 +559,15 @@ export async function removeProfileViewsFromViewer(app: FastifyInstance, userId:
 }
 
 export async function getRelationshipPermissions(
+  app: FastifyInstance,
+  viewerUserId: string,
+  targetUserId: string
+): Promise<RelationshipPermissions> {
+  return reuseRequestRead(app, `relationship:${viewerUserId}:${targetUserId}`,
+    () => readRelationshipPermissions(app, viewerUserId, targetUserId));
+}
+
+async function readRelationshipPermissions(
   app: FastifyInstance,
   viewerUserId: string,
   targetUserId: string

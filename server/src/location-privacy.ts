@@ -1,3 +1,4 @@
+import { batchRequestRead } from "./request-read-scope.js";
 import {
   createCipheriv,
   createDecipheriv,
@@ -591,8 +592,7 @@ async function loadEncryptedVisibilityPolicyRow(
   context: LocationPrivacyContext,
   subjectUserId: string
 ) {
-  const rows = await context.db.query<EncryptedVisibilityTokenRow>(
-    `select
+  const select = `select
        subject_user_id::text as subject_user_id,
        policy_version,
        policy_ciphertext,
@@ -603,13 +603,18 @@ async function loadEncryptedVisibilityPolicyRow(
        policy_dek_auth_tag,
        key_version,
        updated_at_ms
-     from encrypted_visibility_tokens
-     where subject_user_id = $1
-     limit 1`,
-    [subjectUserId]
-  );
-
-  return rows?.rows?.[0] ?? null;
+     from encrypted_visibility_tokens`;
+  return batchRequestRead(context.db, "visibility-policy-rows", subjectUserId, async (ids) => {
+    const result = await context.db.query<EncryptedVisibilityTokenRow>(
+      `${select} where subject_user_id = any($1::uuid[])`, [ids]
+    );
+    return new Map((result?.rows ?? []).map((row) => [row.subject_user_id, row]));
+  }, async () => {
+    const result = await context.db.query<EncryptedVisibilityTokenRow>(
+      `${select} where subject_user_id = $1 limit 1`, [subjectUserId]
+    );
+    return result?.rows?.[0] ?? null;
+  });
 }
 
 export async function loadVisibilityPolicyStrict(

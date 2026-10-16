@@ -42,7 +42,7 @@ describe('PostHog analytics', () => {
     expect(trackPostHogPageView('/profile/secret-user?mode=preview&token=secret', 'Profile')).toBe(true);
     expect(trackPostHogPageView('/profile/secret-user?mode=preview&token=secret', 'Profile')).toBe(true);
 
-    expect(init).toHaveBeenCalledTimes(1);
+    await vi.waitFor(() => expect(init).toHaveBeenCalledTimes(1));
     expect(init).toHaveBeenCalledWith('phc_test', expect.objectContaining({
       api_host: 'https://example.posthog.test',
       autocapture: false,
@@ -50,6 +50,7 @@ describe('PostHog analytics', () => {
       disable_session_recording: true,
       persistence: 'memory',
     }));
+    expect(capture).toHaveBeenCalledTimes(2);
     expect(capture).toHaveBeenCalledWith('$pageview', {
         $current_url: 'http://localhost:3000/profile/:userId?mode=preview',
         $pathname: '/profile/:userId?mode=preview',
@@ -67,6 +68,7 @@ describe('PostHog analytics', () => {
       sendingApp: 'venmo',
     })).toBe(true);
 
+    await vi.waitFor(() => expect(capture).toHaveBeenCalled());
     expect(capture).toHaveBeenCalledWith('bitcoin order created', {
       product_type: 'cruush_plus',
       product_id: 'founder_annual',
@@ -87,6 +89,7 @@ describe('PostHog analytics', () => {
       experimentVariant: 'store',
     })).toBe(true);
 
+    await vi.waitFor(() => expect(capture).toHaveBeenCalled());
     expect(capture).toHaveBeenCalledWith('cruush_plus_order_created', {
       surface: 'map_filters',
       benefit: 'seeking_visibility',
@@ -96,4 +99,21 @@ describe('PostHog analytics', () => {
       experiment_variant: 'store',
     }, { send_instantly: true });
   });
+  it('queues allowed events during SDK loading and cancels subscriptions before they attach', async () => {
+    vi.stubEnv('VITE_POSTHOG_KEY', 'phc_test');
+    const { trackCruushPlusConversion, onPostHogFeatureFlags } = await import('./posthog');
+    const callback = vi.fn();
+    const cancel = onPostHogFeatureFlags(callback);
+    trackCruushPlusConversion('cruush_plus_paywall_viewed', { surface: 'map_top' });
+    trackCruushPlusConversion('cruush_plus_upgrade_clicked', { surface: 'map_top' });
+    expect(init).not.toHaveBeenCalled();
+    cancel?.();
+    await vi.waitFor(() => expect(capture).toHaveBeenCalledTimes(2));
+    expect(init).toHaveBeenCalledTimes(1);
+    expect(onFeatureFlags).not.toHaveBeenCalled();
+    expect(capture.mock.calls.map(call => call[0])).toEqual([
+      'cruush_plus_paywall_viewed', 'cruush_plus_upgrade_clicked',
+    ]);
+  });
+
 });

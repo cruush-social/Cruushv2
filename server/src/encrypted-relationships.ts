@@ -1,3 +1,4 @@
+import { batchRequestRead } from "./request-read-scope.js";
 import {
   createCipheriv,
   createDecipheriv,
@@ -511,8 +512,7 @@ export async function findEncryptedRelationshipRecord(
     input.status ?? ACTIVE_STATUS,
     indexes.index_key_version
   );
-  const result = await context.db.query<EncryptedRelationshipRecordRow>(
-    `select
+  const select = `select
        id::text as id,
        record_lookup_index,
        actor_user_index,
@@ -531,17 +531,33 @@ export async function findEncryptedRelationshipRecord(
        expires_at,
        created_at,
        updated_at
-     from encrypted_relationship_records
-     where record_lookup_index = $1
-       and relationship_status_index = $2
-       and index_key_version = $3
-     limit 1`,
-    [indexes.record_lookup_index, statusIndex, indexes.index_key_version]
-  );
+     from encrypted_relationship_records`;
+  const row = await batchRequestRead(context.db,
+    `relationship-rows:${statusIndex}:${indexes.index_key_version}`,
+    indexes.record_lookup_index,
+    async (lookupIndexes) => {
+      const result = await context.db.query<EncryptedRelationshipRecordRow>(
+        `${select}
+         where record_lookup_index = any($1::text[])
+           and relationship_status_index = $2
+           and index_key_version = $3`,
+        [lookupIndexes, statusIndex, indexes.index_key_version]
+      );
+      return new Map((result?.rows ?? []).map((record) => [record.record_lookup_index, record]));
+    },
+    async () => {
+      const result = await context.db.query<EncryptedRelationshipRecordRow>(
+        `${select}
+         where record_lookup_index = $1
+           and relationship_status_index = $2
+           and index_key_version = $3
+         limit 1`,
+        [indexes.record_lookup_index, statusIndex, indexes.index_key_version]
+      );
+      return result?.rows?.[0] ?? null;
+    });
 
-  const row = result?.rows?.[0];
-
-  return isEncryptedRelationshipRecordRow(row) ? withPayloadOrNull(context.config, row) : null;
+  return row && isEncryptedRelationshipRecordRow(row) ? withPayloadOrNull(context.config, row) : null;
 }
 
 export async function listEncryptedRelationshipRecordsByActor(

@@ -4,6 +4,7 @@ import multipart from "@fastify/multipart";
 import Fastify, { type FastifyServerOptions } from "fastify";
 import { getAlphaTestState } from "./alpha-test.js";
 import { createPool, type DbClient } from "./db.js";
+import { registerRequestReadScopes } from "./request-read-scope.js";
 import type { AppConfig } from "./config.js";
 import { registerAuthRoutes } from "./routes/auth.js";
 import { registerAdminModerationRoutes } from "./routes/admin-moderation.js";
@@ -148,6 +149,7 @@ export function buildServer(config: AppConfig, deps: BuildServerDeps = {}) {
     done();
   });
 
+  registerRequestReadScopes(app);
   const db = deps.db ?? createPool(config);
   const allowedCorsOrigins = new Set(
     config.CORS_ORIGIN
