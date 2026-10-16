@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { useNavigate } from 'react-router';
 import App, { getInitialAppEntries } from './App';
@@ -10,7 +10,7 @@ import App, { getInitialAppEntries } from './App';
 // src/test/setup.ts stubs scrollIntoView the same way for the same reason.
 Element.prototype.scrollTo ??= function scrollTo() {};
 
-const { getRewardSummary, getSideQuests, loadCurrentSession, persistSessionUser, recordDailyRewardCheckIn, refreshExistingPushSubscription, routeModuleLoads, updateRewardTimezone } = vi.hoisted(() => ({
+const { getRewardSummary, getSideQuests, installPromptState, loadCurrentSession, persistSessionUser, recordDailyRewardCheckIn, refreshExistingPushSubscription, routeModuleLoads, updateRewardTimezone } = vi.hoisted(() => ({
   getRewardSummary: vi.fn(),
   // The Side Quest prompt mounts inside the authenticated shell and reads this
   // on every route. Leaving it off the mock threw during the first effect and
@@ -23,6 +23,7 @@ const { getRewardSummary, getSideQuests, loadCurrentSession, persistSessionUser,
   refreshExistingPushSubscription: vi.fn(),
   updateRewardTimezone: vi.fn(),
   routeModuleLoads: [] as string[],
+  installPromptState: { pending: null as Promise<void> | null },
 }));
 
 vi.mock('./lib/pushNotifications', () => ({ refreshExistingPushSubscription }));
@@ -113,7 +114,10 @@ vi.mock('./components/OnboardingPreview', () => ({
 }));
 
 vi.mock('./components/MobileInstallPrompt', () => ({
-  default: ({ userId }: { userId: string }) => <div data-testid="mock-mobile-install-prompt">{userId}</div>
+  default: ({ userId }: { userId: string }) => {
+    if (installPromptState.pending) throw installPromptState.pending;
+    return <div data-testid="mock-mobile-install-prompt">{userId}</div>;
+  }
 }));
 
 vi.mock('./components/PushPermissionPrompt', () => ({
@@ -297,6 +301,7 @@ describe('App', () => {
   };
 
   beforeEach(() => {
+    installPromptState.pending = null;
     getRewardSummary.mockReset().mockResolvedValue({ recentGrants: [] });
     getSideQuests.mockReset().mockResolvedValue({ quests: [], claimingAvailable: false });
     localStorage.clear();
@@ -474,6 +479,28 @@ describe('App', () => {
     expect(await screen.findByText('Mock Map')).toBeInTheDocument();
     expect(screen.getByRole('navigation', { name: 'Bottom Navigation' })).toBeInTheDocument();
     expect(screen.getByTestId('mock-mobile-install-prompt')).toHaveTextContent('user-1');
+    expect(screen.getByTestId('mock-push-permission-prompt')).toHaveTextContent('user-1');
+    expect(screen.getByTestId('mock-dl-mode-default-notice')).toBeInTheDocument();
+  });
+
+  it('renders the map while global notice code is still loading, then shows the notices', async () => {
+    loadCurrentSession.mockResolvedValue({
+      user: { id: 'user-1', email: 'test@example.com', displayName: 'Test User', emailVerifiedAt: '2026-04-28T12:00:00.000Z', createdAt: '2026-04-28T12:00:00.000Z' },
+      profile: { displayName: 'Test User', yearOfBirth: 1998 },
+      needsOnboarding: false,
+      ...acceptedConductSession,
+    });
+    let finishLoading!: () => void;
+    installPromptState.pending = new Promise<void>((resolve) => { finishLoading = resolve; });
+    render(<App />);
+
+    expect(await screen.findByText('Mock Map')).toBeInTheDocument();
+    expect(screen.queryByTestId('mock-mobile-install-prompt')).not.toBeInTheDocument();
+    await act(async () => {
+      installPromptState.pending = null;
+      finishLoading();
+    });
+    expect(await screen.findByTestId('mock-mobile-install-prompt')).toHaveTextContent('user-1');
     expect(screen.getByTestId('mock-push-permission-prompt')).toHaveTextContent('user-1');
     expect(screen.getByTestId('mock-dl-mode-default-notice')).toBeInTheDocument();
   });

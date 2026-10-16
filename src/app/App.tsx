@@ -729,6 +729,8 @@ export default function App({
               <Route path="/checkout/:sessionId" element={<Navigate to="/rewards" replace />} />
               <Route path="*" element={<Navigate to="/map" replace />} />
             </DesktopPopupRoutes>
+          </Suspense>
+          <Suspense fallback={null}>
             <MobileInstallPrompt userId={session.user.id} />
             <PushPermissionPrompt key={`push:${session.user.id}`} userId={session.user.id} />
             <PurgatoryInfoPrompt key={`purgatory:${session.user.id}`} userId={session.user.id} />
