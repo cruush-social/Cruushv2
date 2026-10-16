@@ -2,6 +2,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { requestApi } from './apiClient';
 import { act, renderHook, waitFor } from '@testing-library/react';
 vi.mock('./apiClient', () => ({ requestApi: vi.fn() }));
+vi.mock('./contentVisibilityRevision', () => ({ refreshContentVisibility: vi.fn() }));
+import { refreshContentVisibility } from './contentVisibilityRevision';
 import {
   DISTANCE_PREFERENCES_STORAGE_KEY,
   clearDeletedAccountDistancePreferences,
@@ -15,6 +17,7 @@ import {
 describe('distancePreferences', () => {
   beforeEach(() => {
     window.localStorage.clear();
+    vi.mocked(refreshContentVisibility).mockClear();
     vi.mocked(requestApi).mockImplementation(async (_path, init) => JSON.parse(String(init?.body)));
   });
 
@@ -28,6 +31,7 @@ describe('distancePreferences', () => {
 
     await saveDistancePreferences({ mode: 'precise' });
     expect(getDistancePreferences()).toEqual({ mode: 'precise' });
+    expect(refreshContentVisibility).toHaveBeenCalledTimes(2);
   });
 
   it('formats precise distance labels unchanged', () => {
@@ -73,10 +77,29 @@ describe('distancePreferences', () => {
     replay.unmount();
   });
 
+  it('does not refetch mounted content for an ordinary initial settings read', async () => {
+    vi.mocked(requestApi).mockResolvedValueOnce({ mode: 'precise', configured: true });
+    const sync = renderHook(() => useSyncDistancePreferences('initial-read-member'));
+    await waitFor(() => expect(getDistancePreferences().mode).toBe('precise'));
+    expect(refreshContentVisibility).not.toHaveBeenCalled();
+    sync.unmount();
+  });
+
+  it('refreshes mounted server labels after a successful legacy preference migration', async () => {
+    localStorage.setItem(DISTANCE_PREFERENCES_STORAGE_KEY, '{"mode":"precise"}');
+    vi.mocked(requestApi).mockResolvedValueOnce({ mode: 'approximate', configured: false });
+    vi.mocked(requestApi).mockResolvedValueOnce({ mode: 'precise' });
+    const sync = renderHook(() => useSyncDistancePreferences('legacy-member'));
+    await waitFor(() => expect(refreshContentVisibility).toHaveBeenCalledTimes(1));
+    expect(getDistancePreferences().mode).toBe('precise');
+    sync.unmount();
+  });
+
   it('does not expose numeric labels after a failed precise preference save', async () => {
     vi.mocked(requestApi).mockRejectedValueOnce(new Error('offline'));
     expect(await saveDistancePreferences({ mode: 'precise' }).then(() => 'unexpected success', error => error.message)).toBe('offline');
     expect(getDistancePreferences().mode).toBe('approximate');
+    expect(refreshContentVisibility).not.toHaveBeenCalled();
   });
 
   it('does not restore a deleted account preference when its pending sync finishes', async () => {

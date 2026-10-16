@@ -2,6 +2,7 @@ import { act, fireEvent, render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import MapProfilePopup from './MapProfilePopup';
+import { refreshContentVisibility } from '../lib/contentVisibilityRevision';
 
 const { serviceArea } = vi.hoisted(() => ({ serviceArea: { profilePinsAllowed: false } }));
 vi.mock('./MapServiceAreaContext', () => ({ useMapServiceArea: () => serviceArea }));
@@ -158,6 +159,27 @@ describe('MapProfilePopup', () => {
     serviceArea.profilePinsAllowed = true;
     rerender(<MemoryRouter><MapProfilePopup {...props} /></MemoryRouter>);
     expect(screen.getByRole('button', { name: 'Center the map on River' })).toBeEnabled();
+  });
+
+  it('refreshes an open popup from a stale Nearby card to the fresh permitted server distance', async () => {
+    act(() => applyAcceptedDistanceMode('precise'));
+    const profile = await getProfileById();
+    getProfileById.mockResolvedValue({ ...profile, distance_label: 'Nearby' });
+    render(<MemoryRouter><MapProfilePopup user={{ id: 'user-1', name: 'River', distance: 'Nearby' }} onClose={vi.fn()} /></MemoryRouter>);
+    expect(await screen.findByText('Nearby')).toBeInTheDocument();
+    await screen.findByRole('tablist');
+    const tab = screen.getByRole('tab', { name: 'Intimacy' });
+    fireEvent.pointerDown(tab, { button: 0, ctrlKey: false });
+    fireEvent.click(tab);
+    getProfileById.mockResolvedValue({ ...profile, distance_label: '0.4 mi' });
+    act(() => refreshContentVisibility());
+    expect(await screen.findByText('0.4 mi')).toBeInTheDocument();
+    expect(screen.queryByText('Nearby')).not.toBeInTheDocument();
+    expect(tab).toHaveAttribute('aria-selected', 'true');
+    getProfileById.mockResolvedValue({ ...profile, distance_label: 'Nearby' });
+    act(() => refreshContentVisibility());
+    expect(await screen.findByText('Nearby')).toBeInTheDocument();
+    expect(screen.queryByText('0.4 mi')).not.toBeInTheDocument();
   });
 
   it('keeps desktop profile tabs in normal flow without a redundant full-profile button', async () => {

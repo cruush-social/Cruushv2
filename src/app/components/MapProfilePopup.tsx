@@ -1,5 +1,6 @@
+import { useContentVisibilityRefresh } from '../lib/contentVisibilityRevision';
 import { formatVibeLabel } from '../lib/vibeLabels';
-import { useEffect, useMemo, useState, type CSSProperties } from 'react';
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { useNavigate } from 'react-router';
 import { formatDistanceLabel, useDistancePreferences } from '../lib/distancePreferences';
 import { X } from 'lucide-react';
@@ -74,9 +75,11 @@ export default function MapProfilePopup({
   const [profileError, setProfileError] = useState<string | null>(null);
   const [ownProfileMode, setOwnProfileMode] = useState<'view' | 'edit'>('view');
   const isDemo = user.isDemo === true;
+  const profileLoadGeneration = useRef(0);
 
   useEffect(() => {
     let isMounted = true;
+    const generation = ++profileLoadGeneration.current;
 
     setActiveTab('basics');
     setOwnProfileMode('view');
@@ -99,7 +102,7 @@ export default function MapProfilePopup({
 
     profileRequest
       .then((profile) => {
-        if (!isMounted) {
+        if (!isMounted || generation !== profileLoadGeneration.current) {
           return;
         }
 
@@ -109,7 +112,7 @@ export default function MapProfilePopup({
         });
       })
       .catch((error) => {
-        if (!isMounted) {
+        if (!isMounted || generation !== profileLoadGeneration.current) {
           return;
         }
 
@@ -124,7 +127,7 @@ export default function MapProfilePopup({
         setProfileError(error instanceof Error ? error.message : 'Profile details could not load.');
       })
       .finally(() => {
-        if (isMounted) {
+        if (isMounted && generation === profileLoadGeneration.current) {
           setProfileLoading(false);
         }
       });
@@ -133,6 +136,28 @@ export default function MapProfilePopup({
       isMounted = false;
     };
   }, [isDemo, isOwnProfile, user.id]);
+
+  useContentVisibilityRefresh(async (isCurrent) => {
+    if (isDemo) return;
+    const generation = ++profileLoadGeneration.current;
+    try {
+      const profile = await (isOwnProfile ? getMyProfile() : getProfileById(user.id));
+      if (!isCurrent() || generation !== profileLoadGeneration.current) return;
+      setFullProfile({ ...emptyProfilePayload, ...profile });
+      setProfileError(null);
+      setProfileLoading(false);
+    } catch (error) {
+      if (!isCurrent() || generation !== profileLoadGeneration.current) return;
+      setProfileLoading(false);
+      if (error instanceof ProfileApiError && error.status === 404) {
+        notifyProfileUnavailable(user.id);
+        onClose();
+        return;
+      }
+      setProfileError(error instanceof Error ? error.message : 'Profile details could not load.');
+      throw error;
+    }
+  }, user.id);
 
   const profileView = useMemo(() => {
     if (!fullProfile) {
@@ -161,7 +186,7 @@ export default function MapProfilePopup({
     explicit: user.photoExplicit === true,
   }] : []);
   const displayBadges = profileView?.badges ?? user.badges;
-  const displayDistance = profileView?.distance ?? user.distance;
+  const displayDistance = profileView ? profileView.distance : user.distance;
   const displayLastActive = profileView?.lastActive ?? user.lastActive;
   const isAlreadyMutual = !isOwnProfile && !mutualRevoked && (cruushBecameMutual || profileView?.relationship?.mutual_cruush === true || user.relationship?.mutualCruush === true);
   const hasSentCruush = !isAlreadyMutual && !outgoingRevoked && (cruushed || profileView?.relationship?.outgoing_cruush === true);

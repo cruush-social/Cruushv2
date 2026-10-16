@@ -230,7 +230,8 @@ export function profileRecordToProfileView(
   preferServerDistance = false,
 ): ProfileViewModel {
   const serverDistance = profile.distance_label ?? null;
-  const serverDistanceAuthoritative = preferServerDistance
+  const serverDistanceAuthoritative = profile.distance_label !== undefined
+    || preferServerDistance
     || profile.outOfSight === true
     || isServerCoarseLocationLabel(serverDistance);
   return {
@@ -238,8 +239,8 @@ export function profileRecordToProfileView(
     name: profile.display_name || 'cruush user',
     age: deriveAge(profile.year_of_birth),
     pronouns: formatJoined(profile.pronouns) ?? 'ask me',
-    // Route state can supply ordinary distance; server coarse labels and
-    // unavailable map access must not fall back to a stale route distance.
+    // A fresh server decision supersedes a stale map/navigation label,
+    // including a null denial. Older responses may omit the field.
     distance: serverDistanceAuthoritative ? serverDistance : previewState?.distance ?? serverDistance,
     lastActive: previewState?.lastActive ?? profile.last_active ?? null,
     photos: profile.photos,

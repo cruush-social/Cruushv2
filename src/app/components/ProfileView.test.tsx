@@ -127,14 +127,18 @@ function createProfileFixture(overrides: Record<string, unknown> = {}) {
 }
 
 describe('ProfileView', () => {
-  it('keeps server coarse labels ahead of stale navigation distance without changing ordinary precedence', () => {
+  it('keeps fresh server distance decisions ahead of stale navigation labels', () => {
     const profile = { ...emptyProfilePayload, ...createProfileFixture(), distance_label: 'Among sinners' } as ProfileRecord;
     const preview = { distance: '2 mi', lastActive: 'now' };
     expect(profileRecordToProfileView(profile, preview).distance).toBe('Among sinners');
     expect(profileRecordToProfileView({ ...profile, distance_label: 'Far far away' }, preview).distance).toBe('Far far away');
     expect(profileRecordToProfileView({ ...profile, distance_label: 'New York, NY' }, preview).distance).toBe('New York, NY');
     expect(profileRecordToProfileView({ ...profile, distance_label: 'Holmdel, NJ' }, preview).distance).toBe('Holmdel, NJ');
-    expect(profileRecordToProfileView({ ...profile, distance_label: '3 mi' }, preview).distance).toBe('2 mi');
+    expect(profileRecordToProfileView({ ...profile, distance_label: '3 mi' }, preview).distance).toBe('3 mi');
+    expect(profileRecordToProfileView({ ...profile, distance_label: '1.2 mi' }, { distance: 'Nearby' }).distance).toBe('1.2 mi');
+    expect(profileRecordToProfileView({ ...profile, distance_label: 'Nearby' }, preview).distance).toBe('Nearby');
+    expect(profileRecordToProfileView({ ...profile, distance_label: null }, preview).distance).toBeNull();
+    expect(profileRecordToProfileView({ ...profile, distance_label: undefined }, preview).distance).toBe('2 mi');
     expect(profileRecordToProfileView({ ...profile, distance_label: null, outOfSight: true }, preview).distance).toBeNull();
     expect(profileRecordToProfileView({ ...profile, distance_label: null }, preview, true).distance).toBeNull();
   });

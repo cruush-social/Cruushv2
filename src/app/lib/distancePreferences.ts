@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { requestApi } from './apiClient';
+import { refreshContentVisibility } from './contentVisibilityRevision';
 
 export const DISTANCE_PREFERENCES_CHANGED_EVENT = 'cruush:distance-preferences-changed';
 export const DISTANCE_PREFERENCES_STORAGE_KEY = 'cruush:distance-preference';
@@ -118,7 +119,10 @@ export async function saveDistancePreferences(preferences: DistancePreferences) 
     });
     pendingSave = request;
     const saved = await request;
-    if (revision === preferenceRevision && userId === preferenceUserId) cacheDistancePreferences(saved);
+    if (revision === preferenceRevision && userId === preferenceUserId) {
+      cacheDistancePreferences(saved);
+      refreshContentVisibility();
+    }
   } catch (error) {
     if (revision === preferenceRevision && userId === preferenceUserId) displayApproximateWhileSyncing();
     throw error;
@@ -146,6 +150,7 @@ export function useSyncDistancePreferences(userId: string | null | undefined) {
     displayApproximateWhileSyncing();
     void (async () => {
       try {
+        let migratedPreference = false;
         let saved = await requestApi<DistancePreferences & { configured: boolean }>('/api/privacy/distance-labels');
         if (!active || preferenceUserId !== userId || revision !== preferenceRevision) return;
         if (!saved.configured && hasLegacyPreference) {
@@ -159,10 +164,12 @@ export function useSyncDistancePreferences(userId: string | null | undefined) {
           const migrated = await migration;
           if (!migrated) return;
           saved = { ...migrated, configured: true };
+          migratedPreference = true;
         }
         if (!active || preferenceUserId !== userId || revision !== preferenceRevision) return;
         try { window.localStorage.setItem(ownerKey, userId); } catch { /* Optional local cache. */ }
         cacheDistancePreferences(saved);
+        if (migratedPreference) refreshContentVisibility();
       } catch {
         // Missing policy must never restore numeric labels on a guess.
         if (active && revision === preferenceRevision) displayApproximateWhileSyncing();
