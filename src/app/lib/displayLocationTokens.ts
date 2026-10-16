@@ -80,6 +80,11 @@ async function getDisplayKey() {
   return pendingDisplayKey;
 }
 
+// Called only by the authenticated map; decryption still checks key ID/expiry.
+export async function preloadDisplayLocationKey() {
+  await getDisplayKey();
+}
+
 export async function decryptDisplayLocationToken(token: DisplayLocationToken) {
   const displayKey = await getDisplayKey();
 

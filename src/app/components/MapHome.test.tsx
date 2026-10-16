@@ -197,6 +197,7 @@ vi.mock('../lib/reportApi', async () => {
 });
 
 vi.mock('../lib/displayLocationTokens', () => ({
+  preloadDisplayLocationKey: vi.fn().mockResolvedValue(undefined),
   decryptDisplayLocationToken,
 }));
 

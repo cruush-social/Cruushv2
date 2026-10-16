@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { clearDisplayLocationKeyCache, decryptDisplayLocationToken } from './displayLocationTokens';
+import { clearDisplayLocationKeyCache, decryptDisplayLocationToken, preloadDisplayLocationKey } from './displayLocationTokens';
 const { requestApi } = vi.hoisted(() => ({ requestApi: vi.fn() }));
 vi.mock('./apiClient', () => ({ requestApi }));
 const token = { version: 1, tokenId: 'token', keyId: 'key', ciphertext: 'AA', nonce: 'AA', expiresAtMs: Date.now() + 60_000, tokenVersion: 1 } as const;
@@ -12,6 +12,17 @@ describe('display key loading', () => {
     }});
   });
   afterEach(() => vi.unstubAllGlobals());
+  it('starts the key request before tokens arrive and reuses it for decryption', async () => {
+    let resolve!: (value: unknown) => void;
+    requestApi.mockImplementationOnce(() => new Promise(r => { resolve = r; }));
+    const preload = preloadDisplayLocationKey();
+    expect(requestApi).toHaveBeenCalledTimes(1);
+    const decrypted = decryptDisplayLocationToken(token);
+    expect(requestApi).toHaveBeenCalledTimes(1);
+    resolve(key());
+    await preload; await decrypted;
+    expect(crypto.subtle.decrypt).toHaveBeenCalledTimes(1);
+  });
   it('shares one request and key import across a cold batch of 50 pins', async () => {
     requestApi.mockResolvedValue(key());
     const result = await Promise.all(Array.from({length:50}, () => decryptDisplayLocationToken(token)));

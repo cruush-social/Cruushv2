@@ -109,9 +109,9 @@ describe('BadgePickerPreview', () => {
     fireEvent.change(search, { target: { value: 'boot' } });
     fireEvent.click(screen.getByRole('button', { name: 'Leather boot' }));
     fireEvent.click(screen.getByRole('button', { name: 'Edit left badge title' }));
-    fireEvent.change(screen.getByRole('textbox', { name: 'Badge title' }), { target: { value: 'abcdefghijk' } });
+    fireEvent.change(screen.getByRole('textbox', { name: 'Badge label' }), { target: { value: 'abcdefghijk' } });
 
-    expect(screen.getByRole('textbox', { name: 'Badge title' })).toHaveValue('abcdefghij');
+    expect(screen.getByRole('textbox', { name: 'Badge label' })).toHaveValue('abcdefghij');
     expect(screen.queryByLabelText('Selected')).not.toBeInTheDocument();
   });
 

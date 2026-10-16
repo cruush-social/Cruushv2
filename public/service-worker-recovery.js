@@ -1,5 +1,5 @@
 (function () {
-  const APP_SHELL_REFRESH_ID = 'v204';
+  const APP_SHELL_REFRESH_ID = 'v205';
   const SERVICE_WORKER_SCRIPT_URL = `/sw.js?release=${APP_SHELL_REFRESH_ID}`;
 
   if (!('serviceWorker' in navigator)) {

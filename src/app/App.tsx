@@ -1,5 +1,7 @@
 import { BrowserRouter, MemoryRouter, Routes, Route, Navigate } from 'react-router';
 import { Suspense, useCallback, useEffect, useState } from 'react';
+import { initialRouteKey, sharedRouteLoader } from './lib/routePreload';
+import { loadMapLibre } from './lib/mapLibreLoader';
 import { lazyRoute } from './lib/lazyRoute';
 import { useSyncDistancePreferences } from './lib/distancePreferences';
 import Auth from './components/Auth';
@@ -26,14 +28,26 @@ import LoadingCardSkeletons from './components/LoadingCardSkeletons';
 import { MapServiceAreaProvider } from './components/MapServiceAreaContext';
 import GlobalSaleBanner from './components/GlobalSaleBanner';
 
-const loadMapHome = () => import('./components/MapHome');
-const MapHome = lazyRoute(loadMapHome);
-const LocalFeed = lazyRoute(() => import('./components/LocalFeed'));
+const routeLoaders = {
+  map: sharedRouteLoader(() => import('./components/MapHome')),
+  feed: sharedRouteLoader(() => import('./components/LocalFeed')),
+  profile: sharedRouteLoader(() => import('./components/ProfileView')),
+  profileEdit: sharedRouteLoader(() => import('./components/ProfileEdit')),
+  messages: sharedRouteLoader(() => import('./components/DirectMessages')),
+  notifications: sharedRouteLoader(() => import('./components/NotificationCenter')),
+  cruush: sharedRouteLoader(() => import('./components/CruushActivity')),
+  settings: sharedRouteLoader(() => import('./components/Settings')),
+  badges: sharedRouteLoader(() => import('./components/BadgePickerPreview')),
+  store: sharedRouteLoader(() => import('./components/CruushPlusStore')),
+};
+
+const MapHome = lazyRoute(routeLoaders.map);
+const LocalFeed = lazyRoute(routeLoaders.feed);
 const FeedPhotoPreview = lazyRoute(() => import('./components/FeedPhotoPreview'));
-const BadgePickerPreview = lazyRoute(() => import('./components/BadgePickerPreview'));
+const BadgePickerPreview = lazyRoute(routeLoaders.badges);
 const PulseEffectPreview = lazyRoute(() => import('./components/PulseEffectPreview'));
-const ProfileView = lazyRoute(() => import('./components/ProfileView'));
-const ProfileEdit = lazyRoute(() => import('./components/ProfileEdit'));
+const ProfileView = lazyRoute(routeLoaders.profile);
+const ProfileEdit = lazyRoute(routeLoaders.profileEdit);
 const ProfileOnboarding = lazyRoute(() => import('./components/ProfileOnboarding'));
 const AgeVerification = lazyRoute(() => import('./components/AgeVerification'));
 const FiltersPanel = lazyRoute(() => import('./components/FiltersPanel'));
@@ -43,8 +57,8 @@ const EventPassGuide = lazyRoute(() => import('./components/EventPassGuide'));
 const PurgatoryGuide = lazyRoute(() => import('./components/PurgatoryGuide'));
 const PlaceDetail = lazyRoute(() => import('./components/PlaceDetail'));
 const PrivateGroupChat = lazyRoute(() => import('./components/PrivateGroupChat'));
-const DirectMessages = lazyRoute(() => import('./components/DirectMessages'));
-const NotificationCenter = lazyRoute(() => import('./components/NotificationCenter'));
+const DirectMessages = lazyRoute(routeLoaders.messages);
+const NotificationCenter = lazyRoute(routeLoaders.notifications);
 const NotificationSettings = lazyRoute(() => import('./components/NotificationSettings'));
 const ForegroundNotifications = lazyRoute(() => import('./components/ForegroundNotifications'));
 const MobileInstallPrompt = lazyRoute(() => import('./components/MobileInstallPrompt'));
@@ -54,9 +68,9 @@ const PurgatoryInfoPrompt = lazyRoute(() => import('./components/PurgatoryInfoPr
 const PulseGesturePrompt = lazyRoute(() => import('./components/PulseGesturePrompt'));
 const ReportPage = lazyRoute(() => import('./components/ReportPage'));
 const ModeratorReview = lazyRoute(() => import('./components/ModeratorReview'));
-const CruushActivity = lazyRoute(() => import('./components/CruushActivity'));
+const CruushActivity = lazyRoute(routeLoaders.cruush);
 const CruushMatchSettings = lazyRoute(() => import('./components/CruushMatchSettings'));
-const Settings = lazyRoute(() => import('./components/Settings'));
+const Settings = lazyRoute(routeLoaders.settings);
 const ChangeEmailSettings = lazyRoute(() => import('./components/ChangeEmailSettings'));
 const OrderHistory = lazyRoute(() => import('./components/OrderHistory'));
 const BlockedUsersPage = lazyRoute(() => import('./components/BlockedUsersPage'));
@@ -85,7 +99,7 @@ const TwoFactorSettings = lazyRoute(() => import('./components/TwoFactorSettings
 const PublicInfoPage = lazyRoute(() => import('./components/PublicInfoPage'));
 const Changelog = lazyRoute(() => import('./components/Changelog'));
 const Survey = lazyRoute(() => import('./components/Survey'));
-const CruushPlusStore = lazyRoute(() => import('./components/CruushPlusStore'));
+const CruushPlusStore = lazyRoute(routeLoaders.store);
 
 const PUBLIC_INFO_ROUTES = [
   { path: '/about', page: 'about' },
@@ -292,8 +306,10 @@ export default function App({
 
     // Download code alongside the session check; mounting and data access still
     // wait for the existing authentication and onboarding gates below.
+    const initialLoader = routeLoaders[initialRouteKey(window.location.pathname) as keyof typeof routeLoaders];
+    void initialLoader?.().catch(() => undefined);
     if (window.location.pathname === '/' || window.location.pathname === '/map') {
-      void loadMapHome().catch(() => undefined);
+      void loadMapLibre().catch(() => undefined);
     }
 
     const bootstrap = async () => {

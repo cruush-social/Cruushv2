@@ -1076,17 +1076,28 @@ export default function BadgePickerPreview({
                       type="button"
                     />
                     <div className="pointer-events-none relative z-10">
-                      <span className="block text-[0.7rem] uppercase tracking-[0.12em] text-white/48">{side.hint}</span>
+                      <span className="block text-[0.7rem] uppercase tracking-[0.12em] text-white/48">
+                        <button
+                          aria-label={`Edit ${side.label.toLowerCase()} label`}
+                          className="pointer-events-auto block text-left"
+                          style={{ font: 'inherit', letterSpacing: 'inherit' }}
+                          onClick={() => {
+                            setActiveSide(side.id);
+                            setEditingTitle(true);
+                          }}
+                          type="button"
+                        >Edit {side.label.toLowerCase()}</button>
+                      </span>
                       <span className="mt-0.5 flex min-w-0 items-center gap-1 text-sm leading-tight">
                         {active && editingTitle ? (
                           <>
-                            <label className="sr-only" htmlFor="badge-title">Badge title</label>
+                            <label className="sr-only" htmlFor="badge-title">Badge label</label>
                             <input
                               className="pointer-events-auto min-w-0 flex-1 bg-transparent p-0 text-sm leading-tight text-white outline-none"
                               id="badge-title"
                               maxLength={10}
                               onChange={(event) => changeTitle(event.target.value)}
-                              placeholder="Badge title"
+                              placeholder="Badge label"
                               value={activeTitle}
                             />
                           </>

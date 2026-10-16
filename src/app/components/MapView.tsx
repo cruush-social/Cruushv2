@@ -1,3 +1,4 @@
+import { loadMapLibre } from '../lib/mapLibreLoader';
 import { excludeOwnerPinOverlaps } from '../lib/ownerPinExclusion';
 import { showPurgatoryPresentation } from '../lib/purgatoryPresentation';
 import { useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react';
@@ -247,13 +248,7 @@ const SIGNAL_PREVIEW_MARKER_Z_INDEX = ACTIVE_PING_MARKER_Z_INDEX + 10;
 type MapLibreModule = typeof import('maplibre-gl');
 type MapLibreExport = MapLibreModule['default'];
 
-let mapLibreModulePromise: Promise<MapLibreModule> | null = null;
 let confettiModulePromise: Promise<typeof import('canvas-confetti')> | null = null;
-
-function loadMapLibre() {
-  mapLibreModulePromise ??= import('maplibre-gl');
-  return mapLibreModulePromise;
-}
 
 function playEventMarkerConfetti() {
   confettiModulePromise ??= import('canvas-confetti');

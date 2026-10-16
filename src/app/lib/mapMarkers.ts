@@ -1,3 +1,4 @@
+import badgePoolLabels from './badgePoolLabels.json';
 import { formatVibeLabel } from './vibeLabels';
 import type { DlModePhotoRelationship } from './dlMode';
 import type { SideBadgeSelection } from './profileApi';
@@ -218,7 +219,10 @@ export function createSavedMapMarkerBadge(
 
   return {
     kind,
-    label: badgeId.startsWith('vibes ') ? formatVibeLabel(label) : label,
+    label: (badgePoolLabels as Record<string, string>)[badgeId]
+      ?? (/^(vibes|kinks) icon /.test(badgeId)
+        ? (badgeId.startsWith('vibes ') ? 'Vibe badge' : 'Kink badge')
+        : badgeId.startsWith('vibes ') ? formatVibeLabel(label) : label),
     iconName: badgeId,
     badgeId,
     frame: selection.frame,

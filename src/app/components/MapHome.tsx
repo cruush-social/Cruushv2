@@ -1,3 +1,4 @@
+import { preloadDisplayLocationKey } from '../lib/displayLocationTokens';
 import { useContentVisibilityRefresh } from '../lib/contentVisibilityRevision';
 // Vite env type declaration for TypeScript
 /// <reference types="vite/client" />
@@ -1522,6 +1523,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
   useEffect(() => {
     let isMounted = true;
 
+    void preloadDisplayLocationKey().catch(() => undefined);
     Promise.all([
       getMyProfile(),
       getMyPrivacySettings().catch(() => DEFAULT_PRIVACY_SETTINGS),
