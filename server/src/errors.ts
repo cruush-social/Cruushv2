@@ -3,6 +3,7 @@ import { ZodError } from "zod";
 export type ErrorCode =
   | "ADDRESS_LOOKUP_FAILED"
   | "ALREADY_CLAIMED"
+  | "ACCOUNT_BANNED"
   | "ACCOUNT_SUSPENDED"
   | "ACCOUNT_UNDER_REVIEW"
   | "ALPHA_TEST_ENDED"

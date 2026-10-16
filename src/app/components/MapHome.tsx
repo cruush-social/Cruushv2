@@ -27,7 +27,6 @@ import {
   type DiscoveryUser,
 } from '../lib/usersApi';
 import { getMutualCruushMap, type MutualCruushActivityItem } from '../lib/cruushApi';
-import { getAuthSession } from '../lib/authApi';
 import { requestBetaCity } from '../lib/betaAccessApi';
 import {
   DEFAULT_PRIVACY_SETTINGS,
@@ -684,6 +683,7 @@ function mutualMapItemToDiscoveryUser(item: MutualCruushActivityItem): Discovery
 }
 
 type MapHomeProps = {
+  currentUserEmail?: string;
   developerToolsEnabled?: boolean;
   routePopupActive?: boolean;
   routePopupSlot?: 'left' | 'right';
@@ -1046,7 +1046,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
   const [visibilityError, setVisibilityError] = useState<string | null>(null);
   const [savingVisibility, setSavingVisibility] = useState(false);
   const [currentProfile, setCurrentProfile] = useState<ProfileRecord | null>(null);
-  const [currentUserEmail, setCurrentUserEmail] = useState('');
+  const currentUserEmail = _props.currentUserEmail ?? '';
   const [requestedCity, setRequestedCity] = useState('');
   const [requestingCity, setRequestingCity] = useState(false);
   const [cityRequestNotice, setCityRequestNotice] = useState<string | null>(null);
@@ -1526,14 +1526,12 @@ export default function MapHome(_props: MapHomeProps = {}) {
       getMyProfile(),
       getMyPrivacySettings().catch(() => DEFAULT_PRIVACY_SETTINGS),
       getMyTravelPin().catch(() => ({ pin: null })),
-      getAuthSession().catch(() => null),
     ])
-      .then(async ([profile, loadedPrivacySettings, loadedTravelPin, authSession]) => {
+      .then(async ([profile, loadedPrivacySettings, loadedTravelPin]) => {
         let initialFetchCoordinates: { lat: number; lng: number } | null = null;
 
         if (isMounted) {
           setCurrentProfile(profile);
-          setCurrentUserEmail(authSession?.user.email ?? '');
           setPrivacySettings(loadedPrivacySettings);
           travelPinKeyRef.current = travelPinViewportKey(loadedTravelPin.pin ? {
             approximateLatitude: loadedTravelPin.pin.latitude,

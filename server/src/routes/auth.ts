@@ -851,6 +851,9 @@ export async function registerAuthRoutes(app: FastifyInstance) {
           { appealUrl: `/support?appeal=${ageRelated ? "1" : "general"}` }
         );
       }
+      if (accountStatus === "banned") {
+        throw new ApiError(403, "ACCOUNT_BANNED", "Your cruush account is banned.");
+      }
       throw new ApiError(401, "AUTH_REQUIRED", "Invalid email or password.");
     }
 

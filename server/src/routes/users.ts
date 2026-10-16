@@ -698,17 +698,19 @@ async function loadDiscoveryRows(app: FastifyInstance, currentUserId: string, fi
         where (block.blocker_user_id = $1 and block.blocked_user_id = profiles.id)
            or (block.blocker_user_id = profiles.id and block.blocked_user_id = $1)
       )`,
-      `(
-        (
-          location_envelopes.expires_at_ms > ${activeLocationWindow}
-          and location_envelopes.coarse_index_tokens && $2::text[]
-        )
-        or location_envelopes.collected_at_ms >= ${MAP_PRESENCE_START_MS_SQL}
+      // Avoid the large token-array comparison when an existing cheap branch
+      // already admits the row. CASE guarantees short-circuiting; the same
+      // presence, block, policy and coordinate checks still apply below.
+      `(case when
+        location_envelopes.collected_at_ms >= ${MAP_PRESENCE_START_MS_SQL}
         or (
           (profiles.fuzzy_lat is not null and profiles.fuzzy_lng is not null)
           or (profiles.lat is not null and profiles.lng is not null)
         )
-      )`
+        then true
+        else location_envelopes.expires_at_ms > ${activeLocationWindow}
+          and location_envelopes.coarse_index_tokens && $2::text[]
+      end)`
     ];
 
     if (onlyUserId) {

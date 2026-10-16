@@ -664,11 +664,11 @@ export default function App({
         <AppViewport topBanner={<GlobalSaleBanner key={session.user.id} userId={session.user.id} />}>
           <MapServiceAreaProvider>
           <Suspense fallback={<RouteLoading />}>
-            <DesktopPopupRoutes mapElement={<MapHome developerToolsEnabled={canUseDeveloperMapToolsEmail(session?.user.email)} />}>
+            <DesktopPopupRoutes mapElement={<MapHome currentUserEmail={session?.user.email} developerToolsEnabled={canUseDeveloperMapToolsEmail(session?.user.email)} />}>
               <Route path="/" element={<Navigate to="/map" replace />} />
-              <Route path="/map" element={<MapHome developerToolsEnabled={canUseDeveloperMapToolsEmail(session?.user.email)} />} />
+              <Route path="/map" element={<MapHome currentUserEmail={session?.user.email} developerToolsEnabled={canUseDeveloperMapToolsEmail(session?.user.email)} />} />
               <Route path="/settings/outside-service-area-test" element={canUseDeveloperMapToolsEmail(session?.user.email)
-                ? <MapHome forceOutsideServiceArea />
+                ? <MapHome currentUserEmail={session?.user.email} forceOutsideServiceArea />
                 : <Navigate to="/settings" replace />} />
               <Route path="/feed" element={<LocalFeed />} />
               <Route path="/feed/photo-preview" element={<FeedPhotoPreview />} />

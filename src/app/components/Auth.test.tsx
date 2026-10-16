@@ -206,6 +206,20 @@ describe('Auth', () => {
     expect(await screen.findByText('Verification email sent. Check your inbox, then sign in again.')).toBeInTheDocument();
   });
 
+  it('shows the banned-account response in the existing sign-in error without authenticating', async () => {
+    const onAuth = vi.fn();
+    signIn.mockRejectedValue(Object.assign(new Error('Your cruush account is banned.'), {
+      code: 'ACCOUNT_BANNED', status: 403,
+    }));
+    render(<Auth onAuth={onAuth} />);
+    fireEvent.change(screen.getByLabelText('Email'), { target: { value: 'river@example.com' } });
+    fireEvent.change(screen.getByLabelText('Password'), { target: { value: 'password-123' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Sign In' }));
+    expect(await screen.findByText('Your cruush account is banned.')).toBeInTheDocument();
+    expect(onAuth).not.toHaveBeenCalled();
+    expect(screen.queryByRole('button', { name: 'Resend verification email' })).not.toBeInTheDocument();
+  });
+
   it('refreshes the consumed captcha before retrying an unverified-email login', async () => {
     render(<Auth onAuth={vi.fn()} />);
     fireEvent.change(screen.getByLabelText('Email'), { target: { value: 'river@example.com' } });

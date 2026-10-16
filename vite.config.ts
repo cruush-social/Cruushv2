@@ -4,6 +4,7 @@ import path from 'path'
 import tailwindcss from '@tailwindcss/vite'
 import react from '@vitejs/plugin-react'
 import { routePreload } from './src/buildTools/routePreload'
+import { compressedAssets } from './src/buildTools/compressedAssets'
 
 
 function figmaAssetResolver() {
@@ -76,6 +77,7 @@ export default defineConfig({
     // Tailwind is not being actively used – do not remove them
     react(),
     tailwindcss(),
+    compressedAssets(),
   ],
   server: {
     https: httpsConfig,

@@ -43,7 +43,7 @@ vi.mock('./lib/rewardsApi', () => ({
 vi.mock('./components/MapHome', () => {
   routeModuleLoads.push('MapHome');
   return {
-    default: () => <div>Mock Map</div>,
+    default: ({ currentUserEmail }: { currentUserEmail?: string }) => <div data-session-email={currentUserEmail}>Mock Map</div>,
     canUseDeveloperMapToolsEmail: () => false,
     isDevelopmentAdminEmail: () => false,
   };
@@ -349,6 +349,7 @@ describe('App', () => {
 
     fireEvent.click(await screen.findByRole('button', { name: 'Back from settings' }));
     expect(await screen.findByText('Mock Map')).toBeInTheDocument();
+    expect(screen.getByText('Mock Map')).toHaveAttribute('data-session-email', 'test@example.com');
   });
 
   it('uses real in-app history before a direct-route fallback', async () => {

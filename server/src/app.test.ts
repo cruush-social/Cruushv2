@@ -2349,6 +2349,31 @@ describe("server", () => {
     });
   });
 
+  it.each([
+    ["banned", "password-123", 403, "ACCOUNT_BANNED", "Your cruush account is banned."],
+    ["banned", "wrong-password", 401, "AUTH_REQUIRED", "Invalid email or password."],
+    ["deleted", "password-123", 401, "AUTH_REQUIRED", "Invalid email or password."]
+  ])("denies %s login with %s without creating a session", async (accountStatus, password, statusCode, code, message) => {
+    query.mockResolvedValueOnce({ rows: [{
+      id: userId,
+      email: "river@example.com",
+      password_hash: await hashPassword("password-123"),
+      email_verified_at: "2026-04-28T12:00:00.000Z",
+      account_status: accountStatus,
+      suspension_reason_code: "private-moderation-reason"
+    }] });
+
+    const response = await app.inject({
+      method: "POST", url: "/api/auth/login",
+      payload: { email: "river@example.com", password }
+    });
+
+    expect(response.statusCode).toBe(statusCode);
+    expect(response.json()).toEqual({ error: { code, message, details: null } });
+    expect(query).toHaveBeenCalledTimes(1);
+    expect(String(response.headers["set-cookie"] ?? "")).not.toContain("cruush_session=");
+  });
+
   it("requires a valid Turnstile token on login when configured", async () => {
     const fetchMock = vi.fn().mockResolvedValue({
       ok: true,
@@ -11054,7 +11079,7 @@ describe("server", () => {
         });
       }
       if (normalizedSql.includes("from encrypted_visibility_tokens")) {
-        return Promise.resolve({ rows: params[0] === legacyUserId ? [stealthPolicy] : [] });
+        return Promise.resolve({ rows: [params[0]].flat().includes(legacyUserId) ? [stealthPolicy] : [] });
       }
       if (normalizedSql.includes("from user_entitlements")) {
         return Promise.resolve({
@@ -11117,7 +11142,7 @@ describe("server", () => {
         });
       }
       if (normalizedSql.includes("from encrypted_visibility_tokens")) {
-        return Promise.resolve({ rows: params[0] === legacyUserId ? [retainedStealthPolicy] : [] });
+        return Promise.resolve({ rows: [params[0]].flat().includes(legacyUserId) ? [retainedStealthPolicy] : [] });
       }
       if (normalizedSql.includes("from user_entitlements")) {
         return Promise.resolve({
@@ -11185,7 +11210,7 @@ describe("server", () => {
         });
       }
       if (normalizedSql.includes("from encrypted_visibility_tokens")) {
-        return Promise.resolve({ rows: params[0] === legacyUserId ? [ghostPolicy] : [] });
+        return Promise.resolve({ rows: [params[0]].flat().includes(legacyUserId) ? [ghostPolicy] : [] });
       }
       if (normalizedSql.includes("insert into ghost_rotation_tokens")) {
         return Promise.resolve({ rows: [{ subject_user_id: legacyUserId }] });
