@@ -1,3 +1,4 @@
+import { useBackOrFallback } from '../lib/useBackOrFallback';
 import { usePopupRoute } from '../lib/popupRouteContext';
 import { useContentVisibilityRefresh } from '../lib/contentVisibilityRevision';
 import { Switch } from './ui/switch';
@@ -327,6 +328,7 @@ export default function PrivateGroupChat({
   // The dock renders this thread without a route of its own.
   const chatId = conversationId ?? params.chatId;
   const navigate = useNavigate();
+  const goBack = useBackOrFallback('/map');
   const location = useLocation();
   const settingsOpen = location.pathname.endsWith('/settings');
   const routeBackLabel = !embedded
@@ -1513,8 +1515,8 @@ export default function PrivateGroupChat({
       {settingsOpen ? (
         <AppPageHeader
           title={conversation?.clubId ? 'Coven settings' : conversation?.kind === 'group' ? 'Group settings' : 'Message settings'}
-          onBack={() => navigate(location.pathname.replace(/\/settings$/, ''))}
-          backLabel="Back to conversation"
+          onBack={goBack}
+          backLabel="Back"
           bugButtonTestId="conversation-settings-bug-button-slot"
         />
       ) : (

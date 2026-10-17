@@ -8,7 +8,7 @@ export type PolicySection = {
 export const legalUpdated = "July 10, 2026";
 export const termsUpdated = "October 2, 2026";
 export const privacyUpdated = "October 13, 2026";
-export const billingUpdated = "october 11, 2026";
+export const billingUpdated = "october 17, 2026";
 export const legalContact = "hello@cruush.app";
 export const legalEntity = "cruush technologies LLC";
 
@@ -599,13 +599,13 @@ export const billingSections: PolicySection[] = [
   {
     title: "refunds and your rights",
     body: [
-      "cruush does not offer voluntary refunds for cruush+ or pulse packs. purchases are final and non-refundable except where applicable law requires a withdrawal, refund, remedy, or forced reversal.",
-      "unused time, partial terms, price changes, promotions, sending mistakes, and account closure do not create a voluntary refund right. this policy does not remove any withdrawal, refund, price reduction, or other remedy required by applicable law.",
+      "cruush offers voluntary refunds for cruush+ or pulse packs if your paid order wasn’t applied or you experienced a technical checkout issue. otherwise, purchases are final and non-refundable except where applicable law requires a withdrawal, refund, remedy, or forced reversal.",
+      "unused time, partial terms, price changes, promotions, sending mistakes, and account closure alone do not create a voluntary refund right. this policy does not remove any withdrawal, refund, price reduction, or other remedy required by applicable law.",
       "completed blockchain payments generally cannot be reversed through the payment network. that does not decide whether a separate refund or other remedy is owed.",
       <>
-        if you believe applicable law requires a billing remedy,{' '}
+        if your paid order wasn’t applied, you experienced a technical checkout issue, or you believe applicable law requires a billing remedy,{' '}
         <a href="/support?refund=1">submit a refund request</a>. include your order id, transaction
-        hash, purchase date, country or region, and reason. cruush will review the request under applicable law.
+        hash, purchase date, country or region, and reason. cruush will review the request under this policy and applicable law.
       </>
     ]
   },

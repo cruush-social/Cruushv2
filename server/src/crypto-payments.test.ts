@@ -7,6 +7,8 @@ vi.mock("./crypto-collection-fee.js", () => ({
 }));
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import * as bitcoin from "./bitcoin.js";
+import { getCruushPlusPlan } from "./billing.js";
+import { cruushPlusOrderSale } from "./cruush-plus-sale.js";
 import {
   assertCryptoPaymentStatusTransition,
   buildCryptoPaymentUri,
@@ -627,4 +629,24 @@ describe("expiring stale checkout windows", () => {
     expect(sql).not.toContain("confirming");
     expect(sql).not.toContain("paid");
   });
+});
+
+
+it("queues the wallet-ready email only after a successful address allocation", async () => {
+  const plan = getCruushPlusPlan("plus_monthly")!;
+  const amountUsdCents = cruushPlusOrderSale(plan.amountCents)?.amountUsdCents ?? plan.amountCents;
+  const row = paymentRow({ amount_usd_cents: amountUsdCents });
+  const address = deriveCryptoReceivingAddress(receiveChainXpub, 1);
+  const base = newIntentQuery(row, paymentRow({ ...row, payment_address: address, status: "awaiting_payment" }));
+  const query = vi.fn(async (sql: string, values: unknown[] = []) => {
+    if (sql.includes("insert into order_wallet_ready_emails")) return { rows: [] };
+    return base(sql, values);
+  });
+  await createInHouseCryptoPaymentIntent(transactionDb(query), cryptoConfig(), {
+    userId: row.user_id, planId: row.plan_id, amountUsdCents, idempotencyKey: row.idempotency_key, watchStartBlock: 123456n
+  });
+  const allocation = query.mock.calls.findIndex(([sql]) => sql.includes("set payment_address"));
+  const queue = query.mock.calls.findIndex(([sql]) => sql.includes("insert into order_wallet_ready_emails"));
+  expect(queue).toBeGreaterThan(allocation);
+  expect(query.mock.calls[queue][1]).toEqual([row.id]);
 });

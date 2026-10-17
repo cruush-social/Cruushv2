@@ -135,7 +135,7 @@ describe("mailer", () => {
     });
   });
 
-  it("sends verification emails with the current Resend template", async () => {
+  it("sends verification emails with the default glass template and escaped action URL", async () => {
     const fetchMock = vi.fn().mockResolvedValue({
       ok: true
     });
@@ -149,14 +149,11 @@ describe("mailer", () => {
     });
 
     const body = JSON.parse(fetchMock.mock.calls[0][1].body);
-    expect(body.template).toEqual({
-      id: "0dc8f32c-76e2-45b2-aaf7-f4649ab48ab0",
-      variables: {
-        VERIFICATION_URL: "https://cruush.test/?verifyEmailToken=abc&amp;next=&quot; onclick=&quot;alert(1)"
-      }
-    });
-    expect(body).not.toHaveProperty("html");
-    expect(body).not.toHaveProperty("text");
+    expect(body).not.toHaveProperty("template");
+    expect(body.html).toContain('class="glass-panel"');
+    expect(body.html).toContain('href="https://cruush.test/?verifyEmailToken=abc&amp;next=&quot; onclick=&quot;alert(1)"');
+    expect(body.text).toContain('https://cruush.test/?verifyEmailToken=abc&next=" onclick="alert(1)');
+
   });
 
   it("sends password reset emails as inline html so Resend's publish state cannot change the design", async () => {
@@ -332,6 +329,7 @@ describe("every Resend send carries something to render", () => {
       const body = JSON.parse(init.body);
       const hasTemplate = Boolean(body.template?.id);
       const hasBody = Boolean(body.html) && Boolean(body.text);
+      if (hasBody) expect(body.html).toContain('class="glass-panel"');
       expect(hasTemplate || hasBody, `${name} email would render nothing`).toBe(true);
 
       // a template has to carry its variables, or it renders with empty slots
@@ -363,8 +361,18 @@ it("sends the subscription expiry date and renewal link with a stable provider i
   expect(JSON.parse(request.body)).toMatchObject({
     from: config.MAIL_FROM,
     subject: payload.subject,
-    template: { id: "subscription-expiry", variables: { RENEW_URL: "https://cruush.app/store" } }
+    html: payload.html, text: payload.text
   });
+  expect(payload.html).toContain('class="glass-panel"');
+  expect(payload.html).toContain('href="https://cruush.app/store"');
+  expect(payload.html).toContain('Sep 23, 2026, 4:00 PM UTC');
+  fetchMock.mockClear();
+  // A queued pre-template-change retry must retain its original payload.
+  const { html, text, ...legacyPayload } = payload;
+  await sendSubscriptionExpiryEmail({ ...input, payload: legacyPayload });
+  const legacyBody = JSON.parse(fetchMock.mock.calls[0][1].body);
+  expect(legacyBody.template).toEqual({ id: legacyPayload.templateId, variables: legacyPayload.variables });
+  expect(legacyBody).not.toHaveProperty('html');
   fetchMock.mockClear();
   expect(await sendSubscriptionExpiryEmail({ ...input, config: { ...config, RESEND_API_KEY: "" } })).toEqual({ accepted: false, providerMessageId: null });
   expect(fetchMock).not.toHaveBeenCalled();

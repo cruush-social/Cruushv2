@@ -231,18 +231,18 @@ describe('Settings', () => {
     expect(screen.getByRole('link', { name: /Ace spectrum diamond/ })).toBeVisible();
   });
 
-  it('returns directly to the main map from the Settings header', async () => {
+  it.each(['/map', '/profile/origin'])('returns to the previous %s entry from the Settings header', async (origin) => {
     render(
-      <MemoryRouter initialEntries={['/map', '/settings']} initialIndex={1}>
+      <MemoryRouter initialEntries={[origin, '/settings']} initialIndex={1}>
         <Routes>
           <Route path="/settings" element={<Settings />} />
-          <Route path="/map" element={<div>Main map</div>} />
+          <Route path={origin} element={<div>Previous page</div>} />
         </Routes>
       </MemoryRouter>,
     );
 
-    fireEvent.click(await screen.findByRole('button', { name: 'Back to map' }));
-    expect(await screen.findByText('Main map')).toBeInTheDocument();
+    fireEvent.click(await screen.findByRole('button', { name: 'Back' }));
+    expect(await screen.findByText('Previous page')).toBeInTheDocument();
   });
 
   it('renders Edit Profile with the bottom nav profile mark', async () => {

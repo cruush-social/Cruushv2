@@ -1,3 +1,4 @@
+import { useBackOrFallback } from '../lib/useBackOrFallback';
 import { ApiClientError } from '../lib/apiClient';
 import { useContentVisibilityRefresh } from '../lib/contentVisibilityRevision';
 import { useEffect, useRef, useState } from 'react';
@@ -13,6 +14,7 @@ import { Card } from './ui/card';
 export default function ClubDetail() {
   const { clubId } = useParams();
   const navigate = useNavigate();
+  const goBack = useBackOrFallback('/map');
   const [club, setClub] = useState<ClubDetailRecord | null>(null);
   const [loading, setLoading] = useState(true);
   const [requesting, setRequesting] = useState(false);
@@ -96,9 +98,9 @@ export default function ClubDetail() {
   return (
     <div className="min-h-screen bg-background text-foreground">
       <AppPageHeader
-        backLabel="Back to Covens"
+        backLabel="Back"
         bugButtonTestId="club-detail-bug-button-slot"
-        onBack={() => navigate('/messages?tab=clubs')}
+        onBack={goBack}
         title={club?.title ?? 'Covens'}
       />
       <main className="mx-auto max-w-2xl px-4 py-6">

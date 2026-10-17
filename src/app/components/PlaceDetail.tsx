@@ -1,3 +1,4 @@
+import { useBackOrFallback } from '../lib/useBackOrFallback';
 import { ApiClientError } from '../lib/apiClient';
 import { useContentVisibilityRefresh } from '../lib/contentVisibilityRevision';
 import { getNsfwPhotoRestriction } from '../lib/dlMode';
@@ -91,6 +92,7 @@ export default function PlaceDetail({ embedded = false, onBack, onClose, placeId
   const { placeId: routePlaceId } = useParams();
   const placeId = placeIdOverride ?? routePlaceId;
   const navigate = useNavigate();
+  const goBack = useBackOrFallback('/map');
   const [place, setPlace] = useState<PlaceDetailRecord | null>(null);
   const [messages, setMessages] = useState<PlaceBoardMessage[]>([]);
   const [boardHasMore, setBoardHasMore] = useState(false);
@@ -434,7 +436,7 @@ export default function PlaceDetail({ embedded = false, onBack, onClose, placeId
   }
 
   if (!place || place.id !== placeId) {
-    return <div className={`flex flex-col items-center justify-center gap-4 bg-background p-6 ${embedded ? 'min-h-72' : 'min-h-screen'}`}><p className="text-white">{error ?? 'Spot not found.'}</p>{embedded ? null : <Button onClick={() => navigate('/map')}>Back to map</Button>}</div>;
+    return <div className={`flex flex-col items-center justify-center gap-4 bg-background p-6 ${embedded ? 'min-h-72' : 'min-h-screen'}`}><p className="text-white">{error ?? 'Spot not found.'}</p>{embedded ? null : <Button onClick={goBack}>Back</Button>}</div>;
   }
 
   if (embedded && reportTarget) {
@@ -477,7 +479,7 @@ export default function PlaceDetail({ embedded = false, onBack, onClose, placeId
     <div className={embedded ? 'bg-background' : 'min-h-screen bg-background pb-20'} data-testid="spot-detail">
       <AppPageHeader
         title={PLACE_FACILITY_SINGULAR_LABELS[place.facilityType]}
-        onBack={onBack ?? (() => navigate(-1))}
+        onBack={onBack ?? goBack}
         onClose={onClose}
         closeLabel="Close Spot"
         bugButtonTestId="spot-detail-bug-button-slot"

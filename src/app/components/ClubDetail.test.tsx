@@ -71,7 +71,7 @@ describe('ClubDetail', () => {
     expect(await screen.findByText('A Club for local dancers.')).toBeInTheDocument();
     expect(screen.getByText('8 members')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Share Coven' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Back to Covens' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Back' })).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Request to join' }));
     await waitFor(() => expect(requestClubJoin).toHaveBeenCalledWith('22222222-2222-4222-8222-222222222222'));
     expect(screen.getByRole('button', { name: 'Request sent' })).toBeDisabled();
@@ -160,12 +160,12 @@ describe('ClubDetail', () => {
       { path: '/clubs/:clubId', element: <ClubDetail /> },
       { path: '/messages', element: <div>Coven directory route</div> },
       { path: '/chat/:conversationId', element: <div>Old Coven chat route</div> },
-    ], { initialEntries: [`/clubs/${firstClubId}`] });
+    ], { initialEntries: ['/messages', `/clubs/${firstClubId}`], initialIndex: 1 });
     const view = render(<RouterProvider router={router} />);
     fireEvent.click(await screen.findByRole('button', { name: 'Join Coven' }));
 
     if (departure === 'back') {
-      fireEvent.click(screen.getByRole('button', { name: 'Back to Covens' }));
+      fireEvent.click(screen.getByRole('button', { name: 'Back' }));
       expect(await screen.findByText('Coven directory route')).toBeInTheDocument();
     } else if (departure === 'unmount') {
       view.unmount();
@@ -199,7 +199,7 @@ describe('ClubDetail', () => {
       .mockReturnValueOnce(new Promise((resolve) => { completeNewJoin = resolve; }));
     const router = createMemoryRouter([
       { path: '/clubs/:clubId', element: <ClubDetail /> },
-    ], { initialEntries: [`/clubs/${firstClubId}`] });
+    ], { initialEntries: ['/messages', `/clubs/${firstClubId}`], initialIndex: 1 });
     render(<RouterProvider router={router} />);
     fireEvent.click(await screen.findByRole('button', { name: 'Join Coven' }));
     await act(async () => { await router.navigate(`/clubs/${secondClubId}`); });

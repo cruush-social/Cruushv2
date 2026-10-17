@@ -52,6 +52,7 @@ import { createMempoolBitcoinSource, type MempoolBitcoinSource } from "./bitcoin
 import { isCryptoPaymentRailReady } from "./crypto-payments.js";
 import { sendBitcoinMonitoringCapacityAlertEmail } from "./mailer.js";
 
+import { startOrderWalletEmailScheduler } from "./order-wallet-email.js";
 import { startSubscriptionExpiryScheduler } from "./subscription-expiry.js";
 import { startWeeklyOrderReportScheduler } from "./weekly-order-report.js";
 import { startSiteReminderScheduler } from "./site-reminders.js";
@@ -97,6 +98,7 @@ let stopCryptoWatcher: (() => void) | null = null;
 let stopCryptoGasAlerts: (() => void) | null = null;
 let stopPlaceCheckinExpiryScheduler: (() => void) | null = null;
 
+let stopOrderWalletEmailScheduler: (() => void) | null = null;
 let stopSubscriptionExpiryScheduler: (() => void) | null = null;
 let stopWeeklyOrderReportScheduler: (() => void) | null = null;
 let stopSiteReminderScheduler: (() => void) | null = null;
@@ -106,6 +108,7 @@ let stopBugReportEmailRetentionScheduler: (() => void) | null = null;
 let stopResendContactDeletionScheduler: (() => void) | null = null;
 
 const shutdown = async () => {
+  stopOrderWalletEmailScheduler?.();
   stopSubscriptionExpiryScheduler?.();
   stopWeeklyOrderReportScheduler?.();
   stopSiteReminderScheduler?.();
@@ -150,6 +153,7 @@ stopCryptoGasAlerts = startCryptoGasAlertScheduler(app);
 // Prime the active-address subscription immediately after watcher startup.
 if (mempoolBitcoinSource) void cryptoWatcherHandle?.runOnce();
 stopPlaceCheckinExpiryScheduler = startPlaceCheckinExpiryScheduler(app);
+stopOrderWalletEmailScheduler = startOrderWalletEmailScheduler(app);
 stopSubscriptionExpiryScheduler = startSubscriptionExpiryScheduler(app);
 stopWeeklyOrderReportScheduler = startWeeklyOrderReportScheduler(app);
 stopSiteReminderScheduler = startSiteReminderScheduler(app);

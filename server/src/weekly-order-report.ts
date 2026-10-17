@@ -1,3 +1,4 @@
+import { DEFAULT_EMAIL_TEMPLATE_VERSION } from "./email-template.js";
 import { randomUUID } from "node:crypto";
 import type { FastifyInstance } from "fastify";
 import { sendWeeklyOrderReportEmail } from "./mailer.js";
@@ -18,6 +19,8 @@ type OrderReportRow = {
 };
 
 type ClaimedReport = {
+  email_started_at: string | Date | null;
+  email_template_version: string | null;
   week_start: string | Date;
   week_end: string | Date;
 };
@@ -73,12 +76,16 @@ export async function sendPreviousWeekOrderReport(app: FastifyInstance, now = ne
            updated_at = now()
        where weekly_order_reports.email_sent_at is null
          and coalesce(weekly_order_reports.claimed_until, '-infinity'::timestamptz) <= now()
-     returning week_start, week_end`,
+     returning week_start, week_end, email_started_at, email_template_version`,
     [weekStart, weekEnd, claimToken]
   );
   if (!claimed.rows[0]) return false;
 
   try {
+    if (claimed.rows[0].email_started_at && claimed.rows[0].email_template_version !== DEFAULT_EMAIL_TEMPLATE_VERSION) {
+      app.log.warn("Weekly order report needs delivery reconciliation after email template change");
+      return false;
+    }
     const orders = await app.db.query<OrderReportRow>(
       `select 'crypto' as source,
               intent.id::text as order_id,
@@ -115,9 +122,9 @@ export async function sendPreviousWeekOrderReport(app: FastifyInstance, now = ne
       [weekStart, weekEnd]
     );
     await app.db.query(
-      `update weekly_order_reports set email_started_at = coalesce(email_started_at, now()), updated_at = now()
+      `update weekly_order_reports set email_started_at = coalesce(email_started_at, now()), email_template_version = $3, updated_at = now()
        where week_start = $1::date and claim_token = $2`,
-      [weekStart, claimToken]
+      [weekStart, claimToken, DEFAULT_EMAIL_TEMPLATE_VERSION]
     );
     const delivery = await sendWeeklyOrderReportEmail({
       config: app.config,

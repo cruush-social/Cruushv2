@@ -1,5 +1,5 @@
+import { useBackOrFallback } from '../lib/useBackOrFallback';
 import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router';
 import { getAuthSession } from '../lib/authApi';
 import AppPageHeader from './AppPageHeader';
 import ProfileOnboarding from './ProfileOnboarding';
@@ -10,7 +10,7 @@ type CodeOfConductPageProps = {
 };
 
 export default function CodeOfConductPage({ onBack, onClose }: CodeOfConductPageProps) {
-  const navigate = useNavigate();
+  const goBack = useBackOrFallback('/map');
   const [signedAt, setSignedAt] = useState<string | null>(null);
   const [status, setStatus] = useState('Loading...');
 
@@ -37,8 +37,8 @@ export default function CodeOfConductPage({ onBack, onClose }: CodeOfConductPage
         title="Code of Conduct"
         onClose={onClose}
         closeLabel="Close Code of Conduct"
-        onBack={onBack ?? (() => navigate('/settings'))}
-        backLabel="Back to settings"
+        onBack={onBack ?? goBack}
+        backLabel="Back"
         bugButtonTestId="code-of-conduct-bug-button-slot"
       />
       <div className="min-h-0 flex-1 overflow-hidden">

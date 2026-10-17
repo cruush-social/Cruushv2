@@ -1,3 +1,5 @@
+import { orderWalletEmailInstructions, walletEmailAmount, type OrderWalletEmailDetails } from "./order-wallet-email-details.js";
+import { defaultEmailHtml } from "./email-template.js";
 import type { FastifyBaseLogger } from "fastify";
 import { ApiError } from "./errors.js";
 import type { AppConfig } from "./config.js";
@@ -161,8 +163,6 @@ type EventPassEmailInput = {
   logger: FastifyBaseLogger;
 };
 
-const CRUUSH_EMAIL_LOGO_URL = "https://cdn.resend.app/ff1dfa96-8b85-4552-8e56-d09cf53fb13e";
-const VERIFICATION_EMAIL_TEMPLATE_ID = "0dc8f32c-76e2-45b2-aaf7-f4649ab48ab0";
 const REPORTS_INBOX_EMAIL = "reports@cruush.app";
 const REPORTS_FROM_EMAIL = "cruush <reports@cruush.app>";
 const AGE_SUSPENSION_REASON_CODES = new Set(["minor_face_detected"]);
@@ -202,186 +202,16 @@ function escapeHtml(value: string) {
   });
 }
 
-// One shell for every account email so verification, email change, and anything
-// else that asks a member to click a link look like the same product. The
-// verification copy below is what it has always been; only the wording moves.
+// All account actions share the last sent release email's default glass shell.
 function buildAccountEmailHtml(input: {
-  title: string;
-  heading: string;
-  intro: string;
-  buttonLabel: string;
-  escapedUrl: string;
-  footnote: string;
+  title: string; heading: string; intro: string; buttonLabel: string;
+  escapedUrl: string; footnote: string;
 }) {
-  const { title, heading, intro, buttonLabel, escapedUrl, footnote } = input;
-  return `<!DOCTYPE html>
-<html dir="ltr" lang="en">
-  <head>
-    <meta content="width=device-width" name="viewport" />
-    <meta content="text/html; charset=UTF-8" http-equiv="Content-Type" />
-    <meta name="x-apple-disable-message-reformatting" />
-    <meta content="IE=edge" http-equiv="X-UA-Compatible" />
-    <meta content="telephone=no,address=no,email=no,date=no,url=no" name="format-detection" />
-    <title>${title}</title>
-  </head>
-  <body
-    dir="ltr"
-    lang="en"
-    bgcolor="#050507"
-    style="margin:0;padding:0;background-color:#050507;color:#ffffff;font-family:Georgia,'Times New Roman',Times,serif;"
-  >
-    <table
-      border="0"
-      width="100%"
-      cellpadding="0"
-      cellspacing="0"
-      role="presentation"
-      align="center"
-      bgcolor="#050507"
-      style="width:100%;background-color:#050507;color:#ffffff;"
-    >
-      <tbody>
-        <tr>
-          <td
-            align="center"
-            bgcolor="#050507"
-            style="padding:28px 14px;background-color:#050507;color:#ffffff;font-family:Georgia,'Times New Roman',Times,serif;line-height:155%;"
-          >
-            <table
-              align="center"
-              width="100%"
-              border="0"
-              cellpadding="0"
-              cellspacing="0"
-              role="presentation"
-              bgcolor="#050507"
-              style="max-width:600px;width:100%;background-color:#050507;color:#ffffff;line-height:155%;"
-            >
-              <tbody>
-                <tr>
-                  <td align="center" style="padding:0 0 18px;background-color:#050507;color:#ffffff;">
-                    <img
-                      alt="cruush"
-                      height="156"
-                      src="${CRUUSH_EMAIL_LOGO_URL}"
-                      style="display:block;outline:none;border:none;text-decoration:none;border-radius:8px;"
-                      width="150"
-                    />
-                  </td>
-                </tr>
-
-                <tr>
-                  <td
-                    align="center"
-                    bgcolor="#050507"
-                    style="padding:0;background-color:#050507;color:#ffffff;font-family:Georgia,'Times New Roman',Times,serif;text-align:center;"
-                  >
-                    <h1
-                      style="margin:0 0 14px;padding:0;color:#ffffff;font-family:Georgia,'Times New Roman',Times,serif;font-size:34px;line-height:1.15;font-weight:700;text-align:center;"
-                    >
-                      ${heading}
-                    </h1>
-
-                    <p
-                      style="margin:0 0 20px;padding:0;color:#ffffff;font-family:Georgia,'Times New Roman',Times,serif;font-size:17px;line-height:1.55;text-align:center;"
-                    >
-                      ${intro}
-                    </p>
-
-                    <table
-                      align="center"
-                      border="0"
-                      cellpadding="0"
-                      cellspacing="0"
-                      role="presentation"
-                      style="margin:0 auto 22px;"
-                    >
-                      <tbody>
-                        <tr>
-                          <td
-                            align="center"
-                            bgcolor="#ff0072"
-                            style="border-radius:8px;background-color:#ff0072;"
-                          >
-                            <a
-                              href="${escapedUrl}"
-                              rel="noopener noreferrer nofollow"
-                              target="_blank"
-                              style="display:inline-block;padding:13px 22px;color:#ffffff;font-family:Georgia,'Times New Roman',Times,serif;font-size:16px;font-weight:700;text-decoration:none;"
-                            >
-                              ${buttonLabel}
-                            </a>
-                          </td>
-                        </tr>
-                      </tbody>
-                    </table>
-
-                    ${footnote ? `<table
-                      align="center"
-                      border="0"
-                      cellpadding="0"
-                      cellspacing="0"
-                      role="presentation"
-                      style="margin:0 auto 20px;width:100%;max-width:430px;"
-                    >
-                      <tbody>
-                        <tr>
-                          <td
-                            align="center"
-                            bgcolor="#111111"
-                            style="padding:14px 16px;border:1px solid #ffffff;background-color:#111111;color:#ffffff;font-family:Georgia,'Times New Roman',Times,serif;text-align:center;"
-                          >
-                            <p
-                              style="margin:0;padding:0;color:#ffffff;font-size:15px;line-height:1.55;text-align:center;"
-                            >
-                              ${footnote}
-                            </p>
-                          </td>
-                        </tr>
-                      </tbody>
-                    </table>` : ""}
-
-                    <p
-                      style="margin:0 0 20px;padding:0;color:#ffffff;font-family:Georgia,'Times New Roman',Times,serif;font-size:15px;line-height:1.55;text-align:center;"
-                    >
-                      If the button does not open, copy and paste this link into your browser:
-                    </p>
-
-                    <p
-                      style="margin:0;padding:0;color:#ffffff;font-family:Georgia,'Times New Roman',Times,serif;font-size:13px;line-height:1.5;text-align:center;word-break:break-all;"
-                    >
-                      <a
-                        href="${escapedUrl}"
-                        rel="noopener noreferrer nofollow"
-                        target="_blank"
-                        style="color:#ffffff;text-decoration:underline;"
-                      >
-                        ${escapedUrl}
-                      </a>
-                    </p>
-
-                    <p
-                      style="margin:28px 0 0;padding:0;color:#ffffff;font-family:Georgia,'Times New Roman',Times,serif;font-size:14px;line-height:1.5;text-align:center;"
-                    >
-                      Comments? Questions? Concerns?<br />
-                      <a
-                        href="mailto:hello@cruush.app"
-                        style="color:#ffffff;text-decoration:underline;"
-                        target="_blank"
-                      >
-                        hello@cruush.app
-                      </a>
-                    </p>
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-          </td>
-        </tr>
-      </tbody>
-    </table>
-  </body>
-</html>`;
+  return defaultEmailHtml({
+    title: input.title, heading: input.heading, intro: input.intro,
+    buttonLabel: input.buttonLabel, buttonUrl: input.escapedUrl,
+    body: `<p>${input.footnote}</p><p>If the button does not open, copy and paste this link into your browser:</p><p><a href="${input.escapedUrl}" style="overflow-wrap:anywhere;">${input.escapedUrl}</a></p>`
+  });
 }
 
 function buildVerificationEmailHtml(escapedVerificationUrl: string) {
@@ -403,6 +233,7 @@ export class CryptoGasEmailRejectedError extends Error {
 }
 
 async function sendResendEmail(input: {
+  cc?: string[];
   attachments?: EmailAttachment[];
   config: AppConfig;
   email: string;
@@ -418,7 +249,7 @@ async function sendResendEmail(input: {
   const { attachments, config, email, failureMessage, from, logger, replyTo, subject } = input;
   const content = input.template
     ? { template: input.template }
-    : { html: input.html, text: input.text };
+    : { html: /<!doctype html/i.test(input.html) ? input.html : defaultEmailHtml({ title: escapeHtml(subject), body: input.html }), text: input.text };
 
   const response = await fetch("https://api.resend.com/emails", {
     method: "POST",
@@ -431,6 +262,7 @@ async function sendResendEmail(input: {
     body: JSON.stringify({
       from: from ?? config.MAIL_FROM,
       to: [email],
+      ...(input.cc?.length ? { cc: input.cc } : {}),
       subject,
       ...content,
       ...(attachments && attachments.length > 0 ? { attachments } : {}),
@@ -513,12 +345,8 @@ export async function sendVerificationEmail(input: VerificationEmailInput): Prom
       email,
       logger,
       subject: "Verify your cruush email",
-      template: {
-        id: VERIFICATION_EMAIL_TEMPLATE_ID,
-        variables: {
-          VERIFICATION_URL: escapedVerificationUrl
-        }
-      },
+      html: buildVerificationEmailHtml(escapedVerificationUrl),
+      text: `verify your email\n\nTap the button below to confirm this address and finish setting up your cruush account.\n\nVerify email: ${verificationUrl}\n\nThis verification link expires in 24 hours. If you did not create a cruush account, you can ignore this email.\n\nhello@cruush.app`,
       failureMessage: "verification email delivery failed"
     });
 
@@ -538,93 +366,13 @@ export async function sendVerificationEmail(input: VerificationEmailInput): Prom
   };
 }
 
-// The password reset design is built here rather than referenced as a Resend
-// template. Resend renders the last *published* revision of a template, so an
-// edit that has not been published keeps going out as the previous design with
-// nothing in this repository to explain why. Holding the markup here means the
-// deployed commit is the design, and a change to it goes through review like any
-// other.
-//
-// Kept byte-identical to the Resend template c4c95694-b788-4862-804d-e0fb146304c3
-// it replaces, except that {{{RESET_URL}}} becomes the interpolated value.
-//
-// The URL is inserted already HTML-escaped, which is what an href needs: an
-// ampersand between query parameters has to reach the attribute as &amp;.
 function buildPasswordResetEmailHtml(escapedResetUrl: string) {
-  return `<!doctype html>
-<html>
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width" />
-  </head>
-  <body style="margin:0;background:#050507;color:#fff;font-family:Georgia,'Times New Roman',serif;">
-    <table width="100%" cellpadding="0" cellspacing="0" role="presentation" style="background:#050507;">
-      <tr>
-        <td
-          align="center"
-          style="padding:32px 16px;background:#050507;background-image:radial-gradient(circle at 12% 8%,rgba(255,0,114,.48),transparent 25%),radial-gradient(circle at 92% 18%,rgba(17,129,255,.42),transparent 28%),radial-gradient(circle at 50% 100%,rgba(111,0,255,.38),transparent 36%);"
-        >
-          <table width="100%" cellpadding="0" cellspacing="0" role="presentation" style="max-width:600px;">
-            <tr>
-              <td align="center" style="padding:0 0 22px;">
-                <img
-                  src="https://cdn.resend.app/ff1dfa96-8b85-4552-8e56-d09cf53fb13e"
-                  alt="cruush"
-                  width="100"
-                  height="104"
-                  style="display:block;margin:0 auto;border:0;border-radius:0;mix-blend-mode:screen;"
-                />
-              </td>
-            </tr>
-            <tr>
-              <td
-                style="padding:30px 28px;border:1px solid rgba(255,255,255,.18);border-radius:22px;background:rgba(255,255,255,.055);background-image:linear-gradient(180deg,rgba(255,255,255,.18),rgba(255,255,255,.025) 30%,rgba(255,255,255,.06));box-shadow:0 0 2px 1px rgba(255,255,255,.35) inset,0 0 10px 4px rgba(255,255,255,.15) inset,0 18px 48px rgba(0,0,0,.38);backdrop-filter:blur(22px) saturate(1.48);-webkit-backdrop-filter:blur(22px) saturate(1.48);"
-              >
-                <h1 style="margin:0 0 16px;color:#fff;font-size:30px;line-height:1.12;">forgot your password?</h1>
-                <p style="margin:0 0 24px;color:#eeeeF2;font-size:16px;line-height:1.65;">
-                  We received a request to reset the password for your cruush account. Use the button below to choose a
-                  new one.
-                </p>
-                <table cellpadding="0" cellspacing="0" role="presentation">
-                  <tr>
-                    <td
-                      bgcolor="#ff0072"
-                      style="border-radius:999px;background:#ff0072;box-shadow:0 0 0 1px rgba(255,255,255,.26) inset,0 8px 24px rgba(255,0,114,.28);"
-                    >
-                      <a
-                        href="${escapedResetUrl}"
-                        style="display:inline-block;padding:13px 22px;color:#fff;text-decoration:none;font-size:14px;font-weight:700;"
-                        >Reset password</a
-                      >
-                    </td>
-                  </tr>
-                </table>
-                <p
-                  style="margin:22px 0 0;padding:14px 16px;border:1px solid rgba(255,255,255,.1);border-radius:14px;background:rgba(255,255,255,.04);box-shadow:0 0 2px 1px rgba(255,255,255,.26) inset;color:#bdbdc8;font-size:13px;line-height:1.55;"
-                >
-                  This password reset link expires in 1 hour. If you did not request a reset, you can safely ignore this
-                  email.
-                </p>
-                <p style="margin:22px 0 0;color:#898995;font-size:12px;line-height:1.5;">
-                  If the button does not open, copy and paste this link into your browser:<br /><a
-                    href="${escapedResetUrl}"
-                    style="color:#c7c7d0;word-break:break-all;"
-                    >${escapedResetUrl}</a
-                  >
-                </p>
-              </td>
-            </tr>
-            <tr>
-              <td align="center" style="padding:22px 0 0;color:#898995;font-size:12px;">
-                A message from cruush<br /><a href="mailto:hello@cruush.app" style="color:#c7c7d0;">hello@cruush.app</a>
-              </td>
-            </tr>
-          </table>
-        </td>
-      </tr>
-    </table>
-  </body>
-</html>`;
+  return buildAccountEmailHtml({
+    title: "Reset your cruush password", heading: "forgot your password?",
+    intro: "We received a request to reset the password for your cruush account. Use the button below to choose a new one.",
+    buttonLabel: "Reset password", escapedUrl: escapedResetUrl,
+    footnote: "This password reset link expires in 1 hour. If you did not request a reset, you can safely ignore this email."
+  });
 }
 
 export async function sendPasswordResetEmail(input: PasswordResetEmailInput): Promise<VerificationDeliveryResult> {
@@ -864,6 +612,7 @@ export async function sendWeeklyOrderReportEmail(input: WeeklyOrderReportEmailIn
 }
 
 export async function sendCryptoGasAlertEmail(input: {
+  cc?: string[];
   config: AppConfig;
   logger: FastifyBaseLogger;
   idempotencyKey: string;
@@ -887,7 +636,7 @@ export async function sendCryptoGasAlertEmail(input: {
     "No automatic purchase or swap has been made. Forwarding may wait if gas runs out.",
   ];
   const delivery = await sendResendEmail({
-    config: input.config, email: OWNER_FULL_ACCESS_EMAIL, logger: input.logger,
+    config: input.config, email: OWNER_FULL_ACCESS_EMAIL, cc: input.cc ?? ["hello@cruush.app"], logger: input.logger,
     from: input.mailFrom, classifyGasRejection: true,
     idempotencyKey: input.idempotencyKey, redactRecipientInFailureLog: true,
     subject: `cruush gas refill needed: ${input.network}`,
@@ -1189,6 +938,8 @@ export type SubscriptionExpiryEmailPayload = {
   email: string;
   from: string;
   subject: string;
+  html?: string;
+  text?: string;
   templateId: string;
   variables: {
     BODY: string;
@@ -1207,6 +958,8 @@ export function buildSubscriptionExpiryEmail(input: {
     email: input.email,
     from: input.from,
     subject: input.title,
+    html: defaultEmailHtml({ title: escapeHtml(input.title), intro: escapeHtml(input.body), buttonLabel: "Renew cruush+", buttonUrl: SUBSCRIPTION_EXPIRY_RENEWAL_URL, body: "" }),
+    text: `${input.title}\n\n${input.body}\n\nRenew cruush+: ${SUBSCRIPTION_EXPIRY_RENEWAL_URL}`,
     templateId: SUBSCRIPTION_EXPIRY_EMAIL_TEMPLATE_ID,
     variables: {
       BODY: input.body,
@@ -1232,10 +985,10 @@ export async function sendSubscriptionExpiryEmail(input: {
     idempotencyKey: input.idempotencyKey,
     logger: input.logger,
     subject: input.payload.subject,
-    template: {
-      id: input.payload.templateId,
-      variables: input.payload.variables
-    },
+    // Previously frozen payloads must retry unchanged under their existing key.
+    ...(input.payload.html && input.payload.text
+      ? { html: input.payload.html, text: input.payload.text }
+      : { template: { id: input.payload.templateId, variables: input.payload.variables } }),
     failureMessage: "Subscription reminder email failed."
   });
   return { accepted: true, providerMessageId: delivery.providerMessageId };
@@ -1263,26 +1016,17 @@ export async function sendOutOfSightWelcomeEmail(input: {
     "xoxo,\nJulien Lenaz\nlead developer of cruush 🖤",
     "Questions? hello@cruush.app"
   ].join("\n\n");
-  const html = `<!doctype html>
-<html lang="en"><head><meta charset="utf-8" /><meta name="viewport" content="width=device-width" /><meta name="x-apple-disable-message-reformatting" /><title>${subject}</title></head>
-<body style="margin:0;background:#050507;color:#fff;font-family:'Spectral',Georgia,'Times New Roman',serif;">
-<table width="100%" cellpadding="0" cellspacing="0" role="presentation" style="background:#050507;"><tr><td align="center" style="padding:34px 14px 42px;background:radial-gradient(circle at 50% 112%,rgba(111,0,255,.38),transparent 40%),radial-gradient(circle at 16% 8%,rgba(255,0,114,.18),transparent 29%),radial-gradient(circle at 86% 12%,rgba(17,129,255,.17),transparent 31%),#080808;">
-<table border="0" width="100%" cellpadding="0" cellspacing="0" role="presentation" style="max-width:620px;">
-<tr><td align="center" style="padding:0 0 24px;"><img alt="cruush" width="118" height="123" src="${CRUUSH_EMAIL_LOGO_URL}" style="display:block;margin:0 auto;border:0;mix-blend-mode:screen;" /></td></tr>
-<tr><td style="padding:1px;border:1px solid rgba(255,255,255,.26);border-radius:28px;background:rgba(0,0,0,.02);background-image:linear-gradient(180deg,rgba(255,255,255,.026),rgba(255,255,255,0));box-shadow:0 0 2px 1px rgba(255,255,255,.26) inset,0 0 10px 4px rgba(255,255,255,.1) inset,0 4px 16px rgba(17,17,26,.05),0 8px 24px rgba(17,17,26,.05);backdrop-filter:blur(22px) saturate(1.48) brightness(1.06) contrast(1.01);-webkit-backdrop-filter:blur(22px) saturate(1.48) brightness(1.06) contrast(1.01);"><table border="0" width="100%" cellpadding="0" cellspacing="0" role="presentation" style="border-radius:27px;background:transparent;"><tr><td style="padding:38px 34px 34px;">
-<div style="margin:0 0 18px;color:#ff5c9a;font-family:Arial,sans-serif;font-size:11px;font-weight:700;letter-spacing:2px;text-transform:uppercase;">congratulations, sort of</div>
-<h1 style="margin:0 0 20px;color:#fff;font-family:'Cormorant Garamond',Georgia,'Times New Roman',serif;font-size:39px;line-height:1.04;font-weight:700;">you have entered Purgatory.</h1>
-<div style="color:#eeeeF2;font-family:'Spectral',Georgia,'Times New Roman',serif;font-size:17px;line-height:1.7;">
+  const html = defaultEmailHtml({ title: subject, heading: 'you have entered Purgatory.', body: `<div style="margin:0 0 18px;color:#ff5c9a;font-family:Arial,sans-serif;font-size:11px;font-weight:700;letter-spacing:2px;text-transform:uppercase;">congratulations, sort of</div>
+
+<div style="color:#eeeeF2;font-size:18px;line-height:1.62;">
 The app just noticed that you are outside the service area. Congratulations, your GPS has promoted you to the waiting room. Do not panic. This is not a ban, a breakup, or an exorcism.<br /><br />
 You are still a full cruush member. You can post, message, connect, and use Confessional, Covens, Messages, and Profiles globally. The Map is taking a personal day and will not be accepting visitors in this state.<br /><br />
 As a Purgatory member, profile location pins stay dark and unavailable to you, regardless of cruush status. Ghost Mode is unavailable here and points toward Mile High Club (MHC). If you use MHC to access the service area, location controls work under the normal privacy rules.<br /><br />
 You can also use Visibility Controls to hide your profile and activity from Purgatory members completely. Existing chats and history stay available. Purgatory members can never access your precise location. Please enjoy the rest of the app and resist the urge to negotiate with your pin.
 </div>
 <table cellpadding="0" cellspacing="0" role="presentation" style="margin:28px 0 0;"><tr><td bgcolor="#6f00ff" style="border-radius:999px;background:#ff0072;background:linear-gradient(90deg,#ff0072 6.08%,#6f00ff 43.11%,#3826ff 58.46%,#004bff 73.81%,#1181ff 100%);"><a href="${appUrl}/settings" style="display:inline-block;padding:13px 22px;color:#fff;text-decoration:none;font-family:'Spectral',Georgia,'Times New Roman',serif;font-size:14px;font-weight:700;">Open cruush</a></td></tr></table>
-<p style="margin:28px 0 0;color:#eeeeF2;font-family:'Spectral',Georgia,'Times New Roman',serif;font-size:17px;line-height:1.7;">xoxo,<br />Julien Lenaz<br />lead developer of cruush 🖤</p>
-</td></tr></table></td></tr>
-<tr><td align="center" style="padding:22px 0 0;color:#898995;font-family:'Spectral',Georgia,'Times New Roman',serif;font-size:12px;line-height:1.5;">Questions? <a href="mailto:hello@cruush.app" style="color:#c7c7d0;">hello@cruush.app</a></td></tr>
-</table></td></tr></table></body></html>`;
+<p style="margin:28px 0 0;color:#eeeeF2;font-size:18px;line-height:1.62;">xoxo,<br />Julien Lenaz<br />lead developer of cruush 🖤</p>
+` });
 
   const delivery = await sendResendEmail({
     config,
@@ -1310,7 +1054,7 @@ export async function sendSinnersWelcomeEmail(input: {
   }
 
   // Approved preview copy, including the owner's latest techno-occult correction.
-  // Keep this separate from the unchanged Purgatory template.
+  // Content stays separate; both welcome emails use the default shell.
   const subject = "welcome to the Sinner's Map";
   const paragraphs = [
     "You signed the cruush Code of Conduct. In the old language, that means your soul is now marked for the Sinner's Map. If you are returning from Purgatory, welcome back. The gates noticed you made it home.",
@@ -1324,24 +1068,83 @@ export async function sendSinnersWelcomeEmail(input: {
     `Enter cruush: ${config.APP_URL.replace(/\/$/, "")}/settings`,
     "xoxo,\nJulien Lenaz\nlead developer of cruush 🖤", "Questions? hello@cruush.app"
   ].join("\n\n");
-  const html = `<!doctype html>
-<html lang="en"><head><meta charset="utf-8" /><meta name="viewport" content="width=device-width" /><meta name="x-apple-disable-message-reformatting" /><title>cruush: ${subject}</title></head>
-<body style="margin:0;background:#050507;color:#fff;font-family:'Spectral',Georgia,'Times New Roman',serif;">
-<table width="100%" cellpadding="0" cellspacing="0" role="presentation" style="background:#050507;"><tr><td align="center" style="padding:34px 14px 42px;background:radial-gradient(circle at 50% 112%,rgba(111,0,255,.38),transparent 40%),radial-gradient(circle at 16% 8%,rgba(255,0,114,.18),transparent 29%),radial-gradient(circle at 86% 12%,rgba(17,129,255,.17),transparent 31%),#080808;">
-<table border="0" width="100%" cellpadding="0" cellspacing="0" role="presentation" style="max-width:620px;">
-<tr><td align="center" style="padding:0 0 24px;"><img alt="cruush" width="118" height="123" src="${CRUUSH_EMAIL_LOGO_URL}" style="display:block;margin:0 auto;border:0;mix-blend-mode:screen;" /></td></tr>
-<tr><td style="padding:1px;border:1px solid rgba(255,255,255,.26);border-radius:28px;background:rgba(0,0,0,.02);background-image:linear-gradient(180deg,rgba(255,255,255,.026),rgba(255,255,255,0));box-shadow:0 0 2px 1px rgba(255,255,255,.26) inset,0 0 10px 4px rgba(255,255,255,.1) inset,0 4px 16px rgba(17,17,26,.05),0 8px 24px rgba(17,17,26,.05);backdrop-filter:blur(22px) saturate(1.48) brightness(1.06) contrast(1.01);-webkit-backdrop-filter:blur(22px) saturate(1.48) brightness(1.06) contrast(1.01);"><table border="0" width="100%" cellpadding="0" cellspacing="0" role="presentation" style="border-radius:27px;background:transparent;"><tr><td style="padding:38px 34px 34px;">
-<div style="margin:0 0 18px;color:#ff5c9a;font-family:Arial,sans-serif;font-size:11px;font-weight:700;letter-spacing:2px;text-transform:uppercase;">the oath is sealed</div>
-<h1 style="margin:0 0 20px;color:#fff;font-family:'Cormorant Garamond',Georgia,'Times New Roman',serif;font-size:39px;line-height:1.04;font-weight:700;">welcome to the Sinner's Map.</h1>
-<div style="color:#eeeeF2;font-family:'Spectral',Georgia,'Times New Roman',serif;font-size:17px;line-height:1.7;">${paragraphs.join("<br /><br />\n")}</div>
+  const html = defaultEmailHtml({ title: subject, heading: "welcome to the Sinner's Map.", body: `<div style="margin:0 0 18px;color:#ff5c9a;font-family:Arial,sans-serif;font-size:11px;font-weight:700;letter-spacing:2px;text-transform:uppercase;">the oath is sealed</div>
+
+<div style="color:#eeeeF2;font-size:18px;line-height:1.62;">${paragraphs.join("<br /><br />\n")}</div>
 <table cellpadding="0" cellspacing="0" role="presentation" style="margin:28px 0 0;"><tr><td bgcolor="#6f00ff" style="border-radius:999px;background:#ff0072;background:linear-gradient(90deg,#ff0072 6.08%,#6f00ff 43.11%,#3826ff 58.46%,#004bff 73.81%,#1181ff 100%);"><a href="${appUrl}/settings" style="display:inline-block;padding:13px 22px;color:#fff;text-decoration:none;font-family:'Spectral',Georgia,'Times New Roman',serif;font-size:14px;font-weight:700;">Enter cruush</a></td></tr></table>
-<p style="margin:28px 0 0;color:#eeeeF2;font-family:'Spectral',Georgia,'Times New Roman',serif;font-size:17px;line-height:1.7;">xoxo,<br />Julien Lenaz<br />lead developer of cruush 🖤</p>
-</td></tr></table></td></tr>
-<tr><td align="center" style="padding:22px 0 0;color:#898995;font-family:'Spectral',Georgia,'Times New Roman',serif;font-size:12px;line-height:1.5;">Questions? <a href="mailto:hello@cruush.app" style="color:#c7c7d0;">hello@cruush.app</a></td></tr>
-</table></td></tr></table></body></html>`;
+<p style="margin:28px 0 0;color:#eeeeF2;font-size:18px;line-height:1.62;">xoxo,<br />Julien Lenaz<br />lead developer of cruush 🖤</p>
+` });
 
   const delivery = await sendResendEmail({ config, email, idempotencyKey,
     redactRecipientInFailureLog: true, logger, subject, html, text,
     failureMessage: "Sinners welcome email delivery failed" });
+  return { accepted: true, providerMessageId: delivery.providerMessageId };
+}
+
+
+export function buildOrderWalletReadyEmail(appUrl: string, productType: string, planId: string, order: OrderWalletEmailDetails) {
+  const base = appUrl.replace(/\/$/, "");
+  const history = `${base}/settings/orders`;
+  const checkout = `${base}${productType === "ping_pack" ? "/store/pulse" : "/store"}`;
+  const security = `${base}/blog/payment-security.html`;
+  const guide = `${base}/blog/stablecoin-payments.html`;
+  const why = `${base}/blog/crypto-first.html`;
+  const subject = "Your order’s payment wallet is ready";
+  const access = productType === "ping_pack"
+    ? "This is a one-time Pulse purchase. Nothing renews and you will not be charged again automatically."
+    : planId.includes("lifetime")
+      ? "This is a one-time lifetime cruush+ purchase. Nothing renews and you will not be charged again automatically. Lifetime access has no expiry reminder."
+      : "This is a one-time payment for the cruush+ time you chose. Nothing renews and you will not be charged again automatically. Once your payment is confirmed, your time is activated. We’ll remind you before your time expires.";
+  const instructions = orderWalletEmailInstructions(order);
+  const steps = instructions.steps;
+  const usd = (cents: number) => `$${(cents / 100).toFixed(2)} USD`;
+  const date = (value: string | Date | null) => new Date(value!).toISOString().replace('T', ' ').replace(/\.\d{3}Z$/, ' UTC');
+  const discount = order.discount ?? order.sale;
+  const details: Array<[string, string]> = [
+    ["Order ID", order.id], ["Purchase", order.planName], ["Plan ID", planId],
+    ["Status when prepared", "Awaiting payment"], ["Payment app", instructions.appName],
+    ...(discount ? [["Original price", usd(discount.originalAmountUsdCents)], ["Discount", usd(discount.discountAmountUsdCents)],
+      ...(order.discount ? [["Coupon", order.discount.code]] : [])] as Array<[string, string]> : []),
+    ["Purchase price", usd(order.amountUsdCents)], ["cruush processing fee", usd(order.gasFeeUsdCents ?? 0)],
+    ["Order total", usd(order.amountUsdCents + (order.gasFeeUsdCents ?? 0))],
+    ["Send exactly", `${walletEmailAmount(order)} ${order.asset}`], ["Network", instructions.network],
+    ["Payment wallet ID", order.paymentAddress!], ["Order created", date(order.createdAt)],
+    ["Payment deadline", date(order.expiresAt)],
+  ];
+  const privacy = "Your order gets its own payment address so cruush can match the transfer to your order. Creating it does not move money or give us control of your wallet. We never ask for your private key or recovery phrase. Your order is linked to your cruush account; blockchain transfers are public and your payment app may keep its own records. This is not an anonymous payment.";
+  const refunds = "We offer voluntary refunds for paid orders that were not applied or for technical checkout issues. Contact payment support for a review.";
+  const thanks = "cruush is self-funded. Thank you for supporting the app.";
+  const help = "If your payment app says sent but your order is still unconfirmed after 30 minutes, use the payment support link below. Do not pay again while we check it.";
+  const link = (url: string, label: string) => `<a href="${escapeHtml(url)}" style="color:#ff6bb0;text-decoration:underline;">${label}</a>`;
+  const wordmark = `<span style="font-family:'Iowan Old Style','Baskerville','Times New Roman',serif;font-style:italic;font-weight:400;">sovereignpay</span>`;
+  const html = defaultEmailHtml({
+    title: subject,
+    intro: "Your order’s payment address is ready. No money has moved just by creating this order.",
+    buttonUrl: escapeHtml(checkout),
+    buttonLabel: "Return to checkout",
+    body: `<div>
+      <h2 class="feature-title" style="margin:28px 0 12px;color:#fff;font-size:30px;line-height:1.15;font-weight:700;">Your order</h2>
+      ${details.map(([label, value]) => `<p class="feature-copy" style="margin:0 0 16px;color:#eeeef2;font-size:18px;line-height:1.62;overflow-wrap:anywhere;word-break:break-word;"><strong>${escapeHtml(label)}</strong><br>${escapeHtml(value)}</p>`).join("")}
+      <h2 class="feature-title" style="margin:28px 0 12px;color:#fff;font-size:30px;line-height:1.15;font-weight:700;">How to pay with ${escapeHtml(instructions.appName)}</h2>
+      ${instructions.appUrl ? `<p>${link(instructions.appUrl, `Open ${instructions.appName}`)}</p>` : ""}
+      ${instructions.guideUrl ? `<p>${link(instructions.guideUrl, `${instructions.appName} transfer guide`)}</p>` : ""}
+      ${steps.map((step, i) => `<p class="feature-copy" style="margin:0 0 24px;color:#eeeef2;font-size:18px;line-height:1.62;">${i + 1}. ${escapeHtml(step)}</p>`).join("")}
+      <h2 class="feature-title" style="margin:28px 0 12px;color:#fff;font-size:30px;line-height:1.15;font-weight:700;">Secure checkout by ${wordmark}</h2><p class="feature-copy" style="margin:0 0 24px;color:#eeeef2;font-size:18px;line-height:1.62;">${privacy}</p>
+      <p class="feature-copy" style="margin:0 0 24px;color:#eeeef2;font-size:18px;line-height:1.62;">${link(security, "How cruush protects your payment")}<br>${link(guide, "How to pay with PayPal, Venmo or a crypto wallet")}<br>${link(why, "Why cruush takes crypto")}</p>
+      <h2 class="feature-title" style="margin:28px 0 12px;color:#fff;font-size:30px;line-height:1.15;font-weight:700;">One payment, no automatic renewal</h2><p class="feature-copy" style="margin:0 0 24px;color:#eeeef2;font-size:18px;line-height:1.62;">${access}</p>
+      <p class="feature-copy" style="margin:0 0 24px;color:#eeeef2;font-size:18px;line-height:1.62;">${help}</p><p class="feature-copy" style="margin:0 0 24px;color:#eeeef2;font-size:18px;line-height:1.62;">${link(history, "View your order history")} · ${link(`${base}/support?billing=payment`, "Payment support")}</p><p class="feature-copy" style="margin:0 0 24px;color:#eeeef2;font-size:18px;line-height:1.62;">${refunds} ${link(`${base}/support?billing=payment`, "Submit a billing issue")} or email ${link("mailto:reports@cruush.app", "reports@cruush.app")}.</p><p class="feature-copy" style="margin:0 0 24px;color:#eeeef2;font-size:18px;line-height:1.62;">${thanks}</p>
+    </div>`
+  });
+  const text = [subject, "Your order’s payment address is ready. No money has moved just by creating this order.", `Return to checkout: ${checkout}`, `Order history: ${history}`, "Your order", ...details.map(([label, value]) => `${label}: ${value}`), `How to pay with ${instructions.appName}`, ...(instructions.appUrl ? [`Open ${instructions.appName}: ${instructions.appUrl}`] : []), ...(instructions.guideUrl ? [`Transfer guide: ${instructions.guideUrl}`] : []), ...steps.map((s, i) => `${i + 1}. ${s}`), "Secure checkout by sovereignpay", privacy, `How cruush protects your payment: ${security}`, `Payment guide: ${guide}`, `Why cruush takes crypto: ${why}`, access, help, refunds, `Submit a billing issue: ${base}/support?billing=payment`, "Or email reports@cruush.app.", thanks].join("\n\n");
+  return { subject, html, text };
+}
+
+export async function sendOrderWalletReadyEmail(input: {
+  config: AppConfig; email: string; idempotencyKey: string; logger: FastifyBaseLogger;
+  content: ReturnType<typeof buildOrderWalletReadyEmail>;
+}) {
+  if (!input.config.RESEND_API_KEY || !input.config.MAIL_FROM) return { accepted: false, providerMessageId: null };
+  const delivery = await sendResendEmail({ ...input, ...input.content,
+    redactRecipientInFailureLog: true, failureMessage: "Order wallet email failed." });
   return { accepted: true, providerMessageId: delivery.providerMessageId };
 }

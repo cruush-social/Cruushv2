@@ -238,7 +238,7 @@ describe('CruushPlusStore', () => {
     vi.mocked(getCryptoProcessorStatus).mockResolvedValue(processorStatus([]));
     const close = vi.fn();
     render(
-      <MemoryRouter initialEntries={entry === 'history' ? ['/settings', '/store'] : ['/store']} initialIndex={entry === 'history' ? 1 : 0}>
+      <MemoryRouter initialEntries={entry === 'history' ? ['/settings', '/store'] : entry === 'popup' ? ['/feed', '/store'] : ['/store']} initialIndex={entry === 'direct' ? 0 : 1}>
         <PopupRouteContext.Provider value={entry === 'popup' ? { onClose: close } : null}>
           <CruushPlusStore />
           <BackDestination />
@@ -246,8 +246,8 @@ describe('CruushPlusStore', () => {
       </MemoryRouter>,
     );
     fireEvent.click(await screen.findByRole('button', { name: 'Back', exact: true }));
-    expect(screen.getByTestId('back-destination')).toHaveTextContent(entry === 'history' ? '/settings' : entry === 'popup' ? '/store' : '/map');
-    expect(close).toHaveBeenCalledTimes(entry === 'popup' ? 1 : 0);
+    expect(screen.getByTestId('back-destination')).toHaveTextContent(entry === 'history' ? '/settings' : entry === 'popup' ? '/feed' : '/map');
+    expect(close).not.toHaveBeenCalled();
   });
 
   it.each([
@@ -287,6 +287,26 @@ describe('CruushPlusStore', () => {
     expect(link).toHaveAttribute('href', expectedHref);
     expect(screen.getByRole('button', { name: 'Copy amount' })).toBeEnabled();
     expect(screen.getByRole('button', { name: 'Copy address' })).toBeEnabled();
+  });
+
+  it('keeps fast address feedback readable without creating a second order', async () => {
+    vi.mocked(getCryptoProcessorStatus).mockResolvedValue(processorStatus(['pyusd_arbitrum']));
+    vi.mocked(createCryptoPaymentIntent).mockResolvedValue({
+      id: 'feedback-order', userId: 'feedback-user', planId: 'plus_monthly',
+      asset: 'PYUSD', network: 'arbitrum', rail: 'pyusd_arbitrum', sendingApp: 'paypal',
+      amountUsdCents: 1899, quotedAmountAtomic: '19000000', paymentAddress: '0xfixture',
+      status: 'awaiting_payment', expiresAt: '2099-01-01T00:00:00Z', createdAt: null, updatedAt: null, paidAt: null,
+    });
+    renderStore();
+    const paypal = await screen.findByRole('button', { name: 'PayPal' });
+    await waitFor(() => expect(paypal).toBeEnabled());
+    fireEvent.click(paypal);
+    expect(await screen.findByText('Your order’s payment address is ready')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Copy address' })).not.toBeInTheDocument();
+    fireEvent.click(paypal);
+    expect(createCryptoPaymentIntent).toHaveBeenCalledTimes(1);
+    expect(await screen.findByRole('button', { name: 'Copy address' })).toBeEnabled();
+    expect(screen.queryByText('Your order’s payment address is ready')).not.toBeInTheDocument();
   });
 
   it('keeps stablecoin checkout disabled when no supported rail is ready', async () => {
@@ -1085,13 +1105,13 @@ describe('CruushPlusStore', () => {
     );
   });
 
-  it('puts the one-time no-voluntary-refund billing policy at the bottom', async () => {
+  it('puts the one-time purchase and voluntary-refund billing policy at the bottom', async () => {
     vi.mocked(getCryptoProcessorStatus).mockResolvedValue(processorStatus());
 
     renderStore();
 
     const link = await screen.findByRole('link', { name: 'read the billing policy' });
-    const refundLink = screen.getByRole('link', { name: 'request a legally required refund review' });
+    const refundLink = screen.getByRole('link', { name: 'request a refund review' });
     const billingSupportLink = screen.getByRole('link', { name: 'report a billing issue' });
     expect(link).toHaveAttribute('href', '/billing-policy');
     expect(refundLink).toHaveAttribute('href', '/support?refund=1');
@@ -1103,7 +1123,7 @@ describe('CruushPlusStore', () => {
     expect(screen.getByRole('link', { name: 'Crypto first. On our terms.' })).toHaveAttribute('href', '/blog/crypto-first.html');
     expect(link.closest('div')).toHaveTextContent('one-time purchase. nothing renews automatically.');
     expect(link.closest('div')).toHaveTextContent(
-      'no voluntary refunds; any withdrawal, refund, or other remedy required by applicable law still applies.',
+      'we offer voluntary refunds if your paid order wasn’t applied or you experienced a technical checkout issue. any withdrawal, refund, or other remedy required by applicable law still applies.',
     );
   });
 });

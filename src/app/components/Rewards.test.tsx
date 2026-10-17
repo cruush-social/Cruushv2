@@ -112,7 +112,7 @@ describe('Rewards', () => {
   it.each(['direct', 'history', 'popup'])('makes Back work from %s entry', async (entry) => {
     const close = vi.fn();
     render(
-      <MemoryRouter initialEntries={entry === 'history' ? ['/settings', '/rewards'] : ['/rewards']} initialIndex={entry === 'history' ? 1 : 0}>
+      <MemoryRouter initialEntries={entry === 'history' ? ['/settings', '/rewards'] : entry === 'popup' ? ['/feed', '/rewards'] : ['/rewards']} initialIndex={entry === 'direct' ? 0 : 1}>
         <PopupRouteContext.Provider value={entry === 'popup' ? { onClose: close } : null}>
           <Rewards />
           <BackDestination />
@@ -120,8 +120,8 @@ describe('Rewards', () => {
       </MemoryRouter>,
     );
     fireEvent.click(await screen.findByRole('button', { name: 'Back', exact: true }));
-    expect(screen.getByTestId('back-destination')).toHaveTextContent(entry === 'history' ? '/settings' : entry === 'popup' ? '/rewards' : '/map');
-    expect(close).toHaveBeenCalledTimes(entry === 'popup' ? 1 : 0);
+    expect(screen.getByTestId('back-destination')).toHaveTextContent(entry === 'history' ? '/settings' : entry === 'popup' ? '/feed' : '/map');
+    expect(close).not.toHaveBeenCalled();
   });
 
   it('renders loading, success, and empty-history states safely', async () => {

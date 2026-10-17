@@ -1,3 +1,4 @@
+import { DEFAULT_EMAIL_TEMPLATE_VERSION } from "./email-template.js";
 import { randomUUID } from "node:crypto";
 import type { FastifyInstance } from "fastify";
 import type { AppConfig } from "./config.js";
@@ -14,6 +15,8 @@ export const GAS_ALERT_NETWORKS = [
 ] as const;
 
 type GasEmailSnapshot = {
+  cc?: string[];
+  templateVersion?: string;
   network: string;
   address: string;
   balanceEth: string;
@@ -108,19 +111,19 @@ export async function runCryptoGasAlertPass(app: Pick<FastifyInstance, "config" 
         || (state.claimed_until && new Date(state.claimed_until) > now)) return null;
       // Resend idempotency lasts 24 hours. An ambiguous send is held after 23
       // hours instead of risking a second email outside the provider window.
-      if (state.first_attempt_at && now.getTime() - new Date(state.first_attempt_at).getTime() >= 23 * 60 * 60 * 1000) {
+      if (state.first_attempt_at && (state.email_snapshot?.templateVersion !== DEFAULT_EMAIL_TEMPLATE_VERSION || now.getTime() - new Date(state.first_attempt_at).getTime() >= 23 * 60 * 60 * 1000)) {
         app.log.warn({ chainId: network.chainId }, "gas email delivery needs operator review");
         return null;
       }
       const episodeId = state.episode_id ?? randomUUID();
-      const snapshot = state.email_snapshot ?? {
+      const snapshot = { ...(state.email_snapshot ?? {
         network: network.name, address, balanceEth: formatGasEth(balance),
         topUpEth: formatGasEth(network.targetWei - balance), targetEth: formatGasEth(network.targetWei),
-        mailFrom: config.MAIL_FROM,
-      };
+        mailFrom: config.MAIL_FROM, cc: ["hello@cruush.app"],
+      }), templateVersion: DEFAULT_EMAIL_TEMPLATE_VERSION };
       await db.query(`update crypto_gas_alerts set episode_id = $3, claim_token = $4,
         claimed_until = $5, first_attempt_at = coalesce(first_attempt_at, $6),
-        email_snapshot = coalesce(email_snapshot, $7::jsonb)
+        email_snapshot = $7::jsonb
         where wallet_fingerprint = $1 and chain_id = $2`,
       [fingerprint, network.chainId, episodeId, claimToken, new Date(now.getTime() + 5 * 60 * 1000), now, JSON.stringify(snapshot)]);
       return { id: episodeId, snapshot, hadUncertainAttempt: state.first_attempt_at !== null };
@@ -130,6 +133,8 @@ export async function runCryptoGasAlertPass(app: Pick<FastifyInstance, "config" 
       const delivery = await (options.send ?? sendCryptoGasAlertEmail)({
         config, logger: app.log, idempotencyKey: `crypto-gas/${fingerprint}/${network.chainId}/${episode.id}`,
         ...episode.snapshot,
+        // Preserve recipient payload for uncertain attempts created before CC was added.
+        cc: episode.snapshot.cc ?? [],
       });
       if (delivery.accepted) {
         await app.db.query(`update crypto_gas_alerts set email_sent_at = $5,

@@ -37,7 +37,7 @@ describe('CruushPlusSectionTabs', () => {
   it.each([
     { start: '/rewards', counterpart: 'cruush+' },
     { start: '/store', counterpart: 'Rewards' },
-  ])('keeps the outside page behind $start when switching sections', ({ start, counterpart }) => {
+  ])('walks back through visited sections to the outside page from $start', ({ start, counterpart }) => {
     render(
       <MemoryRouter initialEntries={['/settings', start]} initialIndex={1}>
         <Routes>
@@ -48,9 +48,11 @@ describe('CruushPlusSectionTabs', () => {
       </MemoryRouter>,
     );
 
-    fireEvent.click(screen.getByRole('tab', { name: counterpart }));
+    fireEvent.mouseDown(screen.getByRole('tab', { name: counterpart }), { button: 0, ctrlKey: false });
     fireEvent.click(screen.getByRole('button', { name: 'Back' }));
 
+    expect(screen.getByRole('tab', { name: start === '/store' ? 'cruush+' : 'Rewards' })).toHaveAttribute('aria-selected', 'true');
+    fireEvent.click(screen.getByRole('button', { name: 'Back' }));
     expect(screen.getByText('Outside cruush+ section')).toBeInTheDocument();
   });
 });

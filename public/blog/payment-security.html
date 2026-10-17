@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="How order-specific addresses, payment checks and network confirmations work, and what they mean for your privacy." />
+    <link rel="canonical" href="https://cruush.app/blog/payment-security.html" />
+    <meta name="theme-color" content="#ff006e" />
+    <meta property="og:type" content="article" />
+    <meta property="og:site_name" content="cruush" />
+    <meta property="og:title" content="How cruush protects your payment" />
+    <meta property="og:description" content="How order-specific addresses, payment checks and network confirmations work, and what they mean for your privacy." />
+    <meta property="og:url" content="https://cruush.app/blog/payment-security.html" />
+    <meta property="og:image" content="https://cruush.app/icons/cruush-512.png" />
+    <meta name="twitter:card" content="summary" />
+    <meta name="twitter:title" content="How cruush protects your payment" />
+    <meta name="twitter:description" content="How order-specific addresses, payment checks and network confirmations work, and what they mean for your privacy." />
+    <link rel="icon" type="image/png" sizes="32x32" href="/icons/cruush-favicon-32.png" />
+    <link rel="apple-touch-icon" href="/icons/cruush-apple-touch.png" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=UnifrakturMaguntia&family=Spectral:ital,wght@0,300;0,400;0,600;1,400&display=swap" />
+    <link rel="stylesheet" href="/pages.css" />
+    <link rel="stylesheet" href="/blog/article.css?v=20260925" />
+    <title>How cruush protects your payment</title>
+  </head>
+  <body class="blog-page">
+    <header class="site">
+      <a class="wordmark" href="/">cruush</a>
+      <p class="eyebrow">blog</p>
+      <nav class="site">
+        <a href="/">Home</a>
+        <a href="/about">About</a>
+        <a href="/help">Help</a>
+        <a href="/blog" aria-current="page">Blog</a>
+      </nav>
+    </header>
+
+    <main class="blog-article">
+      <p><a href="/blog">&larr; cruush blog</a></p>
+      <h1>How cruush protects your payment</h1>
+      <p>Written by cruush. <time datetime="2026-10-17">October 17, 2026</time></p>
+
+      <section>
+        <h2>You approve the payment</h2>
+        <p>Opening checkout or creating an order does not send money. Choose your plan and payment method, then review the amount, asset, network and receiving address. You approve the transfer in your own payment app or wallet.</p>
+        <p>cruush never asks for your wallet’s private key or recovery phrase. Those control your funds and should never be shared, including with support. Your purchase is a one-time payment. It does not set up automatic renewal.</p>
+      </section>
+      <section>
+        <h2>An address for your order</h2>
+        <p>Each new order gets a fresh receiving address. This is the payment address, sometimes called a wallet ID, shown in checkout. It lets cruush match the incoming payment to your order. It does not give cruush access to your wallet.</p>
+        <p>Returning to an existing open order keeps that order’s address so you can finish the same payment. A new order gets a new address. Always use the details from your current order, and do not send to an expired or cancelled one.</p>
+        <p>The short loading animation makes the status readable while checkout prepares your order. The message changes when the address is ready. A longer animation does not add security.</p>
+      </section>
+      <section>
+        <h2>What cruush checks before activation</h2>
+        <p>cruush checks the receiving address, asset, network and amount against your order. It then waits for the required network confirmations before activating a qualifying purchase.</p>
+        <p>A confirmation means the network has recorded the transfer in its blockchain. Further confirmations give more confidence that a recent transfer will not be undone by a network reorganization. The target depends on the network and appears beside your payment status.</p>
+        <p>For example, 2/12 means two confirmations toward a target of twelve. That count alone does not prove the full amount arrived: a partial payment can also have confirmations. Checkout checks both the amount and the confirmation requirement.</p>
+        <p>If you already sent the full amount, do not send it again just because confirmation takes time. You can return to checkout or <a href="/settings/orders">your order history</a> to check progress.</p>
+      </section>
+      <section>
+        <h2>Privacy, explained plainly</h2>
+        <p>cruush links your order to your account so it can apply your purchase and display its status. A fresh order address keeps payments assigned to their own orders; it does not make a payment anonymous.</p>
+        <p>Blockchain transfers are public. Your sending app may also hold account information and transaction records. Do not treat crypto as a way to make a transfer untraceable.</p>
+        <p>For a manual Cash App purchase, the account email you include in the payment note is used to apply your subscription manually. This is separate from the automated checkout flow.</p>
+      </section>
+      <section>
+        <h2>Check these details before sending</h2>
+        <ul>
+          <li>Open checkout on <a href="https://cruush.app/store">cruush.app</a> and copy the address from your current order.</li>
+          <li>Match the exact asset and network. The same coin can exist on more than one network.</li>
+          <li>Review the amount and fees. Your sending app may charge a separate fee.</li>
+          <li>Follow the order timer. If you have already sent payment, check its status before starting another order.</li>
+        </ul>
+        <p>Sending the wrong asset, using the wrong network or entering the wrong address can result in lost funds. Support cannot guarantee recovery. For app-by-app steps, read <a href="/blog/stablecoin-payments.html">Paying on cruush with stablecoins</a>.</p>
+      </section>
+      <section>
+        <h2>We can help check a delayed payment</h2>
+        <p>If your app says the transfer was sent but cruush has not confirmed your order after 30 minutes, <a href="/support?billing=payment">contact payment support</a>. Contact us sooner if you think the address, network or amount was wrong. Please do not pay again while we check.</p>
+        <p>Include your order number, sending app and transaction ID if available. Never send your password, private key or recovery phrase. If your app has not released the transfer, its provider may need to help.</p>
+        <p>cruush is self-funded. Thank you for supporting the app. You can read our <a href="/billing-policy">billing and refund policy</a> before placing an order.</p>
+      </section>
+    </main>
+
+    <footer class="site">
+      <p>
+        <a href="/">cruush</a> &middot;
+        <a href="/about">About</a> &middot;
+        <a href="/help">Help</a> &middot;
+        <a href="/blog">Blog</a>
+      </p>
+      <p>Adults only. An account requires age verification.</p>
+    </footer>
+
+    <script type="application/ld+json">{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "How cruush protects your payment",
+  "description": "How order-specific addresses, payment checks and network confirmations work, and what they mean for your privacy.",
+  "datePublished": "2026-10-17",
+  "dateModified": "2026-10-17",
+  "url": "https://cruush.app/blog/payment-security.html",
+  "author": {
+    "@type": "Organization",
+    "name": "cruush",
+    "url": "https://cruush.app/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "cruush",
+    "url": "https://cruush.app/",
+    "logo": "https://cruush.app/icons/cruush-512.png"
+  }
+}</script>
+  </body>
+</html>

@@ -1,5 +1,5 @@
+import { useBackOrFallback } from '../lib/useBackOrFallback';
 import { useCallback, useEffect, useState } from 'react';
-import { useNavigate } from 'react-router';
 import { toast } from '../lib/toast';
 import { getMapPresence, saveMapPresence } from '../lib/privacyApi';
 import { Button } from './ui/button';
@@ -38,7 +38,7 @@ const DISTANCE_LABEL_OPTIONS: { value: DistanceDisplayMode; label: string; descr
 
 export default function MapPresenceSettings() {
   const distancePreferences = useDistancePreferences();
-  const navigate = useNavigate();
+  const goBack = useBackOrFallback('/map');
   const [hours, setHours] = useState(DEFAULT_MAP_PRESENCE_HOURS);
   const [savedHours, setSavedHours] = useState(DEFAULT_MAP_PRESENCE_HOURS);
   const [loading, setLoading] = useState(true);
@@ -90,8 +90,8 @@ export default function MapPresenceSettings() {
     <div className="min-h-screen bg-background pb-24">
       <AppPageHeader
         title="Map presence"
-        onBack={() => navigate('/settings')}
-        backLabel="Return to settings"
+        onBack={goBack}
+        backLabel="Back"
         bugButtonTestId="map-presence-settings-bug-button-slot"
       />
 

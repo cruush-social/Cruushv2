@@ -1,3 +1,4 @@
+import { useBackOrFallback } from '../lib/useBackOrFallback';
 import CodeOfConductPage from './CodeOfConductPage';
 import { useNavigate } from 'react-router';
 import profileNavIcon from '../assets/nav-icons/profile-white.png';
@@ -188,6 +189,7 @@ function useDeleteDialogViewportStyle(open: boolean) {
 
 export default function Settings({ embedded = false, onBack, onClose, onOpenMileHighClub }: SettingsProps = {}) {
   const navigate = useNavigate();
+  const goBack = useBackOrFallback('/map');
   const [showCodeOfConduct, setShowCodeOfConduct] = useState(false);
   const [isSigningOut, setIsSigningOut] = useState(false);
   const [isResendingVerification, setIsResendingVerification] = useState(false);
@@ -517,8 +519,8 @@ export default function Settings({ embedded = false, onBack, onClose, onOpenMile
         title="Settings"
         onClose={embedded ? onClose : undefined}
         closeLabel="Close Settings"
-        onBack={embedded ? (onBack ?? (onClose ? undefined : () => navigate('/map'))) : () => navigate('/map')}
-        backLabel={embedded ? 'Back' : 'Back to map'}
+        onBack={embedded ? (onBack ?? (onClose ? undefined : goBack)) : goBack}
+        backLabel="Back"
         bugButtonTestId="settings-bug-button-slot"
       />
 

@@ -833,3 +833,15 @@ Julien: “Okay cool for the spots, remlve the accordian on check in and lets ma
 ## Ghost inference protection, October 14, 2026
 
 Julien: “How can we make ghost mode safer? Less triangulation risk?” and “We gotta fix that,” following the identified Ghost restart and Feed-filter risks. Keep the spatial anchor identity consistent across Ghost and Dark Room transitions at the same place, independently of rotation-session timing. Caller-owned Feed distance filters must not depend on the author's private selected Ghost radius. Preserve existing post audiences, blocks, Out-of-Sight and Feed exclusions, precise-location grants, chosen radius, half-radius minimum offset, land-only placement, rotation cadence, animation and existing controls. This authorizes the two backend fixes and relevant regression proof; it does not authorize a new sharing control or unrelated visibility changes.
+
+## October 17, 2026 — sovereignpay wordmark
+Julien: “always use the right logo font for sovereignpay”. Use the actual Technosovereign wordmark stack: "Iowan Old Style", "Baskerville", "Times New Roman", serif; italic, weight 400, including checkout emails.
+
+## October 17, 2026 — Back navigation
+Julien: “The back button should go to last page you came from like a browsers back button not stuck in a loop between 2 pages or back to settings randomly fix this”; scope confirmed “Across the whole app”. Route Back controls consume browser history instead of pushing fixed destinations. A history-free direct entry may replace itself with the map. Preserve embedded-view back steps and unsaved-edit guards.
+
+## October 17, 2026 — Voluntary checkout refunds
+Julien: “We would do refunds if their order wasn't applied / technical checkout issues though so we do that voluntarily refund so update app copies to reflect this”. Offer voluntary refunds for paid orders that were not applied and technical checkout issues. Preserve other refund terms and applicable legal rights. This changes policy copy, not automatic refund processing.
+
+## October 17, 2026 — Default email template
+Julien: “I want the same template for the wallet email as the one we used in the last update email we sent out make this template the default email template”; scope confirmed “All existing automated emails too”. Use the exact sent v2.4.1 glass template as the shared default for wallet and automated app emails, preserving each message's content, action links, attachments and delivery rules. Canonical code: server/src/email-template.ts. Source HTML SHA256: adf94240034bbe01539b5f63e19393105f37dbdf046eb07005dd325ced5cb1e0. Campaign unsubscribe handling stays separate from transactional mail.

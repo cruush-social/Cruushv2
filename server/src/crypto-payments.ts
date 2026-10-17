@@ -1045,6 +1045,10 @@ export async function createInHouseCryptoPaymentIntent(
       throw new Error("Crypto payment intent address allocation returned no row.");
     }
 
+    await client.query(
+      `insert into order_wallet_ready_emails (intent_id) values ($1) on conflict do nothing`,
+      [row.id]
+    );
     return { intent: mapCryptoPaymentIntent(row), lifetimeAccessConflict: false as const };
   });
 

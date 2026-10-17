@@ -1,3 +1,4 @@
+import { DEFAULT_EMAIL_TEMPLATE_VERSION } from "./email-template.js";
 import { randomUUID } from "node:crypto";
 import type { FastifyInstance } from "fastify";
 import { runTransaction, type DbClient } from "./db.js";
@@ -98,14 +99,14 @@ export async function deliverServiceAreaEmail(
       const payload = decryptServiceAreaEmailPayload(app.config, row);
       if (expectedKind && payload.kind !== expectedKind) return null;
       if (!await canDeliver(app, db, userId, payload.kind, member, state, eventId)) return null;
-      if (needsReconciliation(row.email_started_at) || (row.email_started_at && !payload.emailTo)) {
+      if (needsReconciliation(row.email_started_at) || (row.email_started_at && (!payload.emailTo || payload.templateVersion !== DEFAULT_EMAIL_TEMPLATE_VERSION))) {
         await markForReconciliation(db, eventId, claimToken);
         app.log.warn("Service-area email needs delivery reconciliation");
         return null;
       }
       const emailTo = payload.emailTo ?? member.email;
       if (!emailTo) return null;
-      const frozen = { ...payload, emailTo };
+      const frozen = { ...payload, emailTo, templateVersion: DEFAULT_EMAIL_TEMPLATE_VERSION };
       const encrypted = encryptServiceAreaEmailPayload(app.config, userId, eventId, frozen);
       await db.query(
         `update service_area_email_outbox set email_started_at = coalesce(email_started_at, now()),
@@ -138,7 +139,7 @@ export async function deliverServiceAreaEmail(
         || !await canDeliver(app, db, userId, payload.kind, member, state, eventId) || !payload.emailTo
         || payload.emailTo !== candidate.emailTo
         || payload.providerIdempotencyKey !== candidate.idempotencyKey) return false;
-      if (needsReconciliation(row.email_started_at)) {
+      if (needsReconciliation(row.email_started_at) || payload.templateVersion !== DEFAULT_EMAIL_TEMPLATE_VERSION) {
         await markForReconciliation(db, eventId, claimToken);
         app.log.warn("Service-area email needs delivery reconciliation");
         return false;

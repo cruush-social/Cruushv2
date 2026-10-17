@@ -1,5 +1,5 @@
+import { useBackOrFallback } from '../lib/useBackOrFallback';
 import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router';
 import { Button } from './ui/button';
 import AppPageHeader from './AppPageHeader';
 import LoadingCardSkeletons from './LoadingCardSkeletons';
@@ -15,7 +15,7 @@ const dollars = (cents: number) => new Intl.NumberFormat(undefined, { style: 'cu
 const dateLabel = (value: string | null) => value ? new Date(value).toLocaleString() : '';
 
 export default function OrderHistory() {
-  const navigate = useNavigate();
+  const goBack = useBackOrFallback('/map');
   const [cursors, setCursors] = useState<Array<string | undefined>>([undefined]);
   const cursor = cursors[cursors.length - 1];
   const [history, setHistory] = useState<CryptoOrderHistory>({ orders: [], nextCursor: null });
@@ -59,8 +59,8 @@ export default function OrderHistory() {
     <div className="min-h-screen bg-background pb-20">
       <AppPageHeader
         title="Order history"
-        onBack={() => navigate('/settings')}
-        backLabel="Back to settings"
+        onBack={goBack}
+        backLabel="Back"
         bugButtonTestId="order-history-bug-button-slot"
       />
 

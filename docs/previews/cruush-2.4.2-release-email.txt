@@ -1,0 +1,97 @@
+Subject: cruush v2.4.2 is live
+Preheader: Please support my recovery and cruush. Plus: checkout explained and the latest fixes.
+
+Hello sinners,
+
+cruush v2.4.2
+
+Help me recover and keep cruush running
+
+I’m Julien, cruush’s founder and lead developer. I’m living with constant pain after surgery and raising funds for reconstructive care, recovery and legal support.
+
+cruush is my full-time job and only source of income. If you can, please donate today. Any amount helps with my recovery and keeps me building cruush for this community. If donating isn’t possible, sharing my GoFundMe helps too.
+
+Donate or share my GoFundMe: https://gofund.me/c46bf407f
+Read my story: https://cruush.app/blog/help-me-recover.html
+
+Cash App donations and purchases
+
+For a Cash App donation, send to $frootkayke and put DONATION in the note.
+
+You can buy cruush+ manually through Cash App:
+
+1. Choose your cruush+ plan and check its current price in the cruush+ store: https://cruush.app/store
+2. Send the plan price in USD, or the equivalent value in BTC, through Cash App to $frootkayke: https://cash.app/$frootkayke
+3. In the payment note, include cruush+, your cruush account email, and the purchase amount.
+
+Once I confirm your payment, I’ll apply your subscription manually and add the completed order to your order history.
+
+Open Cash App: https://cash.app/$frootkayke
+
+
+Checkout, step by step
+
+You can look through the checkout before deciding to pay. Choosing a plan or generating an order does not send money. You approve the transfer yourself in your payment app or wallet.
+
+1. Choose your cruush+ plan and an available payment option in the store. Review the price and any fees shown.
+2. Create your order. Checkout gives you a fresh address, the exact amount, and the asset and network to use. Copy the details or scan the QR code in your payment app.
+3. Review and approve the transfer in your app, using the exact asset, network and amount shown. Your app may charge a separate sending fee.
+4. Return to checkout to follow the payment status. Your cruush+ time is added after confirmation. You pay once for the time you choose; nothing renews automatically.
+
+You stay in control of your wallet: cruush never asks for your private key or seed phrase. A fresh address is used for each order. cruush records the order against your account so it can activate your purchase and show your order history.
+
+Crypto payments are not anonymous: blockchain transfers are public, and your payment app may keep its own records. For manual Cash App purchases, I use the account email in your payment note to apply your subscription.
+
+Explore checkout: https://cruush.app/store
+
+Voluntary refunds
+
+We offer voluntary refunds for paid orders that were not applied or for technical checkout issues. Contact payment support for a review.
+Submit a billing issue: https://cruush.app/support?billing=payment
+Or email reports@cruush.app.
+
+sovereignpay is coming soon
+
+sovereignpay’s public release is coming soon.
+Read the technosovereign case study: https://technosovereign.com/work/sovereignpay
+
+v2.4.2 is live, with more fixes for map loading, photo previews and page navigation.
+
+What’s changed
+
+• Map pins and key pages now start loading earlier, with less repeated work in the background.
+• Photo previews use smaller images, while full-size photos remain available when you open them.
+• Pages download less code up front, and the map can open without waiting for background notices to load.
+• Badge labels now use readable names instead of icon IDs, and the badge menu makes label editing clearer.
+• Precise-location labels refresh when your preference changes, while existing privacy controls stay in place.
+• Paying from a wallet no longer looks selected before you choose it.
+• Banned accounts now see “Your cruush account is banned.” when signing in with the correct password.
+• The survey now accepts longer written answers and gives clearer feedback if an answer needs shortening.
+• The admin dashboard now includes both current and older survey responses.
+
+Open cruush: https://cruush.app/
+
+Tell us what you think
+
+Take the survey to tell us what’s working, what needs fixing, and what would make cruush+ worth it for you. After submitting, you’ll get a code for one free day of cruush+, redeemable once per profile in Rewards.
+
+Take the survey: https://cruush.app/survey
+
+Invite people you trust
+
+Earn cruush+ days for eligible referrals once they verify two-factor authentication (2FA). Find your personal referral link and track your invites in Rewards: https://cruush.app/rewards
+
+
+Instagram
+
+Follow @cruush.app on Instagram: https://www.instagram.com/cruush.app/
+
+Thank you,
+
+Julien Lenaz
+Founder and lead developer of cruush
+
+Comments? Questions? Concerns?
+julien@cruush.app
+
+Unsubscribe: {{{RESEND_UNSUBSCRIBE_URL}}}

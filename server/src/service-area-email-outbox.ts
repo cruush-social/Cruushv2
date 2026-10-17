@@ -5,6 +5,7 @@ import type { OosStateCryptoConfig } from "./oos-state-crypto.js";
 
 export type ServiceAreaEmailKind = "outside_entry" | "first_coc" | "service_return";
 export type ServiceAreaEmailPayload = {
+  templateVersion?: string;
   kind: ServiceAreaEmailKind;
   priorOutsideEventId: string | null;
   providerIdempotencyKey: string;
@@ -109,7 +110,8 @@ export function decryptServiceAreaEmailPayload(
   const payload = {
     kind: data.kind, priorOutsideEventId: data.priorOutsideEventId,
     providerIdempotencyKey: data.providerIdempotencyKey,
-    emailTo: data.emailTo, providerMessageId: data.providerMessageId
+    emailTo: data.emailTo, providerMessageId: data.providerMessageId,
+    templateVersion: typeof data.templateVersion === "string" ? data.templateVersion : undefined
   } as ServiceAreaEmailPayload;
   if (data.version !== 1 || data.userId !== row.user_id || data.eventId !== row.event_id || !validate(payload)) {
     throw new Error("Service-area email payload unavailable.");

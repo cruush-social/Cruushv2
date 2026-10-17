@@ -41,6 +41,14 @@ describe("read-only gas monitor", () => {
     expect(await runCryptoGasAlertPass({ config, db, log }, { readBalance: vi.fn().mockRejectedValue(new Error("unavailable")), send })).toEqual({ checked: 0, emailed: 0 });
     expect(db.query).not.toHaveBeenCalled(); expect(send).not.toHaveBeenCalled();
   });
+  it("holds an uncertain gas alert created under the previous template", async () => {
+    const state = { first_attempt_at: new Date(), email_sent_at: null, claimed_until: null, episode_id: "legacy", email_snapshot: { network: "Base" } };
+    const db = { query: vi.fn(async (sql: string) => ({ rows: sql.includes("select episode_id") ? [state] : [] })), end: vi.fn(), transaction: async (fn: any) => fn(db) };
+    const send = vi.fn();
+    expect(await runCryptoGasAlertPass({ config, db, log } as any, { readBalance: async () => 0n, send })).toEqual({ checked: 1, emailed: 0 });
+    expect(send).not.toHaveBeenCalled();
+    expect(log.warn).toHaveBeenCalledWith({ chainId: 8453 }, "gas email delivery needs operator review");
+  });
   it("formats small ETH balances without scientific notation or rounding", () => {
     expect(formatGasEth(1n)).toBe("0.000000000000000001");
     expect(formatGasEth(400_000_000_000_000n)).toBe("0.0004");
@@ -48,16 +56,27 @@ describe("read-only gas monitor", () => {
 });
 
 describe("owner gas email", () => {
-  it("sends only to the existing owner, with one idempotency key and explicit network/amount", async () => {
+  it("sends to the existing owner and copies hello, with one idempotency key and explicit network/amount", async () => {
     const fetcher = vi.fn().mockResolvedValue(new Response(JSON.stringify({ id: "message-fixture" })));
     vi.stubGlobal("fetch", fetcher);
     try {
       expect(await sendCryptoGasAlertEmail({ config, logger: log, idempotencyKey: "episode-fixture",
         network: "Base", address: "0xpublicfixture", balanceEth: "0", topUpEth: "0.0004", targetEth: "0.0004" })).toEqual({ accepted: true, providerMessageId: "message-fixture" });
       const init = fetcher.mock.calls[0]![1]; const body = JSON.parse(init.body);
-      expect(body.to).toEqual([OWNER_FULL_ACCESS_EMAIL]); expect(init.headers["Idempotency-Key"]).toBe("episode-fixture");
+      expect(body.to).toEqual([OWNER_FULL_ACCESS_EMAIL]); expect(body.cc).toEqual(["hello@cruush.app"]); expect(init.headers["Idempotency-Key"]).toBe("episode-fixture");
       expect(body.text).toContain("Send 0.0004 ETH on Base"); expect(body.text).toContain("No automatic purchase or swap");
       expect(body.text).toContain("PYUSD and USDC");
+    } finally { vi.unstubAllGlobals(); }
+  });
+  it("preserves an old owner-only recipient snapshot on retry", async () => {
+    const fetcher = vi.fn().mockResolvedValue(new Response(JSON.stringify({ id: "message-fixture" })));
+    vi.stubGlobal("fetch", fetcher);
+    try {
+      await sendCryptoGasAlertEmail({ config, logger: log, cc: [], idempotencyKey: "old-episode",
+        network: "Base", address: "0xfixture", balanceEth: "0", topUpEth: "0.0004", targetEth: "0.0004" });
+      const body = JSON.parse(fetcher.mock.calls[0]![1].body);
+      expect(body.to).toEqual([OWNER_FULL_ACCESS_EMAIL]);
+      expect(body).not.toHaveProperty("cc");
     } finally { vi.unstubAllGlobals(); }
   });
   it.each([400, 401, 403, 422, 429])("classifies gas email HTTP %s as a definite rejection", async status => {

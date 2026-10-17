@@ -1,3 +1,4 @@
+import { useBackOrFallback } from '../lib/useBackOrFallback';
 import { refreshContentVisibility } from '../lib/contentVisibilityRevision';
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import {
@@ -314,6 +315,7 @@ function destructiveStatus(status: ModeratedAccountStatus) {
 
 export default function ModeratorReview() {
   const navigate = useNavigate();
+  const goBack = useBackOrFallback('/map');
   const [accessState, setAccessState] = useState<AccessState>('checking');
   const [view, setView] = useState<ModeratorView>('queue');
   const [items, setItems] = useState<ModerationQueueItem[]>([]);
@@ -813,8 +815,8 @@ export default function ModeratorReview() {
     <div className="@container/moderation min-h-screen bg-background pb-24">
       <AppPageHeader
         title="Moderation dashboard"
-        onBack={() => navigate('/settings')}
-        backLabel="Return to settings"
+        onBack={goBack}
+        backLabel="Back"
         bugButtonTestId="moderator-review-bug-button-slot"
         contentClassName="!max-w-7xl"
       >

@@ -43,6 +43,13 @@ describe("weekly order report", () => {
     }])).toContain('"member,one@example.com"');
   });
 
+  it("holds a started report with the previous template for reconciliation", async () => {
+    query.mockResolvedValueOnce({ rows: [{ week_start: "2026-09-14", week_end: "2026-09-21", email_started_at: new Date(), email_template_version: null }] }).mockResolvedValue({ rows: [] });
+    expect(await sendPreviousWeekOrderReport(app, new Date("2026-09-26T04:00:00.000Z"))).toBe(false);
+    expect(sendWeeklyOrderReportEmail).not.toHaveBeenCalled();
+    expect(app.log.warn).toHaveBeenCalledWith(expect.stringContaining("reconciliation"));
+  });
+
   it("claims, emails, and marks one weekly report sent", async () => {
     query
       .mockResolvedValueOnce({ rows: [{ week_start: "2026-09-14", week_end: "2026-09-21" }] })

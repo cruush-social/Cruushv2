@@ -1,6 +1,6 @@
-import { useCallback, useContext, useEffect, useRef, useState, type FormEvent } from 'react';
-import { UNSAFE_NavigationContext, useNavigate } from 'react-router';
-import { usePopupRoute } from '../lib/popupRouteContext';
+import { useBackOrFallback } from '../lib/useBackOrFallback';
+import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
+import { useNavigate } from 'react-router';
 import {
   Clipboard,
   Gift,
@@ -70,13 +70,7 @@ function formatRemainingTime(remainingMs: number) {
 
 export default function Rewards() {
   const navigate = useNavigate();
-  const { navigator: routerNavigator } = useContext(UNSAFE_NavigationContext);
-  const popupRoute = usePopupRoute();
-  const handleBack = () => {
-    if (popupRoute) popupRoute.onClose();
-    else if (((routerNavigator as typeof routerNavigator & { index?: number }).index ?? window.history.state?.idx ?? 0) > 0) navigate(-1);
-    else navigate('/map', { replace: true });
-  };
+  const handleBack = useBackOrFallback('/map');
   const [summary, setSummary] = useState<RewardSummary | null>(null);
   const [billingStatus, setBillingStatus] = useState<BillingStatus | null>(null);
   const [clockMs, setClockMs] = useState(() => Date.now());

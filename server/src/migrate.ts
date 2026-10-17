@@ -253,7 +253,9 @@ const migrationFiles = [
   "227_account_deletion_payment_history.sql",
   "228_account_deletion_reward_privacy.sql",
   "229_privacy_audit_index_versions.sql",
-  "230_resend_contact_deletion_outbox.sql"
+  "230_resend_contact_deletion_outbox.sql",
+  "231_order_wallet_ready_email.sql",
+  "232_email_template_version.sql"
 ];
 const rewardSafetyPreflightFiles = [
   "079_daily_check_in_rewards.sql",

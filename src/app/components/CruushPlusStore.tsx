@@ -1,10 +1,11 @@
-import { useCallback, useContext, useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
-import { UNSAFE_NavigationContext, useLocation, useNavigate } from 'react-router';
-import { usePopupRoute } from '../lib/popupRouteContext';
+import { useBackOrFallback } from '../lib/useBackOrFallback';
+import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
+import { useLocation, useNavigate } from 'react-router';
 import { ApiClientError } from '../lib/apiClient';
-import { Check, Copy, Info, Shield } from 'lucide-react';
+import { Check, Copy, Info, Shield, LockKeyhole, LoaderCircle } from 'lucide-react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
+import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
 import { Tooltip, TooltipContent, TooltipTrigger } from './ui/tooltip';
 import { Card, CardContent } from './ui/card';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from './ui/accordion';
@@ -51,10 +52,6 @@ const PAYMENT_STATUS_COPY: Record<CryptoPaymentIntent['status'], string> = {
   expired: 'This payment window expired. Do not send another payment if you already sent funds.',
   failed: 'Payment was not confirmed. No cruush+ time was added.',
   cancelled: 'This payment was cancelled.',
-  // cruush does not refund cruush+, so nothing reaches this state on its own.
-  // The entry stays because the status map must cover every status, and
-  // because it reads correctly if an exceptional refund is ever recorded by
-  // hand. It is not an offer of refunds.
   refunded: 'This payment was refunded.',
 };
 
@@ -164,13 +161,7 @@ export default function CruushPlusStore({ product = 'cruush_plus' }: { product?:
   const statusCopy = isPulse ? { ...PAYMENT_STATUS_COPY, paid: 'Payment confirmed. Your Pulses are available.', failed: 'Payment was not confirmed. No Pulses were added.' } : PAYMENT_STATUS_COPY;
   const [gasFeeHelpOpen, setGasFeeHelpOpen] = useState(false);
   const navigate = useNavigate();
-  const { navigator: routerNavigator } = useContext(UNSAFE_NavigationContext);
-  const popupRoute = usePopupRoute();
-  const handleBack = () => {
-    if (popupRoute) popupRoute.onClose();
-    else if (((routerNavigator as typeof routerNavigator & { index?: number }).index ?? window.history.state?.idx ?? 0) > 0) navigate(-1);
-    else navigate('/map', { replace: true });
-  };
+  const handleBack = useBackOrFallback('/map');
   const location = useLocation();
   const conversionContext = useMemo(
     () => readCruushPlusConversionContext(location.search),
@@ -189,6 +180,7 @@ export default function CruushPlusStore({ product = 'cruush_plus' }: { product?:
   const [retryAt, setRetryAt] = useState(0);
   const [loading, setLoading] = useState(true);
   const [starting, setStarting] = useState(false);
+  const [paymentAddressReady, setPaymentAddressReady] = useState(false);
   const [cancelling, setCancelling] = useState(false);
   const [cancelAction, setCancelAction] = useState<'change' | 'cancel' | null>(null);
   const [checkoutNotice, setCheckoutNotice] = useState<string | null>(null);
@@ -612,6 +604,8 @@ export default function CruushPlusStore({ product = 'cruush_plus' }: { product?:
       productId: selectedPlan.id,
       sendingApp: source.sendingApp,
     });
+    const generationStartedAt = performance.now();
+    setPaymentAddressReady(false);
     setStarting(true);
     setError(null);
     setStatusError(null);
@@ -654,6 +648,13 @@ export default function CruushPlusStore({ product = 'cruush_plus' }: { product?:
         productId: nextIntent.planId,
         sendingApp: nextIntent.sendingApp ?? undefined,
       });
+      // Keep the status readable on fast responses without claiming work is still happening.
+      if (nextIntent.paymentAddress && isOpenCryptoPayment(nextIntent.status)) {
+        setPaymentAddressReady(true);
+        const remainingFeedbackMs = Math.max(0, 700 - (performance.now() - generationStartedAt));
+        if (remainingFeedbackMs > 0) await new Promise((resolve) => setTimeout(resolve, remainingFeedbackMs));
+      }
+      if (paymentAttemptRef.current !== attempt) return;
       setIntent(nextIntent);
       setAmountCopied(false);
       setRetryAt(0);
@@ -827,6 +828,20 @@ export default function CruushPlusStore({ product = 'cruush_plus' }: { product?:
     );
   };
 
+  const confirmationInfo = (
+    <Popover>
+      <PopoverTrigger asChild>
+        <button type="button" aria-label="What are payment confirmations?" className="inline-flex shrink-0 items-center justify-center rounded-full p-1 text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+          <Info style={{ width: 'calc(1rem + 2pt)', height: 'calc(1rem + 2pt)' }} strokeWidth={3} aria-hidden="true" />
+        </button>
+      </PopoverTrigger>
+      <PopoverContent className="z-[1000] max-h-[var(--radix-popover-content-available-height)] max-w-[calc(100vw-2rem)] overflow-y-auto space-y-2 text-sm" aria-label="Payment confirmations explained">
+        <p>Confirmations show the network has recorded your payment. Your order activates once the full amount reaches its confirmation target.</p>
+        <a className="inline-block font-medium text-foreground underline underline-offset-4" href="/blog/payment-security.html" target="_blank" rel="noopener noreferrer">How cruush protects your payment</a>
+      </PopoverContent>
+    </Popover>
+  );
+
   const whyCruushCryptoCard = (
     <Card>
       <Accordion collapsible type="single">
@@ -899,6 +914,12 @@ export default function CruushPlusStore({ product = 'cruush_plus' }: { product?:
         {!loading && plans.length > 0 ? (
           <Card>
             <CardContent className="p-3">
+              {!isPulse ? (
+                <p className="mb-2 text-sm font-bold" style={{ fontSize: 'calc(var(--text-sm) + 4pt)' }}>
+                  Secure checkout by <span style={{ fontFamily: '\"Iowan Old Style\", \"Baskerville\", \"Times New Roman\", serif', fontStyle: 'italic', fontWeight: 700 }}>sovereignpay</span>{' '}
+                  <LockKeyhole className="inline-block h-[1em] w-[1em] align-[-0.125em]" aria-hidden="true" />
+                </p>
+              ) : null}
               <p className="mb-2 text-sm font-semibold">{isPulse ? 'Choose your Pulses' : 'Choose your time'}</p>
               <ul aria-label={isPulse ? 'Pulse prices' : 'cruush+ prices'} className="grid gap-2">
                 {selectedPlan && (checkoutSelectionLocked || listedPlans.some(plan => plan.id === selectedPlan.id)) ? <li>{renderPlanButton(selectedPlan, true)}</li> : null}
@@ -949,6 +970,28 @@ export default function CruushPlusStore({ product = 'cruush_plus' }: { product?:
                 {couponError ? <p className="mt-2 text-sm text-destructive" role="alert">{couponError}</p> : null}
               </form> : null}
             </CardContent>
+          </Card>
+        ) : null}
+
+        {!loading && selectedPlan ? (
+          <Card>
+            <Accordion collapsible type="single">
+              <AccordionItem className="rounded-none border-0" value="payment-security">
+                <AccordionTrigger className="px-4 py-3 text-base hover:no-underline">
+                  <span className="flex items-center gap-2">
+                    <LockKeyhole className="h-5 w-5 shrink-0 text-primary" aria-hidden="true" />
+                    <span style={{ fontSize: 'calc(1em + 1pt)' }}>Your payment is secure</span>
+                  </span>
+                </AccordionTrigger>
+                <AccordionContent className="space-y-3 px-6 pb-6 text-sm leading-6 text-muted-foreground">
+                  <p>Each order gets its own fresh payment address. This is the wallet ID shown at checkout, used to match your payment to that order. Use the address from your current order, not a previous one.</p>
+                  <p>Choose your plan and payment method, then copy the address or scan its QR code in your payment app. Check the exact amount, asset and network before sending. Creating an order does not move money: you approve the transfer in your own app.</p>
+                  <p>cruush never asks for your wallet’s private key or seed phrase. Checkout shows when your payment is detected and confirmed, and your purchase is added after confirmation. Nothing renews automatically.</p>
+                  <p>cruush links the order to your account to activate your purchase and show its status. Blockchain transfers are public, and your payment app may keep its own records, so crypto payments are not anonymous.</p>
+                  <a className="inline-block font-medium text-foreground underline underline-offset-4" href="/blog/payment-security.html" target="_blank" rel="noopener noreferrer">How cruush protects your payment</a>
+                </AccordionContent>
+              </AccordionItem>
+            </Accordion>
           </Card>
         ) : null}
 
@@ -1006,6 +1049,15 @@ export default function CruushPlusStore({ product = 'cruush_plus' }: { product?:
                   </Accordion>
                 </Card>
               ) : null}
+              {starting ? (
+                <div role="status" aria-live="polite" className="flex items-center gap-2 py-2 text-sm text-muted-foreground" style={{ fontSize: 'calc(var(--text-sm) + 2pt)' }}>
+                  <LoaderCircle className="h-6 w-6 shrink-0 animate-spin motion-reduce:animate-none" aria-hidden="true" />
+                  <div className="space-y-1">
+                    <p>{paymentAddressReady ? 'Your order’s payment address is ready' : 'Generating a secure payment address for your order…'}</p>
+                    <p>cruush is self-funded. Thank you for your order and for supporting the app.</p>
+                  </div>
+                </div>
+              ) : null}
               {/* Same gradient as the app's other primary actions. */}
               {starting || intent ? <Button
                 className="h-12 w-full rounded-full text-base font-semibold text-white disabled:opacity-50"
@@ -1038,15 +1090,21 @@ export default function CruushPlusStore({ product = 'cruush_plus' }: { product?:
                     {locallyExpired ? statusCopy.expired : statusCopy[intent.status]}
                   </p>
                   {intent.asset !== 'BTC' && Number.isInteger(intent.confirmations) && Number.isInteger(intent.confirmationTarget) && intent.confirmationTarget! > 0 ? (
-                    <p className="text-sm text-muted-foreground">
-                      {intent.confirmations}/{intent.confirmationTarget} confirmations
-                      {intent.paymentAmountReceived === false && intent.confirmations! > 0 ? ' · Full payment not yet received' : ''}
-                    </p>
+                    <div className="flex items-center gap-1 text-sm text-muted-foreground">
+                      <span className="font-bold" style={{ fontSize: 'calc(1em + 4pt)' }}>
+                        {intent.confirmations}/{intent.confirmationTarget} confirmations
+                        {intent.paymentAmountReceived === false && intent.confirmations! > 0 ? ' · Full payment not yet received' : ''}
+                      </span>
+                      {confirmationInfo}
+                    </div>
                   ) : null}
                   {statusError ? <p className="text-sm text-destructive sm:text-xs">{statusError}</p> : null}
                   {intent.asset === 'BTC' && ['awaiting_payment', 'confirming', 'paid'].includes(intent.status) ? (
                     <ol aria-label="Payment progress" className="space-y-1 text-sm text-muted-foreground sm:text-xs">
-                      <li>{Math.min(intent.confirmations ?? 0, 6)}/6 confirmations</li>
+                      <li className="flex items-center gap-1">
+                        <span className="font-bold" style={{ fontSize: 'calc(1em + 4pt)' }}>{Math.min(intent.confirmations ?? 0, 6)}/6 confirmations</span>
+                        {confirmationInfo}
+                      </li>
                     </ol>
                   ) : null}
                   {!paymentWindowClosed && intent.expiresAt && isOpenCryptoPayment(intent.status) ? (
@@ -1238,17 +1296,6 @@ export default function CruushPlusStore({ product = 'cruush_plus' }: { product?:
 
         <Card>
           <CardContent className="space-y-2 p-4 text-sm leading-6 text-muted-foreground">
-            <h2 className="text-base font-semibold text-foreground">billing policy</h2>
-            <p>
-              one-time purchase. nothing renews automatically. no voluntary refunds;
-              any withdrawal, refund, or other remedy required by applicable law still applies.
-            </p>
-            <a className="font-medium text-foreground underline underline-offset-4" href="/billing-policy">
-              read the billing policy
-            </a>
-            <a className="block font-medium text-foreground underline underline-offset-4" href="/support?refund=1">
-              request a legally required refund review
-            </a>
             <p>
               If your payment app shows the transfer was sent but cruush has not confirmed your order
               after 30 minutes, contact payment support. We’ll help you check the payment and your order.
@@ -1257,6 +1304,19 @@ export default function CruushPlusStore({ product = 'cruush_plus' }: { product?:
             <a className="block font-medium text-foreground underline underline-offset-4" href="/support?billing=payment">
               report a billing issue
             </a>
+            <h2 className="text-base font-semibold text-foreground">billing policy</h2>
+            <p>
+              one-time purchase. nothing renews automatically. we offer voluntary refunds if your paid
+              order wasn’t applied or you experienced a technical checkout issue.
+              any withdrawal, refund, or other remedy required by applicable law still applies.
+            </p>
+            <a className="font-medium text-foreground underline underline-offset-4" href="/billing-policy">
+              read the billing policy
+            </a>
+            <a className="block font-medium text-foreground underline underline-offset-4" href="/support?refund=1">
+              request a refund review
+            </a>
+
           </CardContent>
         </Card>
       </main>

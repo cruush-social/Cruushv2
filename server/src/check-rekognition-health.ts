@@ -20,6 +20,7 @@ import {
   type DetectModerationLabelsCommandOutput
 } from "@aws-sdk/client-rekognition";
 import sharp from "sharp";
+import { defaultEmailHtml } from "./email-template.js";
 
 type RekognitionHealthClient = {
   send(command: DetectFacesCommand): Promise<DetectFacesCommandOutput>;
@@ -72,10 +73,10 @@ async function sendAlert(subject: string, body: string) {
       to: [to],
       subject,
       text: body,
-      html: `<pre style="font-family:ui-monospace,monospace;white-space:pre-wrap">${body
+      html: defaultEmailHtml({ title: subject.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;"), body: `<pre style="font-family:ui-monospace,monospace;white-space:pre-wrap">${body
         .replace(/&/g, "&amp;")
         .replace(/</g, "&lt;")
-        .replace(/>/g, "&gt;")}</pre>`
+        .replace(/>/g, "&gt;")}</pre>` })
     })
   });
 

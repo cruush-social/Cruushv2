@@ -468,7 +468,7 @@ describe("physical OOS entry emails", () => {
     expect(sendOutOfSightWelcomeEmail).toHaveBeenCalledWith(expect.objectContaining({ idempotencyKey: "oos-welcome/legacy-member-fixture" }));
   });
 
-  it.each([23, 24, 48])("holds an ambiguous attempt aged %s hours for reconciliation", async (hours) => {
+  it.each([1, 23, 24, 48])("holds an ambiguous legacy-template attempt aged %s hours for reconciliation", async (hours) => {
     const f = fixture();
     const id = (await f.save(outside))!;
     const event = f.data.events.get(id)!;
