@@ -969,7 +969,7 @@ export default function CruushPlusStore({ product = 'cruush_plus' }: { product?:
                   const checkingMinimum = source.rail === 'btc_bitcoin' && source.sendingApp !== 'wallet' && bitcoinEligibility === undefined;
                   const belowMinimum = source.rail === 'btc_bitcoin' && source.sendingApp !== 'wallet'
                     && Boolean(eligibleApps && !eligibleApps.includes(CRYPTO_SENDING_APP_LABELS[source.sendingApp]));
-                  const sourceSelected = (hasChosenSource || (source.rail !== 'btc_bitcoin' && source.sendingApp !== 'wallet')) && selectedSourceId === source.id
+                  const sourceSelected = (hasChosenSource || (source.rail !== 'btc_bitcoin' && source.sendingApp !== 'wallet' && source.sendingApp !== 'paypal')) && selectedSourceId === source.id
                     && (sourceReady || paymentOpen || paymentPaid);
 
                   return (
