@@ -3,6 +3,30 @@ import AppPageHeader from './AppPageHeader';
 
 const changelogReleases = [
   {
+    version: 'v2.4.2',
+    items: [
+      "Map pins and key pages start loading earlier, with fewer repeated requests and less code to download before a page opens.",
+      "Photo previews use smaller protected images; opening a photo still loads its full-size version.",
+      "The map opens without waiting for background notices to load.",
+      "Badge labels use readable names instead of icon IDs, and the badge menu makes label editing clearer.",
+      "Precise-location labels refresh when your preference changes, preserving existing privacy controls.",
+      "Checkout payment methods remain unselected until you choose one. Payment security, transfer steps, support and voluntary refunds are explained in checkout.",
+      "Order emails and other automated emails use the shared cruush glass template.",
+      "Order-history Back navigation returns to the previous page more reliably.",
+      "The survey accepts longer written answers and shows clearer validation errors. The admin dashboard includes current and older survey responses.",
+      "Survey panels fit their available width, and Presentation options fit within their capsules.",
+      "Banned accounts receive a clear account-banned message when signing in with the correct password.",
+    ],
+  },
+  {
+    version: 'v2.4.1',
+    items: [
+      "Faster map startup, with fewer repeated requests for people, Spots, messages and activity.",
+      "The map no longer waits for unopened profile, Carousel and Pink Book panels to download.",
+      "Panning does less repeated work, including Ghost Mode radius and leash updates. Outdated Spot loads stop when newer results are needed.",
+    ],
+  },
+  {
     version: 'v2.4',
     items: [
       "Recently active Ghost members now show Online. Dark Room members show Online on profiles you already have permission to view, with location privacy preserved.",
