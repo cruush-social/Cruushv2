@@ -1491,7 +1491,7 @@ export default function ProfileEdit({ embedded = false, onCancel, onSaved }: Pro
 
             <div className="space-y-2">
               <Label>Presentation</Label>
-              <MultiSelect {...profileMenuProps} maxSelections={MAX_PROFILE_GROUP_SELECTIONS} options={PRESENTATIONS} value={normalizedProfile.presentation} onChange={(vals) => handleChange('presentation', limitToThree(vals))} />
+              <MultiSelect menuPortal maxSelections={MAX_PROFILE_GROUP_SELECTIONS} options={PRESENTATIONS} value={normalizedProfile.presentation} onChange={(vals) => handleChange('presentation', limitToThree(vals))} />
               <p className="text-xs text-muted-foreground">Pick up to 3</p>
             </div>
 

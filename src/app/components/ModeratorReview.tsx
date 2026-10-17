@@ -810,7 +810,7 @@ export default function ModeratorReview() {
   }
 
   return (
-    <div className="min-h-screen bg-background pb-24">
+    <div className="@container/moderation min-h-screen bg-background pb-24">
       <AppPageHeader
         title="Moderation dashboard"
         onBack={() => navigate('/settings')}
@@ -902,7 +902,7 @@ export default function ModeratorReview() {
       </AppPageHeader>
 
       {view === 'surveys' ? (
-        <main className="mx-auto grid max-w-7xl gap-6 px-4 py-6 lg:grid-cols-[minmax(0,1fr)_minmax(25rem,1fr)]">
+        <main className="mx-auto grid max-w-7xl gap-6 px-4 py-6 @min-[64rem]/moderation:grid-cols-[minmax(0,1fr)_minmax(25rem,1fr)]">
           <section aria-labelledby="surveys-heading" className="min-w-0">
             <div className="flex items-end justify-between gap-3 border-b border-border pb-4">
               <div>
@@ -949,7 +949,7 @@ export default function ModeratorReview() {
             )}
           </section>
 
-          <section aria-labelledby="survey-detail-heading" className="min-w-0 border-t border-border pt-5 lg:border-l lg:border-t-0 lg:pl-6 lg:pt-0">
+          <section aria-labelledby="survey-detail-heading" className="min-w-0 border-t border-border pt-5 @min-[64rem]/moderation:border-l @min-[64rem]/moderation:border-t-0 @min-[64rem]/moderation:pl-6 @min-[64rem]/moderation:pt-0">
             <h2 id="survey-detail-heading" className="text-lg">Survey response</h2>
             {!selectedSurvey ? <p className="mt-4 text-sm text-muted-foreground">Select a response to review its answers.</p> : null}
             {selectedSurvey ? (
