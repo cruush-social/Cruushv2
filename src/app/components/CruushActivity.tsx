@@ -1,3 +1,4 @@
+import { useAccountPreference } from '../lib/accountPreferences';
 import { useContentVisibilityRefresh } from '../lib/contentVisibilityRevision';
 import { getNsfwPhotoRestriction } from '../lib/dlMode';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
@@ -553,7 +554,7 @@ export default function CruushActivity({
   const navigate = useNavigate();
   const distancePreferences = useDistancePreferences();
   const [activity, setActivity] = useState<CruushActivity | null>(null);
-  const [activeTab, setActiveTab] = useState<ActivityTab>('incoming');
+  const [activeTab, setActiveTab] = useAccountPreference<ActivityTab>('activity.tab', 'incoming');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [pendingCruushUserIds, setPendingCruushUserIds] = useState<Set<string>>(() => new Set());

@@ -1,7 +1,8 @@
 // Default email shell copied from the exact sent v2.4.1 release HTML.
 // Source SHA256: adf94240034bbe01539b5f63e19393105f37dbdf046eb07005dd325ced5cb1e0.
-export const DEFAULT_EMAIL_TEMPLATE_VERSION = "release-v2.4.1";
+export const DEFAULT_EMAIL_TEMPLATE_VERSION = "release-v2.4.1-no-backdrop-v1";
 
+// Keep long email content in normal paint flow; avoid full-body backdrop filters in mail WebViews.
 // Inputs are trusted generated markup or HTML-escaped by the mailer.
 export function defaultEmailHtml(input: { title: string; heading?: string; intro?: string; buttonUrl?: string; buttonLabel?: string; body: string; footerHtml?: string }) {
   return `<!doctype html>
@@ -53,7 +54,7 @@ export function defaultEmailHtml(input: { title: string; heading?: string; intro
             <tr>
               <td
                 class="glass-panel"
-                style="padding:30px 28px;border:1px solid rgba(255,255,255,.18);border-radius:22px;background:rgba(0,0,0,.02);background-image:linear-gradient(180deg,rgba(255,255,255,.026),rgba(255,255,255,0));box-shadow:0 0 2px 1px rgba(255,255,255,.35) inset,0 0 10px 4px rgba(255,255,255,.15) inset,0 18px 48px rgba(0,0,0,.38);backdrop-filter:blur(22px) saturate(1.48);-webkit-backdrop-filter:blur(22px) saturate(1.48);"
+                style="padding:30px 28px;border:1px solid rgba(255,255,255,.18);border-radius:22px;background:rgba(0,0,0,.02);background-image:linear-gradient(180deg,rgba(255,255,255,.026),rgba(255,255,255,0));box-shadow:0 0 2px 1px rgba(255,255,255,.35) inset,0 0 10px 4px rgba(255,255,255,.15) inset,0 18px 48px rgba(0,0,0,.38);"
               >
 <h1 class="hero-title" style="margin:0 0 18px;color:#fff;font-size:50px;line-height:.98;font-weight:700;letter-spacing:-.035em;">${input.heading ?? input.title}</h1>
 ${input.intro ? `<p class="feature-copy" style="margin:0 0 24px;color:#eeeef2;font-size:18px;line-height:1.62;">${input.intro}</p>` : ''}

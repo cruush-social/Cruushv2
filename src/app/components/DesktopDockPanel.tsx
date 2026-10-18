@@ -1,3 +1,4 @@
+import { hasPreferenceAccount, readAccountPreference, saveAccountPreference } from '../lib/accountPreferences';
 import type { CSSProperties, PointerEvent as ReactPointerEvent, ReactNode } from 'react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
@@ -107,7 +108,7 @@ function readStoredGeometry(slot: DesktopDockSlot): DockGeometry | null {
   }
 
   try {
-    const raw = window.localStorage.getItem(storageKey(slot));
+    const raw = hasPreferenceAccount() ? readAccountPreference(`display.dock.${slot}`, '') : window.localStorage.getItem(storageKey(slot));
     if (!raw) {
       return null;
     }
@@ -183,7 +184,7 @@ export default function DesktopDockPanel({
     }
 
     try {
-      window.localStorage.setItem(storageKey(slot), JSON.stringify(geometry));
+      if (!hasPreferenceAccount()) window.localStorage.setItem(storageKey(slot), JSON.stringify(geometry));
     } catch {
       // Position is a convenience. Ignore storage failures.
     }
@@ -270,8 +271,9 @@ export default function DesktopDockPanel({
     if (event.currentTarget.hasPointerCapture(event.pointerId)) {
       event.currentTarget.releasePointerCapture(event.pointerId);
     }
+    if (hasPreferenceAccount()) void saveAccountPreference(`display.dock.${slot}`, JSON.stringify(geometry)).catch(() => undefined);
     dragStateRef.current = null;
-  }, []);
+  }, [geometry, slot]);
 
   const panelStyle: CSSProperties = {
     left: `${geometry.x}px`,

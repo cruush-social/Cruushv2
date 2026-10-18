@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { nonBannedAccountSql } from "../banned-content.js";
 import { getMhcLocationLabel } from "../mhc-location-label.js";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
@@ -421,6 +422,10 @@ const PROFILE_COLUMNS = [
   "trans_crowds_changed_at"
 ] as const;
 
+export function profileSaveVersion(row: ProfileRow): string {
+  return createHash("sha256").update(JSON.stringify(PROFILE_COLUMNS.map(column => row[column] ?? null))).digest("hex");
+}
+
 const SIDE_BADGES_SELECT = "(to_jsonb(profiles)->'side_badges') as side_badges";
 
 const PROFILE_VISIBILITY_SET_COLUMNS = [
@@ -548,6 +553,10 @@ function mapProfileRow(
   };
   const sensitiveProfile = options.sensitiveProfile ?? null;
   const visibilityRules = options.visibilityRules ?? null;
+  if (includePrivateSensitive && ((row.profile_sensitive_ciphertext && !sensitiveProfile)
+    || (row.profile_visibility_ciphertext && !visibilityRules))) {
+    throw new ApiError(503, "VALIDATION_ERROR", "Unable to load your saved profile. Try again.");
+  }
   const showKinks = options.showKinks ?? canShowByVisibility(row.kinks_visibility);
   const visibleCrowds = options.visibleCrowds ?? (includePrivateSensitive ? sensitiveProfile?.crowds ?? [] : []);
   const showTransStatus = includePrivateSensitive ||
@@ -644,6 +653,7 @@ function mapProfileRow(
     ...((row.badges?.length ?? 0) > 0 ? { badges: row.badges } : {}),
     visibility_rules: includePrivateSensitive ? visibilityRules ?? emptyProfile.visibility_rules : emptyProfile.visibility_rules,
     updated_at: new Date(row.updated_at).toISOString(),
+    ...(includePrivateSensitive ? { save_version: profileSaveVersion(row) } : {}),
     ...(options.relationship ? {
       viewer_relationship: {
         match_id: options.relationship.matchId,
@@ -751,6 +761,8 @@ function profilePayloadFromRow(
     birth_control: sensitiveProfile.birth_control ?? [],
     substance_boundaries: row.substance_boundaries ?? [],
     protection_boundaries: row.protection_boundaries ?? [],
+    relationship_status: sensitiveProfile.relationship_status ?? [],
+    zodiac: row.zodiac ?? [],
     visibility_rules: visibilityRules
   };
 }
@@ -1067,11 +1079,11 @@ async function syncSensitiveProfileTokens(app: FastifyInstance, userId: string, 
   }
 }
 
-async function loadOwnerProfileRow(app: FastifyInstance, userId: string) {
+async function loadOwnerProfileRow(app: FastifyInstance, userId: string, lock = false) {
   const result = await app.db.query<ProfileRow>(
     `select ${PROFILE_COLUMNS.join(", ")}, ${SIDE_BADGES_SELECT}, updated_at
      from profiles
-     where id = $1`,
+     where id = $1${lock ? " for update" : ""}`,
     [userId]
   );
   const row = result.rows[0];
@@ -2050,7 +2062,38 @@ export async function registerProfileRoutes(app: FastifyInstance) {
 
   app.put("/api/profiles/me", async (request, reply) => {
     const userId = await getActiveAccountUserId(request);
-    const parsedPayload = profilePayloadSchema.parse(request.body);
+    const { expected_save_version, save_mode, ...submittedFields } = z.object({
+      expected_save_version: z.string().regex(/^[a-f0-9]{64}$/).optional(),
+      save_mode: z.literal("create").optional()
+    }).passthrough().parse(request.body);
+    const readExisting = async (target: FastifyInstance, lock = false) => {
+      try { return await loadOwnerProfileRow(target, userId, lock); }
+      catch (error) {
+        if (error instanceof ApiError && error.statusCode === 404) return null;
+        throw error;
+      }
+    };
+    const existingRow = await readExisting(app);
+    const version = (row: ProfileRow | null) => row ? profileSaveVersion(row) : null;
+    const conflict = () => new ApiError(409, "VALIDATION_ERROR", "Your saved profile changed. Reload it before saving again.");
+    if (existingRow?.display_name?.trim()) {
+      if (save_mode === "create" || !expected_save_version || expected_save_version !== version(existingRow)) throw conflict();
+    } else if (expected_save_version && expected_save_version !== version(existingRow)) {
+      throw conflict();
+    }
+    let existingPayload: ProfilePayload | undefined;
+    if (existingRow) {
+      const sensitive = decryptSensitiveProfile(app.config, existingRow);
+      const visibility = decryptProfileVisibility(app.config, existingRow);
+      if ((existingRow.profile_sensitive_ciphertext && !sensitive)
+        || (existingRow.profile_visibility_ciphertext && !visibility)) {
+        throw new ApiError(503, "VALIDATION_ERROR", "Unable to load your saved profile. Try again.");
+      }
+      existingPayload = profilePayloadFromRow(existingRow, sensitive ?? { ...fallbackSensitiveProfile(), kinks: existingRow.kinks ?? [], hiv_status: existingRow.hiv_status ?? [], custom_hiv_status: existingRow.custom_hiv_status ?? "" },
+        await loadProfileKinkInterests(app, userId), visibility ?? emptyProfile.visibility_rules);
+    }
+    // Missing fields mean unchanged. Only explicitly submitted empty values clear fields.
+    const parsedPayload = profilePayloadSchema.parse({ ...existingPayload, ...submittedFields });
     const kinkInterests = normalizeKinkInterests(parsedPayload);
     const entitlement = parsedPayload.tags.length > 3 || kinkInterests.length > 3 || parsedPayload.hobbies.length > 3
       ? await getCruushEntitlement(app, userId)
@@ -2133,6 +2176,8 @@ export async function registerProfileRoutes(app: FastifyInstance) {
       result = await runTransaction(app.db, async (db) => {
         await lockMapPingSenderInTransaction(db, userId);
         const transactionApp = appWithDatabase(app, db);
+        const currentRow = await readExisting(transactionApp, true);
+        if (Boolean(currentRow) !== Boolean(existingRow) || version(currentRow) !== version(existingRow)) throw conflict();
         const currentIdentityState = await loadExistingIdentityState(transactionApp, userId);
         // A concurrent first save or age verification may have established the
         // year while this request was being moderated. Re-read under the account lock.
@@ -2173,9 +2218,12 @@ export async function registerProfileRoutes(app: FastifyInstance) {
            values (${placeholders.join(", ")})
            on conflict (id) do update
            set ${updates.join(", ")}, updated_at = now()
+           where ${existingRow ? "true" : "false"}
            returning ${PROFILE_COLUMNS.join(", ")}, ${SIDE_BADGES_SELECT}, updated_at`,
           values
         );
+
+        if (!saved.rows[0]) throw conflict();
 
         await db.query(
           `update app_users

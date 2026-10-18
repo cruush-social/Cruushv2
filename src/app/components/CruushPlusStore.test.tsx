@@ -1,9 +1,10 @@
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
-import { MemoryRouter, useLocation } from 'react-router';
+import { MemoryRouter, Route, Routes, useLocation } from 'react-router';
 import { PopupRouteContext } from '../lib/popupRouteContext';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { CryptoPaymentRailId, CryptoProcessorStatus } from '../lib/cryptoCheckoutApi';
 import CruushPlusStore from './CruushPlusStore';
+import OrderHistory from './OrderHistory';
 
 vi.mock('../lib/billingApi', async () => {
   const actual = await vi.importActual<typeof import('../lib/billingApi')>('../lib/billingApi');
@@ -21,6 +22,7 @@ vi.mock('../lib/cryptoCheckoutApi', async () => {
 
   return {
     ...actual,
+    getCryptoOrderHistory: vi.fn().mockResolvedValue({ orders: [], nextCursor: null }),
     getPulsePacks: vi.fn(),
     createPulsePaymentIntent: vi.fn(),
     getCurrentPulsePaymentIntent: vi.fn(),
@@ -207,7 +209,8 @@ function renderStore() {
 }
 
 function BackDestination() {
-  return <span data-testid="back-destination">{useLocation().pathname}</span>;
+  const location = useLocation();
+  return <span data-testid="back-destination">{location.pathname}{location.search}</span>;
 }
 
 // Every render loads the Bitcoin sending sample. An empty map evaluates nothing,
@@ -232,6 +235,49 @@ describe('CruushPlusStore', () => {
       currency: 'USD',
       plans,
     });
+  });
+
+  it('holds the ready confirmation for five seconds before revealing wallet details', async () => {
+    vi.mocked(getCryptoProcessorStatus).mockResolvedValue(processorStatus(['pyusd_arbitrum']));
+    vi.mocked(createCryptoPaymentIntent).mockResolvedValue({
+      id: 'preview-order', userId: 'preview-user', planId: 'plus_monthly',
+      asset: 'PYUSD', network: 'arbitrum', rail: 'pyusd_arbitrum', chainId: 42161,
+      tokenAddress: '0xfixture', sendingApp: 'paypal', amountUsdCents: 1899,
+      quotedAmountAtomic: '19000000', paymentAddress: '0xTimingPreview',
+      status: 'awaiting_payment', expiresAt: null, createdAt: null, updatedAt: null, paidAt: null,
+    });
+    renderStore();
+    const button = await screen.findByRole('button', { name: 'PayPal', exact: true });
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+    try {
+      await act(async () => { fireEvent.click(button); });
+      expect(screen.getByText('Your order’s payment address is ready')).toBeInTheDocument();
+      expect(screen.getByText('cruush is self-funded. Thank you for your order and for supporting the app.')).toBeInTheDocument();
+      expect(screen.queryByText('0xTimingPreview')).not.toBeInTheDocument();
+      await act(async () => { await vi.advanceTimersByTimeAsync(4_999); });
+      expect(screen.queryByText('0xTimingPreview')).not.toBeInTheDocument();
+      await act(async () => { await vi.advanceTimersByTimeAsync(1); });
+      expect(screen.getByText('0xTimingPreview')).toBeInTheDocument();
+      expect(screen.queryByText('Your order’s payment address is ready')).not.toBeInTheDocument();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it.each(['/store?plan=plus_3_month', '/store/pulse'])('keeps browser-style history through orders from %s', async entry => {
+    vi.mocked(getCryptoProcessorStatus).mockResolvedValue(processorStatus([]));
+    vi.mocked(getCurrentPulsePaymentIntent).mockResolvedValue(null);
+    vi.mocked(getPulsePacks).mockResolvedValue({ packs: [{ id: 'ping_3', name: '3 Pulses', description: '3 permanent Pulse credits', pingCount: 3, amountCents: 999, currency: 'USD' }] });
+    render(<MemoryRouter initialEntries={['/feed',entry]} initialIndex={1}>
+      <Routes><Route path="/settings/orders" element={<OrderHistory />} /><Route path="/store/pulse" element={<CruushPlusStore product="ping_pack" />} /><Route path="*" element={<CruushPlusStore />} /></Routes>
+      <BackDestination />
+    </MemoryRouter>);
+    fireEvent.click(await screen.findByRole('link', { name: 'Order history' }));
+    expect(screen.getByTestId('back-destination')).toHaveTextContent('/settings/orders');
+    fireEvent.click(screen.getByRole('button', { name: 'Back', exact: true }));
+    expect(screen.getByTestId('back-destination')).toHaveTextContent(entry);
+    fireEvent.click(screen.getByRole('button', { name: 'Back', exact: true }));
+    expect(screen.getByTestId('back-destination')).toHaveTextContent('/feed');
   });
 
   it.each(['direct', 'history', 'popup'])('makes Back work from %s entry', async (entry) => {

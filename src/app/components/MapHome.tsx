@@ -1,3 +1,6 @@
+import { useAccountPreference, readAccountPreference, subscribeAccountPreferences, saveAccountPreference, hasPreferenceAccount, areAccountPreferencesLoaded, usePreferenceDraftOwner } from '../lib/accountPreferences';
+import { getStoredCurrentUser } from '../lib/sessionUser';
+import { readMapSeekingFilters, saveMapSeekingFilters } from '../lib/mapSeekingFilters';
 import { preloadDisplayLocationKey } from '../lib/displayLocationTokens';
 import { useContentVisibilityRefresh } from '../lib/contentVisibilityRevision';
 // Vite env type declaration for TypeScript
@@ -776,11 +779,11 @@ export function readStoredMapZoom() {
     return null;
   }
 
-  const zoom = Number(window.localStorage.getItem(MAP_LAST_ZOOM_STORAGE_KEY));
+  const zoom = hasPreferenceAccount() ? readAccountPreference('map.zoom', 0) : Number(window.localStorage.getItem(MAP_LAST_ZOOM_STORAGE_KEY));
   return Number.isFinite(zoom) && zoom > 0 ? zoom : null;
 }
 
-export function storeMapViewportForRestore(map: CruushMapInstance | null, travelPinKey: string | null = null) {
+export function storeMapViewportForRestore(map: CruushMapInstance | null, travelPinKey: string | null = null, persistAccountZoom = true) {
   if (typeof window === 'undefined' || !map) {
     return;
   }
@@ -805,7 +808,9 @@ export function storeMapViewportForRestore(map: CruushMapInstance | null, travel
       travelPinKey,
     } satisfies StoredMapViewport),
   );
-  window.localStorage.setItem(MAP_LAST_ZOOM_STORAGE_KEY, String(zoom));
+  if (hasPreferenceAccount()) {
+    if (persistAccountZoom && areAccountPreferencesLoaded() && readAccountPreference('map.zoom', 0) !== zoom) void saveAccountPreference('map.zoom', zoom).catch(() => undefined);
+  } else window.localStorage.setItem(MAP_LAST_ZOOM_STORAGE_KEY, String(zoom));
 }
 
 function toRadians(degrees: number) {
@@ -988,6 +993,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
   const [locationNoticeTop, setLocationNoticeTop] = useState<number>();
   const [loading, setLoading] = useState(true);
   const [mapInstance, setMapInstance] = useState<CruushMapInstance | null>(null);
+  const pendingAccountZoomRestore = useRef(!areAccountPreferencesLoaded());
   const [mapViewport, setMapViewport] = useState<SettledMapViewport | null>(null);
   const [spotQueryViewport, setSpotQueryViewport] = useState<SettledMapViewport | null>(null);
   const [mapControlsOpen, setMapControlsOpen] = useState(false);
@@ -1041,7 +1047,20 @@ export default function MapHome(_props: MapHomeProps = {}) {
   const [pendingMessageUserId, setPendingMessageUserId] = useState<string | null>(null);
   const [isFiltersOpen, setIsFiltersOpen] = useState(false);
   const [isRecentlyActiveOpen, setIsRecentlyActiveOpen] = useState(false);
-  const [filters, setFilters] = useState<FilterState>(() => routeState?.seekingFilters ?? DEFAULT_FILTER_STATE);
+  const seekingOwnerId = getStoredCurrentUser()?.id;
+  const [filters, setFilters] = useState<FilterState>(() => readMapSeekingFilters(seekingOwnerId, DEFAULT_FILTER_STATE) ?? routeState?.seekingFilters ?? DEFAULT_FILTER_STATE);
+  const filtersRef = useRef(filters);
+  const filtersDraftEdited = useRef(false);
+  filtersRef.current = filters;
+  useEffect(() => subscribeAccountPreferences(() => {
+    const saved = readMapSeekingFilters(seekingOwnerId, DEFAULT_FILTER_STATE);
+    if (saved && !filtersDraftEdited.current) { filtersRef.current = saved; setFilters(saved); }
+  }, 'map.seeking'), [seekingOwnerId]);
+  usePreferenceDraftOwner(() => {
+    filtersDraftEdited.current = false;
+    const next = readAccountPreference('map.seeking', DEFAULT_FILTER_STATE);
+    filtersRef.current = next; setFilters(next);
+  });
   const [isVisibilityOpen, setIsVisibilityOpen] = useState(false);
   const [visibility, setVisibility] = useState<VisibilityControlState>(DEFAULT_VISIBILITY_STATE);
   const [visibilityError, setVisibilityError] = useState<string | null>(null);
@@ -1168,7 +1187,10 @@ export default function MapHome(_props: MapHomeProps = {}) {
     startScrollLeft: 0,
     startX: 0,
   });
-  const isMutualMapMode = searchParams.get('mode') === 'mutuals';
+  const [savedMutualMapMode, setSavedMutualMapMode] = useAccountPreference('map.mutualsOnly', false);
+  const isMutualMapMode = searchParams.has('mode') ? searchParams.get('mode') === 'mutuals' : savedMutualMapMode;
+  const mutualMapModeRef = useRef(isMutualMapMode);
+  mutualMapModeRef.current = isMutualMapMode;
   const lastMutualMapModeRef = useRef(isMutualMapMode);
   const focusUserId = searchParams.get('focusUserId') ?? routeState?.focusUserId ?? null;
   const consumedIncomingProfileLinkRef = useRef<string | null>(null);
@@ -1429,7 +1451,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
     }
 
     const handleMoveEnd = () => {
-      storeMapViewportForRestore(mapInstance, travelPinKeyForStore());
+      storeMapViewportForRestore(mapInstance, travelPinKeyForStore(), !pendingAccountZoomRestore.current);
       const nextViewport = readSettledMapViewport(mapInstance);
 
       if (nextViewport) {
@@ -1452,7 +1474,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
       return;
     }
 
-    storeMapViewportForRestore(mapInstance, travelPinKeyForStore());
+    storeMapViewportForRestore(mapInstance, travelPinKeyForStore(), !pendingAccountZoomRestore.current);
     navigate(`/profile/${user.id}`, {
       state: {
         distance: user.distance,
@@ -1586,7 +1608,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
 
         if (isMounted) {
           hasFetchedInitialUsersRef.current = true;
-          void fetchUsers(initialFetchCoordinates, hasActiveSeekingFilters(filters) ? filters : undefined);
+          void fetchUsers(initialFetchCoordinates, hasActiveSeekingFilters(filtersRef.current) ? filtersRef.current : undefined);
         }
       })
       .catch((profileError) => {
@@ -1594,7 +1616,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
         if (isMounted) {
           setCurrentProfile(null);
           hasFetchedInitialUsersRef.current = true;
-          void fetchUsers(null, hasActiveSeekingFilters(filters) ? filters : undefined);
+          void fetchUsers(null, hasActiveSeekingFilters(filtersRef.current) ? filtersRef.current : undefined);
         }
       })
       .finally(() => {
@@ -1796,7 +1818,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
     options: { background?: boolean; force?: boolean } = {},
   ) => {
     const refresh = discoveryRefreshRef.current;
-    const key = JSON.stringify([isMutualMapMode, coordinates, filterParams ?? null]);
+    const key = JSON.stringify([mutualMapModeRef.current, coordinates, filterParams ?? null]);
     if (options.background && !options.force && refresh.inFlight?.key === key) {
       if (refresh.pending?.background) refresh.pending = null;
       return;
@@ -1805,7 +1827,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
     refresh.pending = {
       coordinates,
       filters: filterParams,
-      mutual: isMutualMapMode,
+      mutual: mutualMapModeRef.current,
       background: Boolean(options.background) && refresh.pending?.background !== false,
       key,
     };
@@ -1822,7 +1844,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
     const refreshTimeoutId = window.setTimeout(() => {
       void fetchUsers(
         { lat: mapViewport.center.latitude, lng: mapViewport.center.longitude },
-        hasActiveSeekingFilters(filters) ? filters : undefined,
+        hasActiveSeekingFilters(filtersRef.current) ? filtersRef.current : undefined,
         { background: true },
       );
     }, 600);
@@ -1950,14 +1972,14 @@ export default function MapHome(_props: MapHomeProps = {}) {
       ]);
       mapInstance?.setZoom(CENTER_ON_ME_ZOOM);
     }
-    void fetchUsers(fetchCoordinates, hasActiveSeekingFilters(filters) ? filters : undefined);
+    void fetchUsers(fetchCoordinates, hasActiveSeekingFilters(filtersRef.current) ? filtersRef.current : undefined);
     // The server judges the service area from the saved location, so a fetch
     // that raced ahead of this save can still see the old spot. Once the new
     // location is saved, ask again if the map is still marked outside.
     void locationSync
       .then(() => {
         if (outsideServiceAreaRef.current) {
-          void fetchUsers(fetchCoordinates, hasActiveSeekingFilters(filters) ? filters : undefined);
+          void fetchUsers(fetchCoordinates, hasActiveSeekingFilters(filtersRef.current) ? filtersRef.current : undefined);
         }
       })
       .catch(() => undefined);
@@ -2217,7 +2239,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
       setCurrentProfile(savedProfile);
       setVisibility(visibilityRulesToState(savedProfile.visibility_rules));
       setIsVisibilityOpen(false);
-      void fetchUsers(getCurrentFetchCoordinates(), filters);
+      void fetchUsers(getCurrentFetchCoordinates(), filtersRef.current);
     } catch (saveError) {
       setVisibilityError(saveError instanceof Error ? saveError.message : 'Failed to save visibility.');
     } finally {
@@ -2695,6 +2717,27 @@ export default function MapHome(_props: MapHomeProps = {}) {
       setJoiningEventChat(false);
     }
   };
+
+  useEffect(() => {
+    if (!mapInstance || !pendingAccountZoomRestore.current) return;
+    const preserveCurrentCamera = () => { pendingAccountZoomRestore.current = false; };
+    const restore = () => {
+      if (!pendingAccountZoomRestore.current || !areAccountPreferencesLoaded()) return;
+      pendingAccountZoomRestore.current = false;
+      if (restoredMapViewport || focusUserId || preserveIncomingProfileCamera || travelMapLocation) return;
+      const zoom = readStoredMapZoom();
+      if (zoom !== null && mapInstance.getZoom() !== zoom) mapInstance.jumpTo({ zoom });
+    };
+    mapInstance.on?.('dragstart', preserveCurrentCamera);
+    mapInstance.on?.('zoomstart', preserveCurrentCamera);
+    restore();
+    const unsubscribe = subscribeAccountPreferences(restore, 'map.zoom');
+    return () => {
+      unsubscribe();
+      mapInstance.off?.('dragstart', preserveCurrentCamera);
+      mapInstance.off?.('zoomstart', preserveCurrentCamera);
+    };
+  }, [mapInstance, restoredMapViewport, focusUserId, preserveIncomingProfileCamera, travelMapLocation]);
 
   const fitToMapMarkers = !restoredMapViewport && !currentUserMapLocation && !isMutualMapMode && !focusUserId && !preserveIncomingProfileCamera;
   const mapMarkers = useMemo<MapMarker[]>(() => {
@@ -3638,13 +3681,17 @@ export default function MapHome(_props: MapHomeProps = {}) {
           title="Seeking Filter"
             description="Choose who you see."
           value={filters}
-          onChange={setFilters}
+          onChange={(nextFilters) => { filtersDraftEdited.current = true; filtersRef.current = nextFilters; setFilters(nextFilters); }}
           onMutualCruushesOnlyChange={(enabled) => {
+            setSavedMutualMapMode(enabled);
             navigate(enabled ? '/map?mode=mutuals' : '/map');
           }}
           hasCruushPlus={hasCruushPlus}
           onUpgrade={() => navigate(buildCruushPlusStorePath('map_filters', 'seeking_visibility'))}
           onClear={() => {
+            filtersDraftEdited.current = false;
+            saveMapSeekingFilters(seekingOwnerId, DEFAULT_FILTER_STATE);
+            filtersRef.current = DEFAULT_FILTER_STATE;
             navigate(`${location.pathname}${location.search}`, {
               replace: true,
               state: { ...(routeState ?? {}), seekingFilters: undefined },
@@ -3653,6 +3700,8 @@ export default function MapHome(_props: MapHomeProps = {}) {
             void fetchUsers(getCurrentFetchCoordinates(), DEFAULT_FILTER_STATE);
           }}
           onApply={() => {
+            filtersDraftEdited.current = false;
+            saveMapSeekingFilters(seekingOwnerId, filters);
             navigate(`${location.pathname}${location.search}`, {
               replace: true,
               state: { ...(routeState ?? {}), seekingFilters: filters },

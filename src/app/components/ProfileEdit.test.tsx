@@ -297,6 +297,7 @@ describe('ProfileEdit', () => {
       hiv_status: [],
       hiv_status_visibility: 'public',
       updated_at: '2026-04-29T12:00:00.000Z',
+      save_version: "a".repeat(64),
     };
 
     getMyProfile.mockResolvedValue(profile);
@@ -322,6 +323,25 @@ describe('ProfileEdit', () => {
       url: uploadedProfilePhoto,
       explicit: false,
     });
+  });
+
+  it('does not save default blanks after the profile fails to load', async () => {
+    getMyProfile.mockRejectedValue(new Error('Profile load failed'));
+    render(<MemoryRouter><ProfileEdit /></MemoryRouter>);
+    await screen.findByText('Profile load failed');
+    fireEvent.change(screen.getByPlaceholderText('Your display name'), { target: { value: 'A valid name' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+    expect(saveMyProfile).not.toHaveBeenCalled();
+  });
+
+  it('preserves loaded role, position and intimacy details on profile save', async () => {
+    const loaded = await getMyProfile();
+    const details = { role: ['switch'], position: ['top'], hosting_travel: ['hosting'], availability: ['now'], kinks: ['leather'] };
+    getMyProfile.mockResolvedValue({ ...loaded, ...details });
+    render(<MemoryRouter><ProfileEdit /></MemoryRouter>);
+    await screen.findByRole('tab', { name: 'Basics' });
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+    await waitFor(() => expect(saveMyProfile).toHaveBeenCalledWith(expect.objectContaining(details)));
   });
 
   it('applies profile text limits without truncating loaded values', async () => {
@@ -492,6 +512,20 @@ describe('ProfileEdit', () => {
     })));
   });
 
+  it('replaces the previous profile role and position with one selection each', async () => {
+    render(<MemoryRouter><ProfileEdit /></MemoryRouter>);
+    await selectProfileEditTab('Intimacy');
+    fireEvent.click(screen.getByRole('button', {name:'Position'}));
+    fireEvent.click(screen.getByRole('option', {name:'top',exact:true}));
+    fireEvent.click(screen.getByRole('option', {name:'bottom',exact:true}));
+    fireEvent.click(screen.getByRole('button', {name:'Role'}));
+    fireEvent.click(screen.getByRole('option', {name:'switch',exact:true}));
+    fireEvent.click(screen.getByRole('option', {name:'dominant',exact:true}));
+    fireEvent.click(screen.getByRole('button', {name:'Role'}));
+    fireEvent.click(screen.getByRole('button', {name:'Save',exact:true}));
+    await waitFor(()=>expect(saveMyProfile).toHaveBeenCalledWith(expect.objectContaining({position:['bottom'],role:['dominant']})));
+  });
+
   it('lets users set master position, master role, and field-level kink visibility', async () => {
     render(
       <MemoryRouter>
@@ -618,6 +652,7 @@ describe('ProfileEdit', () => {
       year_of_birth: 1998,
       photos: [existingProfilePhoto],
       updated_at: '2026-04-29T12:00:00.000Z',
+      save_version: "a".repeat(64),
     });
     uploadProfilePhoto.mockResolvedValueOnce({
       url: uploadedPhoto,
@@ -628,6 +663,7 @@ describe('ProfileEdit', () => {
       ...payload,
       id: 'user-1',
       updated_at: '2026-04-29T12:00:00.000Z',
+      save_version: "a".repeat(64),
     }));
 
     render(
@@ -703,6 +739,7 @@ describe('ProfileEdit', () => {
         legacyProfilePhoto.replace('/api', ''),
       ],
       updated_at: '2026-04-29T12:00:00.000Z',
+      save_version: "a".repeat(64),
     });
 
     render(
@@ -771,6 +808,7 @@ describe('ProfileEdit', () => {
       id: 'user-1',
       display_name: 'Jordan',
       photos: [existingProfilePhoto],
+      save_version: 'a'.repeat(64),
     }).mockRejectedValueOnce(new Error('Profile refresh failed.'));
 
     render(
@@ -790,6 +828,8 @@ describe('ProfileEdit', () => {
     await waitFor(() => expect(onSaved).toHaveBeenCalledWith(expect.objectContaining({
       photos: [existingProfilePhoto, uploadedProfilePhoto],
     })));
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+    expect(saveMyProfile).not.toHaveBeenCalled();
   });
 
   it('masks explicit profile photos while treating unknown photos as safe in DL Mode', async () => {
@@ -809,6 +849,7 @@ describe('ProfileEdit', () => {
         { url: safePhoto, explicit: false },
       ],
       updated_at: '2026-04-29T12:00:00.000Z',
+      save_version: "a".repeat(64),
     });
 
     render(
@@ -963,6 +1004,7 @@ describe('ProfileEdit', () => {
         '/api/media/assets/44444444-4444-4444-8444-444444444444/display',
       ],
       updated_at: '2026-04-29T12:00:00.000Z',
+      save_version: "a".repeat(64),
     });
 
     render(
@@ -1077,7 +1119,7 @@ describe('ProfileEdit', () => {
     const basicsTab = await screen.findByRole('tab', { name: 'Basics' });
     fireEvent.click(basicsTab);
 
-    fireEvent.click(screen.getByRole('button', { name: 'Vibes' }));
+    fireEvent.click(screen.getAllByRole('button', { name: 'Vibes' }).find(button => button.getAttribute('aria-haspopup') === 'listbox')!);
     expect(screen.getByRole('tablist', { name: 'Vibes categories' })).toBeInTheDocument();
     expect(screen.getByRole('group', { name: 'Style' })).toBeInTheDocument();
     fireEvent.click(screen.getByRole('tab', { name: 'Scenes' }));
@@ -1182,6 +1224,7 @@ describe('ProfileEdit', () => {
         looking_for: ['hookup'],
       },
       updated_at: '2026-04-29T12:00:00.000Z',
+      save_version: "a".repeat(64),
     });
 
     render(
@@ -1221,6 +1264,7 @@ describe('ProfileEdit', () => {
         kinks: ['leather'],
       },
       updated_at: '2026-04-29T12:00:00.000Z',
+      save_version: "a".repeat(64),
     });
 
     render(
@@ -1253,6 +1297,7 @@ describe('ProfileEdit', () => {
       id: 'user-1',
       display_name: '',
       updated_at: '2026-04-29T12:00:00.000Z',
+      save_version: "a".repeat(64),
     });
 
     render(
@@ -1279,6 +1324,7 @@ describe('ProfileEdit', () => {
       display_name: 'River Updated',
       year_of_birth: 1998,
       updated_at: '2026-08-13T00:30:00.000Z',
+      save_version: "a".repeat(64),
     });
 
     render(

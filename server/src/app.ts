@@ -1,3 +1,4 @@
+import { registerAccountPreferenceRoutes } from './routes/account-preferences.js';
 import cors from "@fastify/cors";
 import { ZodError } from "zod";
 import multipart from "@fastify/multipart";
@@ -300,6 +301,7 @@ export function buildServer(config: AppConfig, deps: BuildServerDeps = {}) {
   void registerNotificationRoutes(app);
   void registerNewsletterUnsubscribeRoutes(app);
   void registerUserNoticeRoutes(app);
+  void registerAccountPreferenceRoutes(app);
   void registerUserRoutes(app);
   void registerContentVisibilityRoutes(app);
   void registerCruushRoutes(app);

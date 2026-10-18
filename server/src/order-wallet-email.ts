@@ -30,7 +30,7 @@ export async function sendPendingOrderWalletEmails(app: FastifyInstance) {
     let content: ReturnType<typeof buildOrderWalletReadyEmail>;
     try {
       const intent = mapCryptoPaymentIntent(row);
-      const planName = (row.product_type === 'ping_pack' ? PING_PACKS : CRUUSH_PLUS_PLANS).find(plan => plan.id === row.plan_id)?.name ?? row.plan_id;
+      const planName = (row.product_type === 'ping_pack' ? PING_PACKS : CRUUSH_PLUS_PLANS).find(plan => plan.id === row.plan_id)?.name ?? (row.product_type === 'ping_pack' ? 'Pulses' : 'cruush+');
       content = buildOrderWalletReadyEmail(app.config.APP_URL, row.product_type, row.plan_id, { ...intent, planName });
     } catch {
       app.log.warn("Order wallet email has incomplete payment details; delivery deferred.");

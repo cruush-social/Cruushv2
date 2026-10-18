@@ -1,6 +1,7 @@
+import { getRewardSummary, type RewardSummary } from '../lib/rewardsApi';
 import { useBackOrFallback } from '../lib/useBackOrFallback';
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
-import { useLocation, useNavigate } from 'react-router';
+import { Link, useLocation, useNavigate } from 'react-router';
 import { ApiClientError } from '../lib/apiClient';
 import { Check, Copy, Info, Shield, LockKeyhole, LoaderCircle } from 'lucide-react';
 import { Button } from './ui/button';
@@ -11,7 +12,7 @@ import { Card, CardContent } from './ui/card';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from './ui/accordion';
 import AppPageHeader from './AppPageHeader';
 import CruushPlusWord from './CruushPlusWord';
-import { getBillingPlans, type CruushPlusPlan, type CruushPlusPlanId } from '../lib/billingApi';
+import { getBillingPlans, getMyBillingStatus, type BillingStatus, type CruushPlusPlan, type CruushPlusPlanId } from '../lib/billingApi';
 import {
   getPulsePacks, createPulsePaymentIntent, getCurrentPulsePaymentIntent,
   cancelCryptoPaymentIntent,
@@ -172,6 +173,8 @@ export default function CruushPlusStore({ product = 'cruush_plus' }: { product?:
   const [bitcoinEligibility, setBitcoinEligibility] = useState<BitcoinSendingEligibility | null | undefined>(undefined);
   const [bitcoinEligibilityRevision, setBitcoinEligibilityRevision] = useState(0);
   const [selectedPlanId, setSelectedPlanId] = useState<string | null>(null);
+  const [memberBilling, setMemberBilling] = useState<BillingStatus | null>(null);
+  const [memberRewards, setMemberRewards] = useState<RewardSummary | null>(null);
   const [intent, setIntent] = useState<CryptoPaymentIntent | null>(null);
   const [selectedSourceId, setSelectedSourceId] = useState<string>(STABLECOIN_PAYMENT_SOURCES[0].id);
   const [hasChosenSource, setHasChosenSource] = useState(false);
@@ -320,6 +323,21 @@ export default function CruushPlusStore({ product = 'cruush_plus' }: { product?:
     return () => { active = false; };
   }, [isPulse, bitcoinEligibilityRevision]);
 
+  useEffect(() => {
+    if (isPulse) return;
+    let active = true;
+    void getMyBillingStatus().then(value => { if (active) setMemberBilling(value); }).catch(() => undefined);
+    void getRewardSummary().then(value => { if (active) setMemberRewards(value); }).catch(() => undefined);
+    return () => { active = false; };
+  }, [isPulse, intent?.status]);
+  const memberLifetime = memberBilling?.cruushPlus === true && memberBilling.expiresAt === null;
+  const memberExpiresAt = memberBilling?.cruushPlus
+    ? memberBilling.expiresAt
+    : memberRewards?.promotionalAccess?.effectiveCruushPlus
+      ? memberRewards.promotionalAccess.activeUntil
+      : null;
+  const memberActive = memberLifetime || Boolean(memberExpiresAt && Date.parse(memberExpiresAt) > clockMs);
+
   const intentExpiresAtMs = intent?.expiresAt ? Date.parse(intent.expiresAt) : Number.NaN;
   const paymentWindowClosed = Boolean(
     intent
@@ -334,13 +352,13 @@ export default function CruushPlusStore({ product = 'cruush_plus' }: { product?:
   );
 
   useEffect(() => {
-    if (retryAt <= Date.now() && (!intent?.expiresAt || !isOpenCryptoPayment(intent.status) || paymentWindowClosed)) {
+    if (!(memberActive && memberExpiresAt) && retryAt <= Date.now() && (!intent?.expiresAt || !isOpenCryptoPayment(intent.status) || paymentWindowClosed)) {
       return;
     }
 
     const timer = window.setInterval(() => setClockMs(Date.now()), 1000);
     return () => window.clearInterval(timer);
-  }, [intent?.expiresAt, intent?.status, paymentWindowClosed, retryAt]);
+  }, [intent?.expiresAt, intent?.status, paymentWindowClosed, retryAt, memberActive, memberExpiresAt]);
 
   useEffect(() => {
     if (!locallyExpired) {
@@ -604,7 +622,6 @@ export default function CruushPlusStore({ product = 'cruush_plus' }: { product?:
       productId: selectedPlan.id,
       sendingApp: source.sendingApp,
     });
-    const generationStartedAt = performance.now();
     setPaymentAddressReady(false);
     setStarting(true);
     setError(null);
@@ -648,11 +665,10 @@ export default function CruushPlusStore({ product = 'cruush_plus' }: { product?:
         productId: nextIntent.planId,
         sendingApp: nextIntent.sendingApp ?? undefined,
       });
-      // Keep the status readable on fast responses without claiming work is still happening.
+      // Give every successful new address a readable confirmation before revealing details.
       if (nextIntent.paymentAddress && isOpenCryptoPayment(nextIntent.status)) {
         setPaymentAddressReady(true);
-        const remainingFeedbackMs = Math.max(0, 700 - (performance.now() - generationStartedAt));
-        if (remainingFeedbackMs > 0) await new Promise((resolve) => setTimeout(resolve, remainingFeedbackMs));
+        await new Promise((resolve) => setTimeout(resolve, 5_000));
       }
       if (paymentAttemptRef.current !== attempt) return;
       setIntent(nextIntent);
@@ -895,7 +911,14 @@ export default function CruushPlusStore({ product = 'cruush_plus' }: { product?:
       />
 
       <main ref={checkoutContentRef} className="mx-auto flex max-w-2xl flex-col gap-3 px-3 py-2 sm:px-4">
-        {!isPulse ? <CruushPlusSectionControls active="checkout" /> : null}
+        {!isPulse ? <CruushPlusSectionControls active="checkout" beforeBenefits={memberActive ? (
+          <p className="text-sm text-muted-foreground">
+            You already have cruush+.{' '}
+            {memberLifetime ? 'Your access does not expire.' : <>It expires on {new Date(memberExpiresAt!).toLocaleString(undefined, { dateStyle: 'long', timeStyle: 'short' })}.</>}{' '}
+            Any new time you purchase will be added to your{' '}
+            <Link to="/rewards" className="font-medium text-foreground underline underline-offset-4">time capsule</Link>.
+          </p>
+        ) : null} /> : null}
         {!isPulse ? whyCruushCryptoCard : null}
 
         {isPulse ? <Button variant="outline" onClick={() => navigate('/store')}>cruush+ checkout</Button> : null}
@@ -1287,12 +1310,12 @@ export default function CruushPlusStore({ product = 'cruush_plus' }: { product?:
         ) : null}
         {isPulse ? whyCruushCryptoCard : null}
 
-        <a
+        <Link
           className="block w-full rounded-xl border border-primary bg-primary/10 px-4 py-3 text-center text-sm font-semibold text-white"
-          href="/settings/orders"
+          to="/settings/orders"
         >
           Order history
-        </a>
+        </Link>
 
         <Card>
           <CardContent className="space-y-2 p-4 text-sm leading-6 text-muted-foreground">

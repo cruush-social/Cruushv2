@@ -1,3 +1,4 @@
+import { hasPreferenceAccount, readAccountPreference, saveAccountPreference } from '../lib/accountPreferences';
 import { useTrustRestrictions } from '../lib/trustRestrictions';
 import TrustRestrictionNotice from './TrustRestrictionNotice';
 import {
@@ -129,7 +130,7 @@ function readPulseDesktopGeometry(): PulseDesktopGeometry | null {
   }
 
   try {
-    const raw = window.localStorage.getItem(PULSE_DESKTOP_STORAGE_KEY);
+    const raw = hasPreferenceAccount() ? readAccountPreference('display.pulseGeometry', '') : window.localStorage.getItem(PULSE_DESKTOP_STORAGE_KEY);
     if (!raw) {
       return null;
     }
@@ -284,7 +285,7 @@ export default function MapPingSheet({
     }
 
     try {
-      window.localStorage.setItem(PULSE_DESKTOP_STORAGE_KEY, JSON.stringify(desktopGeometry));
+      if (!hasPreferenceAccount()) window.localStorage.setItem(PULSE_DESKTOP_STORAGE_KEY, JSON.stringify(desktopGeometry));
     } catch {
       // Window geometry is a convenience. Ignore storage failures.
     }
@@ -355,6 +356,7 @@ export default function MapPingSheet({
       event.currentTarget.releasePointerCapture(event.pointerId);
     }
 
+    if (hasPreferenceAccount()) void saveAccountPreference('display.pulseGeometry', JSON.stringify(desktopGeometry)).catch(() => undefined);
     dragStateRef.current = null;
   };
 

@@ -626,8 +626,8 @@ function toProfileSavePayload(
     body_type: limitToThree(profile.body_type ?? []),
     height: profile.height ?? '',
     weight: profile.weight ?? '',
-    position: limitToThree(profile.position ?? []),
-    role: limitToThree(profile.role ?? []),
+    position: limitToThree(profile.position ?? []).slice(-1),
+    role: limitToThree(profile.role ?? []).slice(-1),
     is_trans: profile.is_trans ?? null,
     trans_status_visibility: FIXED_PRIVATE_PROFILE_VISIBILITY,
     crowds: sanitizeCrowds(profile),
@@ -701,6 +701,7 @@ export default function ProfileEdit({ embedded = false, onCancel, onSaved }: Pro
   const [dlModeActive, setDlModeActive] = useState(() => isDlModeEnabled());
   const photoPreviewRequestRef = useRef(0);
   const profileSaveRequestRef = useRef(0);
+  const loadedProfileVersionRef = useRef<string | null | undefined>(undefined);
 
   // The badge picker is embedded in this screen, so its "Edit profile vibes"
   // link navigates to the route we are already on. Without following the
@@ -726,6 +727,7 @@ export default function ProfileEdit({ embedded = false, onCancel, onSaved }: Pro
   }, [loading, requestedProfileSection, location.key]);
 
   const applySavedProfile = (savedProfile: ProfileRecord) => {
+    loadedProfileVersionRef.current = savedProfile.save_version;
     const loadedProfile = {
       ...emptyProfilePayload,
       ...savedProfile,
@@ -752,12 +754,14 @@ export default function ProfileEdit({ embedded = false, onCancel, onSaved }: Pro
       setError(null);
       try {
         const data = await getMyProfile();
+        loadedProfileVersionRef.current = data.save_version;
         setProfile({
           ...emptyProfilePayload,
           ...data,
         });
       } catch (fetchError) {
         if (fetchError instanceof ProfileApiError && fetchError.status === 404) {
+          loadedProfileVersionRef.current = null;
           setProfile(emptyProfilePayload);
         } else {
           setError(fetchError instanceof Error ? fetchError.message : 'Failed to load profile.');
@@ -878,12 +882,13 @@ export default function ProfileEdit({ embedded = false, onCancel, onSaved }: Pro
   };
 
   const handleSave = async () => {
+    if (loadedProfileVersionRef.current === undefined) return false;
     const requestId = profileSaveRequestRef.current + 1;
     profileSaveRequestRef.current = requestId;
     setSaving(true);
     setError(null);
     try {
-      const savedProfile = await saveMyProfile(toProfileSavePayload(profile, kinkLimit, profileTagLimit, hobbyLimit));
+      const savedProfile = await saveMyProfile({ ...toProfileSavePayload(profile, kinkLimit, profileTagLimit, hobbyLimit), ...(loadedProfileVersionRef.current === null ? { save_mode: 'create' as const } : { expected_save_version: loadedProfileVersionRef.current }) });
       if (profileSaveRequestRef.current !== requestId) {
         return false;
       }
@@ -906,6 +911,7 @@ export default function ProfileEdit({ embedded = false, onCancel, onSaved }: Pro
   };
 
   const persistProfilePhotoEdit = async (nextProfile: ProfilePayload) => {
+    if (loadedProfileVersionRef.current === undefined) return;
     const requestId = profileSaveRequestRef.current + 1;
     profileSaveRequestRef.current = requestId;
 
@@ -915,7 +921,7 @@ export default function ProfileEdit({ embedded = false, onCancel, onSaved }: Pro
     setPhotoUploadError(null);
 
     try {
-      const savedProfile = await saveMyProfile(toProfileSavePayload(nextProfile, kinkLimit, profileTagLimit, hobbyLimit));
+      const savedProfile = await saveMyProfile({ ...toProfileSavePayload(nextProfile, kinkLimit, profileTagLimit, hobbyLimit), ...(loadedProfileVersionRef.current === null ? { save_mode: 'create' as const } : { expected_save_version: loadedProfileVersionRef.current }) });
 
       if (profileSaveRequestRef.current === requestId) {
         applySavedProfile(savedProfile);
@@ -947,7 +953,7 @@ export default function ProfileEdit({ embedded = false, onCancel, onSaved }: Pro
     const file = event.target.files?.[0];
     event.target.value = '';
 
-    if (!file || trust.restricted('photo_uploads')) {
+    if (!file || loadedProfileVersionRef.current === undefined || trust.restricted('photo_uploads')) {
       return;
     }
 
@@ -994,6 +1000,7 @@ export default function ProfileEdit({ embedded = false, onCancel, onSaved }: Pro
   };
 
   const handleConfirmCrop = async (croppedFile: File) => {
+    if (loadedProfileVersionRef.current === undefined) return;
     setUploadingPhoto(true);
     setError(null);
     const previousPhotos = profile.photos ?? [];
@@ -1027,6 +1034,7 @@ export default function ProfileEdit({ embedded = false, onCancel, onSaved }: Pro
           ...profile,
           id: currentUserId,
           updated_at: new Date().toISOString(),
+          save_version: undefined,
           photos: uploadedPhotos,
           photo_metadata: uploadedMetadata,
         });
@@ -1143,8 +1151,8 @@ export default function ProfileEdit({ embedded = false, onCancel, onSaved }: Pro
     presentation: limitToThree(profile.presentation || []),
     sexuality: limitToThree(profile.sexuality || []),
     body_type: limitToThree(profile.body_type || []),
-    position: limitToThree(profile.position || []),
-    role: limitToThree(profile.role || []),
+    position: limitToThree(profile.position || []).slice(-1),
+    role: limitToThree(profile.role || []).slice(-1),
     is_trans: profile.is_trans ?? null,
     trans_status_visibility: profile.trans_status_visibility ?? FIXED_PRIVATE_PROFILE_VISIBILITY,
     crowds: sanitizeCrowds(profile),
@@ -1575,24 +1583,24 @@ export default function ProfileEdit({ embedded = false, onCancel, onSaved }: Pro
                 <MultiSelect
                   {...profileMenuProps}
                   ariaLabel="Position"
-                  maxSelections={MAX_PROFILE_GROUP_SELECTIONS}
+                  maxSelections={1}
                   options={POSITIONS}
                   value={normalizedProfile.position}
-                  onChange={(vals) => handleChange('position', limitToThree(vals))}
+                  onChange={(vals) => handleChange('position', vals.slice(-1))}
                 />
-                <p className="text-xs text-muted-foreground">Pick up to {MAX_PROFILE_GROUP_SELECTIONS}</p>
+                <p className="text-xs text-muted-foreground">Pick up to 1</p>
               </div>
               <div className="space-y-2">
                 <Label>Role</Label>
                 <MultiSelect
                   {...profileMenuProps}
                   ariaLabel="Role"
-                  maxSelections={MAX_PROFILE_GROUP_SELECTIONS}
+                  maxSelections={1}
                   options={ROLES}
                   value={normalizedProfile.role}
-                  onChange={(vals) => handleChange('role', limitToThree(vals))}
+                  onChange={(vals) => handleChange('role', vals.slice(-1))}
                 />
-                <p className="text-xs text-muted-foreground">Pick up to {MAX_PROFILE_GROUP_SELECTIONS}</p>
+                <p className="text-xs text-muted-foreground">Pick up to 1</p>
               </div>
             </div>
             <div className="space-y-2">

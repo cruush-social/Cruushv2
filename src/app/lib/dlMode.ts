@@ -1,3 +1,4 @@
+import { hasPreferenceAccount, readAccountPreference, saveAccountPreference, subscribeAccountPreferences } from './accountPreferences';
 import { hasPersistentNoticeFlag, setPersistentNoticeFlag } from './persistentNotice';
 import { useEffect, useState } from 'react';
 
@@ -30,6 +31,7 @@ export function isDlModeEnabled() {
     return true;
   }
 
+  if (hasPreferenceAccount()) return readAccountPreference('display.dlMode', true);
   const storedValue = window.localStorage.getItem(DL_MODE_STORAGE_KEY);
 
   return storedValue === null ? true : storedValue === 'true';
@@ -40,7 +42,8 @@ export function setDlModeEnabled(enabled: boolean) {
     return;
   }
 
-  window.localStorage.setItem(DL_MODE_STORAGE_KEY, enabled ? 'true' : 'false');
+  if (hasPreferenceAccount()) void saveAccountPreference('display.dlMode', enabled).catch(() => undefined);
+  else window.localStorage.setItem(DL_MODE_STORAGE_KEY, enabled ? 'true' : 'false');
   window.dispatchEvent(new CustomEvent(DL_MODE_CHANGED_EVENT, {
     detail: {
       enabled,
@@ -50,7 +53,7 @@ export function setDlModeEnabled(enabled: boolean) {
 
 export function getDlModeShowOnlyException(): DlModeShowOnlyException {
   if (typeof window === 'undefined') return 'none';
-  const value = window.localStorage.getItem(DL_MODE_SHOW_ONLY_EXCEPTION_STORAGE_KEY);
+  const value = hasPreferenceAccount() ? readAccountPreference('display.dlException', 'none') : window.localStorage.getItem(DL_MODE_SHOW_ONLY_EXCEPTION_STORAGE_KEY);
   return DL_MODE_SHOW_ONLY_EXCEPTIONS.has(value as DlModeShowOnlyException)
     ? value as DlModeShowOnlyException
     : 'none';
@@ -58,7 +61,8 @@ export function getDlModeShowOnlyException(): DlModeShowOnlyException {
 
 export function setDlModeShowOnlyException(value: DlModeShowOnlyException) {
   if (typeof window === 'undefined') return;
-  window.localStorage.setItem(DL_MODE_SHOW_ONLY_EXCEPTION_STORAGE_KEY, value);
+  if (hasPreferenceAccount()) void saveAccountPreference('display.dlException', value).catch(() => undefined);
+  else window.localStorage.setItem(DL_MODE_SHOW_ONLY_EXCEPTION_STORAGE_KEY, value);
   window.dispatchEvent(new CustomEvent(DL_MODE_CHANGED_EVENT, {
     detail: { enabled: isDlModeEnabled() },
   }));
@@ -94,10 +98,12 @@ export function addDlModeChangedListener(listener: (enabled: boolean) => void) {
     }
   };
 
+  const unsubscribe = subscribeAccountPreferences(() => listener(isDlModeEnabled()));
   window.addEventListener(DL_MODE_CHANGED_EVENT, handleCustomEvent);
   window.addEventListener('storage', handleStorageEvent);
 
   return () => {
+    unsubscribe();
     window.removeEventListener(DL_MODE_CHANGED_EVENT, handleCustomEvent);
     window.removeEventListener('storage', handleStorageEvent);
   };

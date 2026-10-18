@@ -8,6 +8,13 @@ import {
 } from "./profile-schema.js";
 
 describe("profile schema", () => {
+  it("does not infer side badges from role and position", () => {
+    const parsed = profilePayloadSchema.parse({ ...emptyProfile, display_name: "Preview", role: ["switch"], position: ["top"] });
+    expect(parsed.side_badges).toEqual({ left: null, right: null });
+    expect(parsed.role).toEqual(["switch"]);
+    expect(parsed.position).toEqual(["top"]);
+    expect(profilePayloadSchema.parse({ ...parsed, side_badges: { left: { badge_id: "switch", intent: "none", frame: "circle" }, right: null } }).side_badges.left?.badge_id).toBe("switch");
+  });
   it("cuts legacy and new signals at 35 characters before storage", () => {
     const result = profilePayloadSchema.parse({ ...emptyProfile, display_name: "Rowan", signal: "a".repeat(36) });
     expect(result.signal).toBe("a".repeat(35));
@@ -179,12 +186,12 @@ describe("profile schema", () => {
     expect(profilePayloadSchema.parse({
       ...baseProfile,
       position: ["top", "bottom", "vers", "vers top"]
-    }).position).toEqual(["bottom", "vers", "vers top"]);
+    }).position).toEqual(["vers top"]);
 
     expect(profilePayloadSchema.parse({
       ...baseProfile,
       role: ["switch", "dominant", "submissive", "service"]
-    }).role).toEqual(["dominant", "submissive", "service"]);
+    }).role).toEqual(["service"]);
 
     expect(profilePayloadSchema.parse({
       ...baseProfile,

@@ -52,6 +52,7 @@ import { createMempoolBitcoinSource, type MempoolBitcoinSource } from "./bitcoin
 import { isCryptoPaymentRailReady } from "./crypto-payments.js";
 import { sendBitcoinMonitoringCapacityAlertEmail } from "./mailer.js";
 
+import { startOrderPaymentConfirmationEmailScheduler } from "./order-payment-confirmation-email.js";
 import { startOrderWalletEmailScheduler } from "./order-wallet-email.js";
 import { startSubscriptionExpiryScheduler } from "./subscription-expiry.js";
 import { startWeeklyOrderReportScheduler } from "./weekly-order-report.js";
@@ -98,6 +99,7 @@ let stopCryptoWatcher: (() => void) | null = null;
 let stopCryptoGasAlerts: (() => void) | null = null;
 let stopPlaceCheckinExpiryScheduler: (() => void) | null = null;
 
+let stopOrderPaymentConfirmationEmailScheduler: (() => void) | null = null;
 let stopOrderWalletEmailScheduler: (() => void) | null = null;
 let stopSubscriptionExpiryScheduler: (() => void) | null = null;
 let stopWeeklyOrderReportScheduler: (() => void) | null = null;
@@ -109,6 +111,7 @@ let stopResendContactDeletionScheduler: (() => void) | null = null;
 
 const shutdown = async () => {
   stopOrderWalletEmailScheduler?.();
+  stopOrderPaymentConfirmationEmailScheduler?.();
   stopSubscriptionExpiryScheduler?.();
   stopWeeklyOrderReportScheduler?.();
   stopSiteReminderScheduler?.();
@@ -154,6 +157,7 @@ stopCryptoGasAlerts = startCryptoGasAlertScheduler(app);
 if (mempoolBitcoinSource) void cryptoWatcherHandle?.runOnce();
 stopPlaceCheckinExpiryScheduler = startPlaceCheckinExpiryScheduler(app);
 stopOrderWalletEmailScheduler = startOrderWalletEmailScheduler(app);
+stopOrderPaymentConfirmationEmailScheduler = startOrderPaymentConfirmationEmailScheduler(app);
 stopSubscriptionExpiryScheduler = startSubscriptionExpiryScheduler(app);
 stopWeeklyOrderReportScheduler = startWeeklyOrderReportScheduler(app);
 stopSiteReminderScheduler = startSiteReminderScheduler(app);

@@ -8,7 +8,7 @@ import { emptyProfile } from "./profile-schema.js";
 import { moderateProfileOrReject } from "./moderation-service.js";
 import { ALLOW_POLICY_DECISION } from "./moderation-types.js";
 import { registerAuthRoutes } from "./routes/auth.js";
-import { registerProfileRoutes } from "./routes/profiles.js";
+import { profileSaveVersion, registerProfileRoutes } from "./routes/profiles.js";
 
 // Requested scope: "also remove ability to change your birth year". Exercise
 // the genuine Fastify routes, schemas, session auth, crypto and SQL parameters.
@@ -114,6 +114,11 @@ async function fixture(options: Options = {}) {
       return { rows: tx!.state!.exists ? [{ id: userId, signup_birth_year: tx!.state!.signupYear }] : [] };
     }
     const current = tx?.state ?? state;
+    if (normalized.startsWith("select id, display_name") && normalized.includes("from profiles")) {
+      if (tx) expect(normalized).toContain("for update");
+      return { rows: current.profile ? [structuredClone(current.profile)] : [] };
+    }
+    if (normalized.includes("from profile_kink_interests pki")) return { rows: [] };
     if (normalized.startsWith("select year_of_birth from profiles")) {
       expect(tx?.state).toBeTruthy(); // The auth check must follow its account lock.
       expect(params).toEqual([userId]);
@@ -153,7 +158,7 @@ async function fixture(options: Options = {}) {
       expect(columns).not.toContain("date_of_birth");
       profileInputs.push(incoming.year_of_birth);
       current.profile = { ...incoming, year_of_birth: current.profile?.year_of_birth ?? incoming.year_of_birth,
-        updated_at: new Date().toISOString() };
+        updated_at: new Date(Math.max(Date.now(), new Date(current.profile?.updated_at as string ?? 0).getTime() + 1)).toISOString() };
       trace.push(`${tx!.id}:profile-write`);
       return { rows: [structuredClone(current.profile)] };
     }
@@ -209,7 +214,7 @@ async function fixture(options: Options = {}) {
     app.inject({ method: "POST", url: "/api/auth/age-verification", headers, payload });
   const profile = (payload: Record<string, unknown> = {}, headers: Record<string, string> = { cookie }) =>
     app.inject({ method: "PUT", url: "/api/profiles/me", headers,
-      payload: { display_name: "Synthetic member", ...payload } });
+      payload: { display_name: "Synthetic member", ...(state.profile?.updated_at ? { expected_save_version: profileSaveVersion(state.profile as never) } : {}), ...payload } });
   return { app, query, age, profile, trace, profileInputs, controls, stats, blocked,
     state: () => state,
     holdAccountLock() {
@@ -447,11 +452,72 @@ describe("deterministic birth-year concurrency through the routes", () => {
       expect(first.statusCode).toBe(200); expect(f.stats.commits).toBe(1);
     } finally { resume.release(); }
     const response = await stale;
+    if (winner === "profile") {
+      expect(response.statusCode).toBe(409);
+      expect(f.profileInputs).toEqual([1990]);
+      expect(f.state().profile?.year_of_birth).toBe(1990);
+      return;
+    }
     expect(response.statusCode).toBe(200); expect(response.json().data.year_of_birth).toBe(1990);
     // Assert the bound INSERT year as well as the result: SQL coalesce alone
     // must not mask a missing post-lock re-read of the incoming year.
     expect(f.profileInputs).toEqual(winner === "age" ? [1990] : [1990, 1990]);
     expect(f.state().profile?.year_of_birth).toBe(1990);
     expect(f.trace.indexOf("2:profile-identity-read")).toBeGreaterThan(f.trace.indexOf("1:commit"));
+  });
+});
+
+
+describe("profile save data-loss protection", () => {
+  it("preserves omitted fields and still permits explicit clears", async () => {
+    const f = await fixture({ profileYear: 1990 });
+    Object.assign(f.state().profile!, { role: ["switch"], position: ["top"], body_hair: ["hairy"], zodiac: ["leo"] });
+    const response = await f.profile({ bio: "An intentional edit" });
+    expect(response.statusCode).toBe(200);
+    expect(f.state().profile).toMatchObject({ role: ["switch"], position: ["top"], body_hair: ["hairy"], zodiac: ["leo"] });
+    expect((await f.profile({ role: [] })).statusCode).toBe(200);
+    expect(f.state().profile).toMatchObject({ role: [], position: ["top"] });
+  });
+
+  it.each([
+    { expected_save_version: undefined },
+    { expected_save_version: "0".repeat(64) },
+    { save_mode: "create" }
+  ])("rejects an unversioned, stale or onboarding replacement: %j", async metadata => {
+    const f = await fixture({ profileYear: 1990 });
+    Object.assign(f.state().profile!, { role: ["switch"], position: ["top"] });
+    const response = await f.profile({ role: [], position: [], ...metadata });
+    expect(response.statusCode).toBe(409);
+    expect(f.state().profile).toMatchObject({ role: ["switch"], position: ["top"] });
+    expect(f.profileInputs).toHaveLength(0);
+  });
+
+  it.each(["profile_sensitive_ciphertext", "profile_visibility_ciphertext"])("blocks owner reads and saves when %s cannot be decrypted", async column => {
+    const f = await fixture({ profileYear: 1990 });
+    Object.assign(f.state().profile!, { [column]: "unreadable-synthetic-ciphertext", role: ["switch"] });
+    const read = await f.app.inject({ method: "GET", url: "/api/profiles/me", headers: { cookie } });
+    expect(read.statusCode).toBe(503);
+    expect(read.json().data).toBeUndefined();
+    expect((await f.profile({ role: [] })).statusCode).toBe(503);
+    expect(f.state().profile?.role).toEqual(["switch"]);
+    expect(f.profileInputs).toHaveLength(0);
+  });
+
+  it("ignores location and badge-only updates when checking the content version", async () => {
+    const f = await fixture({ profileYear: 1990 });
+    const expected_save_version = profileSaveVersion(f.state().profile as never);
+    Object.assign(f.state().profile!, { updated_at: new Date(now.getTime() + 1000).toISOString(), latitude: 40.7, side_badges: { left: null, right: null } });
+    expect((await f.profile({ bio: "An intentional edit", expected_save_version })).statusCode).toBe(200);
+  });
+
+  it("rejects a save if another write lands while moderation is pending", async () => {
+    const f = await fixture({ profileYear: 1990 });
+    vi.mocked(moderateProfileOrReject).mockImplementationOnce(async () => {
+      Object.assign(f.state().profile!, { role: ["switch"], updated_at: new Date(now.getTime() + 1).toISOString() });
+      return moderationResult;
+    });
+    expect((await f.profile({ role: [] })).statusCode).toBe(409);
+    expect(f.state().profile?.role).toEqual(["switch"]);
+    expect(f.profileInputs).toHaveLength(0);
   });
 });

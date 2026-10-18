@@ -145,15 +145,28 @@ async function performApiRequest<T>(url: string, init?: RequestInit): Promise<T>
   return parseApiResponse<T>(response);
 }
 
+// These two background writes do not alter content or its visibility. Keep
+// identical content reads shared while they run; never cache completed results.
+const contentReadPaths = new Set(['/api/users', '/api/posts', '/api/conversations', '/api/profiles/me', '/api/feed/settings', '/api/cruush/me', '/api/cruush/mutual-map']);
+function invalidateReadsForWrite(path: string, method: string) {
+  const bookkeeping = (path === '/api/rewards/timezone' && method === 'PUT')
+    || (path === '/api/push/subscriptions/refresh' && method === 'POST');
+  if (!bookkeeping) return invalidatePendingApiReads();
+  for (const url of pendingReads.keys()) {
+    if (!contentReadPaths.has(new URL(url, window.location.origin).pathname)) pendingReads.delete(url);
+  }
+}
+
 export async function requestApi<T>(path: string, init?: RequestInit): Promise<T> {
   const url = `${getApiBaseUrl()}${path}`;
-  const mutation = !['GET', 'HEAD'].includes((init?.method ?? 'GET').toUpperCase());
+  const method = (init?.method ?? 'GET').toUpperCase();
+  const mutation = !['GET', 'HEAD'].includes(method);
   if (mutation) {
-    invalidatePendingApiReads();
+    invalidateReadsForWrite(path, method);
     try {
       return await performApiRequest<T>(url, init);
     } finally {
-      invalidatePendingApiReads();
+      invalidateReadsForWrite(path, method);
     }
   }
 

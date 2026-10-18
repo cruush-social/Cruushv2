@@ -1,3 +1,5 @@
+import { resetAccountPreferences } from '../lib/accountPreferences';
+import { DEFAULT_FILTER_STATE } from './MapFiltersSurface';
 import { refreshContentVisibility } from '../lib/contentVisibilityRevision';
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router';
@@ -466,6 +468,29 @@ describe('LocalFeed', () => {
     await waitFor(() => expect(getFeedPosts).toHaveBeenLastCalledWith(expect.objectContaining({ distanceMiles: 'global' })));
   });
 
+  it.each([false, true])('hydrates an open filter without erasing an edited draft (%s)', async (edited) => {
+    localStorage.setItem('cruush_user', JSON.stringify({ id: 'preference-preview' }));
+    resetAccountPreferences();
+    let resolvePreferences!: (response: Response) => void;
+    vi.stubGlobal('fetch', vi.fn((url: string, options?: RequestInit) => {
+      if (String(url).endsWith('/api/users/me/preferences') && options?.method !== 'PUT') return new Promise<Response>(resolve => { resolvePreferences = resolve; });
+      return Promise.resolve(new Response(JSON.stringify({ data: { saved: true } })));
+    }));
+    try {
+      render(<MemoryRouter><LocalFeed /></MemoryRouter>);
+      fireEvent.click(screen.getByRole('button', { name: 'Confessional seeking' }));
+      if (edited) fireEvent.change(screen.getByPlaceholderText('Search #tags'), { target: { value: '#draft' } });
+      await act(async () => resolvePreferences(new Response(JSON.stringify({ data: {
+        'feed.seeking': { ...DEFAULT_FILTER_STATE, distance: 101, searchQuery: '#saved' },
+      } }))));
+      expect(screen.getByPlaceholderText('Search #tags')).toHaveValue(edited ? '#draft' : '#saved');
+      fireEvent.click(screen.getByRole('button', { name: 'Apply', exact: true }));
+      await waitFor(() => expect(getFeedPosts.mock.calls.at(-1)[0].seeking.searchQuery).toBe(edited ? '#draft' : '#saved'));
+    } finally {
+      localStorage.removeItem('cruush_user'); resetAccountPreferences(); vi.unstubAllGlobals();
+    }
+  });
+
   it('filters Feed posts against active Mile High Club members', async () => {
     getFeedPosts.mockResolvedValue([]);
     render(<MemoryRouter><LocalFeed /></MemoryRouter>);
@@ -599,6 +624,18 @@ describe('LocalFeed', () => {
     await waitFor(() => expect(screen.queryByText('Post before author ban')).not.toBeInTheDocument());
     expect(input).toHaveValue('Unsent draft');
     expect(input).toBeInTheDocument();
+  });
+
+  it('does not race initial profile/settings with a default visibility-refresh query', async () => {
+    let resolveProfile!: (profile: any) => void;
+    getMyProfile.mockReturnValue(new Promise(resolve => { resolveProfile = resolve; }));
+    render(<MemoryRouter><LocalFeed /></MemoryRouter>);
+    act(() => refreshContentVisibility());
+    expect(getFeedPosts).not.toHaveBeenCalled();
+    await act(async () => { resolveProfile({ crowds: [], location: null }); });
+    await waitFor(() => expect(getFeedPosts).toHaveBeenCalledTimes(1));
+    act(() => refreshContentVisibility());
+    await waitFor(() => expect(getFeedPosts).toHaveBeenCalledTimes(2));
   });
 
   it('keeps the newest Feed request when an older response arrives late', async () => {

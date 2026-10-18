@@ -65,6 +65,8 @@ export type ProfilePhotoMetadata = {
 };
 
 export type ProfilePayload = {
+  expected_save_version?: string;
+  save_mode?: 'create';
   display_name: string;
   photos: string[];
   photo_metadata?: ProfilePhotoMetadata[];
@@ -125,6 +127,7 @@ export type ProfilePayload = {
 };
 
 export type ProfileRecord = ProfilePayload & {
+  save_version?: string;
   photo_relationship?: import('./dlMode').DlModePhotoRelationship;
   id: string;
   updated_at: string;
@@ -343,7 +346,8 @@ export async function saveMySideBadges(sideBadges: SideBadges) {
   });
 
   try {
-    notifyProfileChanged(await getMyProfile());
+    const refreshedProfile = await getMyProfile();
+    notifyProfileChanged(refreshedProfile);
   } catch {
     // The badge save succeeded. A later profile refresh can reconcile the map
     // if this best-effort immediate refresh is temporarily unavailable.

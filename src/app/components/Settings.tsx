@@ -1,3 +1,4 @@
+import { useAccountPreference } from '../lib/accountPreferences';
 import { useBackOrFallback } from '../lib/useBackOrFallback';
 import CodeOfConductPage from './CodeOfConductPage';
 import { useNavigate } from 'react-router';
@@ -349,7 +350,7 @@ export default function Settings({ embedded = false, onBack, onClose, onOpenMile
     }
   };
 
-  const [settingsQuery, setSettingsQuery] = useState('');
+  const [settingsQuery, setSettingsQuery] = useAccountPreference('display.settingsSearch', '');
   const settingsSections: Array<{ title: string; items: SettingsItem[] }> = [
     ...(moderatorRole || outsideServiceAreaTestEnabled ? [{
       title: 'Moderation',

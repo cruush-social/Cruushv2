@@ -2091,6 +2091,57 @@ describe('MapHome', () => {
     expect(screen.queryByRole('complementary')).not.toBeInTheDocument();
   });
 
+  it('keeps current Seeking choices when a delayed location callback completes', async () => {
+    let finishLocation: PositionCallback | undefined;
+    vi.mocked(navigator.geolocation.getCurrentPosition).mockImplementation(success => { finishLocation = success; });
+    render(<MemoryRouter initialEntries={['/map']}><MapHome /></MemoryRouter>);
+    await openMapControls();
+    await waitFor(()=>expect(finishLocation).toBeDefined());
+    fireEvent.click(await screen.findByRole('button', {name:/^seeking$/i}));
+    fireEvent.click(screen.getByRole('button', {name:'Gender Identity'}));
+    fireEvent.click(screen.getByRole('option', {name:'man'}));
+    fireEvent.click(screen.getByRole('button', {name:/^apply$/i}));
+    await act(async()=>{finishLocation!({coords:{latitude:40.7128,longitude:-74.006,accuracy:20}} as GeolocationPosition);});
+    await waitFor(()=>expect(getNearbyUsers).toHaveBeenLastCalledWith(expect.anything(),expect.objectContaining({identities:['man']}),{limit:500}));
+  });
+
+  it('keeps the latest Seeking filter when the initial profile resolves late', async () => {
+    const initialProfile = deferred<Awaited<ReturnType<typeof getMyProfile>>>();
+    const savedProfile = await getMyProfile();
+    getMyProfile.mockReturnValueOnce(initialProfile.promise);
+    render(<MemoryRouter initialEntries={['/map']}><MapHome /></MemoryRouter>);
+    await openMapControls();
+    fireEvent.click(await screen.findByRole('button', {name:/^seeking$/i}));
+    fireEvent.click(screen.getByRole('button', {name:'Gender Identity'}));
+    fireEvent.click(screen.getByRole('option', {name:'man'}));
+    fireEvent.click(screen.getByRole('button', {name:/^apply$/i}));
+    await waitFor(()=>expect(getNearbyUsers).toHaveBeenCalled());
+    await act(async()=>{initialProfile.resolve(savedProfile);});
+    await waitFor(()=>expect(getNearbyUsers).toHaveBeenLastCalledWith(expect.anything(),expect.objectContaining({identities:['man']}),{limit:500}));
+  });
+
+  it('keeps applied Seeking filters on a fresh map entry and clears them persistently', async () => {
+    window.localStorage.setItem('cruush_user', JSON.stringify({id:'self'}));
+    const first = render(<MemoryRouter initialEntries={['/map']}><MapHome /></MemoryRouter>);
+    await openMapControls();
+    fireEvent.click(await screen.findByRole('button', {name:/^seeking$/i}));
+    fireEvent.click(screen.getByRole('button', {name:'Gender Identity'}));
+    fireEvent.click(screen.getByRole('option', {name:'man'}));
+    fireEvent.click(screen.getByRole('button', {name:/^apply$/i}));
+    await waitFor(()=>expect(getNearbyUsers).toHaveBeenLastCalledWith(expect.anything(),expect.objectContaining({identities:['man']}),{limit:500}));
+    first.unmount();getNearbyUsers.mockClear();
+    const second=render(<MemoryRouter initialEntries={['/map']}><MapHome /></MemoryRouter>);
+    await waitFor(()=>expect(getNearbyUsers).toHaveBeenLastCalledWith(expect.anything(),expect.objectContaining({identities:['man']}),{limit:500}));
+    await openMapControls();
+    fireEvent.click(await screen.findByRole('button', {name:/^seeking$/i}));
+    fireEvent.click(screen.getByRole('button', {name:'Clear',exact:true}));
+    await waitFor(()=>expect(getNearbyUsers).toHaveBeenLastCalledWith(expect.anything(),expect.objectContaining({identities:[]}),{limit:500}));
+    second.unmount();getNearbyUsers.mockClear();
+    render(<MemoryRouter initialEntries={['/map']}><MapHome /></MemoryRouter>);
+    await waitFor(()=>expect(getNearbyUsers).toHaveBeenCalled());
+    expect(getNearbyUsers.mock.calls.at(-1)?.[1]?.identities ?? []).toEqual([]);
+  });
+
   it('keeps an applied Seeking filter after opening a mobile profile and returning to the map', async () => {
     useIsMobile.mockReturnValue(true);
     window.localStorage.setItem('cruush.desktopPageLayout', 'fullscreen');

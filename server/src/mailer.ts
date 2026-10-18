@@ -1101,7 +1101,7 @@ export function buildOrderWalletReadyEmail(appUrl: string, productType: string, 
   const date = (value: string | Date | null) => new Date(value!).toISOString().replace('T', ' ').replace(/\.\d{3}Z$/, ' UTC');
   const discount = order.discount ?? order.sale;
   const details: Array<[string, string]> = [
-    ["Order ID", order.id], ["Purchase", order.planName], ["Plan ID", planId],
+    ["Order ID", order.id], ["Purchase", order.planName],
     ["Status when prepared", "Awaiting payment"], ["Payment app", instructions.appName],
     ...(discount ? [["Original price", usd(discount.originalAmountUsdCents)], ["Discount", usd(discount.discountAmountUsdCents)],
       ...(order.discount ? [["Coupon", order.discount.code]] : [])] as Array<[string, string]> : []),
@@ -1146,5 +1146,49 @@ export async function sendOrderWalletReadyEmail(input: {
   if (!input.config.RESEND_API_KEY || !input.config.MAIL_FROM) return { accepted: false, providerMessageId: null };
   const delivery = await sendResendEmail({ ...input, ...input.content,
     redactRecipientInFailureLog: true, failureMessage: "Order wallet email failed." });
+  return { accepted: true, providerMessageId: delivery.providerMessageId };
+}
+
+
+export function buildOrderPaymentConfirmationEmail(appUrl: string, order: {
+  id: string; planName: string; productType: string; amountUsdCents: number;
+  accessExpiresAt: string | Date | null;
+}) {
+  const base = appUrl.replace(/\/$/, "");
+  if (!Number.isSafeInteger(order.amountUsdCents) || order.amountUsdCents < 0) throw new Error("Invalid order amount.");
+  const pulse = order.productType === "ping_pack";
+  const expires = order.accessExpiresAt
+    ? new Date(order.accessExpiresAt).toISOString().replace("T", " ").replace(/\.\d{3}Z$/, " UTC") : null;
+  const subject = "Your cruush payment is confirmed";
+  const intro = pulse ? "Payment confirmed. Your Pulses have been added to your account."
+    : expires ? `Payment confirmed. Your cruush+ time is active until ${expires}.`
+    : "Payment confirmed. Your lifetime cruush+ access is active and does not expire.";
+  const access = pulse ? "Your Pulse credits do not expire. View your purchase in order history."
+    : "See your remaining time in the cruush+ time capsule in the app. This was a one-time payment; nothing renews automatically.";
+  const destination = `${base}${pulse ? "/settings/orders" : "/rewards"}`;
+  const support = "If your order was not applied or you had a technical checkout issue, contact us. We offer voluntary refunds for these issues.";
+  const text = [subject, intro, `Order ID: ${order.id}`, `Purchase: ${order.planName}`,
+    `Purchase price: $${(order.amountUsdCents / 100).toFixed(2)} USD`, access, destination,
+    `Order history: ${base}/settings/orders`, support, `Billing issues: ${base}/support?billing=payment`,
+    "Or email reports@cruush.app."].join("\n\n");
+  const paragraph = (content: string) => `<p class="feature-copy" style="margin:0 0 24px;color:#eeeef2;font-size:18px;line-height:1.62;">${content}</p>`;
+  const link = (url: string, label: string) => `<a href="${escapeHtml(url)}" style="color:#ff6bb0;text-decoration:underline;">${escapeHtml(label)}</a>`;
+  const html = defaultEmailHtml({ title: subject, intro: escapeHtml(intro),
+    buttonUrl: escapeHtml(destination), buttonLabel: pulse ? "View your order" : "View your remaining time",
+    body: paragraph(`<strong>Purchase</strong><br>${escapeHtml(order.planName)}`)
+      + paragraph(`<strong>Order ID</strong><br>${escapeHtml(order.id)}`)
+      + paragraph(`<strong>Purchase price</strong><br>$${(order.amountUsdCents / 100).toFixed(2)} USD`)
+      + paragraph(escapeHtml(access)) + paragraph(link(`${base}/settings/orders`, "View your order history"))
+      + paragraph(`${escapeHtml(support)} ${link(`${base}/support?billing=payment`, "Submit a billing issue")} or email ${link("mailto:reports@cruush.app", "reports@cruush.app")}.`) });
+  return { subject, html, text };
+}
+
+export async function sendOrderPaymentConfirmationEmail(input: {
+  config: AppConfig; email: string; idempotencyKey: string; logger: FastifyBaseLogger;
+  content: ReturnType<typeof buildOrderPaymentConfirmationEmail>;
+}) {
+  if (!input.config.RESEND_API_KEY || !input.config.MAIL_FROM) return { accepted: false, providerMessageId: null };
+  const delivery = await sendResendEmail({ ...input, ...input.content,
+    redactRecipientInFailureLog: true, failureMessage: "Order confirmation email failed." });
   return { accepted: true, providerMessageId: delivery.providerMessageId };
 }

@@ -1,8 +1,9 @@
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { HANKY_COLORS } from './HankyFrame';
 import BadgePickerPreview, { BADGE_OPTIONS } from './BadgePickerPreview';
+import { createSavedMapMarkerBadge, createMapMarkerRoleBadge } from '../lib/mapMarkers';
 import { resolveSavedBadgeGlyph } from './SavedBadgeGlyphs';
 
 const { getMyPrivacySettings, getMyProfile, saveMySideBadges } = vi.hoisted(() => ({
@@ -41,6 +42,29 @@ describe('BadgePickerPreview', () => {
           : [{ id: 'vibe-1', label: 'Disco ball', iconCategory: 'Objects', file: 'kink-options-source/assets/disco.png' }],
       }),
     })));
+  });
+
+  it('does not render a role fallback when no badge was explicitly saved', () => {
+    expect(createSavedMapMarkerBadge(null, createMapMarkerRoleBadge(['switch']))).toBeNull();
+    expect(createSavedMapMarkerBadge({ badge_id: 'switch', intent: 'none', frame: 'circle' }, null)?.badgeId).toBe('switch');
+  });
+
+  it('does not preselect profile role or position, but restores explicit saved badges', async () => {
+    const { emptyProfilePayload } = await import('../lib/profileApi');
+    getMyProfile.mockResolvedValue({ ...emptyProfilePayload, role: ['switch'], position: ['top'] });
+    const view = render(<MemoryRouter><BadgePickerPreview embedded /></MemoryRouter>);
+    await waitFor(() => expect(getMyProfile).toHaveBeenCalled());
+    await screen.findByText('What this side says');
+    expect(screen.queryByRole('img', { name: /^switch$/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('img', { name: /^top$/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('img', { name: /^dominant$/i })).not.toBeInTheDocument();
+    expect(screen.getAllByText('Empty')).toHaveLength(2);
+    expect(screen.getByRole('button', { name: 'Role', exact: true })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Position', exact: true })).toBeInTheDocument();
+    view.unmount();
+    getMyProfile.mockResolvedValue({ ...emptyProfilePayload, side_badges: { left: { badge_id: 'switch', intent: 'none', frame: 'circle' }, right: null } });
+    render(<MemoryRouter><BadgePickerPreview embedded /></MemoryRouter>);
+    expect(await screen.findByRole('img', { name: /^switch$/i })).toBeInTheDocument();
   });
 
   it('keeps removed groups and color labels out of the picker', async () => {

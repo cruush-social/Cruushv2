@@ -1,3 +1,4 @@
+import { flushAccountPreferences, resetAccountPreferences } from './accountPreferences';
 import { requestApi } from './apiClient';
 import { clearOnboardingDraft } from './onboardingDraft';
 
@@ -105,7 +106,14 @@ export function signIn(payload: { email: string; password: string; captchaToken?
   });
 }
 
-export function signOut() {
+export async function signOut() {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    await Promise.race([flushAccountPreferences().catch(() => undefined), new Promise<void>(resolve => { timer = setTimeout(resolve, 2000); })]);
+  } finally {
+    clearTimeout(timer);
+    resetAccountPreferences();
+  }
   // A half-finished onboarding draft must not reappear inside the next
   // person's session on a shared browser.
   clearOnboardingDraft();

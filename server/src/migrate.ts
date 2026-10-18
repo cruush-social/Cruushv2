@@ -255,7 +255,9 @@ const migrationFiles = [
   "229_privacy_audit_index_versions.sql",
   "230_resend_contact_deletion_outbox.sql",
   "231_order_wallet_ready_email.sql",
-  "232_email_template_version.sql"
+  "232_email_template_version.sql",
+  "233_order_payment_confirmation_email.sql",
+  "234_account_preferences.sql"
 ];
 const rewardSafetyPreflightFiles = [
   "079_daily_check_in_rewards.sql",

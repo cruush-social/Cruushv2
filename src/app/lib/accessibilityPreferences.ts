@@ -1,3 +1,4 @@
+import { hasPreferenceAccount, readAccountPreference, saveAccountPreference, subscribeAccountPreferences } from './accountPreferences';
 export const ACCESSIBILITY_PREFERENCES_CHANGED_EVENT = 'cruush:accessibility-preferences-changed';
 export const ACCESSIBILITY_PREFERENCES_STORAGE_KEY = 'cruush:accessibility-preferences';
 
@@ -41,7 +42,9 @@ export function getAccessibilityPreferences(): AccessibilityPreferences {
   }
 
   try {
-    const stored = JSON.parse(window.localStorage.getItem(ACCESSIBILITY_PREFERENCES_STORAGE_KEY) ?? '{}');
+    const stored = hasPreferenceAccount()
+      ? readAccountPreference('display.accessibility', DEFAULT_ACCESSIBILITY_PREFERENCES)
+      : JSON.parse(window.localStorage.getItem(ACCESSIBILITY_PREFERENCES_STORAGE_KEY) ?? '{}');
     const storedColorVisionMode = COLOR_VISION_MODES.includes(stored.colorVisionMode)
       ? stored.colorVisionMode as ColorVisionMode
       : stored.colorBlindMode === true
@@ -91,11 +94,13 @@ export function saveAccessibilityPreferences(preferences: AccessibilityPreferenc
   try {
     const colorVisionMode = preferences.colorVisionMode
       ?? (preferences.colorBlindMode === true ? 'deuteranopia' : 'off');
-    window.localStorage.setItem(ACCESSIBILITY_PREFERENCES_STORAGE_KEY, JSON.stringify({
+    const saved = {
       ...preferences,
       colorBlindMode: colorVisionMode !== 'off',
       colorVisionMode,
-    }));
+    };
+    if (hasPreferenceAccount()) void saveAccountPreference('display.accessibility', saved).catch(() => undefined);
+    else window.localStorage.setItem(ACCESSIBILITY_PREFERENCES_STORAGE_KEY, JSON.stringify(saved));
   } catch {
     // Apply the preference for this page even when storage is unavailable.
   }
@@ -118,8 +123,9 @@ export function addAccessibilityPreferencesChangedListener(
   };
 
   window.addEventListener(ACCESSIBILITY_PREFERENCES_CHANGED_EVENT, syncPreferences);
+  const unsubscribe = subscribeAccountPreferences(syncPreferences);
 
-  return () => window.removeEventListener(ACCESSIBILITY_PREFERENCES_CHANGED_EVENT, syncPreferences);
+  return () => { unsubscribe(); window.removeEventListener(ACCESSIBILITY_PREFERENCES_CHANGED_EVENT, syncPreferences); };
 }
 
 type AccessibilitySyncWindow = Window & {
@@ -167,3 +173,5 @@ export function shouldReduceMotion() {
 
   return appPreference || devicePreference;
 }
+
+if (typeof window !== 'undefined') subscribeAccountPreferences(() => applyAccessibilityPreferences());

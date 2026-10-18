@@ -6,12 +6,13 @@ import ProfileOnboarding from './ProfileOnboarding';
 import { readOnboardingDraft, writeOnboardingDraft } from '../lib/onboardingDraft';
 import { CODE_OF_CONDUCT_ITEMS } from '../lib/codeOfConduct';
 
-const { acceptCodeOfConduct, attachReferralCode, getAuthSession, persistCurrentUser, saveMyProfile, uploadProfilePhoto } = vi.hoisted(() => ({
+const { acceptCodeOfConduct, attachReferralCode, getAuthSession, persistCurrentUser, saveMyProfile, saveMySideBadges, uploadProfilePhoto } = vi.hoisted(() => ({
   acceptCodeOfConduct: vi.fn(),
   attachReferralCode: vi.fn(),
   getAuthSession: vi.fn(),
   persistCurrentUser: vi.fn(),
   saveMyProfile: vi.fn(),
+  saveMySideBadges: vi.fn(),
   uploadProfilePhoto: vi.fn(),
 }));
 
@@ -36,6 +37,7 @@ vi.mock('../lib/profileApi', async () => {
   return {
     ...actual,
     saveMyProfile,
+    saveMySideBadges,
     uploadProfilePhoto,
     toDefaultKinkInterest: (kink: string) => ({
       kink_id: kink.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, ''),
@@ -152,6 +154,7 @@ async function fillProfileRites() {
   await chooseVibe('Scenes', 'Goth');
   fireEvent.click(screen.getByRole('button', { name: /next/i }));
 
+  if (screen.queryByText('make your mark')) fireEvent.click(screen.getByRole('button', { name: /next rite/i }));
   expect(screen.getByText('protect your key')).toBeInTheDocument();
   expect(screen.queryByText('leave your confession')).not.toBeInTheDocument();
   expect(screen.queryByText('name your role')).not.toBeInTheDocument();
@@ -169,6 +172,7 @@ function acceptEveryConductRule() {
 }
 
 async function reachFinalOath() {
+  if (screen.queryByText('make your mark')) fireEvent.click(screen.getByRole('button', { name: /next rite/i }));
   fireEvent.click(screen.getByRole('button', { name: /skip 2fa for now/i }));
   expect(await screen.findByText('summon your circle')).toBeInTheDocument();
   fireEvent.click(screen.getByRole('button', { name: /next rite/i }));
@@ -235,6 +239,7 @@ describe('ProfileOnboarding', () => {
     enablePushNotifications.mockReset();
     persistCurrentUser.mockReset();
     saveMyProfile.mockReset();
+    saveMySideBadges.mockReset();
     startTwoFactorSetup.mockReset();
     toastSuccess.mockReset();
     delete (navigator as Navigator & { share?: unknown }).share;
@@ -243,6 +248,7 @@ describe('ProfileOnboarding', () => {
       value: { writeText: vi.fn().mockResolvedValue(undefined) },
     });
     saveMyProfile.mockResolvedValue({
+      save_version: 'a'.repeat(64),
       id: 'user-1',
       display_name: 'River',
       year_of_birth: 1998,
@@ -340,7 +346,8 @@ describe('ProfileOnboarding', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Vibes' }));
     fireEvent.click(screen.getByRole('button', { name: /next/i }));
 
-    expect(screen.getByText('protect your key')).toBeInTheDocument();
+    if (screen.queryByText('make your mark')) fireEvent.click(screen.getByRole('button', { name: /next rite/i }));
+  expect(screen.getByText('protect your key')).toBeInTheDocument();
     expect(screen.queryByText('leave your confession')).not.toBeInTheDocument();
     expect(screen.queryByText('name your role')).not.toBeInTheDocument();
   });
@@ -379,7 +386,8 @@ describe('ProfileOnboarding', () => {
     await chooseVibe('Scenes', 'Goth');
     fireEvent.click(screen.getByRole('button', { name: /next/i }));
 
-    expect(screen.getByText('protect your key')).toBeInTheDocument();
+    if (screen.queryByText('make your mark')) fireEvent.click(screen.getByRole('button', { name: /next rite/i }));
+  expect(screen.getByText('protect your key')).toBeInTheDocument();
     await skipTwoFactorAndEnter();
 
     await waitFor(() => expect(saveMyProfile).toHaveBeenCalledWith(expect.objectContaining({
@@ -509,7 +517,8 @@ describe('ProfileOnboarding', () => {
 
     await fillProfileRites();
 
-    expect(screen.getByText('protect your key')).toBeInTheDocument();
+    if (screen.queryByText('make your mark')) fireEvent.click(screen.getByRole('button', { name: /next rite/i }));
+  expect(screen.getByText('protect your key')).toBeInTheDocument();
     expect(screen.queryByText('Set up 2FA?')).not.toBeInTheDocument();
     expect(screen.getByText('Use the same password you use to sign in. This is not a separate 2FA password.')).toBeInTheDocument();
     fireEvent.change(screen.getByLabelText('Friend invite code'), {
@@ -564,7 +573,8 @@ describe('ProfileOnboarding', () => {
     fireEvent.change(screen.getByLabelText(/cruush login password/i), { target: { value: 'current-password' } });
     fireEvent.click(screen.getByRole('button', { name: /skip 2fa for now/i }));
     expect(await screen.findByRole('alert')).toHaveTextContent('Referral code is invalid.');
-    expect(screen.getByText('protect your key')).toBeInTheDocument();
+    if (screen.queryByText('make your mark')) fireEvent.click(screen.getByRole('button', { name: /next rite/i }));
+  expect(screen.getByText('protect your key')).toBeInTheDocument();
     expect(screen.queryByText('summon your circle')).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: /start 2fa setup/i }));
@@ -656,7 +666,8 @@ describe('ProfileOnboarding', () => {
     expect(screen.getByText('reveal your aura')).toBeInTheDocument();
     expect(screen.getByText('Optional. Pick up to 3.')).toBeInTheDocument();
     fireEvent.click(next()); // No Vibes.
-    expect(screen.getByText('protect your key')).toBeInTheDocument();
+    if (screen.queryByText('make your mark')) fireEvent.click(screen.getByRole('button', { name: /next rite/i }));
+  expect(screen.getByText('protect your key')).toBeInTheDocument();
     expect(screen.queryByRole('textbox', { name: 'Bio (optional)' })).not.toBeInTheDocument();
     expect(screen.queryByRole('textbox', { name: 'Signal (optional)' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Role' })).not.toBeInTheDocument();
@@ -669,6 +680,67 @@ describe('ProfileOnboarding', () => {
     await waitFor(() => expect(onComplete).toHaveBeenCalledTimes(1));
     expect(saveMyProfile).not.toHaveBeenCalled();
     expect(acceptCodeOfConduct).not.toHaveBeenCalled();
+  });
+
+  it('previews signal, chosen badges and uploaded photo, then saves those choices', async () => {
+    writeOnboardingDraft({ step: 4, profile: { name: 'River', identities: ['nonbinary'], sexuality: ['queer'], photos: ['/preview-photo.jpg'] } });
+    saveMySideBadges.mockResolvedValue({ left: null, right: null });
+    renderConductOnboarding();
+    expect(screen.getByText('make your mark')).toBeInTheDocument();
+    const unit = await screen.findByTestId('marker-pin-unit-onboarding-preview');
+    expect(unit.querySelector('image')?.getAttribute('href')).toContain('/preview-photo.jpg');
+    expect(screen.queryByTestId('marker-role-badge-onboarding-preview')).not.toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText('Signal'), { target: { value: 'Say hello' } });
+    expect(await screen.findByTestId('marker-signal-badge-onboarding-preview')).toHaveTextContent('Say hello');
+    await chooseMultiSelect('Role', 'switch');
+    await chooseMultiSelect('Position', 'top');
+    expect(screen.getByTestId('marker-role-badge-onboarding-preview')).toHaveAttribute('aria-label', 'left badge: switch');
+    expect(screen.getByTestId('marker-position-badge-onboarding-preview')).toHaveAttribute('aria-label', 'right badge: top');
+    fireEvent.change(screen.getByLabelText('Signal'), { target: { value: 'x'.repeat(40) } });
+    expect(screen.getByLabelText('Signal')).toHaveValue('x'.repeat(35));
+    fireEvent.click(screen.getByRole('button', { name: /next rite/i }));
+    await reachFinalOath();
+    acceptEveryConductRule();
+    fireEvent.click(screen.getByRole('button', { name: /enter cruush/i }));
+    await waitFor(() => expect(saveMySideBadges).toHaveBeenCalledWith({
+      left: { badge_id: 'switch', intent: 'none', frame: 'circle' },
+      right: { badge_id: 'top', intent: 'none', frame: 'circle' },
+    }));
+    expect(saveMyProfile).toHaveBeenCalledWith(expect.objectContaining({ role: ['switch'], position: ['top'], signal: 'x'.repeat(35) }));
+  });
+
+  it('keeps only the latest role and position in the onboarding draft and preview', async () => {
+    writeOnboardingDraft({step:4,profile:{name:'River',identities:['nonbinary'],sexuality:['queer']}});
+    renderConductOnboarding();
+    await chooseMultiSelect('Role','switch');
+    await chooseMultiSelect('Role','dominant');
+    await chooseMultiSelect('Position','top');
+    await chooseMultiSelect('Position','bottom');
+    expect(readOnboardingDraft<{role:string[];position:string[]}>()?.profile).toMatchObject({role:['dominant'],position:['bottom']});
+  });
+
+  it('persists cleared badges when retrying after a failed final confirmation', async () => {
+    writeOnboardingDraft({ step: 4, profile: { name: 'River', identities: ['nonbinary'], sexuality: ['queer'], role: ['switch'], position: ['top'], sideBadges: { left: { badge_id: 'switch', intent: 'none', frame: 'circle' }, right: { badge_id: 'top', intent: 'none', frame: 'circle' } } } });
+    saveMySideBadges.mockResolvedValue({ left: null, right: null });
+    acceptCodeOfConduct.mockRejectedValueOnce(new Error('Try confirmation again'));
+    renderConductOnboarding();
+    fireEvent.click(screen.getByRole('button', { name: /next rite/i }));
+    await reachFinalOath();
+    acceptEveryConductRule();
+    fireEvent.click(screen.getByRole('button', { name: /enter cruush/i }));
+    await screen.findByText('Try confirmation again');
+    expect(saveMySideBadges).toHaveBeenCalledTimes(1);
+    expect(saveMyProfile).toHaveBeenNthCalledWith(1, expect.objectContaining({ save_mode: 'create' }));
+    for (let step = 0; step < 3; step++) fireEvent.click(screen.getByRole('button', { name: 'Back', exact: true }));
+    expect(screen.getByText('make your mark')).toBeInTheDocument();
+    await chooseMultiSelect('Role', 'switch');
+    await chooseMultiSelect('Position', 'top');
+    expect(readOnboardingDraft<{ sideBadgesEdited: boolean }>()?.profile.sideBadgesEdited).toBe(true);
+    fireEvent.click(screen.getByRole('button', { name: /next rite/i }));
+    await reachFinalOath();
+    fireEvent.click(screen.getByRole('button', { name: /enter cruush/i }));
+    await waitFor(() => expect(saveMySideBadges).toHaveBeenLastCalledWith({ left: null, right: null }));
+    expect(saveMyProfile).toHaveBeenNthCalledWith(2, expect.objectContaining({ expected_save_version: 'a'.repeat(64) }));
   });
 
   it('migrates old draft steps once, preserves Looking for answers and revisits missing required fields', () => {
@@ -699,9 +771,9 @@ describe('ProfileOnboarding', () => {
       [5, 6, 6], // Current oath drafts are not migrated again.
     ]) {
       window.localStorage.setItem('cruush:onboarding-draft', JSON.stringify({ version, step: savedStep, profile }));
-      expect(readOnboardingDraft()).toEqual({ step: expectedStep, profile });
+      expect(readOnboardingDraft()).toEqual({ step: expectedStep >= 4 ? expectedStep + 1 : expectedStep, profile });
       writeOnboardingDraft(readOnboardingDraft<typeof profile>()!);
-      expect(readOnboardingDraft()).toEqual({ step: expectedStep, profile });
+      expect(readOnboardingDraft()).toEqual({ step: expectedStep >= 4 ? expectedStep + 1 : expectedStep, profile });
     }
     writeOnboardingDraft({ step: 6, profile: { ...profile, sexuality: [] } });
     const second = render(<MemoryRouter><ProfileOnboarding onComplete={vi.fn()} /></MemoryRouter>);
@@ -712,9 +784,10 @@ describe('ProfileOnboarding', () => {
 
   it.each([
     [3, 'reveal your aura'],
-    [4, 'protect your key'],
-    [5, 'summon your circle'],
-    [6, 'take the oath'],
+    [4, 'make your mark'],
+    [5, 'protect your key'],
+    [6, 'summon your circle'],
+    [7, 'take the oath'],
   ])('resumes step %s with no Crowds without sending the member back', (step, heading) => {
     writeOnboardingDraft({
       step,

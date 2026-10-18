@@ -1,3 +1,4 @@
+import { hasPreferenceAccount, readAccountPreference, saveAccountPreference, subscribeAccountPreferences } from './accountPreferences';
 import { useEffect, useState } from 'react';
 
 export type DesktopPageLayout = 'popups' | 'fullscreen';
@@ -37,7 +38,7 @@ export function getDesktopPageLayout(): DesktopPageLayout {
   }
 
   try {
-    const storedLayout = window.localStorage.getItem(DESKTOP_PAGE_LAYOUT_STORAGE_KEY);
+    const storedLayout = hasPreferenceAccount() ? readAccountPreference('display.desktopLayout', DEFAULT_DESKTOP_PAGE_LAYOUT) : window.localStorage.getItem(DESKTOP_PAGE_LAYOUT_STORAGE_KEY);
     return storedLayout === 'fullscreen' ? 'fullscreen' : DEFAULT_DESKTOP_PAGE_LAYOUT;
   } catch {
     return DEFAULT_DESKTOP_PAGE_LAYOUT;
@@ -50,7 +51,8 @@ export function saveDesktopPageLayout(layout: DesktopPageLayout) {
   }
 
   try {
-    window.localStorage.setItem(DESKTOP_PAGE_LAYOUT_STORAGE_KEY, layout);
+    if (hasPreferenceAccount()) void saveAccountPreference('display.desktopLayout', layout).catch(() => undefined);
+    else window.localStorage.setItem(DESKTOP_PAGE_LAYOUT_STORAGE_KEY, layout);
   } catch {
     // Keep the active screen usable when storage is unavailable.
   }
@@ -73,7 +75,8 @@ export function addDesktopPageLayoutChangedListener(
   };
 
   window.addEventListener(DESKTOP_PAGE_LAYOUT_CHANGED_EVENT, handleChange);
-  return () => window.removeEventListener(DESKTOP_PAGE_LAYOUT_CHANGED_EVENT, handleChange);
+  const unsubscribe = subscribeAccountPreferences(() => listener(getDesktopPageLayout()));
+  return () => { unsubscribe(); window.removeEventListener(DESKTOP_PAGE_LAYOUT_CHANGED_EVENT, handleChange); };
 }
 
 /** Desktop and landscape tablets may choose popup pages; phones never do. */

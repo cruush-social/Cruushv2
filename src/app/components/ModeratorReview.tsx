@@ -1,3 +1,4 @@
+import { useAccountPreference, readAccountPreference } from '../lib/accountPreferences';
 import { useBackOrFallback } from '../lib/useBackOrFallback';
 import { refreshContentVisibility } from '../lib/contentVisibilityRevision';
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
@@ -317,10 +318,10 @@ export default function ModeratorReview() {
   const navigate = useNavigate();
   const goBack = useBackOrFallback('/map');
   const [accessState, setAccessState] = useState<AccessState>('checking');
-  const [view, setView] = useState<ModeratorView>('queue');
+  const [view, setView] = useAccountPreference<ModeratorView>('moderation.view', 'queue');
   const [items, setItems] = useState<ModerationQueueItem[]>([]);
-  const [source, setSource] = useState<ModerationQueueSource>('all');
-  const [state, setState] = useState<ModerationQueueState>('open');
+  const [source, setSource] = useAccountPreference<ModerationQueueSource>('moderation.source', 'all');
+  const [state, setState] = useAccountPreference<ModerationQueueState>('moderation.state', 'open');
   const [offset, setOffset] = useState(0);
   const [page, setPage] = useState({ limit: PAGE_SIZE, offset: 0, total: 0, hasMore: false });
   const [refreshing, setRefreshing] = useState(false);
@@ -334,9 +335,9 @@ export default function ModeratorReview() {
   const [validationError, setValidationError] = useState<string | null>(null);
   const [pendingAction, setPendingAction] = useState(false);
   const [latestReceipt, setLatestReceipt] = useState<(ModerationActionReceipt & { label: string }) | null>(null);
-  const [userSearchInput, setUserSearchInput] = useState('');
-  const [userSearch, setUserSearch] = useState('');
-  const [userStatusFilter, setUserStatusFilter] = useState<'all' | ModeratedAccountStatus>('all');
+  const [userSearchInput, setUserSearchInput] = useState(() => readAccountPreference('moderation.userSearch', ''));
+  const [userSearch, setUserSearch] = useAccountPreference('moderation.userSearch', '');
+  const [userStatusFilter, setUserStatusFilter] = useAccountPreference<'all' | ModeratedAccountStatus>('moderation.userStatusFilter', 'all');
   const [users, setUsers] = useState<ModeratedUser[]>([]);
   const [userOffset, setUserOffset] = useState(0);
   const [userPage, setUserPage] = useState({ limit: PAGE_SIZE, offset: 0, total: 0, hasMore: false });
@@ -346,7 +347,7 @@ export default function ModeratorReview() {
   const [userDetail, setUserDetail] = useState<ModeratedUserDetail | null>(null);
   const [userDetailLoading, setUserDetailLoading] = useState(false);
   const [userDetailError, setUserDetailError] = useState<string | null>(null);
-  const [notificationFilter, setNotificationFilter] = useState<AdminNotificationFilter>('all');
+  const [notificationFilter, setNotificationFilter] = useAccountPreference<AdminNotificationFilter>('moderation.notificationFilter', 'all');
   const [notifications, setNotifications] = useState<AdminNotification[]>([]);
   const [notificationOffset, setNotificationOffset] = useState(0);
   const [notificationPage, setNotificationPage] = useState({ limit: PAGE_SIZE, offset: 0, total: 0, hasMore: false });
@@ -355,10 +356,10 @@ export default function ModeratorReview() {
   const [systemErrors, setSystemErrors] = useState<ModerationSystemError[]>([]);
   const [systemErrorsLoading, setSystemErrorsLoading] = useState(false);
   const [systemErrorsError, setSystemErrorsError] = useState<string | null>(null);
-  const [supportStatusFilter, setSupportStatusFilter] = useState<SupportRequestStatusFilter>('open');
+  const [supportStatusFilter, setSupportStatusFilter] = useAccountPreference<SupportRequestStatusFilter>('moderation.supportStatusFilter', 'open');
   const [supportRequests, setSupportRequests] = useState<SupportRequest[]>([]);
   const [surveySummary, setSurveySummary] = useState<SurveyRatingSummary>(emptySurveySummary);
-  const [supportCategoryFilter, setSupportCategoryFilter] = useState<SupportRequestCategoryFilter>('all');
+  const [supportCategoryFilter, setSupportCategoryFilter] = useAccountPreference<SupportRequestCategoryFilter>('moderation.supportCategoryFilter', 'all');
   const [supportOffset, setSupportOffset] = useState(0);
   const [supportPage, setSupportPage] = useState({ limit: PAGE_SIZE, offset: 0, total: 0, hasMore: false });
   const [supportLoading, setSupportLoading] = useState(false);

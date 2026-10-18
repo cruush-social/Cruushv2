@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { hasPreferenceAccount, readAccountPreference, saveAccountPreference, subscribeAccountPreferences } from '../lib/accountPreferences';
+import { useEffect, useState } from 'react';
 import { Sparkles } from 'lucide-react';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from './ui/accordion';
 import { Card } from './ui/card';
@@ -13,6 +14,7 @@ function readBenefitsOpenPreference() {
   }
 
   try {
+    if (hasPreferenceAccount()) return readAccountPreference('display.benefitsOpen', false);
     const storedPreference = window.localStorage.getItem(BENEFITS_OPEN_STORAGE_KEY);
     return storedPreference === 'true';
   } catch {
@@ -22,7 +24,8 @@ function readBenefitsOpenPreference() {
 
 function saveBenefitsOpenPreference(open: boolean) {
   try {
-    window.localStorage.setItem(BENEFITS_OPEN_STORAGE_KEY, String(open));
+    if (hasPreferenceAccount()) void saveAccountPreference('display.benefitsOpen', open).catch(() => undefined);
+    else window.localStorage.setItem(BENEFITS_OPEN_STORAGE_KEY, String(open));
   } catch {
     // Some privacy modes block local storage. The accordion still works for this visit.
   }
@@ -36,6 +39,7 @@ export default function CruushPlusBenefitsAccordion({
   features?: readonly CruushPlusBenefit[];
 }) {
   const [benefitsOpen, setBenefitsOpen] = useState(readBenefitsOpenPreference);
+  useEffect(() => subscribeAccountPreferences(() => setBenefitsOpen(readBenefitsOpenPreference()), 'display.benefitsOpen'), []);
 
   const handleBenefitsOpenChange = (value: string) => {
     const open = value === 'benefits';

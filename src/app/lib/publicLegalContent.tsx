@@ -1,3 +1,4 @@
+import { Link } from 'react-router';
 import type { ReactNode } from 'react';
 
 export type PolicySection = {
@@ -541,7 +542,7 @@ export const billingSections: PolicySection[] = [
       "cruush+ and pulse packs are one-time purchases. checkout shows the purchase price and access period or number of credits before you pay. nothing renews automatically, and cruush does not charge you again for that purchase.",
       <>
         open <a href="/store">cruush+ checkout</a> or <a href="/store/pulse">pulse checkout</a>.
-        view your purchases in <a href="/settings/orders">order history</a>.
+        view your purchases in <Link to="/settings/orders">order history</Link>.
       </>
     ]
   },

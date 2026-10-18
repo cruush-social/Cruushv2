@@ -220,6 +220,8 @@ const ZODIAC_BADGE_OPTIONS: BadgeOption[] = ZODIAC_SIGNS.map((sign) => ({
   group: 'Zodiac',
 }));
 
+const EMPTY_BADGE_OPTION: BadgeOption = { id: 'none', label: 'Empty', icon: () => null, group: 'Role' };
+
 export const BADGE_OPTIONS: BadgeOption[] = [
   // Role: the same role axis used by the profile editor.
   { id: 'dominant', label: 'Dominant', icon: DomEmblem, group: 'Role' },
@@ -701,9 +703,8 @@ export default function BadgePickerPreview({
         setProfile(loaded);
         setDarkRoomEnabled(privacy.baseMode === 'STEALTH');
 
-        // Left carries your role and right your position until you say
-        // otherwise, which is what a basic account already shows. Never let a
-        // late profile response overwrite a Hanky or badge the user just chose.
+        // Restore only explicitly saved badges. Never let a late profile
+        // response overwrite a Hanky or badge the user just chose.
         setStartedFromProfile((already) => {
           if (already || hasChangedBadgeRef.current) {
             return already;
@@ -726,8 +727,8 @@ export default function BadgePickerPreview({
           const savedSideBadges = loaded.side_badges ?? emptySideBadges;
           const leftSaved = savedSideBadges.left;
           const rightSaved = savedSideBadges.right;
-          const role = findOption(leftSaved?.badge_id) ?? findOption((loaded?.role ?? [])[0]);
-          const position = findOption(rightSaved?.badge_id) ?? findOption((loaded?.position ?? [])[0]);
+          const role = findOption(leftSaved?.badge_id);
+          const position = findOption(rightSaved?.badge_id);
 
           sideBadgesRef.current = savedSideBadges;
 
@@ -789,8 +790,8 @@ export default function BadgePickerPreview({
   }, []);
 
   const chosen = { left: leftBadge, right: rightBadge };
-  const leftOption = allBadgeOptions.find((option) => option.id === leftBadge) ?? BADGE_OPTIONS[0];
-  const rightOption = allBadgeOptions.find((option) => option.id === rightBadge) ?? BADGE_OPTIONS[0];
+  const leftOption = allBadgeOptions.find((option) => option.id === leftBadge) ?? EMPTY_BADGE_OPTION;
+  const rightOption = allBadgeOptions.find((option) => option.id === rightBadge) ?? EMPTY_BADGE_OPTION;
   const showingHankyCode = activeGroup === HANKY_GROUP;
   const activeOption = activeSide === 'left' ? leftOption : rightOption;
   const activeFrame = activeSide === 'left' ? leftFrame : rightFrame;

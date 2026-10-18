@@ -1,3 +1,4 @@
+import { useAccountPreference } from '../lib/accountPreferences';
 import { useEffect, useState, type FormEvent } from 'react';
 import { ChevronLeft, ChevronRight, Clock3, Mail, RefreshCw, Search, Send } from 'lucide-react';
 import { useNavigate } from 'react-router';
@@ -67,8 +68,8 @@ function isAccessDenied(error: unknown) {
 
 export default function RequestsDashboard() {
   const navigate = useNavigate();
-  const [filter, setFilter] = useState<RequestStatusFilter>('open');
-  const [categoryFilter, setCategoryFilter] = useState<RequestCategoryFilter>('all');
+  const [filter, setFilter] = useAccountPreference<RequestStatusFilter>('requests.status', 'open');
+  const [categoryFilter, setCategoryFilter] = useAccountPreference<RequestCategoryFilter>('requests.category', 'all');
   const [offset, setOffset] = useState(0);
   const [requests, setRequests] = useState<SupportRequestAdminRecord[]>([]);
   const [page, setPage] = useState({ limit: PAGE_SIZE, offset: 0, total: 0, hasMore: false });

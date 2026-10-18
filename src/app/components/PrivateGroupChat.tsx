@@ -339,6 +339,7 @@ export default function PrivateGroupChat({
   const favoriteImageInputId = useId();
   const [message, setMessage] = useState('');
   const [messages, setMessages] = useState<ChatMessageRecord[]>([]);
+  const [messageScrollRevision, setMessageScrollRevision] = useState(0);
   const [sharedProfiles, setSharedProfiles] = useState<Record<string, ProfileRecord>>({});
   const [expiryNowMs, setExpiryNowMs] = useState(() => Date.now());
   const chatLoadGeneration = useRef(0);
@@ -399,6 +400,16 @@ export default function PrivateGroupChat({
   const favoriteFileInputRef = useRef<HTMLInputElement | null>(null);
   const settingsPanelRef = useRef<HTMLElement | null>(null);
   const textMessageSendingRef = useRef(false);
+  const receivedMessageIdsRef = useRef({ chatId, ids: new Set<string>() });
+  useLayoutEffect(() => {
+    const previous = receivedMessageIdsRef.current;
+    receivedMessageIdsRef.current = { chatId, ids: new Set(messages.map(item => item.id)) };
+    if (previous.chatId === chatId && previous.ids.size > 0
+      && messages.some(item => item.author !== 'self' && !previous.ids.has(item.id))) {
+      setMessageScrollRevision(revision => revision + 1);
+    }
+  }, [chatId, messages]);
+
 
   useLayoutEffect(() => {
     if (conversation?.kind !== 'dm' || settingsOpen) return;
@@ -457,7 +468,7 @@ export default function PrivateGroupChat({
     };
   }, [conversation?.kind, embedded, settingsOpen, dmKeyboardOpen, dmComposerClearance, keyboardInset]);
 
-  // Opening a thread starts at its newest message. Keep that position through
+  // Opening a thread or sending a message starts at its newest message. Keep that position through
   // late media/composer layout, but stop as soon as the reader browses history.
   useLayoutEffect(() => {
     if (loading || settingsOpen || !messages.length || conversation?.id !== chatId) return;
@@ -512,7 +523,7 @@ export default function PrivateGroupChat({
       viewport.removeEventListener('keydown', onKeyDown);
       viewport.removeEventListener('scroll', onScroll);
     };
-  }, [chatId, conversation?.id, loading, settingsOpen, messages.length > 0]);
+  }, [chatId, conversation?.id, loading, settingsOpen, messages.length > 0, messageScrollRevision]);
 
   const focusComposer = () => {
     if (!dmKeyboardOpenRef.current) {
@@ -962,6 +973,7 @@ export default function PrivateGroupChat({
         viewOnce: photoViewOnce,
       });
       setMessages((prev) => [...prev, normalizeRemoteMessage(createdMessage, currentUserId ?? createdMessage.userId)]);
+      setMessageScrollRevision((revision) => revision + 1);
       setMessage('');
       setError(null);
     } catch (error) {
@@ -1366,6 +1378,7 @@ export default function PrivateGroupChat({
     };
 
     setMessages((prev) => [...prev, optimisticMessage]);
+    setMessageScrollRevision((revision) => revision + 1);
     setMessage('');
     setComposerError(null);
     setComposerErrorCode(null);
@@ -1423,6 +1436,7 @@ export default function PrivateGroupChat({
       }
 
       setMessages((prev) => [...prev, normalizeRemoteMessage(createdMessage, currentUserId ?? createdMessage.userId)]);
+      setMessageScrollRevision((revision) => revision + 1);
       setMessage('');
       setPhotoViewOnce(false);
       setError(null);

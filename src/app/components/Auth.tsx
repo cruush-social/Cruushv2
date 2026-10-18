@@ -1,3 +1,4 @@
+import { loadAccountPreferences } from '../lib/accountPreferences';
 import { useCallback, useEffect, useState } from 'react';
 import { Eye, EyeOff } from 'lucide-react';
 import {
@@ -250,6 +251,7 @@ export default function Auth({ onAuth }: AuthProps) {
           twoFactorCode: twoFactorRequired ? twoFactorCode : undefined,
         });
         persistSessionUser(session);
+        await loadAccountPreferences().catch(() => undefined);
         setIsLoading(false);
         onAuth(session);
       }

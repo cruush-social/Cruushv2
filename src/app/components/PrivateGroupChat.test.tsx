@@ -2262,7 +2262,36 @@ describe('PrivateGroupChat', () => {
       } finally { rendered.unmount(); harness.restore(); }
     });
 
-    it.each(['wheel', 'scroll', 'keyboard'] as const)('preserves older history after %s through later messages and media resizing', async input => {
+    it.each([
+      ['dm', 'app-page-content'], ['group', 'app-page-content'],
+      ['dm', 'popup-route-content'], ['group', 'popup-route-content'],
+      ['dm', 'map-side-panel-content'], ['group', 'map-side-panel-content'],
+    ] as const)('scrolls to an outgoing %s message after reading older history in %s', async (kind, surface) => {
+      const harness = scrollHarness();
+      getConversationMessages.mockResolvedValue(chatData(kind));
+      createMessage.mockResolvedValue({ id: 'sent-message', userId: 'user-1', content: 'My new message', timestamp: '2026-04-29T12:07:00.000Z' });
+      const chat = <PrivateGroupChat conversationId={conversationId} embedded={surface !== 'app-page-content'} />;
+      const rendered = render(<MemoryRouter><div data-testid="app-page-content">{surface === 'app-page-content' ? chat : <div data-testid={surface}>{chat}</div>}</div></MemoryRouter>);
+      try {
+        const viewport = screen.getByTestId(surface);
+        Object.defineProperty(viewport, 'scrollHeight', { configurable: true, value: 1600 });
+        Object.defineProperty(viewport, 'clientHeight', { configurable: true, value: 600 });
+        await screen.findByText('Newest message'); harness.flush();
+        fireEvent.wheel(viewport, { deltaY: -100 }); viewport.scrollTop = 240;
+        fireEvent.change(screen.getByPlaceholderText(kind === 'group' ? 'Drop the plan...' : 'Say what you want...'), { target: { value: 'My new message' } });
+        Object.defineProperty(viewport, 'scrollHeight', { configurable: true, value: 1800 });
+        fireEvent.click(screen.getByRole('button', { name: 'Send message' }));
+        await screen.findByText('My new message'); harness.flush();
+        expect(viewport.scrollTop).toBe(1200);
+        Object.defineProperty(viewport, 'scrollHeight', { configurable: true, value: 1900 });
+        harness.resize(screen.getByTestId('chat-thread-content')); harness.flush();
+        expect(viewport.scrollTop).toBe(1300);
+        fireEvent.wheel(viewport, { deltaY: -100 }); viewport.scrollTop = 200;
+        harness.resize(viewport); harness.flush(); expect(viewport.scrollTop).toBe(200);
+      } finally { rendered.unmount(); harness.restore(); }
+    });
+
+    it.each(['wheel', 'scroll', 'keyboard'] as const)('scrolls to newly received messages after %s without scrolling for media-only resizing', async input => {
       const harness = scrollHarness();
       getConversationMessages.mockResolvedValue(chatData('group'));
       const rendered = render(<MemoryRouter><div data-testid="app-page-content"><PrivateGroupChat conversationId={conversationId} /></div></MemoryRouter>);
@@ -2287,7 +2316,7 @@ describe('PrivateGroupChat', () => {
         harness.resize(screen.getByTestId('chat-thread-content'));
         harness.resize(viewport);
         harness.flush();
-        expect(viewport.scrollTop).toBe(240);
+        expect(viewport.scrollTop).toBe(1400);
       } finally { rendered.unmount(); harness.restore(); }
     });
   });

@@ -1,3 +1,4 @@
+import { useAccountPreference, readAccountPreference, saveAccountPreference, usePreferenceDraftOwner } from '../lib/accountPreferences';
 import { useContentVisibilityRefresh } from '../lib/contentVisibilityRevision';
 import { getNsfwPhotoRestriction } from '../lib/dlMode';
 import { useTrustRestrictions } from '../lib/trustRestrictions';
@@ -319,10 +320,11 @@ export default function DirectMessages({
   const [conversations, setConversations] = useState<ConversationThread[]>([]);
   const [validPinUserIds, setValidPinUserIds] = useState<Set<string>>(() => new Set());
   const [loading, setLoading] = useState(true);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [activeTab, setActiveTab] = useState<'all' | 'unread' | 'groups' | 'clubs'>(() => (
-    searchParams.get('tab') === 'clubs' ? 'clubs' : 'all'
-  ));
+  const [searchQuery, setSearchQuery] = useAccountPreference('messages.search', '');
+  const [activeTab, setActiveTab] = useAccountPreference<'all' | 'unread' | 'groups' | 'clubs'>('messages.tab', searchParams.get('tab') === 'clubs' ? 'clubs' : 'all');
+  useEffect(() => {
+    if (searchParams.get('tab') === 'clubs') setActiveTab('clubs');
+  }, [searchParams]);
   const [error, setError] = useState<string | null>(null);
   const [composeChooserOpen, setComposeChooserOpen] = useState(false);
   const [messageSettingsOpen, setMessageSettingsOpen] = useState(false);
@@ -331,12 +333,13 @@ export default function DirectMessages({
   const [clubComposerOpen, setClubComposerOpen] = useState(false);
   const [groupName, setGroupName] = useState('');
   const [groupTimer, setGroupTimer] = useState<ConversationTimer>('24h');
-  const [groupSearchQuery, setGroupSearchQuery] = useState('');
-  const [groupSortMode, setGroupSortMode] = useState<DirectSortMode>('lastOnline');
+  const [groupSearchQuery, setGroupSearchQuery] = useAccountPreference('messages.groupSearch', '');
+  const [groupSortMode, setGroupSortMode] = useAccountPreference<DirectSortMode>('messages.groupSort', 'lastOnline');
   const [selectedMemberIds, setSelectedMemberIds] = useState<string[]>([]);
   const [mutualOptions, setMutualOptions] = useState<MutualCruushActivityItem[]>([]);
   const [directOptions, setDirectOptions] = useState<DiscoveryUser[]>([]);
   const [requestedCruushIds, setRequestedCruushIds] = useState<string[]>([]);
+  const [relationshipStateReady, setRelationshipStateReady] = useState(false);
   const [groupError, setGroupError] = useState<string | null>(null);
   const [groupLoading, setGroupLoading] = useState(false);
   const [directError, setDirectError] = useState<string | null>(null);
@@ -348,7 +351,7 @@ export default function DirectMessages({
   const [clubSummary, setClubSummary] = useState('');
   const [clubTags, setClubTags] = useState<string[]>([]);
   const [clubRequiresJoinApproval, setClubRequiresJoinApproval] = useState(true);
-  const [clubSearchQuery, setClubSearchQuery] = useState('');
+  const [clubSearchQuery, setClubSearchQuery] = useAccountPreference('messages.clubSearch', '');
   const [selectedClubMemberIds, setSelectedClubMemberIds] = useState<string[]>([]);
   const [clubError, setClubError] = useState<string | null>(null);
   const [clubLoading, setClubLoading] = useState(false);
@@ -395,6 +398,8 @@ export default function DirectMessages({
         : [];
 
       setConversations(normalized);
+      // The inbox is ready; optional relationship/map enrichment must not hide it.
+      setLoading(false);
 
       try {
         const [activity, mutualMapItems] = await Promise.all([
@@ -406,12 +411,13 @@ export default function DirectMessages({
           item.user.id,
           item.distance,
         ]));
-        setConversations(normalized.map((conversation) => conversation.kind === 'dm'
+        setConversations(current => current.map((conversation) => conversation.kind === 'dm'
           ? {
               ...conversation,
               distance: resolveConversationDistance(conversation.distance, distanceByUserId.get(conversation.user.id)),
             }
           : conversation));
+        setRelationshipStateReady(true);
         setRequestedCruushIds((activity?.sent ?? [])
           .filter((item) => item.user && !item.mutual)
           .map((item) => item.user!.id));
@@ -593,7 +599,7 @@ export default function DirectMessages({
     ]);
   };
 
-  const loadDirectMessageOptions = async (filters: FilterState = DEFAULT_FILTER_STATE) => {
+  const loadDirectMessageOptions = async (filters: FilterState = readAccountPreference('messages.seeking', DEFAULT_FILTER_STATE)) => {
     setDirectError(null);
     setDirectLoading(true);
 
@@ -664,8 +670,6 @@ export default function DirectMessages({
     setGroupComposerOpen(false);
     setGroupName('');
     setGroupTimer('24h');
-    setGroupSearchQuery('');
-    setGroupSortMode('lastOnline');
     setSelectedMemberIds([]);
     setGroupError(null);
   };
@@ -676,7 +680,6 @@ export default function DirectMessages({
     setClubSummary('');
     setClubTags([]);
     setClubRequiresJoinApproval(true);
-    setClubSearchQuery('');
     setSelectedClubMemberIds([]);
     setClubVisibilityOpen(false);
     setClubVisibility(DEFAULT_VISIBILITY_STATE);
@@ -796,7 +799,7 @@ export default function DirectMessages({
   };
 
   const handleConversationCruush = async (conversation: ConversationThread) => {
-    if (conversation.kind !== 'dm' || changingCruushUserId) return;
+    if (conversation.kind !== 'dm' || changingCruushUserId || !relationshipStateReady) return;
 
     const userId = conversation.user.id;
     const sent = requestedCruushIds.includes(userId);
@@ -1447,6 +1450,7 @@ export default function DirectMessages({
                           ? 'sent'
                           : 'available'}
                     cruushTone={conversation.mutual || requestedCruushIds.includes(conversation.user.id) ? 'dark' : undefined}
+                    cruushDisabled={!relationshipStateReady}
                     onCruush={() => void handleConversationCruush(conversation)}
                     canMessage
                     onMessage={() => openConversation(conversation.id)}
@@ -1644,9 +1648,20 @@ function DirectUserOverlay({
   // The compose page lists everyone you may message. Mutuals has its own
   // surface, so there is nothing here to switch between.
   const activeComposerTab = 'public' as const;
-  const [sortMode, setSortMode] = useState<DirectSortMode>('lastOnline');
-  const [filters, setFilters] = useState<FilterState>(DEFAULT_FILTER_STATE);
+  const [sortMode, setSortMode] = useAccountPreference<DirectSortMode>('messages.sort', 'lastOnline');
+  const filtersDraftEdited = useRef(false);
+  const [savedFilters] = useAccountPreference('messages.seeking', DEFAULT_FILTER_STATE);
+  const [filters, setFilters] = useState<FilterState>(() => readAccountPreference('messages.seeking', DEFAULT_FILTER_STATE));
   const [filtersOpen, setFiltersOpen] = useState(false);
+  useEffect(() => {
+    if (!filtersDraftEdited.current && JSON.stringify(filters) !== JSON.stringify(savedFilters)) {
+      setFilters(savedFilters); void onApplyFilters(savedFilters);
+    }
+  }, [savedFilters]);
+  usePreferenceDraftOwner(() => {
+    filtersDraftEdited.current = false;
+    setFilters(readAccountPreference('messages.seeking', DEFAULT_FILTER_STATE));
+  });
   const [requestingUserId, setRequestingUserId] = useState<string | null>(null);
   const [requestError, setRequestError] = useState<string | null>(null);
   const mutualUserIds = useMemo(() => new Set(mutuals.map((item) => item.user.id)), [mutuals]);
@@ -1868,15 +1883,19 @@ function DirectUserOverlay({
           title="Seeking Filter"
           description=""
           value={filters}
-          onChange={setFilters}
+          onChange={value => { filtersDraftEdited.current = true; setFilters(value); }}
           hasCruushPlus={hasCruushPlus}
           onUpgrade={onUpgrade}
           onClear={() => {
+            filtersDraftEdited.current = false;
             setFilters(DEFAULT_FILTER_STATE);
+            void saveAccountPreference('messages.seeking', DEFAULT_FILTER_STATE).catch(() => undefined);
             void onApplyFilters(DEFAULT_FILTER_STATE);
           }}
           onApply={() => {
+            filtersDraftEdited.current = false;
             setFiltersOpen(false);
+            void saveAccountPreference('messages.seeking', filters).catch(() => undefined);
             void onApplyFilters(filters);
           }}
         />

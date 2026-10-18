@@ -362,7 +362,7 @@ Mutable taxonomy source:
 Badge rules:
 
 - All members can choose current custom side badges. Paid badge packs remain later work.
-- Left defaults to the member's role and right defaults to position until the member selects custom badges.
+- October 17, 2026, Julien: "Keep selectors, but remove automatic selections". Role and position remain selectable badges but are never automatically selected from profile fields. Preserve explicit saved badge choices.
 - The badge intent choices are the undescribed default, Give, Receive, and Switch only.
 - Role, Position, Pride, Vibes, Kinks, and Hanky code are badge groups. There is no separate Acts, Presentation, or Boundaries badge group.
 - Hanky code remains the act-signaling system. Its deployed unbordered icons and member-selected Dom, Sub, Switch, and taken variants do not change during icon curation.
@@ -841,3 +841,13 @@ Julien: "The canvas crops my image before I get to crop it can you please stop t
 
 ### October 14, 2026 — blog author credits
 Julien: "Remember the tagline after my name on the blog posts under authorship and never do that again". Do not append identity descriptions or taglines to blog author credits. Julien then specified: "You can say Julien Lenaz, lead developer of cruush". Use exactly "Julien Lenaz, lead developer of cruush" for the author credit, with the publication date separate. This governs author credits, not first-person article content.
+
+### October 17, 2026 — onboarding map-pin preview
+Julien: "Add an onboarding step to select signal and pick role/position while showing that doing so changes the text on hover and badges" and "Make this preview include the picture they uploaded if they upladed one". Add a live preview using the actual heart-pin unit and first uploaded photo. Signal and explicit role/position choices update its hover text and side badges. This is an explicit selection on the new onboarding step; outside it, keep the no-automatic-badge-default rule. Preserve the other onboarding steps.
+
+### October 17, 2026 — one role and position per profile
+Julien: "One role/position per profile". Profile role and position each allow one optional selection; choosing another replaces the previous choice. Do not add defaults. Seeking and visibility filters retain their multiple-choice behavior.
+
+- 2026-10-17: Julien: "Signal is also optional on sign up". The onboarding Signal field remains optional.
+
+- 2026-10-17: Julien: "All filters/perferences across the app should save user perferences like even if log out and back in maybe encrypt these choices". User-selected filters and preferences persist per account across logout/login; preserve existing defaults and privacy checks.

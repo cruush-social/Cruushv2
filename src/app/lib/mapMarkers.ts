@@ -195,10 +195,10 @@ export function createMapMarkerRoleBadge(roleValues: string[] = []) {
 
 export function createSavedMapMarkerBadge(
   selection: SideBadgeSelection | null | undefined,
-  fallback: MapMarkerBadge | null,
+  _fallback: MapMarkerBadge | null,
 ) {
   if (!selection) {
-    return fallback;
+    return null;
   }
 
   const badgeId = normalizeBadgeValue(selection.badge_id);

@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import DirectMessages, { resolveConversationDistance } from './DirectMessages';
@@ -122,6 +122,14 @@ describe('DirectMessages', () => {
     openConversationOrInbox.mockReset();
     createClub.mockReset();
     createFeedPost.mockReset().mockResolvedValue({});
+  });
+
+  it('shows conversations without waiting for optional relationship enrichment', async () => {
+    getConversations.mockResolvedValue([{ id: 'fast-inbox', kind: 'dm', user: { id: 'peer', name: 'Ready conversation', pronouns: '', photo: null }, distance: 'Nearby', updatedAt: new Date().toISOString(), lastMessage: 'Ready message', unreadCount: 0, pinned: false, tags: [] }]);
+    getMyCruushActivity.mockReturnValue(new Promise(() => {}));
+    render(<MemoryRouter><DirectMessages /></MemoryRouter>);
+    expect(await screen.findByText('Ready conversation')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Send cruush to Ready conversation' })).toBeDisabled();
   });
 
   it('counts unique online people rather than recent messages or groups', async () => {
@@ -838,6 +846,52 @@ describe('DirectMessages', () => {
     expect(screen.queryByText('River')).not.toBeInTheDocument();
     expect(await screen.findByText('No messages yet.')).toBeInTheDocument();
 
+    confirmSpy.mockRestore();
+  });
+
+  it('does not restore a deleted conversation when delayed enrichment finishes', async () => {
+    let resolveActivity!: (value: unknown) => void;
+    getMyCruushActivity.mockReturnValue(new Promise(resolve => { resolveActivity = resolve; }));
+    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true);
+    getConversations.mockResolvedValue([{
+      id: 'conversation-1',
+      kind: 'dm',
+      user: {
+        id: 'user-2',
+        name: 'River',
+        pronouns: 'they/them',
+        photo: null,
+      },
+      distance: 'Nearby',
+      updatedAt: new Date().toISOString(),
+      lastMessage: 'meet by the door',
+      unreadCount: 0,
+      pinned: false,
+      muted: false,
+      mutual: true,
+      tags: [],
+    }]);
+    deleteConversationForEveryone.mockResolvedValue(undefined);
+
+    render(
+      <MemoryRouter>
+        <DirectMessages />
+      </MemoryRouter>,
+    );
+
+    expect(await screen.findByText('River')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Delete River chat for everyone' }));
+
+    expect(confirmSpy).toHaveBeenCalledWith('Delete chat with River for everyone? This removes the chat and its messages for all participants.');
+    await waitFor(() => {
+      expect(deleteConversationForEveryone).toHaveBeenCalledWith('conversation-1');
+    });
+    expect(screen.queryByText('River')).not.toBeInTheDocument();
+    expect(await screen.findByText('No messages yet.')).toBeInTheDocument();
+
+    await act(async () => { resolveActivity({ mutual: [], sent: [] }); });
+    expect(screen.queryByText('River')).not.toBeInTheDocument();
     confirmSpy.mockRestore();
   });
 

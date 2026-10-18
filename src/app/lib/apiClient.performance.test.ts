@@ -64,6 +64,17 @@ describe('API loading performance', () => {
     await expect(Promise.all([during, fresh, sharedFresh])).resolves.toEqual(['during', 'fresh', 'fresh']);
   });
 
+  it.each([['/api/rewards/timezone', 'PUT'], ['/api/push/subscriptions/refresh', 'POST']])('keeps content requests shared through bookkeeping %s', async (path, method) => {
+    const pending = deferredResponse();
+    const fetchMock = vi.fn().mockReturnValueOnce(pending.promise).mockResolvedValueOnce(response({ saved: true }));
+    vi.stubGlobal('fetch', fetchMock);
+    const first = requestApi('/api/users');
+    await requestApi(path, { method, body: '{}' });
+    const second = requestApi('/api/users');
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    pending.resolve(response([])); await Promise.all([first, second]);
+  });
+
   it('does not retain failed reads', async () => {
     const fetchMock = vi.fn().mockRejectedValueOnce(new Error('offline')).mockResolvedValueOnce(response('recovered'));
     vi.stubGlobal('fetch', fetchMock);

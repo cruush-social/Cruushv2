@@ -1,3 +1,4 @@
+import { useAccountPreference, readAccountPreference, usePreferenceDraftOwner } from '../lib/accountPreferences';
 import { useContentVisibilityRefresh } from '../lib/contentVisibilityRevision';
 import { showPurgatoryPresentation } from '../lib/purgatoryPresentation';
 import { useTrustRestrictions } from '../lib/trustRestrictions';
@@ -220,12 +221,26 @@ export default function LocalFeed({ embedded = false, onClose }: { embedded?: bo
   const [hasMorePosts, setHasMorePosts] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
   const [seekingOpen, setSeekingOpen] = useState(false);
-  const [feedSeekingDraft, setFeedSeekingDraft] = useState<FilterState>(DEFAULT_FEED_SEEKING_FILTERS);
-  const [feedSeekingFilters, setFeedSeekingFilters] = useState<FilterState>(DEFAULT_FEED_SEEKING_FILTERS);
-  const [excludeMileHighClubDraft, setExcludeMileHighClubDraft] = useState(false);
-  const [excludeMileHighClub, setExcludeMileHighClub] = useState(false);
-  const [purgatoryFilterDraft, setPurgatoryFilterDraft] = useState<'all' | 'only' | 'exclude'>('all');
-  const [purgatoryFilter, setPurgatoryFilter] = useState<'all' | 'only' | 'exclude'>('all');
+  const seekingDraftEdited = useRef(false);
+  const [feedSeekingDraft, setFeedSeekingDraft] = useState<FilterState>(() => readAccountPreference('feed.seeking', DEFAULT_FEED_SEEKING_FILTERS));
+  const [feedSeekingFilters, setFeedSeekingFilters] = useAccountPreference<FilterState>('feed.seeking', DEFAULT_FEED_SEEKING_FILTERS);
+  const [excludeMileHighClubDraft, setExcludeMileHighClubDraft] = useState(() => readAccountPreference('feed.excludeMileHighClub', false));
+  const [excludeMileHighClub, setExcludeMileHighClub] = useAccountPreference('feed.excludeMileHighClub', false);
+  const [purgatoryFilterDraft, setPurgatoryFilterDraft] = useState<'all' | 'only' | 'exclude'>(() => readAccountPreference('feed.purgatory', 'all'));
+  const [purgatoryFilter, setPurgatoryFilter] = useAccountPreference<'all' | 'only' | 'exclude'>('feed.purgatory', 'all');
+  useEffect(() => {
+    if (!seekingDraftEdited.current) {
+      setFeedSeekingDraft(feedSeekingFilters);
+      setExcludeMileHighClubDraft(excludeMileHighClub);
+      setPurgatoryFilterDraft(purgatoryFilter);
+    }
+  }, [feedSeekingFilters, excludeMileHighClub, purgatoryFilter]);
+  usePreferenceDraftOwner(() => {
+    seekingDraftEdited.current = false;
+    setFeedSeekingDraft(readAccountPreference('feed.seeking', DEFAULT_FEED_SEEKING_FILTERS));
+    setExcludeMileHighClubDraft(readAccountPreference('feed.excludeMileHighClub', false));
+    setPurgatoryFilterDraft(readAccountPreference('feed.purgatory', 'all'));
+  });
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [settingsSaving, setSettingsSaving] = useState(false);
   const [feedSettingsLoaded, setFeedSettingsLoaded] = useState(false);
@@ -241,6 +256,7 @@ export default function LocalFeed({ embedded = false, onClose }: { embedded?: bo
   const hasCruushPlusRef = useRef<boolean | null>(null);
   const feedSettingsRef = useRef<FeedSettings>(DEFAULT_FEED_SETTINGS);
   const initialFeedSettingsRef = useRef<Promise<void>>(Promise.resolve());
+  const initialFeedRequestStartedRef = useRef(false);
   const feedSettingsSaveChainRef = useRef<Promise<void>>(Promise.resolve());
   const applyFeedSettings = (nextSettings: FeedSettings) => {
     feedSettingsRef.current = nextSettings;
@@ -505,6 +521,7 @@ export default function LocalFeed({ embedded = false, onClose }: { embedded?: bo
         setSelectedCrowdTargets((currentTargets) => currentTargets.filter((crowd) => allowedCrowds.includes(crowd)));
         setFeedCoordinates(coordinates);
         await initialFeedSettingsRef.current;
+        initialFeedRequestStartedRef.current = true;
         void fetchPosts({ coordinates, within: feedSettingsRef.current.feedWindow });
       })
       .catch(async () => {
@@ -512,12 +529,16 @@ export default function LocalFeed({ embedded = false, onClose }: { embedded?: bo
         setSelectedCrowdTargets([]);
         setFeedCoordinates(null);
         await initialFeedSettingsRef.current;
+        initialFeedRequestStartedRef.current = true;
         void fetchPosts({ coordinates: null, within: feedSettingsRef.current.feedWindow });
       });
 
   }, []);
 
   useContentVisibilityRefresh(async (isCurrent) => {
+    // Initial loading will query current permissions with the resolved location/settings.
+    // Do not race it with a redundant request using temporary defaults.
+    if (!initialFeedRequestStartedRef.current) return;
     // Replace the loaded window: appending cannot remove a now-banned author.
     const viewedAuthorId = photoViewer?.post.user.id;
     const refreshPhoto = viewedAuthorId ? getProfileById(viewedAuthorId).catch(error => {
@@ -1385,9 +1406,10 @@ export default function LocalFeed({ embedded = false, onClose }: { embedded?: bo
       description={null}
       excludeMileHighClub={excludeMileHighClubDraft}
       purgatoryFilter={purgatoryFilterDraft}
-      onPurgatoryFilterChange={setPurgatoryFilterDraft}
+      onPurgatoryFilterChange={value => { seekingDraftEdited.current = true; setPurgatoryFilterDraft(value); }}
       hasCruushPlus={hasCruushPlus === true}
       onApply={() => {
+        seekingDraftEdited.current = false;
         const nextFilters = { ...feedSeekingDraft };
         setFeedSeekingDraft(nextFilters);
         setFeedSeekingFilters(nextFilters);
@@ -1402,13 +1424,14 @@ export default function LocalFeed({ embedded = false, onClose }: { embedded?: bo
           purgatoryFilter: purgatoryFilterDraft,
         });
       }}
-      onChange={setFeedSeekingDraft}
+      onChange={value => { seekingDraftEdited.current = true; setFeedSeekingDraft(value); }}
       onClear={() => {
+        seekingDraftEdited.current = true;
         setFeedSeekingDraft(DEFAULT_FEED_SEEKING_FILTERS);
         setExcludeMileHighClubDraft(false);
         setPurgatoryFilterDraft('all');
       }}
-      onExcludeMileHighClubChange={setExcludeMileHighClubDraft}
+      onExcludeMileHighClubChange={value => { seekingDraftEdited.current = true; setExcludeMileHighClubDraft(value); }}
       onOpenChange={setSeekingOpen}
       onUpgrade={() => setPlusCardOpen(true)}
       conversionSurface="feed_plus"

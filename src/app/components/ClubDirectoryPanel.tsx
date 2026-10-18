@@ -1,3 +1,4 @@
+import { useAccountPreference } from '../lib/accountPreferences';
 import { useEffect, useMemo, useState } from 'react';
 import { ChevronRight, Trash2 } from 'lucide-react';
 import { useNavigate } from 'react-router';
@@ -37,8 +38,8 @@ export default function ClubDirectoryPanel({
 }: ClubDirectoryPanelProps) {
   const navigate = useNavigate();
   const [clubs, setClubs] = useState<ClubDirectoryRecord[]>([]);
-  const [view, setView] = useState<ClubView>('mine');
-  const [browseSort, setBrowseSort] = useState<'recent' | 'nearby'>('recent');
+  const [view, setView] = useAccountPreference<ClubView>('clubs.view', 'mine');
+  const [browseSort, setBrowseSort] = useAccountPreference<'recent' | 'nearby'>('clubs.sort', 'recent');
   const [loading, setLoading] = useState(false);
   const [deletingClubId, setDeletingClubId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);

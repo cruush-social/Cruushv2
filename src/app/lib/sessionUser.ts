@@ -1,3 +1,4 @@
+import { loadAccountPreferences, resetAccountPreferences } from './accountPreferences';
 import { ApiClientError, invalidatePendingApiReads } from './apiClient';
 import { getAuthSession, type AuthSessionPayload } from './authApi';
 import { clearDeletedAccountDistancePreferences } from './distancePreferences';
@@ -35,7 +36,7 @@ export function persistCurrentUser(user: StoredCruushUser) {
   const existingUser = readStoredUser();
   const userId = user.id ?? existingUser?.id;
   if (userId && deletedAccountIds.has(userId)) return;
-  if (userId !== existingUser?.id) invalidatePendingApiReads();
+  if (userId !== existingUser?.id) { invalidatePendingApiReads(); resetAccountPreferences(); }
   const nextUser: StoredCruushUser = {
     ...existingUser,
     ...user,
@@ -50,6 +51,7 @@ export function clearCurrentUser() {
   localStorage.removeItem('cruush_user');
   localStorage.removeItem(VERIFICATION_PREVIEW_URL_KEY);
   sessionStorage.clear();
+  resetAccountPreferences();
 }
 
 /** Account erasure is broader than logout, but never clears another account's cache. */
@@ -90,6 +92,7 @@ export function clearDeletedAccountUser(deletedUserId?: string | null) {
 
   clearDeletedAccountDistancePreferences(userId, ownsCurrentSession);
   if (!ownsCurrentSession) return;
+  resetAccountPreferences();
   invalidatePendingApiReads();
   clearOnboardingDraft();
   [
@@ -150,6 +153,7 @@ export async function loadCurrentSession() {
     const session = await getAuthSession();
     if (deletedAccountIds.has(session.user.id)) return null;
     persistSessionUser(session);
+    await loadAccountPreferences().catch(() => undefined);
     return session;
   } catch (error) {
     if (error instanceof ApiClientError && error.status === 401) {

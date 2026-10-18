@@ -11,9 +11,10 @@ import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { acceptCodeOfConduct, attachReferralCode, getAuthSession, type AuthSessionPayload } from '../lib/authApi';
 import CodeOfConduct from './CodeOfConduct';
-import { emptyProfilePayload, emptySideBadges, saveMyProfile, toDefaultKinkInterest, type ProfilePayload, type SideBadges, uploadProfilePhoto } from '../lib/profileApi';
+import { emptyProfilePayload, emptySideBadges, saveMyProfile, saveMySideBadges, toDefaultKinkInterest, type ProfilePayload, type SideBadges, uploadProfilePhoto } from '../lib/profileApi';
 import { ApiClientError } from '../lib/apiClient';
 import HeartPhoto from './HeartPhoto';
+import OnboardingMapPinStep from './OnboardingMapPinStep';
 import {
   getPhotoUploadRejectedMessage,
   ProfilePhotoCropper,
@@ -54,6 +55,7 @@ type OnboardingStep =
   | 'crowds'
   | 'lookingFor'
   | 'vibes'
+  | 'mapPin'
   | 'oath'
   | 'twoFactor'
   | 'affiliateShare';
@@ -63,6 +65,7 @@ const PROFILE_STEPS: OnboardingStep[] = [
   'identities',
   'crowds',
   'vibes',
+  'mapPin',
 ];
 
 const STEP_COPY: Record<OnboardingStep, { rite: string }> = {
@@ -71,6 +74,7 @@ const STEP_COPY: Record<OnboardingStep, { rite: string }> = {
   crowds: { rite: 'find your crowd' },
   lookingFor: { rite: 'declare your hunger' },
   vibes: { rite: 'reveal your aura' },
+  mapPin: { rite: 'make your mark' },
   oath: { rite: 'take the oath' },
   twoFactor: { rite: 'protect your key' },
   affiliateShare: { rite: 'summon your circle' },
@@ -174,6 +178,8 @@ type OnboardingProfileState = {
   custom_mpox_vaccine: string;
   sexuality: string[];
   sideBadges: SideBadges;
+  sideBadgesEdited?: boolean;
+  savedProfileVersion?: string;
 };
 
 export default function ProfileOnboarding({
@@ -669,8 +675,8 @@ export default function ProfileOnboarding({
         body_type: profile.body_type,
         height: profile.height,
         weight: profile.weight,
-        position: profile.position,
-        role: profile.role,
+        position: profile.position.slice(-1),
+        role: profile.role.slice(-1),
         side_badges: profile.sideBadges,
         is_trans: profile.is_trans,
         trans_status_visibility: 'mutual_cruushes',
@@ -706,7 +712,11 @@ export default function ProfileOnboarding({
         sexuality: profile.sexuality,
       };
 
-      const savedProfile = await saveMyProfile(payload);
+      const savedProfile = await saveMyProfile({ ...payload, ...(profile.savedProfileVersion ? { expected_save_version: profile.savedProfileVersion } : { save_mode: 'create' as const }) });
+      setProfile(previous => ({ ...previous, savedProfileVersion: savedProfile.save_version }));
+      if (profile.sideBadgesEdited || profile.sideBadges.left || profile.sideBadges.right) {
+        await saveMySideBadges(profile.sideBadges);
+      }
       persistCurrentUser({
         id: savedProfile.id,
         name: savedProfile.display_name,
@@ -922,6 +932,23 @@ export default function ProfileOnboarding({
                   <p className="mt-1 text-base text-white/58">Optional. Pick up to 3.</p>
                 </div>
               );
+            case 'mapPin':
+              return <OnboardingMapPinStep
+                name={profile.name} photo={profile.photos[0]} signal={profile.signal}
+                role={profile.role} position={profile.position} badges={profile.sideBadges}
+                onSignalChange={value => setProfileField('signal', value)}
+                onChoiceChange={(field, values) => setProfile(previous => {
+                  const selected = values.slice(-1);
+                  const side = field === 'role' ? 'left' : 'right';
+                  return {
+                    ...previous, [field]: selected, sideBadgesEdited: true,
+                    sideBadges: {
+                      ...previous.sideBadges,
+                      [side]: selected[0] ? { badge_id: selected[0], intent: 'none', frame: 'circle' } : null,
+                    },
+                  };
+                })}
+              />;
             case 'oath':
               return signedCodeOfConductAt ? (
                 <CodeOfConduct checked readOnly signedAt={signedCodeOfConductAt} />
